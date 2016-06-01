@@ -4,7 +4,6 @@
  * and the dependency scope. Within the dependency scope all the
  * dependencies are bound.
  */
-//noinspection JSUnresolvedVariable
 !function (scope, dependencyScope) {
 
     //noinspection JSUnresolvedVariable

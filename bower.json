@@ -7,7 +7,7 @@
     "Marco Recchioni <marco@breinify.com>",
     "Diane Keng <diane@breinify.com>"
   ],
-  "main": "dist/breinify.min.js",
+  "main": "dist/breinify.js",
   "ignore": [
     "src/**/*",
     "specs/**/*",
@@ -16,8 +16,9 @@
   "license": "MIT",
   "private": false,
   "homepage": "https://github.com/Breinify/brein-api-library-javascript-browser",
-  "dependencies": {
-    "brein-util": "git+https://github.com/breinify/brein-javascript.git",
-    "jquery": "^2.2.4"
+  "dependencies": {},
+  "devDependencies": {
+    "jquery": "^2.2.4",
+    "brein-util": "git+https://github.com/breinify/brein-javascript.git"
   }
 }

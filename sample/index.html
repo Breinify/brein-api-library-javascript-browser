@@ -70,7 +70,7 @@
     </table>
 
     <h1>Current Configuration</h1>
-    <table>
+    <table data-sort="true">
         <tr>
             <th>Property</th>
             <th>Value</th>
@@ -101,6 +101,18 @@
         row.children('td:first-child').text(property);
         row.children('td:nth-child(2)').text(value);
         row.removeAttr('id', null).show().appendTo(clonableRow.parent());
+    });
+
+    // sort all the tables
+    $('table[data-sort="true"]').each(function(idx, el) {
+        var $el = $(el);
+
+        $el.find('tr').sort(function (a, b) {
+            var $aTd = $('td:nth-child(1)', a);
+            var $bTd = $('td:nth-child(1)', b);
+
+            return $aTd.text().localeCompare($bTd.text());
+        }).appendTo($el);
     });
 </script>
 

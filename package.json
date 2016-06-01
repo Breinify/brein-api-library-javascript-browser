@@ -13,7 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/breinify/brein-api-library-javascript-browser.git"
   },
-  "main": "dist/breinify.min.js",
+  "main": "dist/breinify.js",
   "dependencies": {
   },
   "devDependencies": {

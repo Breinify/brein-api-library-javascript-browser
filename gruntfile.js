@@ -168,6 +168,7 @@ module.exports = function (grunt) {
         bower: {
             dep: {
                 options: {
+                    includeDev: true,
                     checkExistence: true,
                     paths: bowerPaths,
                     overrides: {
@@ -179,12 +180,11 @@ module.exports = function (grunt) {
             },
             setup: {
                 options: {
+                    includeDev: true,
                     checkExistence: true,
                     paths: bowerPaths,
                     overrides: {
-                        'brein-util': {
-                            'main': 'grunt/default-layout/**/*'
-                        }
+                        'brein-util': {'main': 'grunt/default-layout/**/*'}
                     }
                 },
                 base: bowerPaths.bowerDirectory + '/brein-util/grunt/default-layout',
@@ -299,15 +299,23 @@ module.exports = function (grunt) {
     });
 
     //noinspection JSUnresolvedFunction
+    grunt.registerTask('createBowerDir', 'Creates the needed bower directory', function () {
+
+        //noinspection JSUnresolvedFunction
+        grunt.file.mkdir(bowerPaths.bowerDirectory);
+    });
+
+    //noinspection JSUnresolvedFunction
     grunt.registerTask('dep', 'Resolves the dependencies used by bower.', function (clean) {
         clean = typeof clean === 'string' && 'true' === clean.toLowerCase();
 
         var tasks = [];
-        if (clean) tasks.push('clean:dep');
-        tasks.push('bower-install-simple:dep');
-        if (grunt.file.exists('bower_components')) {
-            tasks.push('bower:dep');
+        if (clean) {
+            tasks.push('clean:dep');
+            tasks.push('createBowerDir');
         }
+        tasks.push('bower-install-simple:dep');
+        tasks.push('bower:dep');
 
         //noinspection JSUnresolvedVariable
         grunt.task.run(tasks);
@@ -338,7 +346,7 @@ module.exports = function (grunt) {
     grunt.registerTask('setup', 'Updates the files for the web server', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('clean:setup', 'combine:false', 'bower:setup', 'dist', 'copy:setup');
+        grunt.task.run('clean:setup', 'combine:false', 'createBowerDir', 'bower:setup', 'dist', 'copy:setup');
     });
 
     //noinspection JSUnresolvedFunction
