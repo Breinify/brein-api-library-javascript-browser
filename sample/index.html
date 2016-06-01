@@ -1,0 +1,108 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="css/simple-sample.css">
+
+    <script src="js/breinify.js"></script>
+
+    <!-- just for test purposes we add another jQuery library -->
+    <script src="js/jquery.js"></script>
+
+    <title>Sample: brein-api-javascript-browser (aka breinify.js)</title>
+
+    <style>
+        h1 {
+            font-size: 20px;
+            font-weight: bold;
+            padding-left: 5px;
+            padding-bottom: 10px;
+        }
+
+        h1:not(:first-child) {
+            padding-top: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        th:first-child {
+            width: 250px
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<div class="frame">
+
+    <h1>General Information</h1>
+    <table>
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Breinify Library Version</td>
+            <td id="breinify-version"></td>
+        </tr>
+        <tr>
+            <td>Breinify jQuery Version</td>
+            <td id="breinify-jquery-version"></td>
+        </tr>
+        <tr>
+            <td>External jQuery Version</td>
+            <td id="external-jquery-version"></td>
+        </tr>
+    </table>
+
+    <h1>Current Configuration</h1>
+    <table>
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+        </tr>
+        <tr id="clonable-configuration-row" style="display:none">
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+</div>
+
+<script language="javascript">
+
+    //noinspection JSUnresolvedVariable
+    var BreinifyLib = Breinify;
+
+    // set the external version
+    $('#breinify-version').text(BreinifyLib.version);
+    $('#breinify-jquery-version').text(BreinifyLib.jQueryVersion);
+    $('#external-jquery-version').text($.fn.jquery);
+
+    // show the configuration
+    var config = BreinifyLib.config();
+    var clonableRow = $('#clonable-configuration-row');
+    $.each(config, function(property, value) {
+
+        var row = clonableRow.clone(false);
+        row.children('td:first-child').text(property);
+        row.children('td:nth-child(2)').text(value);
+        row.removeAttr('id', null).show().appendTo(clonableRow.parent());
+    });
+</script>
+
+</body>
+</html>

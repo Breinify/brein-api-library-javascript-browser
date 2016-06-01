@@ -1,0 +1,7 @@
+/*
+ * We inject a dependencyScope variable, which will be used
+ * for all further dependencies. Thus, the dependencies won't
+ * register any global variables.
+ */
+;(function(window){
+  var dependencyScope = {};

@@ -1,0 +1,21 @@
+# Libraries          #
+######################
+bower_components/**/*
+node_modules/**/*
+
+# Targets            #
+######################
+target/**/*
+
+# Temporary          #
+######################
+tmp/**/*
+
+# Configurations     #
+######################
+src/config/dev-*.properties
+
+# OS generated files #
+######################
+**/.DS_Store
+**/.DS_Store?
