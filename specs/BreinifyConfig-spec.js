@@ -84,7 +84,6 @@ describe('BreinifyConfig', function () {
         // create a configuration
         var config = {};
         config[a.URL] = 'https://api-internal.breinify.com';
-        config[a.API_KEY] = '123789123981273891';
         config[a.SECRET] = null;
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
@@ -97,6 +96,8 @@ describe('BreinifyConfig', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(config1.get(a.URL)).toBe('https://api-internal.breinify.com');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(config1.get(a.API_KEY)).toBe('0000-0000-0000-0000-0000-0000-0000-0000');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(config1.get(a.SECRET)).toBeNull();
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
@@ -108,7 +109,33 @@ describe('BreinifyConfig', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('TODO', function () {
+    it('throws exception on invalid values', function () {
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(function () {
+
+            //noinspection JSUnresolvedVariable
+            new Breinify.BreinifyConfig({
+                'apiKey': 'invalid'
+            });
+        }).toThrow(new Error("The value \"invalid\" is invalid for the property \"apiKey\"."));
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('throws exception on unknown attributes', function () {
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(function () {
+
+            //noinspection JSUnresolvedVariable
+            new Breinify.BreinifyConfig({
+                'unknown': 'invalid'
+            });
+        }).toThrow(new Error("The property \"unknown\" is not a valid attribute for the configuration."));
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('can disable validation', function () {
 
         //noinspection JSUnresolvedVariable
         var a = Breinify.BreinifyConfig.ATTRIBUTES;
@@ -116,11 +143,14 @@ describe('BreinifyConfig', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         var config = new Breinify.BreinifyConfig({
             'url': 'https://www.breinify.com',
+            'apiKey': 'invalid',
             'validate': false
         });
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(config.get(a.URL)).toBe('https://www.breinify.com');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(config.get(a.API_KEY)).toBe('invalid');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(config.get(a.VALIDATE)).toBe(false);
     });

@@ -58,7 +58,7 @@
                 if (!instance.is(property)) {
                     throw new Error('The property "' + property + '" is not a valid attribute for the configuration.');
                 } else if (!instance.validate(property, value)) {
-                    throw new Error('The value "' + value + '" is invalid for the property "' + value + '".');
+                    throw new Error('The value "' + value + '" is invalid for the property "' + property + '".');
                 }
             });
         }
@@ -71,14 +71,40 @@
         name: 'url',
         defaultValue: 'https://api.breinify.com',
         validate: function (value) {
-            return value !== null && typeof value === 'string';
+            return value !== null && typeof value === 'string' && '' !== value.trim();
+        }
+    };
+    _attributes_enum.ACTIVITY_ENDPOINT = {
+        name: 'activityEndpoint',
+        defaultValue: '/activity',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
+        }
+    };
+    _attributes_enum.LOOKUP_ENDPOINT = {
+        name: 'lookupEndpoint',
+        defaultValue: '/lookup',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
+        }
+    };
+    _attributes_enum.CATEGORY = {
+        name: 'category',
+        defaultValue: 'other',
+        validate: function (value) {
+            return value === null || (typeof value === 'string' && '' !== value.trim());
         }
     };
     _attributes_enum.API_KEY = {
         name: 'apiKey',
-        defaultValue: '<must be specified>',
+        defaultValue: '0000-0000-0000-0000-0000-0000-0000-0000',
         validate: function (value) {
-            return value !== null && typeof value === 'string';
+
+            if (value !== null && typeof value === 'string') {
+                return value.match(/([A-Z0-9]{4}\-){7}([A-Z0-9]{4})/);
+            } else {
+                return false;
+            }
         }
     };
     _attributes_enum.SECRET = {

@@ -95,16 +95,24 @@
     // show the configuration
     var config = BreinifyLib.config();
     var clonableRow = $('#clonable-configuration-row');
-    $.each(config, function(property, value) {
+    $.each(config, function (property, value) {
 
         var row = clonableRow.clone(false);
         row.children('td:first-child').text(property);
-        row.children('td:nth-child(2)').text(value);
+
+        // format the value if it's null
+        if (typeof  value === 'undefined' || value === null) {
+            row.children('td:nth-child(2)').html('<span style="font-style:italic">' + value + '</span>');
+        } else {
+            row.children('td:nth-child(2)').text(value);
+        }
+
+        // append the created clone
         row.removeAttr('id', null).show().appendTo(clonableRow.parent());
     });
 
     // sort all the tables
-    $('table[data-sort="true"]').each(function(idx, el) {
+    $('table[data-sort="true"]').each(function (idx, el) {
         var $el = $(el);
 
         $el.find('tr').sort(function (a, b) {
@@ -114,6 +122,12 @@
             return $aTd.text().localeCompare($bTd.text());
         }).appendTo($el);
     });
+
+    var user = {
+        'email': 'philipp.meisen@breinify.com'
+    };
+
+    BreinifyLib.activity(user, 'login');
 </script>
 
 </body>

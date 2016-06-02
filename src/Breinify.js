@@ -10,7 +10,39 @@
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
     var $ = dependencyScope.jQuery;
+    var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
+    var ATTR = BreinifyConfig.ATTRIBUTES;
+
+    var _privates = {
+        'ajax': function (url, data, success, error) {
+
+            $.ajax({
+
+                // set some general stuff regarding communication
+                'url': url,
+                'type': 'POST',
+                'crossDomain': true,
+
+                // set the data
+                'data': data,
+
+                // let's hope it worked
+                'success': function (data) {
+                    if ($.isFunction(success)) {
+                        success(data);
+                    }
+                },
+
+                // let's ignore any error
+                'error': function (jqXHR, text, exception) {
+                    if ($.isFunction(error)) {
+                        error(exception, text);
+                    }
+                }
+            });
+        }
+    };
 
     /*
      * The internally used configuration used for all calls.
@@ -26,6 +58,7 @@
     };
 
     Breinify.BreinifyConfig = BreinifyConfig;
+    Breinify.BreinifyUser = BreinifyUser;
 
     /**
      * Modify the configuration to the specified configuration.
@@ -54,8 +87,51 @@
         return _config.all();
     };
 
-    Breinify.output = function () {
+    Breinify.activity = function (user, type, category) {
 
+        // get the user information
+        new BreinifyUser(user, function (user) {
+
+            // if (!user.isValid()) {
+            //     // just silently return
+            //     return;
+            // }
+
+            // get some default values for the passed parameters - if not set
+            type = typeof category === 'undefined' || category === null ? null : type;
+            category = typeof category === 'undefined' || category === null ? _config.get(ATTR.CATEGORY) : category;
+
+            // get the other values needed
+            var unixTimestamp = Math.floor(new Date().getTime() / 1000);
+
+            // create the data set
+            var data = {
+                'user': user.all(),
+
+                'activity': {
+                    'type': type,
+                    'category': category
+                },
+
+                'apiKey': _config.get(ATTR.API_KEY),
+                'unixTimestamp': unixTimestamp
+            };
+
+            console.log(data);
+
+            var url = _config.get(ATTR.URL) + _config.get(ATTR.ACTIVITY_ENDPOINT);
+            //_privates.ajax(url, data);
+        });
+    };
+
+    Breinify.lookup = function () {
+        var url = _config.get(ATTR.URL) + _config.get(ATTR.LOOKUP_ENDPOINT);
+
+    };
+
+    Breinify.md5 = function (value) {
+        //noinspection JSUnresolvedVariable,JSUnresolvedFunction
+        return CryptoJS.MD5(null).toString(CryptoJS.enc.Base64);
     };
 
     //noinspection JSUnresolvedFunction

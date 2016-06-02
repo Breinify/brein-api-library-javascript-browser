@@ -172,8 +172,8 @@ module.exports = function (grunt) {
                     checkExistence: true,
                     paths: bowerPaths,
                     overrides: {
-                        // added: override for the dependencies
-                        'brein-util': {'main': 'common/dist/brein-util-common.js'}
+                        'brein-util': {'main': 'common/dist/brein-util-common.js'},
+                        'cryptojslib': {'main': 'rollups/md5.js'}
                     }
                 },
                 dest: 'target/dep'
@@ -184,7 +184,8 @@ module.exports = function (grunt) {
                     checkExistence: true,
                     paths: bowerPaths,
                     overrides: {
-                        'brein-util': {'main': 'grunt/default-layout/**/*'}
+                        'brein-util': {'main': 'grunt/default-layout/**/*'},
+                        'cryptojslib': {'ignore': true}
                     }
                 },
                 base: bowerPaths.bowerDirectory + '/brein-util/grunt/default-layout',
@@ -221,11 +222,13 @@ module.exports = function (grunt) {
                     src: [
                         'src/snippets/prefix-global.js.snippet',
                         'target/dep/jquery.js',
+                        'target/dep/md5.js',
                         'src/snippets/disable-global-jquery.js.snippet',
                         'src/snippets/prefix-replace-window.js.snippet',
                         'target/dep/**/*.js',
                         'src/snippets/suffix-replace-window.js.snippet',
                         'target/replaced/BreinifyConfig.js',
+                        'target/replaced/BreinifyUser.js',
                         'target/replaced/**/*.js',
                         'src/snippets/suffix-global.js.snippet'
                     ],
@@ -254,7 +257,6 @@ module.exports = function (grunt) {
         copy: {
             setup: {
                 files: [
-                    // {expand: true, cwd: 'target/dep', src: '**', dest: 'target/root/js'},
                     {expand: true, cwd: 'dist', src: '**/<%= pkg.name %>.js', dest: 'target/root/js'},
                     {expand: true, cwd: 'dist', src: '**/<%= pkg.name %>.min.js', dest: 'target/root/js'},
                     {expand: true, cwd: 'sample', src: '**', dest: 'target/root'}
