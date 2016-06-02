@@ -5,6 +5,7 @@
  * dependencies are bound.
  */
 !function (scope, dependencyScope) {
+    "use strict";
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;

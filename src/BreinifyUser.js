@@ -5,6 +5,7 @@
  * dependencies are bound.
  */
 !function (scope, dependencyScope) {
+    "use strict";
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
@@ -102,54 +103,56 @@
                 callback(null);
             } else if (typeof permissions !== 'object') {
                 callback(null);
-            }
+            } else {
 
-            // check if the permission is already granted
-            permissions.query({name: 'geolocation'}).then(function (permission) {
-                if (permission.state === 'granted') {
-                    geo.getCurrentPosition(
-                        function (position) {
-                            callback({
-                                'accuracy': position.coords.accuracy,
-                                'latitude': position.coords.latitude,
-                                'longitude': position.coords.longitude,
-                                'speed': position.coords.speed
+                // check if the permission is already granted
+                permissions.query({name: 'geolocation'}).then(function (permission) {
+                    if (permission.state === 'granted') {
+                        geo.getCurrentPosition(
+                            function (position) {
+                                callback({
+                                    'accuracy': position.coords.accuracy,
+                                    'latitude': position.coords.latitude,
+                                    'longitude': position.coords.longitude,
+                                    'speed': position.coords.speed
+                                });
+                            }, function () {
+                                callback(null)
+                            }, {
+                                'timeout': 150
                             });
-                        }, function () {
-                            callback(null)
-                        }, {
-                            'timeout': 150
-                        });
-                } else {
-                    callback(null);
-                }
-            });
+                    } else {
+                        callback(null);
+                    }
+                });
+            }
         }
     };
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
         instance.version = '{{PROJECT.VERSION}}';
+        instance._user = {};
 
         _privates.resolveGeoLocation(function (location) {
 
             /*
              * Get the default values we have for the user
              */
-            var initUser = {
+            instance.addAdditional({
                 'userAgent': navigator.userAgent,
                 'location': location
-            };
+            });
 
             /*
              * Validate the passed user-parameters.
              */
             if (typeof user == 'undefined' || user == null) {
-                instance._user = initUser;
+                // nothing to do, we don't have more
             } else if (user instanceof BreinifyUser) {
-                instance._user = $.extend(initUser, user._user);
+                $.extend(true, instance._user, user._user);
             } else if ($.isPlainObject(user)) {
-                instance._user = $.extend(initUser, user);
+                $.extend(true, instance._user, user);
             } else {
                 throw new Error('The passed parameter "user" is invalid.');
             }
@@ -177,6 +180,14 @@
      */
     BreinifyUser.prototype = {
 
+        addAdditional: function (additional) {
+            if (!$.isPlainObject(additional)) {
+                throw new Error('The additional must be a plain object');
+            }
+
+            this._user.additional = $.extend(this._user.additional, additional)
+        },
+
         get: function (attribute) {
             return this._user[attribute];
         },
@@ -189,6 +200,12 @@
 
             // set the new value
             this._user[attribute] = value;
+        },
+
+        isValid: function () {
+
+
+            return true;
         }
     };
 

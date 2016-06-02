@@ -11,8 +11,7 @@ describe('BreinifyConfig', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof config).toBe('function');
     });
-
-
+    
     //noinspection JSUnresolvedFunction
     it('is constructable without any object', function () {
 

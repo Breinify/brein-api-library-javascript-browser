@@ -6,6 +6,7 @@
  */
 //noinspection JSUnresolvedVariable
 !function (scope, dependencyScope) {
+    "use strict";
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
@@ -92,10 +93,10 @@
         // get the user information
         new BreinifyUser(user, function (user) {
 
-            // if (!user.isValid()) {
-            //     // just silently return
-            //     return;
-            // }
+            if (!user.isValid()) {
+                // just silently return
+                return;
+            }
 
             // get some default values for the passed parameters - if not set
             type = typeof category === 'undefined' || category === null ? null : type;
@@ -117,9 +118,8 @@
                 'unixTimestamp': unixTimestamp
             };
 
-            console.log(data);
-
             var url = _config.get(ATTR.URL) + _config.get(ATTR.ACTIVITY_ENDPOINT);
+            console.log(data);
             //_privates.ajax(url, data);
         });
     };
