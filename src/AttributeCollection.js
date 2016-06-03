@@ -17,7 +17,7 @@
             return this._defaultValues;
         },
 
-        default: function(attribute) {
+        default: function (attribute) {
             return this._defaultValues[attribute];
         },
 
@@ -33,11 +33,15 @@
                 } else {
                     name = key;
                 }
-            } else {
+            } else if (typeof setting === 'string') {
                 name = setting;
-
                 setting = {
                     name: setting
+                }
+            } else {
+                name = key;
+                setting = {
+                    name: key
                 }
             }
 

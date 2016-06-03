@@ -38,6 +38,7 @@ describe('AttributeCollection', function () {
     it('can add values', function () {
 
         var coll = new AttributeCollection();
+
         coll.add('EMAIL', {
             name: 'email',
             validate: function (value) {
@@ -56,6 +57,30 @@ describe('AttributeCollection', function () {
             coll.validateProperties({'email': 'myValue'});
         }).toThrow(new Error('The value "myValue" is invalid for the property "email".'));
         //noinspection JSUnresolvedFunction
-        expect(coll.validateProperties({'email': 'philipp@meisen.net'})).toBe(true);
+        expect(coll.validateProperties({'email': 'philipp.meisen@breinify.com'})).toBe(true);
+
+        coll.add('SIMPLE');
+
+        //noinspection JSUnresolvedFunction
+        expect(coll.all()).toEqual({'EMAIL': 'email', 'SIMPLE': 'SIMPLE'});
+
+        coll.add('ALSOSIMPLE', 'soSimple');
+
+        //noinspection JSUnresolvedFunction
+        expect(coll.all()).toEqual({'EMAIL': 'email', 'SIMPLE': 'SIMPLE', 'ALSOSIMPLE': 'soSimple'});
+        //noinspection JSUnresolvedFunction
+        expect(coll.is('email')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(coll.is('SIMPLE')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(coll.is('soSimple')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(coll.default('email')).toBeUndefined();
+        //noinspection JSUnresolvedFunction
+        expect(coll.default('SIMPLE')).toBeUndefined();
+        //noinspection JSUnresolvedFunction
+        expect(coll.default('soSimple')).toBeUndefined();
+        //noinspection JSUnresolvedFunction
+        expect(coll.validateProperties({'email': 'philipp.meisen@breinify.com'})).toBe(true);
     });
 });
