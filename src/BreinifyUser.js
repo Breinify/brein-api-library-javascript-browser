@@ -50,6 +50,11 @@
         group: 4,
         optional: false
     });
+    attributes.add('additional', {
+        validate: function (value) {
+            return typeof value === 'undefined' || $.isPlainObject(value);
+        }
+    });
 
     var _privates = {
 
@@ -234,7 +239,7 @@
             })
         },
 
-        isValid: function () {
+        validate: function () {
             return attributes.validateProperties(this._user);
         }
     };

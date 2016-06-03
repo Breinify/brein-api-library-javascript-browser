@@ -132,7 +132,7 @@ describe('BreinifyConfig', function () {
             new Breinify.BreinifyConfig({
                 'unknown': 'invalid'
             });
-        }).toThrow(new Error("The property \"unknown\" is not a valid attribute."));
+        }).toThrow(new Error("The attribute \"unknown\" is not valid."));
     });
 
     //noinspection JSUnresolvedFunction

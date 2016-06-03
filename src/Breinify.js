@@ -96,7 +96,7 @@
         // get the user information
         new BreinifyUser(user, function (user) {
 
-            if (!user.isValid()) {
+            if (!user.validate()) {
                 // just silently return
                 return;
             }

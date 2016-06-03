@@ -31,11 +31,11 @@ describe('AttributeCollection', function () {
         //noinspection JSUnresolvedFunction
         expect(function () {
             coll.validateProperties({'myProperty': 'myValue'});
-        }).toThrow(new Error('The property "myProperty" is not a valid attribute.'));
+        }).toThrow(new Error('The attribute "myProperty" is not valid.'));
     });
 
     //noinspection JSUnresolvedFunction
-    it('can add values', function () {
+    it('can add and validate values', function () {
 
         var coll = new AttributeCollection();
 
@@ -82,5 +82,91 @@ describe('AttributeCollection', function () {
         expect(coll.default('soSimple')).toBeUndefined();
         //noinspection JSUnresolvedFunction
         expect(coll.validateProperties({'email': 'philipp.meisen@breinify.com'})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(coll.validateProperties({
+            'email': 'philipp.meisen@breinify.com',
+            'SIMPLE': null,
+            'soSimple': 'value'
+        })).toBe(true);
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('can validate groups', function () {
+
+        var coll = new AttributeCollection();
+        coll.add('FIRST', {
+            name: 'first',
+            group: 1
+        });
+        coll.add('LAST', {
+            name: 'last',
+            group: 1,
+            optional: false
+        });
+        coll.add('DATE', {
+            name: 'date',
+            group: 1,
+            optional: false
+        });
+        coll.add('OTHER', {
+            name: 'other',
+            group: 2
+        });
+        coll.add('MORE', {
+            name: 'more',
+            group: 3,
+            optional: false
+        });
+        coll.add('ANOTHER', {
+            name: 'another',
+            group: 3,
+            optional: false
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(coll.validateProperties({
+            'other': 'anotherValue'
+        })).toBe(true);
+
+        //noinspection JSUnresolvedFunction
+        expect(coll.validateProperties({
+            'first': 'Diane',
+            'last': 'Keng',
+            'date': '01/01/1980'
+        })).toBe(true);
+
+        //noinspection JSUnresolvedFunction
+        expect(function () {
+            coll.validateProperties({
+                'first': 'Diane',
+                'date': '01/01/1980'
+            });
+        }).toThrow(new Error('The group "1" expects a valid value for the attribute "last".'));
+
+        //noinspection JSUnresolvedFunction
+        expect(coll.validateProperties({
+            'last': 'Keng',
+            'date': '01/01/1980',
+            'more': 'more is more',
+            'another': 'less can be good'
+        })).toBe(true);
+
+        //noinspection JSUnresolvedFunction
+        expect(function () {
+            coll.validateProperties({
+                'last': 'Keng',
+                'date': '01/01/1980',
+                'another': 'less can be good'
+            });
+        }).toThrow(new Error('The group "3" expects a valid value for the attribute "more".'));
+
+        //noinspection JSUnresolvedFunction
+        expect(function () {
+            coll.validateProperties({
+                'last': 'Keng',
+                'more': 'more is more',
+                'another': 'less can be good'
+            });
+        }).toThrow(new Error('The group "1" expects a valid value for the attribute "date".'));
     });
 });

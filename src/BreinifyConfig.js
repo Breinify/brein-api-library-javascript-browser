@@ -90,9 +90,7 @@
         /*
          * Validate the set configuration.
          */
-        if (this._config.validate === true) {
-            attributes.validateProperties(this._config);
-        }
+        this.validate();
     };
 
     /*
@@ -121,8 +119,15 @@
         },
 
         set: function (attribute, value) {
-            if (this._config.validate !== true || attributes.validate(attribute, value)) {
-                this._config[attribute] = value;
+            this._config[attribute] = value;
+            this.validate();
+        },
+
+        validate: function (force) {
+            if (force === true || this._config.validate === true) {
+                return attributes.validateProperties(this._config);
+            } else {
+                return true;
             }
         }
     };
