@@ -70,6 +70,13 @@
             return value === true || value === false;
         }
     });
+    attributes.add('AJAX_TIMEOUT', {
+        name: 'timeout',
+        defaultValue: 1000,
+        validate: function (value) {
+            return $.isNumeric(value);
+        }
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '{{PROJECT.VERSION}}';

@@ -87,6 +87,12 @@
     //noinspection JSUnresolvedVariable
     var BreinifyLib = Breinify;
 
+    // set the general configuration
+    BreinifyLib.setConfig({
+        'url': 'http://dev.breinify.com/api',
+        'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
+    });
+
     // set the external version
     $('#breinify-version').text(BreinifyLib.version);
     $('#breinify-jquery-version').text(BreinifyLib.jQueryVersion);
@@ -123,11 +129,10 @@
         }).appendTo($el);
     });
 
-    var user = {
+    // now use the whole library whenever needed to send information
+    BreinifyLib.activity({
         'email': 'philipp.meisen@breinify.com'
-    };
-
-    BreinifyLib.activity(user, 'login');
+    }, 'login');
 </script>
 
 </body>

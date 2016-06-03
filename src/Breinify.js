@@ -15,7 +15,12 @@
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
 
-    var ConfigAttributes = BreinifyConfig.ATTRIBUTES;
+    var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
+
+    /*
+     * The internally used configuration used for all calls.
+     */
+    var _config = null;
 
     var _privates = {
         'ajax': function (url, data, success, error) {
@@ -28,7 +33,9 @@
                 'crossDomain': true,
 
                 // set the data
-                'data': data,
+                'dataType': 'json',
+                'contentType': 'application/json; charset=utf-8',
+                'data': JSON.stringify(data),
 
                 // let's hope it worked
                 'success': function (data) {
@@ -42,15 +49,12 @@
                     if ($.isFunction(error)) {
                         error(exception, text);
                     }
-                }
+                },
+
+                'timeout': _config.get(ATTR_CONFIG.AJAX_TIMEOUT)
             });
         }
     };
-
-    /*
-     * The internally used configuration used for all calls.
-     */
-    var _config = null;
 
     /**
      * The one and only instance of the library.
@@ -102,8 +106,8 @@
             }
 
             // get some default values for the passed parameters - if not set
-            type = typeof category === 'undefined' || category === null ? null : type;
-            category = typeof category === 'undefined' || category === null ? _config.get(ConfigAttributes.CATEGORY) : category;
+            type = typeof type === 'undefined' || type === null ? null : type;
+            category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
 
             // get the other values needed
             var unixTimestamp = Math.floor(new Date().getTime() / 1000);
@@ -117,18 +121,17 @@
                     'category': category
                 },
 
-                'apiKey': _config.get(ConfigAttributes.API_KEY),
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'unixTimestamp': unixTimestamp
             };
 
-            var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.ACTIVITY_ENDPOINT);
-            console.log(data);
-            //_privates.ajax(url, data);
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
+            _privates.ajax(url, data);
         });
     };
 
     Breinify.lookup = function () {
-        var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.LOOKUP_ENDPOINT);
+        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
 
     };
 

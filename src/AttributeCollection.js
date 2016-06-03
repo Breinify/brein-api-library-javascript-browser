@@ -136,8 +136,6 @@
                 }
             });
 
-            console.log("FOUND GROUPS: " + JSON.stringify(groups));
-
             // check the groups, we validate if for each found group the needed values exists
             $.each(groups, function (groupName, attributeNames) {
                 var group = instance.group(groupName);

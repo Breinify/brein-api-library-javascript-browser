@@ -10516,8 +10516,6 @@ dependencyScope.jQuery = $;;
                 }
             });
 
-            console.log("FOUND GROUPS: " + JSON.stringify(groups));
-
             // check the groups, we validate if for each found group the needed values exists
             $.each(groups, function (groupName, attributeNames) {
                 var group = instance.group(groupName);
@@ -10607,6 +10605,13 @@ dependencyScope.jQuery = $;;
         defaultValue: true,
         validate: function (value) {
             return value === true || value === false;
+        }
+    });
+    attributes.add('AJAX_TIMEOUT', {
+        name: 'timeout',
+        defaultValue: 1000,
+        validate: function (value) {
+            return $.isNumeric(value);
         }
     });
 
@@ -10768,17 +10773,6 @@ dependencyScope.jQuery = $;;
                     }
                 });
             }
-        },
-
-        /**
-         * Adds the MD5 for the email
-         */
-        addMd5: function (email) {
-            if (email !== null && typeof email === 'string') {
-
-                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-                instance.set(_attributes.MD5EMAIL, CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64));
-            }
         }
     };
 
@@ -10873,10 +10867,13 @@ dependencyScope.jQuery = $;;
 
             if (!attributes.is(attribute)) {
                 throw new Error('The attribute "' + attribute + '" is not supported by a user.');
-            } else if (attribute === attributes.EMAIL) {
-                _privates.addMd5(this.get(attributes.EMAIL));
-            } else if (attribute === attributes.MD5EMAIL) {
-                var email = this.get(attributes.EMAIL);
+            } else if (attribute === BreinifyUser.ATTRIBUTES.EMAIL) {
+                this.reset(attribute);
+
+                //noinspection JSUnresolvedFunction
+                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, CryptoJS.MD5(value).toString(CryptoJS.enc.Base64));
+            } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
+                var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
                 // if we have an email, we do not change the MD5
                 if (email !== null) {
@@ -10890,6 +10887,12 @@ dependencyScope.jQuery = $;;
             }
 
             this._user[attribute] = value;
+        },
+
+        reset: function(attribute) {
+            if ($.isPlainObject(this._user)) {
+                delete this._user[attribute];
+            }
         },
 
         setAll: function (user) {
@@ -10940,7 +10943,12 @@ dependencyScope.jQuery = $;;
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
 
-    var ConfigAttributes = BreinifyConfig.ATTRIBUTES;
+    var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
+
+    /*
+     * The internally used configuration used for all calls.
+     */
+    var _config = null;
 
     var _privates = {
         'ajax': function (url, data, success, error) {
@@ -10953,7 +10961,9 @@ dependencyScope.jQuery = $;;
                 'crossDomain': true,
 
                 // set the data
-                'data': data,
+                'dataType': 'json',
+                'contentType': 'application/json; charset=utf-8',
+                'data': JSON.stringify(data),
 
                 // let's hope it worked
                 'success': function (data) {
@@ -10967,15 +10977,12 @@ dependencyScope.jQuery = $;;
                     if ($.isFunction(error)) {
                         error(exception, text);
                     }
-                }
+                },
+
+                'timeout': _config.get(ATTR_CONFIG.AJAX_TIMEOUT)
             });
         }
     };
-
-    /*
-     * The internally used configuration used for all calls.
-     */
-    var _config = null;
 
     /**
      * The one and only instance of the library.
@@ -11027,8 +11034,8 @@ dependencyScope.jQuery = $;;
             }
 
             // get some default values for the passed parameters - if not set
-            type = typeof category === 'undefined' || category === null ? null : type;
-            category = typeof category === 'undefined' || category === null ? _config.get(ConfigAttributes.CATEGORY) : category;
+            type = typeof type === 'undefined' || type === null ? null : type;
+            category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
 
             // get the other values needed
             var unixTimestamp = Math.floor(new Date().getTime() / 1000);
@@ -11042,18 +11049,17 @@ dependencyScope.jQuery = $;;
                     'category': category
                 },
 
-                'apiKey': _config.get(ConfigAttributes.API_KEY),
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'unixTimestamp': unixTimestamp
             };
 
-            var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.ACTIVITY_ENDPOINT);
-            console.log(data);
-            //_privates.ajax(url, data);
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
+            _privates.ajax(url, data);
         });
     };
 
     Breinify.lookup = function () {
-        var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.LOOKUP_ENDPOINT);
+        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
 
     };
 

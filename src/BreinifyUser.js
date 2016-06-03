@@ -92,17 +92,6 @@
                     }
                 });
             }
-        },
-
-        /**
-         * Adds the MD5 for the email
-         */
-        addMd5: function (email) {
-            if (email !== null && typeof email === 'string') {
-
-                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-                instance.set(_attributes.MD5EMAIL, CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64));
-            }
         }
     };
 
@@ -197,10 +186,13 @@
 
             if (!attributes.is(attribute)) {
                 throw new Error('The attribute "' + attribute + '" is not supported by a user.');
-            } else if (attribute === attributes.EMAIL) {
-                _privates.addMd5(this.get(attributes.EMAIL));
-            } else if (attribute === attributes.MD5EMAIL) {
-                var email = this.get(attributes.EMAIL);
+            } else if (attribute === BreinifyUser.ATTRIBUTES.EMAIL) {
+                this.reset(attribute);
+
+                //noinspection JSUnresolvedFunction
+                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, CryptoJS.MD5(value).toString(CryptoJS.enc.Base64));
+            } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
+                var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
                 // if we have an email, we do not change the MD5
                 if (email !== null) {
@@ -214,6 +206,12 @@
             }
 
             this._user[attribute] = value;
+        },
+
+        reset: function(attribute) {
+            if ($.isPlainObject(this._user)) {
+                delete this._user[attribute];
+            }
         },
 
         setAll: function (user) {
