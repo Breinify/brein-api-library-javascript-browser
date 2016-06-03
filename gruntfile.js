@@ -227,6 +227,7 @@ module.exports = function (grunt) {
                         'src/snippets/prefix-replace-window.js.snippet',
                         'target/dep/**/*.js',
                         'src/snippets/suffix-replace-window.js.snippet',
+                        'target/replaced/AttributeCollection.js',
                         'target/replaced/BreinifyConfig.js',
                         'target/replaced/BreinifyUser.js',
                         'target/replaced/**/*.js',

@@ -1,3 +1,5 @@
+"use strict";
+
 describe('BreinifyUser', function () {
 
     //noinspection JSUnresolvedFunction
@@ -89,5 +91,38 @@ describe('BreinifyUser', function () {
         expect(Breinify.BreinifyUser.ATTRIBUTES.hasOwnProperty('MD5EMAIL')).toBe(true);
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.BreinifyUser.ATTRIBUTES.hasOwnProperty('UNKNOWN')).toBe(false);
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('handles additional values correctly', function (done) {
+
+        //noinspection JSUnresolvedVariable
+        new Breinify.BreinifyUser({
+            'additional': {
+                'userAgent': 'hidden'
+            }
+        }, function(user) {
+            
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all().additional.userAgent).toBe('hidden');
+
+            user.add('userAgent', navigator.userAgent);
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all().additional.userAgent).toBe('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all().additional.location).toBeNull();
+
+            var loc = {
+                'longitude': -37.866963,
+                'latitude': 144.980615
+            };
+            user.add('location', loc);
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all().additional.userAgent).toBe('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all().additional.location).toEqual(loc);
+
+            done();
+        });
     });
 });

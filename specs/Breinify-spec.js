@@ -1,3 +1,5 @@
+"use strict";
+
 describe('Breinify', function () {
 
     //noinspection JSUnresolvedFunction

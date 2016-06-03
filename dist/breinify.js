@@ -10378,40 +10378,60 @@ dependencyScope.jQuery = $;;
     misc.export(scope, 'Observable', Observable);
 }(window);;
 }(dependencyScope));;
-//noinspection JSUnresolvedVariable
-/**
- * The method has two scopes, the global scope (typically window),
- * and the dependency scope. Within the dependency scope all the
- * dependencies are bound.
- */
+"use strict";
+
 !function (scope, dependencyScope) {
-    "use strict";
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
 
-    // the two instances will be used internally as constants
-    var _defaultConfig = {};
-    var _settings = {};
-    var _attributes = {};
+    var AttributeCollection = function () {
+        this._defaultValues = {};
+        this._settings = {};
+        this._attributes = {};
+    };
 
-    /*
-     * Create the _attributes and _defaultConfig and the internally used
-     * _attributes_enum for validation.
-     */
-    var _attributes_enum = {
+    AttributeCollection.prototype = {
+
+        defaults: function () {
+            return this._defaultValues;
+        },
+
+        default: function(attribute) {
+            return this._defaultValues[attribute];
+        },
+
+        all: function () {
+            return this._attributes;
+        },
+
         add: function (key, setting) {
-            _attributes[key] = setting.name;
-            _settings[setting.name] = setting;
-            _defaultConfig[setting.name] = setting.defaultValue;
+            var name;
+            if ($.isPlainObject(setting)) {
+                if (typeof setting.name === 'string') {
+                    name = setting.name;
+                } else {
+                    name = key;
+                }
+            } else {
+                name = setting;
+
+                setting = {
+                    name: setting
+                }
+            }
+
+            this._attributes[key] = name;
+            this._settings[setting.name] = setting;
+            this._defaultValues[setting.name] = setting.defaultValue;
         },
 
         is: function (attribute) {
-            return _settings.hasOwnProperty(attribute);
+            return this._settings.hasOwnProperty(attribute);
         },
 
         validate: function (attribute, value) {
-            var setting = _settings[attribute];
+            var setting = this._settings[attribute];
 
             if (setting === null || typeof setting === 'undefined') {
                 return false;
@@ -10422,61 +10442,73 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        setAll: function () {
+        validateProperties: function (obj) {
             var instance = this;
 
-            $.each(this, function (key, setting) {
-                instance.add(key, setting);
-            });
-        },
-
-        validateConfig: function (config) {
-            var instance = this;
-
-            $.each(config, function (property, value) {
+            $.each(obj, function (property, value) {
 
                 // check if it's a valid value
                 if (!instance.is(property)) {
-                    throw new Error('The property "' + property + '" is not a valid attribute for the configuration.');
+                    throw new Error('The property "' + property + '" is not a valid attribute.');
                 } else if (!instance.validate(property, value)) {
                     throw new Error('The value "' + value + '" is invalid for the property "' + property + '".');
                 }
             });
+
+            return true;
         }
     };
+
+    //noinspection JSUnresolvedFunction
+    misc.export(dependencyScope, 'AttributeCollection', AttributeCollection);
+}(window, dependencyScope);;
+"use strict";
+
+/**
+ * The method has two scopes, the global scope (typically window),
+ * and the dependency scope. Within the dependency scope all the
+ * dependencies are bound.
+ */
+!function (scope, dependencyScope) {
+
+    //noinspection JSUnresolvedVariable
+    var misc = dependencyScope.misc;
+    //noinspection JSUnresolvedVariable
+    var AttributeCollection = dependencyScope.AttributeCollection;
 
     /*
      * Overview of all the different properties available in the configuration.
      */
-    _attributes_enum.URL = {
+    var attributes = new AttributeCollection();
+    attributes.add('URL', {
         name: 'url',
         defaultValue: 'https://api.breinify.com',
         validate: function (value) {
             return value !== null && typeof value === 'string' && '' !== value.trim();
         }
-    };
-    _attributes_enum.ACTIVITY_ENDPOINT = {
+    });
+    attributes.add('ACTIVITY_ENDPOINT', {
         name: 'activityEndpoint',
         defaultValue: '/activity',
         validate: function (value) {
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
-    };
-    _attributes_enum.LOOKUP_ENDPOINT = {
+    });
+    attributes.add('LOOKUP_ENDPOINT', {
         name: 'lookupEndpoint',
         defaultValue: '/lookup',
         validate: function (value) {
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
-    };
-    _attributes_enum.CATEGORY = {
+    });
+    attributes.add('CATEGORY', {
         name: 'category',
         defaultValue: 'other',
         validate: function (value) {
             return value === null || (typeof value === 'string' && '' !== value.trim());
         }
-    };
-    _attributes_enum.API_KEY = {
+    });
+    attributes.add('API_KEY', {
         name: 'apiKey',
         defaultValue: '0000-0000-0000-0000-0000-0000-0000-0000',
         validate: function (value) {
@@ -10487,22 +10519,21 @@ dependencyScope.jQuery = $;;
                 return false;
             }
         }
-    };
-    _attributes_enum.SECRET = {
+    });
+    attributes.add('SECRET', {
         name: 'secret',
         defaultValue: null,
         validate: function (value) {
             return value === null || typeof value === 'string';
         }
-    };
-    _attributes_enum.VALIDATE = {
+    });
+    attributes.add('VALIDATE', {
         name: 'validate',
         defaultValue: true,
         validate: function (value) {
             return value === true || value === false;
         }
-    };
-    _attributes_enum.setAll();
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '1.0.0-snapshot';
@@ -10511,11 +10542,11 @@ dependencyScope.jQuery = $;;
          * Validate the passed config-parameters.
          */
         if (typeof config == 'undefined' || config == null) {
-            this._config = $.extend({}, _defaultConfig);
+            this._config = $.extend({}, attributes.defaults());
         } else if (config instanceof BreinifyConfig) {
-            this._config = $.extend({}, _defaultConfig, config._config);
+            this._config = $.extend({}, attributes.defaults(), config._config);
         } else if ($.isPlainObject(config)) {
-            this._config = $.extend({}, _defaultConfig, config);
+            this._config = $.extend({}, attributes.defaults(), config);
         } else {
             throw new Error('The passed parameter "config" is invalid.');
         }
@@ -10524,7 +10555,7 @@ dependencyScope.jQuery = $;;
          * Validate the set configuration.
          */
         if (this._config.validate === true) {
-            _attributes_enum.validateConfig(this._config);
+            attributes.validateProperties(this._config);
         }
     };
 
@@ -10533,7 +10564,7 @@ dependencyScope.jQuery = $;;
      * a copy for the outer world, internally we evaluate everything
      * against the _attributes_enum.
      */
-    BreinifyConfig.ATTRIBUTES = $.extend({}, _attributes);
+    BreinifyConfig.ATTRIBUTES = $.extend({}, attributes.all());
 
     /*
      * The prototype of the configuration.
@@ -10549,16 +10580,14 @@ dependencyScope.jQuery = $;;
         },
 
         default: function (attribute) {
-            return _defaultConfig[attribute];
+            var defaults = attributes.defaults();
+            return defaults[attribute];
         },
 
         set: function (attribute, value) {
-
-            // set the new value
-            this._config[attribute] = value;
-
-            // validate it
-            _attributes_enum.validateConfig(this._config);
+            if (this._config.validate !== true || attributes.validate(attribute, value)) {
+                this._config[attribute] = value;
+            }
         }
     };
 
@@ -10576,86 +10605,47 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-
-    // the two instances will be used internally as constants
-    var _settings = {};
-    var _attributes = {};
+    //noinspection JSUnresolvedVariable
+    var AttributeCollection = dependencyScope.AttributeCollection;
 
     /*
-     * Create the _attributes and _defaultConfig and the internally used
-     * _attributes_enum for validation.
+     * Overview of all the different properties available in the configuration.
      */
-    var _attributes_enum = {
-        add: function (key, setting) {
-            _attributes[key] = setting.name;
-            _settings[setting.name] = setting;
-        },
-
-        is: function (attribute) {
-            return _settings.hasOwnProperty(attribute);
-        },
-
-        setAll: function () {
-            var instance = this;
-
-            $.each(this, function (key, setting) {
-                instance.add(key, setting);
-            });
-        }
-    };
+    var attributes = new AttributeCollection();
 
     /*
      * Overview of all the different properties available for a user.
      */
-    _attributes_enum.EMAIL = {
+    attributes.add('EMAIL', {
         name: 'email',
         group: 1,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.FIRSTNAME = {
+        optional: false
+    });
+    attributes.add('FIRSTNAME', {
         name: 'firstName',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
-        }
-    };
-    _attributes_enum.LASTNAME = {
+        optional: false
+    });
+    attributes.add('LASTNAME', {
         name: 'lastName',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
-        }
-    };
-    _attributes_enum.DATEOFBIRTH = {
+        optional: false
+    });
+    attributes.add('DATEOFBIRTH', {
         name: 'dateOfBirth',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value === null || (typeof value === 'string' && '' !== value.trim());
-        }
-    };
-    _attributes_enum.DEVICEID = {
+        optional: false
+    });
+    attributes.add('DEVICEID', {
         name: 'deviceId',
         group: 3,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.MD5EMAIL = {
+        optional: false
+    });
+    attributes.add('MD5EMAIL', {
         name: 'md5Email',
         group: 4,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.setAll();
+        optional: false
+    });
 
     var _privates = {
 
@@ -10693,46 +10683,38 @@ dependencyScope.jQuery = $;;
                     }
                 });
             }
+        },
+
+        /**
+         * Adds the MD5 for the email
+         */
+        addMd5: function (email) {
+            if (email !== null && typeof email === 'string') {
+
+                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
+                instance.set(_attributes.MD5EMAIL, CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64));
+            }
         }
     };
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
         instance.version = '1.0.0-snapshot';
-        instance._user = {};
 
-        _privates.resolveGeoLocation(function (location) {
+        // set the values provided
+        instance.setAll(user);
 
-            /*
-             * Get the default values we have for the user
-             */
-            instance.addAdditional({
-                'userAgent': navigator.userAgent,
-                'location': location
-            });
+        // set the user-agent to a default value if there isn't one yet
+        if (instance.read('userAgent') === null) {
+            instance.add('userAgent', navigator.userAgent);
+        }
 
-            /*
-             * Validate the passed user-parameters.
-             */
-            if (typeof user == 'undefined' || user == null) {
-                // nothing to do, we don't have more
-            } else if (user instanceof BreinifyUser) {
-                $.extend(true, instance._user, user._user);
-            } else if ($.isPlainObject(user)) {
-                $.extend(true, instance._user, user);
-            } else {
-                throw new Error('The passed parameter "user" is invalid.');
-            }
-
-            if (instance._user.hasOwnProperty(_attributes.EMAIL) && !instance._user.hasOwnProperty(_attributes.MD5EMAIL)) {
-                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-                instance._user[_attributes.MD5EMAIL] = CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64)
-            }
-
-            if ($.isFunction(onReady)) {
-                onReady(instance);
-            }
-        });
+        // try to set the location if there isn't one yet
+        if (instance.read('location') === null) {
+            instance.addGeoLocation(onReady);
+        } else {
+            onReady(instance);
+        }
     };
 
     /*
@@ -10740,23 +10722,62 @@ dependencyScope.jQuery = $;;
      * a copy for the outer world, internally we evaluate everything
      * against the _attributes_enum.
      */
-    BreinifyUser.ATTRIBUTES = $.extend({}, _attributes);
+    BreinifyUser.ATTRIBUTES = $.extend({}, attributes.all());
 
     /*
      * The prototype of the user.
      */
     BreinifyUser.prototype = {
 
-        addAdditional: function (additional) {
-            if (!$.isPlainObject(additional)) {
-                throw new Error('The additional must be a plain object');
+        addGeoLocation: function (onReady) {
+            var instance = this;
+
+            _privates.resolveGeoLocation(function (location) {
+                instance.add('location', location);
+
+                if ($.isFunction(onReady)) {
+                    onReady(instance);
+                }
+            });
+        },
+
+        add: function (additional, value) {
+
+            if (!$.isPlainObject(this._user)) {
+                this._user = {
+                    'additional': {}
+                };
+            } else if (!$.isPlainObject(this._user.additional)) {
+                this._user['additional'] = {};
             }
 
-            this._user.additional = $.extend(this._user.additional, additional)
+            if ($.isPlainObject(additional) && typeof value === 'undefined') {
+                $.extend(this._user.additional, additional)
+            } else if (typeof additional === 'string' && typeof value !== 'undefined') {
+                this._user.additional[additional] = value;
+            } else {
+                throw new Error('The additional must be a plain object');
+            }
+        },
+
+        read: function (additional) {
+            if (!$.isPlainObject(this._user) || !$.isPlainObject(this._user.additional)) {
+                return null;
+            } else if (this._user.additional.hasOwnProperty(additional)) {
+                return this._user.additional[additional];
+            } else {
+                return null;
+            }
         },
 
         get: function (attribute) {
-            return this._user[attribute];
+            if (!$.isPlainObject(this._user) || !attributes.is(attribute)) {
+                return null;
+            } else if (this._user.hasOwnProperty(attribute)) {
+                return this._user[attribute];
+            } else {
+                return null;
+            }
         },
 
         all: function () {
@@ -10765,14 +10786,52 @@ dependencyScope.jQuery = $;;
 
         set: function (attribute, value) {
 
-            // set the new value
+            if (!attributes.is(attribute)) {
+                throw new Error('The attribute "' + attribute + '" is not supported by a user.');
+            } else if (attribute === attributes.EMAIL) {
+                _privates.addMd5(this.get(attributes.EMAIL));
+            } else if (attribute === attributes.MD5EMAIL) {
+                var email = this.get(attributes.EMAIL);
+
+                // if we have an email, we do not change the MD5
+                if (email !== null) {
+                    return;
+                }
+            }
+
+            // make sure we have a user instance
+            if (!$.isPlainObject(this._user)) {
+                this._user = {};
+            }
+
             this._user[attribute] = value;
         },
 
+        setAll: function (user) {
+
+            var plainUser = {};
+            if (typeof user == 'undefined' || user == null) {
+                // nothing to do
+            } else if (user instanceof BreinifyUser) {
+                plainUser = user._user;
+            } else if ($.isPlainObject(user)) {
+                plainUser = user;
+            } else {
+                throw new Error('The passed parameter "user" is invalid.');
+            }
+
+            var instance = this;
+            $.each(plainUser, function (attribute, value) {
+                if (attribute === 'additional') {
+                    instance.add(value);
+                } else {
+                    instance.set(attribute, value);
+                }
+            })
+        },
+
         isValid: function () {
-
-
-            return true;
+            return attributes.validateProperties(this._user);
         }
     };
 
@@ -10792,9 +10851,11 @@ dependencyScope.jQuery = $;;
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
     var $ = dependencyScope.jQuery;
+    var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
-    var ATTR = BreinifyConfig.ATTRIBUTES;
+
+    var ConfigAttributes = BreinifyConfig.ATTRIBUTES;
 
     var _privates = {
         'ajax': function (url, data, success, error) {
@@ -10841,6 +10902,7 @@ dependencyScope.jQuery = $;;
 
     Breinify.BreinifyConfig = BreinifyConfig;
     Breinify.BreinifyUser = BreinifyUser;
+    Breinify.AttributeCollection = AttributeCollection;
 
     /**
      * Modify the configuration to the specified configuration.
@@ -10881,7 +10943,7 @@ dependencyScope.jQuery = $;;
 
             // get some default values for the passed parameters - if not set
             type = typeof category === 'undefined' || category === null ? null : type;
-            category = typeof category === 'undefined' || category === null ? _config.get(ATTR.CATEGORY) : category;
+            category = typeof category === 'undefined' || category === null ? _config.get(ConfigAttributes.CATEGORY) : category;
 
             // get the other values needed
             var unixTimestamp = Math.floor(new Date().getTime() / 1000);
@@ -10895,18 +10957,18 @@ dependencyScope.jQuery = $;;
                     'category': category
                 },
 
-                'apiKey': _config.get(ATTR.API_KEY),
+                'apiKey': _config.get(ConfigAttributes.API_KEY),
                 'unixTimestamp': unixTimestamp
             };
 
-            var url = _config.get(ATTR.URL) + _config.get(ATTR.ACTIVITY_ENDPOINT);
+            var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.ACTIVITY_ENDPOINT);
             console.log(data);
             //_privates.ajax(url, data);
         });
     };
 
     Breinify.lookup = function () {
-        var url = _config.get(ATTR.URL) + _config.get(ATTR.LOOKUP_ENDPOINT);
+        var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.LOOKUP_ENDPOINT);
 
     };
 

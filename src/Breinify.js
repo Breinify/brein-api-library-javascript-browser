@@ -11,9 +11,11 @@
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
     var $ = dependencyScope.jQuery;
+    var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
-    var ATTR = BreinifyConfig.ATTRIBUTES;
+
+    var ConfigAttributes = BreinifyConfig.ATTRIBUTES;
 
     var _privates = {
         'ajax': function (url, data, success, error) {
@@ -60,6 +62,7 @@
 
     Breinify.BreinifyConfig = BreinifyConfig;
     Breinify.BreinifyUser = BreinifyUser;
+    Breinify.AttributeCollection = AttributeCollection;
 
     /**
      * Modify the configuration to the specified configuration.
@@ -100,7 +103,7 @@
 
             // get some default values for the passed parameters - if not set
             type = typeof category === 'undefined' || category === null ? null : type;
-            category = typeof category === 'undefined' || category === null ? _config.get(ATTR.CATEGORY) : category;
+            category = typeof category === 'undefined' || category === null ? _config.get(ConfigAttributes.CATEGORY) : category;
 
             // get the other values needed
             var unixTimestamp = Math.floor(new Date().getTime() / 1000);
@@ -114,18 +117,18 @@
                     'category': category
                 },
 
-                'apiKey': _config.get(ATTR.API_KEY),
+                'apiKey': _config.get(ConfigAttributes.API_KEY),
                 'unixTimestamp': unixTimestamp
             };
 
-            var url = _config.get(ATTR.URL) + _config.get(ATTR.ACTIVITY_ENDPOINT);
+            var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.ACTIVITY_ENDPOINT);
             console.log(data);
             //_privates.ajax(url, data);
         });
     };
 
     Breinify.lookup = function () {
-        var url = _config.get(ATTR.URL) + _config.get(ATTR.LOOKUP_ENDPOINT);
+        var url = _config.get(ConfigAttributes.URL) + _config.get(ConfigAttributes.LOOKUP_ENDPOINT);
 
     };
 

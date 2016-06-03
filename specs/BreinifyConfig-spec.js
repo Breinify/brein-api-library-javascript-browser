@@ -1,3 +1,5 @@
+"use strict";
+
 describe('BreinifyConfig', function () {
 
     //noinspection JSUnresolvedFunction
@@ -130,7 +132,7 @@ describe('BreinifyConfig', function () {
             new Breinify.BreinifyConfig({
                 'unknown': 'invalid'
             });
-        }).toThrow(new Error("The property \"unknown\" is not a valid attribute for the configuration."));
+        }).toThrow(new Error("The property \"unknown\" is not a valid attribute."));
     });
 
     //noinspection JSUnresolvedFunction

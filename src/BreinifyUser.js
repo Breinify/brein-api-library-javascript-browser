@@ -9,86 +9,47 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-
-    // the two instances will be used internally as constants
-    var _settings = {};
-    var _attributes = {};
+    //noinspection JSUnresolvedVariable
+    var AttributeCollection = dependencyScope.AttributeCollection;
 
     /*
-     * Create the _attributes and _defaultConfig and the internally used
-     * _attributes_enum for validation.
+     * Overview of all the different properties available in the configuration.
      */
-    var _attributes_enum = {
-        add: function (key, setting) {
-            _attributes[key] = setting.name;
-            _settings[setting.name] = setting;
-        },
-
-        is: function (attribute) {
-            return _settings.hasOwnProperty(attribute);
-        },
-
-        setAll: function () {
-            var instance = this;
-
-            $.each(this, function (key, setting) {
-                instance.add(key, setting);
-            });
-        }
-    };
+    var attributes = new AttributeCollection();
 
     /*
      * Overview of all the different properties available for a user.
      */
-    _attributes_enum.EMAIL = {
+    attributes.add('EMAIL', {
         name: 'email',
         group: 1,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.FIRSTNAME = {
+        optional: false
+    });
+    attributes.add('FIRSTNAME', {
         name: 'firstName',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
-        }
-    };
-    _attributes_enum.LASTNAME = {
+        optional: false
+    });
+    attributes.add('LASTNAME', {
         name: 'lastName',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
-        }
-    };
-    _attributes_enum.DATEOFBIRTH = {
+        optional: false
+    });
+    attributes.add('DATEOFBIRTH', {
         name: 'dateOfBirth',
         group: 2,
-        optional: false,
-        validate: function (value) {
-            return value === null || (typeof value === 'string' && '' !== value.trim());
-        }
-    };
-    _attributes_enum.DEVICEID = {
+        optional: false
+    });
+    attributes.add('DEVICEID', {
         name: 'deviceId',
         group: 3,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.MD5EMAIL = {
+        optional: false
+    });
+    attributes.add('MD5EMAIL', {
         name: 'md5Email',
         group: 4,
-        optional: false,
-        is: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim();
-        }
-    };
-    _attributes_enum.setAll();
+        optional: false
+    });
 
     var _privates = {
 
@@ -126,46 +87,38 @@
                     }
                 });
             }
+        },
+
+        /**
+         * Adds the MD5 for the email
+         */
+        addMd5: function (email) {
+            if (email !== null && typeof email === 'string') {
+
+                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
+                instance.set(_attributes.MD5EMAIL, CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64));
+            }
         }
     };
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
         instance.version = '{{PROJECT.VERSION}}';
-        instance._user = {};
 
-        _privates.resolveGeoLocation(function (location) {
+        // set the values provided
+        instance.setAll(user);
 
-            /*
-             * Get the default values we have for the user
-             */
-            instance.addAdditional({
-                'userAgent': navigator.userAgent,
-                'location': location
-            });
+        // set the user-agent to a default value if there isn't one yet
+        if (instance.read('userAgent') === null) {
+            instance.add('userAgent', navigator.userAgent);
+        }
 
-            /*
-             * Validate the passed user-parameters.
-             */
-            if (typeof user == 'undefined' || user == null) {
-                // nothing to do, we don't have more
-            } else if (user instanceof BreinifyUser) {
-                $.extend(true, instance._user, user._user);
-            } else if ($.isPlainObject(user)) {
-                $.extend(true, instance._user, user);
-            } else {
-                throw new Error('The passed parameter "user" is invalid.');
-            }
-
-            if (instance._user.hasOwnProperty(_attributes.EMAIL) && !instance._user.hasOwnProperty(_attributes.MD5EMAIL)) {
-                //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-                instance._user[_attributes.MD5EMAIL] = CryptoJS.MD5(instance._user[_attributes.EMAIL]).toString(CryptoJS.enc.Base64)
-            }
-
-            if ($.isFunction(onReady)) {
-                onReady(instance);
-            }
-        });
+        // try to set the location if there isn't one yet
+        if (instance.read('location') === null) {
+            instance.addGeoLocation(onReady);
+        } else {
+            onReady(instance);
+        }
     };
 
     /*
@@ -173,23 +126,62 @@
      * a copy for the outer world, internally we evaluate everything
      * against the _attributes_enum.
      */
-    BreinifyUser.ATTRIBUTES = $.extend({}, _attributes);
+    BreinifyUser.ATTRIBUTES = $.extend({}, attributes.all());
 
     /*
      * The prototype of the user.
      */
     BreinifyUser.prototype = {
 
-        addAdditional: function (additional) {
-            if (!$.isPlainObject(additional)) {
-                throw new Error('The additional must be a plain object');
+        addGeoLocation: function (onReady) {
+            var instance = this;
+
+            _privates.resolveGeoLocation(function (location) {
+                instance.add('location', location);
+
+                if ($.isFunction(onReady)) {
+                    onReady(instance);
+                }
+            });
+        },
+
+        add: function (additional, value) {
+
+            if (!$.isPlainObject(this._user)) {
+                this._user = {
+                    'additional': {}
+                };
+            } else if (!$.isPlainObject(this._user.additional)) {
+                this._user['additional'] = {};
             }
 
-            this._user.additional = $.extend(this._user.additional, additional)
+            if ($.isPlainObject(additional) && typeof value === 'undefined') {
+                $.extend(this._user.additional, additional)
+            } else if (typeof additional === 'string' && typeof value !== 'undefined') {
+                this._user.additional[additional] = value;
+            } else {
+                throw new Error('The additional must be a plain object');
+            }
+        },
+
+        read: function (additional) {
+            if (!$.isPlainObject(this._user) || !$.isPlainObject(this._user.additional)) {
+                return null;
+            } else if (this._user.additional.hasOwnProperty(additional)) {
+                return this._user.additional[additional];
+            } else {
+                return null;
+            }
         },
 
         get: function (attribute) {
-            return this._user[attribute];
+            if (!$.isPlainObject(this._user) || !attributes.is(attribute)) {
+                return null;
+            } else if (this._user.hasOwnProperty(attribute)) {
+                return this._user[attribute];
+            } else {
+                return null;
+            }
         },
 
         all: function () {
@@ -198,14 +190,52 @@
 
         set: function (attribute, value) {
 
-            // set the new value
+            if (!attributes.is(attribute)) {
+                throw new Error('The attribute "' + attribute + '" is not supported by a user.');
+            } else if (attribute === attributes.EMAIL) {
+                _privates.addMd5(this.get(attributes.EMAIL));
+            } else if (attribute === attributes.MD5EMAIL) {
+                var email = this.get(attributes.EMAIL);
+
+                // if we have an email, we do not change the MD5
+                if (email !== null) {
+                    return;
+                }
+            }
+
+            // make sure we have a user instance
+            if (!$.isPlainObject(this._user)) {
+                this._user = {};
+            }
+
             this._user[attribute] = value;
         },
 
+        setAll: function (user) {
+
+            var plainUser = {};
+            if (typeof user == 'undefined' || user == null) {
+                // nothing to do
+            } else if (user instanceof BreinifyUser) {
+                plainUser = user._user;
+            } else if ($.isPlainObject(user)) {
+                plainUser = user;
+            } else {
+                throw new Error('The passed parameter "user" is invalid.');
+            }
+
+            var instance = this;
+            $.each(plainUser, function (attribute, value) {
+                if (attribute === 'additional') {
+                    instance.add(value);
+                } else {
+                    instance.set(attribute, value);
+                }
+            })
+        },
+
         isValid: function () {
-
-
-            return true;
+            return attributes.validateProperties(this._user);
         }
     };
 
