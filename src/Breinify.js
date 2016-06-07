@@ -14,6 +14,7 @@
     var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
+    var BreinifyUtil = dependencyScope.BreinifyUtil;
 
     var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
@@ -95,6 +96,13 @@
         return _config.all();
     };
 
+    /**
+     * Sends an activity to the Breinify server.
+     *
+     * @param user {object} the user-information
+     * @param type {string} the type of activity
+     * @param category {string} the category (can be null or undefined)
+     */
     Breinify.activity = function (user, type, category) {
 
         // get the user information
@@ -130,15 +138,30 @@
         });
     };
 
+    /**
+     * Method to lookup available information.
+     */
     Breinify.lookup = function () {
         var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
-
     };
 
+
+    /**
+     * Helper method to create an MD5-hash. Internally the Breinify system uses
+     * other hashes. We even do not store this information, because of the possible
+     * use of rainbow tables. Nevertheless, it is a possible way to send information
+     * to us.
+     *
+     * @param value the value to be hashed
+     * @returns {string} the hashed value
+     */
     Breinify.md5 = function (value) {
         //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-        return CryptoJS.MD5(null).toString(CryptoJS.enc.Base64);
+        return CryptoJS.MD5(value).toString(CryptoJS.enc.Base64);
     };
+
+    // bind the utilities to be available through Breinify
+    Breinify.UTL = BreinifyUtil;
 
     //noinspection JSUnresolvedFunction
     misc.export(scope, 'Breinify', Breinify);

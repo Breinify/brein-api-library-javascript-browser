@@ -91,6 +91,7 @@
     BreinifyLib.setConfig({
         'url': 'http://dev.breinify.com/api',
         'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
+        //'apiKey': '9D3C-C7E8-BC93-4D1D-9A61-3A0F-9BD9-CF14'
     });
 
     // set the external version
@@ -132,7 +133,13 @@
     // now use the whole library whenever needed to send information
     BreinifyLib.activity({
         'email': 'philipp.meisen@breinify.com'
+    }, 'search');
+
+    // send just a login with the md5
+    BreinifyLib.activity({
+        'md5Email': BreinifyLib.md5('philipp.meisen@breinify.com')
     }, 'login');
+
 </script>
 
 </body>

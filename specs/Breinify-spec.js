@@ -23,4 +23,14 @@ describe('Breinify', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof Breinify.jQueryVersion).not.toBe('');
     });
+
+    //noinspection JSUnresolvedFunction
+    it('utils are available', function() {
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(typeof Breinify.UTL).toBe('object');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(typeof Breinify.UTL.loc).toBe('object');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(typeof Breinify.UTL.loc.url).toBe('function');
+    });
 });

@@ -185,7 +185,8 @@ module.exports = function (grunt) {
                     paths: bowerPaths,
                     overrides: {
                         'brein-util': {'main': 'grunt/default-layout/**/*'},
-                        'cryptojslib': {'ignore': true}
+                        'cryptojslib': {'ignore': true},
+                        'jquery': {'ignore': true}
                     }
                 },
                 base: bowerPaths.bowerDirectory + '/brein-util/grunt/default-layout',
@@ -230,6 +231,7 @@ module.exports = function (grunt) {
                         'target/replaced/AttributeCollection.js',
                         'target/replaced/BreinifyConfig.js',
                         'target/replaced/BreinifyUser.js',
+                        'target/replaced/BreinifyUtil.js',
                         'target/replaced/**/*.js',
                         'src/snippets/suffix-global.js.snippet'
                     ],

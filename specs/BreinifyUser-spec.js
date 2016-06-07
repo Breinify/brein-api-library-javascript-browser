@@ -3,7 +3,7 @@
 describe('BreinifyUser', function () {
 
     //noinspection JSUnresolvedFunction
-    it('is globally available', function () {
+    it('is available through Breinify', function () {
 
         //noinspection JSUnresolvedVariable
         var user = window['Breinify'].BreinifyUser;

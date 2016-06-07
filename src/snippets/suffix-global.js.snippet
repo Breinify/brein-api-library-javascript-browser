@@ -1,1 +1,36 @@
+
+} catch (e) {
+
+    /*
+     * If we have a console write the error.
+     */
+    if (typeof console === 'object' && typeof console.error === 'function') {
+        console.error('Error detected while loading Breinify', e);
+    }
+
+    /*
+     * We just create a simple wrapper, which makes sure every code works.
+     */
+    var Breinify = {};
+
+    Breinify.setConfig = function () {};
+    Breinify.config = function () { return {} };
+    Breinify.activity = function () {};
+    Breinify.md5 = function () { return null; };
+    Breinify.UTL = {
+        loc: {
+            params: function () { return []; },
+            hasParam: function() { return false; },
+            isParam: function() { return false; },
+            param: function() { return null; },
+            url: function() { return window.location.href; }
+        }
+    };
+
+    // trigger the lookup result with null
+    Breinify.lookup = function () {};
+
+    window['Breinify'] = Breinify;
+}
+
 }(window));
