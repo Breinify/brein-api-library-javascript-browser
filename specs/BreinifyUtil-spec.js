@@ -89,4 +89,13 @@ describe('BreinifyUtil', function () {
             'specialChars': '?%&*)('
         });
     });
+
+    //noinspection JSUnresolvedFunction
+    it('detects empty values', function () {
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.isEmpty()).toBe(true);
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.isEmpty(null)).toBe(true);
+    });
 });

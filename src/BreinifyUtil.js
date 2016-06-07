@@ -312,6 +312,28 @@
             if ($.isFunction(func)) {
                 $(document).ready(func);
             }
+        },
+
+        /**
+         * Checks if the passed value is empty, i.e., is an empty string (trimmed), an empty object, undefined or null.
+         * @param val {mixed} the value to be checked
+         * @returns {boolean} true if the value is empty, otherwise false
+         */
+        isEmpty: function (val) {
+            if (val === null) {
+                return true;
+            }
+
+            var type = typeof val;
+            if ('undefined' === type) {
+                return true;
+            } else if ('object' === type && $.isEmptyObject(val)) {
+                return true;
+            } else if ('string' === type && '' === val.trim()) {
+                return true;
+            } else {
+                return false;
+            }
         }
     };
 

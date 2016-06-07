@@ -80,6 +80,18 @@
             <td></td>
         </tr>
     </table>
+
+    <h1>LookUp Example</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Dimension</th>
+            <th>Value</th>
+        </tr>
+        <tr id="dimension-email">
+            <td>diane.keng@breinify.com</td>
+            <td></td>
+        </tr>
+    </table>
 </div>
 
 <script language="javascript">
@@ -138,15 +150,21 @@
     // now use the whole library whenever needed to send information
     breinify.activity({
         'email': 'philipp.meisen@breinify.com'
-    }, 'search', null, null, null, function (data) {
-        console.log("DONE");
-        console.log(data);
-    });
+    }, 'search');
 
-    // send just a login with the md5
-    breinify.activity({
-        'md5Email': breinify.UTL.md5('philipp.meisen@breinify.com')
-    }, 'login');
+    breinify.lookup({
+        'email': breinify.UTL.text('#dimension-email td:first-child')
+    }, ['firstname'], false, function (data) {
+
+        var val;
+        if (breinify.UTL.isEmpty(data)) {
+            val = 'undefined';
+        } else {
+            val = data.firstname.result + ' (' + data.firstname.accuracy + ')';
+        }
+
+        $('#dimension-email').find('td:nth-child(2)').text(val)
+    });
 
 </script>
 

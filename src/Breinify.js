@@ -64,6 +64,12 @@
 
         generateActivityMessage: function (amount, unixTimestamp, type) {
             return type + unixTimestamp + amount;
+        },
+
+        generateLookUpMessage: function (dimensions, unixTimestamp) {
+            dimensions = $.isArray(dimensions) ? dimensions : [];
+            var dimension = dimensions.length === 0 ? '' : dimensions[0];
+            return dimension + unixTimestamp + dimensions.length;
         }
     };
 
@@ -124,6 +130,10 @@
         });
     };
 
+    /**
+     * Method to create a valid current unix timestamp.
+     * @returns {number} the current unix timestamp (based on the system time)
+     */
     Breinify.unixTimestamp = function () {
         return Math.floor(new Date().getTime() / 1000);
     };
@@ -161,11 +171,11 @@
 
             // get the other values needed
             var unixTimestamp = Breinify.unixTimestamp();
-            var message = _privates.generateActivityMessage(1, unixTimestamp, type);
             var signature = null;
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
+                    var message = _privates.generateActivityMessage(1, unixTimestamp, type);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -194,10 +204,75 @@
     };
 
     /**
-     * Method to lookup available information.
+     * Method to lookup the specified dimensions information.
      */
-    Breinify.lookup = function () {
-        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
+    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
+
+        Breinify.lookupUser(user, dimensions, sign, function (data) {
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
+            _privates.ajax(url, data, onLookUp, onLookUp);
+        });
+    };
+
+    /**
+     * Creates a user request entity used to fire a query against the lookup endpoint.
+     *
+     * @param user {object} the user-information
+     * @param dimensions {Array|string} an array of dimensions
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after successful user creation
+     */
+    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
+
+        var _onReady = function (user) {
+            if ($.isFunction(onReady)) {
+                onReady(user);
+            }
+        };
+
+        // get the user information
+        new BreinifyUser(user, function (user) {
+
+            if (!user.validate()) {
+                _onReady(null);
+                return;
+            }
+
+            // get some default values for the passed parameters - if not set
+            dimensions = typeof dimensions === 'string' ? [dimensions] : ($.isArray(dimensions) ? dimensions : []);
+            sign = typeof sign === 'boolean' ? sign : false;
+
+            // get the other values needed
+            var unixTimestamp = Breinify.unixTimestamp();
+            var signature = null;
+            if (sign) {
+                var secret = _config.get(ATTR_CONFIG.SECRET);
+                if (typeof secret === 'string') {
+                    var message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
+                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
+                } else {
+                    _onReady(null);
+                    return;
+                }
+            }
+
+            // create the data set
+            var data = {
+                'user': user.all(),
+
+                'lookup': {
+                    'dimensions': dimensions
+                },
+
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
+                'signature': signature,
+                'unixTimestamp': unixTimestamp
+            };
+
+            if ($.isFunction(onReady)) {
+                _onReady(data);
+            }
+        });
     };
 
     // bind the utilities to be available through Breinify

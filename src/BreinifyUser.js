@@ -107,9 +107,9 @@
         }
 
         // try to set the location if there isn't one yet
-        if (instance.read('location') === null) {
+        if (instance.read('location') === null && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
-        } else {
+        } else if ($.isFunction(onReady)) {
             onReady(instance);
         }
     };

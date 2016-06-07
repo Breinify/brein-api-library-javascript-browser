@@ -1,11 +1,11 @@
 # brein-api-library-javascript-browser
 
 ## A quick start
-First of all, you need a valid API-key (create an account and get your personal api-key at [Breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
+First of all, you need a valid API-key, which you can get under [https://www.breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
 
 **772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6**
 
-There are currently two different end-points available through the API. The first one is used to send data to the engine (activity), whereas the second one is used to retrieve data from it (lookup).
+There are currently two different end-points available through the API. The first one is used to send data - so called activities - to the engine, whereas the second one is used to retrieve data from it (lookup).
 
 The following code-snippet shows how to send an activity to the engine:
 
@@ -31,6 +31,15 @@ The following code-snippet shows how to send an activity to the engine:
                 'email': Breinify.text('input[name="name"]')
             }, 'login');
          }
+         /*
+          * In addition, you may want to greet your visitor appropriately,
+          * without even knowing there name or asking for it.
+          */
+          if (Breinify.UTL.loc.matches('/welcome$') && Breinify.UTL.cookie.get('session') !== null) {
+              Breinify.lookup({
+                '': ''
+              });
+          }
     </script>
 ```
 

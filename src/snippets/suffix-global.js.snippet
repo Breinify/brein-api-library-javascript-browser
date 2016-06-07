@@ -28,7 +28,21 @@
             onReady();
         }
     };
-    Breinify.activity = function () {};
+    Breinify.activity = function (user, type, category, description, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
+        if (typeof onLookUp === 'function') {
+            onLookUp();
+        }
+    };
     Breinify.unixTimestamp = function () {
         return Math.floor(new Date().getTime() / 1000);
     };
@@ -57,11 +71,9 @@
             if (typeof func === 'function') {
                 func();
             }
-        }
+        },
+        isEmpty: function() { return false; }
     };
-
-    // trigger the lookup result with null
-    Breinify.lookup = function () {};
 
     window['Breinify'] = Breinify;
 }

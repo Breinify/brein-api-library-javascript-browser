@@ -15,20 +15,23 @@ describe('BreinifyUser', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('is constructable without any object', function () {
+    it('is constructable without any object', function (done) {
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        var user = new Breinify.BreinifyUser();
+        var user = new Breinify.BreinifyUser(null, function (user) {
 
-        //noinspection JSUnresolvedVariable
-        var a = Breinify.BreinifyUser.ATTRIBUTES;
+            //noinspection JSUnresolvedVariable
+            var a = Breinify.BreinifyUser.ATTRIBUTES;
 
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(user.all()).toEqual({
-            'additional': {
-                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1',
-                'location': null
-            }
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(user.all()).toEqual({
+                'additional': {
+                    'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1',
+                    'location': null
+                }
+            });
+
+            done();
         });
     });
 
@@ -101,8 +104,8 @@ describe('BreinifyUser', function () {
             'additional': {
                 'userAgent': 'hidden'
             }
-        }, function(user) {
-            
+        }, function (user) {
+
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.userAgent).toBe('hidden');
 
