@@ -114,12 +114,13 @@
      * @param category {string|null} the category (can be null or undefined)
      * @param description {string|null} the description for the activity
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after triggering the activity
      */
-    Breinify.activity = function (user, type, category, description, sign) {
+    Breinify.activity = function (user, type, category, description, sign, onReady) {
 
         Breinify.activityUser(user, type, category, description, sign, function (data) {
             var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
-            _privates.ajax(url, data);
+            _privates.ajax(url, data, onReady, onReady);
         });
     };
 

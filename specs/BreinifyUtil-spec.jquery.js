@@ -42,8 +42,6 @@ describe('BreinifyUtil', function () {
             'This is another text!',
             'This is the last text!'
         ]);
-        //noinspection JSUnresolvedFunction
-        expect(Breinify.UTL.text(".multiText")).toBeNull();
     });
 
     //noinspection JSUnresolvedFunction
@@ -66,10 +64,9 @@ describe('BreinifyUtil', function () {
             'This is another text!\nWhat is here!',
             'This is the last text!\nThis is in a child node'
         ]);
-        //noinspection JSUnresolvedFunction
-        expect(Breinify.UTL.text(".multiTextBr")).toBeNull();
     });
 
+    //noinspection JSUnresolvedFunction
     it('can handle the complex examples', function () {
 
         //noinspection JSUnresolvedFunction
@@ -115,5 +112,25 @@ describe('BreinifyUtil', function () {
         expect(Breinify.UTL.text("#complex1 div.four span", true)).toBe('anemail@andomain.com');
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.text("#complex1 div.four span", false)).toBe('anemail@andomain.com');
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('can read inputs', function () {
+
+        //noinspection JSUnresolvedFunction
+        jasmine.getFixtures().fixturesPath = "specs/fixtures";
+        //noinspection JSUnresolvedFunction
+        loadFixtures('breinifyUtil-text-input.html');
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.text('input[name="name"]')).toBe('Mickey');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.text('input[name="password"]')).toBe('secret');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.text('input[name="gender"]')).toBe('male');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.texts('input[name="vehicle"]')).toEqual(['car', 'bus']);
+
+        Breinify.UTL.text('input');
     });
 });

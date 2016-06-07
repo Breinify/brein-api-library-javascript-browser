@@ -23,9 +23,7 @@
     Breinify.jQueryVersion = 'FALLBACK';
     Breinify.setConfig = function () {};
     Breinify.config = function () { return {} };
-    Breinify.activityUser = function (user, type, category, sign, onReady) {
-
-        // make sure the function is executed
+    Breinify.activityUser = function (user, type, category, description, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();
         }
@@ -42,7 +40,8 @@
             paramIs: function() { return false; },
             parsedParam: function() { return null; },
             param: function() { return null; },
-            url: function() { return window.location.href; }
+            url: function() { return window.location.href; },
+            matches: function() { return false; }
         },
         cookie: {
             all: function () { return []; },
@@ -53,7 +52,12 @@
         },
         texts: function() { return []; },
         text: function() { return null; },
-        md5: function () { return null; }
+        md5: function () { return null; },
+        ready: function(func) {
+            if (typeof func === 'function') {
+                func();
+            }
+        }
     };
 
     // trigger the lookup result with null

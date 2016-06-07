@@ -85,22 +85,27 @@
 <script language="javascript">
 
     //noinspection JSUnresolvedVariable
-    var BreinifyLib = Breinify;
+    var breinify = Breinify;
 
     // set the general configuration
-    BreinifyLib.setConfig({
-        'url': 'http://dev.breinify.com/api',
-        'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
-        //'apiKey': '9D3C-C7E8-BC93-4D1D-9A61-3A0F-9BD9-CF14'
-    });
+    if (Breinify.UTL.loc.matches('^http://localhost:20000')) {
+        breinify.setConfig({
+            'url': 'http://dev.breinify.com/api',
+            'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
+        });
+    } else {
+        breinify.setConfig({
+            'apiKey': '9D3C-C7E8-BC93-4D1D-9A61-3A0F-9BD9-CF14'
+        });
+    }
 
     // set the external version
-    $('#breinify-version').text(BreinifyLib.version);
-    $('#breinify-jquery-version').text(BreinifyLib.jQueryVersion);
+    $('#breinify-version').text(breinify.version);
+    $('#breinify-jquery-version').text(breinify.jQueryVersion);
     $('#external-jquery-version').text($.fn.jquery);
 
     // show the configuration
-    var config = BreinifyLib.config();
+    var config = breinify.config();
     var clonableRow = $('#clonable-configuration-row');
     $.each(config, function (property, value) {
 
@@ -131,13 +136,16 @@
     });
 
     // now use the whole library whenever needed to send information
-    BreinifyLib.activity({
+    breinify.activity({
         'email': 'philipp.meisen@breinify.com'
-    }, 'search');
+    }, 'search', null, null, null, function (data) {
+        console.log("DONE");
+        console.log(data);
+    });
 
     // send just a login with the md5
-    BreinifyLib.activity({
-        'md5Email': BreinifyLib.UTL.md5('philipp.meisen@breinify.com')
+    breinify.activity({
+        'md5Email': breinify.UTL.md5('philipp.meisen@breinify.com')
     }, 'login');
 
 </script>

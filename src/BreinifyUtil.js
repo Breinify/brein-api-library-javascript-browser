@@ -23,24 +23,56 @@
             return (/^true$/i).test(value);
         },
 
+        append: function (str, val) {
+            if (typeof val === 'string') {
+                return str === null ? val : str + val;
+            } else if ($.isArray(val)) {
+                if (val.length === 0) {
+                    return str;
+                } else {
+                    return val.join('');
+                }
+            } else {
+                return str;
+            }
+        },
+
         determineText: function (el, onlyInline) {
             onlyInline = typeof onlyInline === 'boolean' ? onlyInline : false;
 
-            var content = '';
+            var content = null;
             if (el.nodeType === 1) {
                 var $el = $(el);
                 var display = $el.css('display');
-                var texts = BreinifyUtil.texts($el, true);
 
                 if ($el.is('br')) {
-                    content += texts.join('') + '\n';
+                    content = this.append(content, '\n');
+                } else if ($el.is('input')) {
+                    var type = $el.attr('type');
+                    type = typeof type === 'string' ? type.toLowerCase() : null;
+
+                    if ('radio' === type) {
+                        if (el.checked) {
+                            content = this.append(content, $el.val());
+                        }
+                    } else if ('checkbox' === type) {
+                        if (el.checked) {
+                            content = this.append(content, $el.val());
+                        }
+                    } else {
+                        // text, password
+                        content = this.append(content, $el.val());
+                    }
+                } else if ($el.contents().length === 0) {
+                    // do nothing
                 } else if (display.indexOf('inline') > -1) {
-                    content += texts.join('');
+                    content = this.append(content, BreinifyUtil.texts($el, true));
                 } else if (!onlyInline) {
-                    content += texts.join('') + '\n';
+                    content = this.append(content, BreinifyUtil.texts($el, true));
+                    content = this.append(content, '\n');
                 }
             } else if (el.nodeType === 3) {
-                content += el.nodeValue;
+                content = this.append(content, el.nodeValue);
             }
 
             return content;
@@ -134,6 +166,12 @@
 
             url: function () {
                 return window.location.href;
+            },
+
+            matches: function (regEx) {
+                regEx = typeof regEx === 'string' ? new RegExp(regEx) : regEx;
+
+                return this.url().match(regEx);
             }
         },
 
@@ -145,7 +183,7 @@
              */
             all: function () {
                 var strCookie = document.cookie;
-console.log(strCookie);
+
                 var result = {};
                 if ('' !== strCookie.trim()) {
                     var cookies = strCookie.split(';');
@@ -208,20 +246,30 @@ console.log(strCookie);
             if ($el.length !== 0) {
 
                 $el.each(function (idx) {
-                    var content = '';
+                    var content = null;
+                    var contentEls = $(this).contents();
 
-                    $(this).contents().each(function (idx) {
-                        content += _private.determineText(this, excludeChildren);
-                    });
+                    if (contentEls.length === 0) {
+                        content = _private.append(content, _private.determineText(this, excludeChildren));
+                    } else {
+                        contentEls.each(function (idx) {
+                            content = _private.append(content, _private.determineText(this, excludeChildren));
+                        });
+                    }
 
-                    // remove any multiple spaces
-                    content = content.replace(/ ( )+/g, ' ');
-                    // remove whitespaces at the start or the end of a line
-                    content = content.replace(/(^ +)|( +$)/gm, '');
-                    // remove any multiple newlines
-                    content = content.replace(/\n(\n)+/g, '\n');
-                    content = content.trim();
-                    result.push(content);
+                    if (typeof content === 'string') {
+
+                        // remove any multiple spaces
+                        content = content.replace(/ ( )+/g, ' ');
+                        // remove whitespaces at the start or the end of a line
+                        content = content.replace(/(^ +)|( +$)/gm, '');
+                        // remove any multiple newlines
+                        content = content.replace(/\n(\n)+/g, '\n');
+                        content = content.trim();
+
+                        // add the modified result
+                        result.push(content);
+                    }
                 });
             }
 
@@ -230,10 +278,10 @@ console.log(strCookie);
 
         text: function (cssSelector, excludeChildren) {
             var texts = this.texts(cssSelector, excludeChildren);
-            if (texts.length === 1) {
-                return texts[0];
+            if (texts.length === 0) {
+                return '';
             } else {
-                return null;
+                return texts.join('');
             }
         },
 
@@ -253,9 +301,20 @@ console.log(strCookie);
 
             //noinspection JSUnresolvedVariable,JSUnresolvedFunction
             return CryptoJS.MD5(value).toString();
+        },
+
+        /**
+         * The method ensures that the specified func is only executed after the
+         * whole DOM is loaded.
+         * @param func {function} the function to be excecuted
+         */
+        ready: function (func) {
+            if ($.isFunction(func)) {
+                $(document).ready(func);
+            }
         }
     };
 
-    //noinspection JSUnresolvedFunction
+//noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
 }(window, dependencyScope);

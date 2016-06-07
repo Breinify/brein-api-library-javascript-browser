@@ -11957,24 +11957,56 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             return (/^true$/i).test(value);
         },
 
+        append: function (str, val) {
+            if (typeof val === 'string') {
+                return str === null ? val : str + val;
+            } else if ($.isArray(val)) {
+                if (val.length === 0) {
+                    return str;
+                } else {
+                    return val.join('');
+                }
+            } else {
+                return str;
+            }
+        },
+
         determineText: function (el, onlyInline) {
             onlyInline = typeof onlyInline === 'boolean' ? onlyInline : false;
 
-            var content = '';
+            var content = null;
             if (el.nodeType === 1) {
                 var $el = $(el);
                 var display = $el.css('display');
-                var texts = BreinifyUtil.texts($el, true);
 
                 if ($el.is('br')) {
-                    content += texts.join('') + '\n';
+                    content = this.append(content, '\n');
+                } else if ($el.is('input')) {
+                    var type = $el.attr('type');
+                    type = typeof type === 'string' ? type.toLowerCase() : null;
+
+                    if ('radio' === type) {
+                        if (el.checked) {
+                            content = this.append(content, $el.val());
+                        }
+                    } else if ('checkbox' === type) {
+                        if (el.checked) {
+                            content = this.append(content, $el.val());
+                        }
+                    } else {
+                        // text, password
+                        content = this.append(content, $el.val());
+                    }
+                } else if ($el.contents().length === 0) {
+                    // do nothing
                 } else if (display.indexOf('inline') > -1) {
-                    content += texts.join('');
+                    content = this.append(content, BreinifyUtil.texts($el, true));
                 } else if (!onlyInline) {
-                    content += texts.join('') + '\n';
+                    content = this.append(content, BreinifyUtil.texts($el, true));
+                    content = this.append(content, '\n');
                 }
             } else if (el.nodeType === 3) {
-                content += el.nodeValue;
+                content = this.append(content, el.nodeValue);
             }
 
             return content;
@@ -12068,6 +12100,12 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
             url: function () {
                 return window.location.href;
+            },
+
+            matches: function (regEx) {
+                regEx = typeof regEx === 'string' ? new RegExp(regEx) : regEx;
+
+                return this.url().match(regEx);
             }
         },
 
@@ -12079,7 +12117,7 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
              */
             all: function () {
                 var strCookie = document.cookie;
-console.log(strCookie);
+
                 var result = {};
                 if ('' !== strCookie.trim()) {
                     var cookies = strCookie.split(';');
@@ -12142,20 +12180,30 @@ console.log(strCookie);
             if ($el.length !== 0) {
 
                 $el.each(function (idx) {
-                    var content = '';
+                    var content = null;
+                    var contentEls = $(this).contents();
 
-                    $(this).contents().each(function (idx) {
-                        content += _private.determineText(this, excludeChildren);
-                    });
+                    if (contentEls.length === 0) {
+                        content = _private.append(content, _private.determineText(this, excludeChildren));
+                    } else {
+                        contentEls.each(function (idx) {
+                            content = _private.append(content, _private.determineText(this, excludeChildren));
+                        });
+                    }
 
-                    // remove any multiple spaces
-                    content = content.replace(/ ( )+/g, ' ');
-                    // remove whitespaces at the start or the end of a line
-                    content = content.replace(/(^ +)|( +$)/gm, '');
-                    // remove any multiple newlines
-                    content = content.replace(/\n(\n)+/g, '\n');
-                    content = content.trim();
-                    result.push(content);
+                    if (typeof content === 'string') {
+
+                        // remove any multiple spaces
+                        content = content.replace(/ ( )+/g, ' ');
+                        // remove whitespaces at the start or the end of a line
+                        content = content.replace(/(^ +)|( +$)/gm, '');
+                        // remove any multiple newlines
+                        content = content.replace(/\n(\n)+/g, '\n');
+                        content = content.trim();
+
+                        // add the modified result
+                        result.push(content);
+                    }
                 });
             }
 
@@ -12164,10 +12212,10 @@ console.log(strCookie);
 
         text: function (cssSelector, excludeChildren) {
             var texts = this.texts(cssSelector, excludeChildren);
-            if (texts.length === 1) {
-                return texts[0];
+            if (texts.length === 0) {
+                return '';
             } else {
-                return null;
+                return texts.join('');
             }
         },
 
@@ -12187,10 +12235,21 @@ console.log(strCookie);
 
             //noinspection JSUnresolvedVariable,JSUnresolvedFunction
             return CryptoJS.MD5(value).toString();
+        },
+
+        /**
+         * The method ensures that the specified func is only executed after the
+         * whole DOM is loaded.
+         * @param func {function} the function to be excecuted
+         */
+        ready: function (func) {
+            if ($.isFunction(func)) {
+                $(document).ready(func);
+            }
         }
     };
 
-    //noinspection JSUnresolvedFunction
+//noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
 }(window, dependencyScope);;
 "use strict";
@@ -12699,12 +12758,13 @@ console.log(strCookie);
      * @param category {string|null} the category (can be null or undefined)
      * @param description {string|null} the description for the activity
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after triggering the activity
      */
-    Breinify.activity = function (user, type, category, description, sign) {
+    Breinify.activity = function (user, type, category, description, sign, onReady) {
 
         Breinify.activityUser(user, type, category, description, sign, function (data) {
             var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
-            _privates.ajax(url, data);
+            _privates.ajax(url, data, onReady, onReady);
         });
     };
 
@@ -12815,9 +12875,7 @@ console.log(strCookie);
     Breinify.jQueryVersion = 'FALLBACK';
     Breinify.setConfig = function () {};
     Breinify.config = function () { return {} };
-    Breinify.activityUser = function (user, type, category, sign, onReady) {
-
-        // make sure the function is executed
+    Breinify.activityUser = function (user, type, category, description, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();
         }
@@ -12834,7 +12892,8 @@ console.log(strCookie);
             paramIs: function() { return false; },
             parsedParam: function() { return null; },
             param: function() { return null; },
-            url: function() { return window.location.href; }
+            url: function() { return window.location.href; },
+            matches: function() { return false; }
         },
         cookie: {
             all: function () { return []; },
@@ -12845,7 +12904,12 @@ console.log(strCookie);
         },
         texts: function() { return []; },
         text: function() { return null; },
-        md5: function () { return null; }
+        md5: function () { return null; },
+        ready: function(func) {
+            if (typeof func === 'function') {
+                func();
+            }
+        }
     };
 
     // trigger the lookup result with null
