@@ -24,7 +24,7 @@
     var _config = null;
 
     var _privates = {
-        'ajax': function (url, data, success, error) {
+        ajax: function (url, data, success, error) {
 
             $.ajax({
 
@@ -54,6 +54,16 @@
 
                 'timeout': _config.get(ATTR_CONFIG.AJAX_TIMEOUT)
             });
+        },
+
+        determineSignature: function (message, secret) {
+
+            //noinspection JSUnresolvedFunction
+            return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Base64);
+        },
+
+        generateActivityMessage: function (amount, unixTimestamp, type) {
+            return type + unixTimestamp + amount;
         }
     };
 
@@ -100,25 +110,67 @@
      * Sends an activity to the Breinify server.
      *
      * @param user {object} the user-information
-     * @param type {string} the type of activity
-     * @param category {string} the category (can be null or undefined)
+     * @param type {string|null} the type of activity
+     * @param category {string|null} the category (can be null or undefined)
+     * @param description {string|null} the description for the activity
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      */
-    Breinify.activity = function (user, type, category) {
+    Breinify.activity = function (user, type, category, description, sign) {
+
+        Breinify.activityUser(user, type, category, description, sign, function (data) {
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
+            _privates.ajax(url, data);
+        });
+    };
+
+    Breinify.unixTimestamp = function () {
+        return Math.floor(new Date().getTime() / 1000);
+    };
+
+    /**
+     * Creates a user instance and executes the specified method.
+     *
+     * @param user {object} the user-information
+     * @param type {string|null} the type of activity
+     * @param category {string|null} the category (can be null or undefined)
+     * @param description {string|null} the description for the activity
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after successful user creation
+     */
+    Breinify.activityUser = function (user, type, category, description, sign, onReady) {
+
+        var _onReady = function (user) {
+            if ($.isFunction(onReady)) {
+                onReady(user);
+            }
+        };
 
         // get the user information
         new BreinifyUser(user, function (user) {
 
             if (!user.validate()) {
-                // just silently return
+                _onReady(null);
                 return;
             }
 
             // get some default values for the passed parameters - if not set
             type = typeof type === 'undefined' || type === null ? null : type;
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
+            sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = Math.floor(new Date().getTime() / 1000);
+            var unixTimestamp = Breinify.unixTimestamp();
+            var message = _privates.generateActivityMessage(1, unixTimestamp, type);
+            var signature = null;
+            if (sign) {
+                var secret = _config.get(ATTR_CONFIG.SECRET);
+                if (typeof secret === 'string') {
+                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
+                } else {
+                    _onReady(null);
+                    return;
+                }
+            }
 
             // create the data set
             var data = {
@@ -130,11 +182,13 @@
                 },
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
+                'signature': signature,
                 'unixTimestamp': unixTimestamp
             };
 
-            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
-            _privates.ajax(url, data);
+            if ($.isFunction(onReady)) {
+                _onReady(data);
+            }
         });
     };
 

@@ -15,8 +15,18 @@
 
     Breinify.setConfig = function () {};
     Breinify.config = function () { return {} };
+    Breinify.user = function (user, type, category, sign, onReady) {
+
+        // make sure the function is executed
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
     Breinify.activity = function () {};
     Breinify.md5 = function () { return null; };
+    Breinify.unixTimestamp = function () {
+        return Math.floor(new Date().getTime() / 1000);
+    };
     Breinify.UTL = {
         loc: {
             params: function () { return []; },
@@ -24,7 +34,9 @@
             isParam: function() { return false; },
             param: function() { return null; },
             url: function() { return window.location.href; }
-        }
+        },
+        texts: function() { return []; },
+        text: function() { return null; }
     };
 
     // trigger the lookup result with null

@@ -173,7 +173,19 @@ module.exports = function (grunt) {
                     paths: bowerPaths,
                     overrides: {
                         'brein-util': {'main': 'common/dist/brein-util-common.js'},
-                        'cryptojslib': {'main': 'rollups/md5.js'}
+                        'cryptojslib': {'main': [
+                            'components/core.js',
+
+                            // base64 encoding
+                            'components/enc-base64.js',
+
+                            // 'rollups/md5.js',
+                            'components/md5.js',
+
+                            // 'rollups/hmac-sha256.js'
+                            'components/sha256.js',
+                            'components/hmac.js'
+                        ]}
                     }
                 },
                 dest: 'target/dep'
@@ -223,7 +235,13 @@ module.exports = function (grunt) {
                     src: [
                         'src/snippets/prefix-global.js.snippet',
                         'target/dep/jquery.js',
+
+                        'target/dep/core.js',
+                        'target/dep/enc-base64.js',
                         'target/dep/md5.js',
+                        'target/dep/sha256.js',
+                        'target/dep/hmac.js',
+
                         'src/snippets/disable-global-jquery.js.snippet',
                         'src/snippets/prefix-replace-window.js.snippet',
                         'target/dep/**/*.js',
