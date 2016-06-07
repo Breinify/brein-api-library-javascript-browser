@@ -35,9 +35,13 @@ The following code-snippet shows how to send an activity to the engine:
           * In addition, you may want to greet your visitor appropriately,
           * without even knowing there name or asking for it.
           */
-          if (Breinify.UTL.loc.matches('/welcome$') && Breinify.UTL.cookie.get('session') !== null) {
+          if (Breinify.UTL.loc.matches('/welcome$') && Breinify.UTL.cookie.get('session-email') !== null) {
               Breinify.lookup({
-                '': ''
+                'email': Breinify.UTL.cookie.get('session-email')
+              }, ['firstname'], false, function (data) {
+                  if (!breinify.UTL.isEmpty(data)) {
+                      window.alert('Hi ' + data.firstname.result);
+                  }
               });
           }
     </script>
