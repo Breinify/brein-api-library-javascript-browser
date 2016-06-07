@@ -57,7 +57,7 @@ describe('BreinifyUtil', function () {
         expect(Breinify.UTL.cookie.get('undefined')).toBeNull();
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.UTL.cookie.all()).toEqual({});
-
+        
         // set some cookies
         Breinify.UTL.cookie.set('cookie', 'value');
         Breinify.UTL.cookie.set('cookie', 'lastValue');
