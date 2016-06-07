@@ -199,21 +199,6 @@
         var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
     };
 
-
-    /**
-     * Helper method to create an MD5-hash. Internally the Breinify system uses
-     * other hashes. We even do not store this information, because of the possible
-     * use of rainbow tables. Nevertheless, it is a possible way to send information
-     * to us.
-     *
-     * @param value the value to be hashed
-     * @returns {string} the hashed value
-     */
-    Breinify.md5 = function (value) {
-        //noinspection JSUnresolvedVariable,JSUnresolvedFunction
-        return CryptoJS.MD5(value).toString(CryptoJS.enc.Base64);
-    };
-
     // bind the utilities to be available through Breinify
     Breinify.UTL = BreinifyUtil;
 

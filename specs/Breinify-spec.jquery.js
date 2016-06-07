@@ -8,12 +8,56 @@ describe('Breinify ExternaljQuery', function () {
         expect(typeof $).toBe('function');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect($.fn.jquery).toBe('2.2.2');
-        
+
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof Breinify.jQueryVersion).toBe('string');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof Breinify.jQueryVersion).not.toBe('');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.jQueryVersion).not.toBe('2.2.2');
+    });
+});
+
+describe('Breinify ExternaljQuery - Fallback', function () {
+
+    //noinspection JSUnresolvedFunction
+    beforeEach(function () {
+        window.loadedBreinify = Breinify;
+
+        //noinspection JSUnresolvedFunction
+        jasmine.getFixtures().fixturesPath = "specs/fixtures";
+        //noinspection JSUnresolvedFunction
+        loadFixtures('breinifyUtil-failed-breinify.html');
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('fallback Breinify supports all functions needed', function (done) {
+
+        var deepCompare = function (o1, o2) {
+            $.each(o1, function (property) {
+                var propVal = o1[property];
+                var failedPropVal = o2[property];
+
+                //noinspection JSUnresolvedFunction
+                expect([property, typeof propVal]).toEqual([property, typeof failedPropVal]);
+
+                // do a deep comparision
+                if (typeof propVal === 'object') {
+                    deepCompare(propVal, failedPropVal);
+                }
+            });
+        }
+
+        setTimeout(function () {
+
+            //noinspection JSUnresolvedFunction
+            expect(window.loadedBreinify.version).toMatch(/-snapshot$/);
+            //noinspection JSUnresolvedFunction
+            expect(window.failedBreinify.version).toBe('FALLBACK');
+
+            deepCompare(window.loadedBreinify, window.failedBreinify);
+
+            done();
+        }, 500);
     });
 });

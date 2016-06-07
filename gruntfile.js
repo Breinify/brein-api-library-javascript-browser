@@ -247,9 +247,9 @@ module.exports = function (grunt) {
                         'target/dep/**/*.js',
                         'src/snippets/suffix-replace-window.js.snippet',
                         'target/replaced/AttributeCollection.js',
+                        'target/replaced/BreinifyUtil.js',
                         'target/replaced/BreinifyConfig.js',
                         'target/replaced/BreinifyUser.js',
-                        'target/replaced/BreinifyUtil.js',
                         'target/replaced/**/*.js',
                         'src/snippets/suffix-global.js.snippet'
                     ],

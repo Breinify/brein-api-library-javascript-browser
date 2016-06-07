@@ -38,4 +38,16 @@ describe('BreinifyUtil', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.loc.parsedParam('string', 'url', null, null, null, url)).toBe('search-alias=aps');
     });
+
+    //noinspection JSUnresolvedFunction
+    it('calculates the correct md5', function () {
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.md5('philipp.meisen@breinify.com')).toBe('b82052775f777ec53787a3c2d3bc3b5d');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.md5('Hello World')).toBe('b10a8db164e0754105b7a99be72e3fe5');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.md5('')).toBe('d41d8cd98f00b204e9800998ecf8427e');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.md5(null)).toBeNull();
+    });
 });

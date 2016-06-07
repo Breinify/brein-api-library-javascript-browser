@@ -172,6 +172,24 @@
             } else {
                 return null;
             }
+        },
+
+        /**
+         * Helper method to create an MD5-hash. Internally the Breinify system uses
+         * other hashes. We even do not store this information, because of the possible
+         * use of rainbow tables. Nevertheless, it is a possible way to send information
+         * to us.
+         *
+         * @param value the value to be hashed
+         * @returns {string|null} the hashed value, or null if the value was null
+         */
+        md5: function (value) {
+            if (value === null) {
+                return null;
+            }
+
+            //noinspection JSUnresolvedVariable,JSUnresolvedFunction
+            return CryptoJS.MD5(value).toString();
         }
     };
 

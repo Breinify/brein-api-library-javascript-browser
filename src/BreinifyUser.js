@@ -7,10 +7,9 @@
 !function (scope, dependencyScope) {
     "use strict";
 
-    //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    //noinspection JSUnresolvedVariable
     var AttributeCollection = dependencyScope.AttributeCollection;
+    var BreinifyUtil = dependencyScope.BreinifyUtil;
 
     /*
      * Overview of all the different properties available in the configuration.
@@ -190,7 +189,7 @@
                 this.reset(attribute);
 
                 //noinspection JSUnresolvedFunction
-                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, CryptoJS.MD5(value).toString(CryptoJS.enc.Base64));
+                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
             } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
                 var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
