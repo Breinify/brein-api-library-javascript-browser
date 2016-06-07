@@ -12246,6 +12246,28 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             if ($.isFunction(func)) {
                 $(document).ready(func);
             }
+        },
+
+        /**
+         * Checks if the passed value is empty, i.e., is an empty string (trimmed), an empty object, undefined or null.
+         * @param val {mixed} the value to be checked
+         * @returns {boolean} true if the value is empty, otherwise false
+         */
+        isEmpty: function (val) {
+            if (val === null) {
+                return true;
+            }
+
+            var type = typeof val;
+            if ('undefined' === type) {
+                return true;
+            } else if ('object' === type && $.isEmptyObject(val)) {
+                return true;
+            } else if ('string' === type && '' === val.trim()) {
+                return true;
+            } else {
+                return false;
+            }
         }
     };
 
@@ -12505,9 +12527,9 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
         }
 
         // try to set the location if there isn't one yet
-        if (instance.read('location') === null) {
+        if (instance.read('location') === null && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
-        } else {
+        } else if ($.isFunction(onReady)) {
             onReady(instance);
         }
     };
@@ -12708,6 +12730,12 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
         generateActivityMessage: function (amount, unixTimestamp, type) {
             return type + unixTimestamp + amount;
+        },
+
+        generateLookUpMessage: function (dimensions, unixTimestamp) {
+            dimensions = $.isArray(dimensions) ? dimensions : [];
+            var dimension = dimensions.length === 0 ? '' : dimensions[0];
+            return dimension + unixTimestamp + dimensions.length;
         }
     };
 
@@ -12768,6 +12796,10 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
         });
     };
 
+    /**
+     * Method to create a valid current unix timestamp.
+     * @returns {number} the current unix timestamp (based on the system time)
+     */
     Breinify.unixTimestamp = function () {
         return Math.floor(new Date().getTime() / 1000);
     };
@@ -12805,11 +12837,11 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
             // get the other values needed
             var unixTimestamp = Breinify.unixTimestamp();
-            var message = _privates.generateActivityMessage(1, unixTimestamp, type);
             var signature = null;
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
+                    var message = _privates.generateActivityMessage(1, unixTimestamp, type);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -12838,10 +12870,75 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
     };
 
     /**
-     * Method to lookup available information.
+     * Method to lookup the specified dimensions information.
      */
-    Breinify.lookup = function () {
-        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
+    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
+
+        Breinify.lookupUser(user, dimensions, sign, function (data) {
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
+            _privates.ajax(url, data, onLookUp, onLookUp);
+        });
+    };
+
+    /**
+     * Creates a user request entity used to fire a query against the lookup endpoint.
+     *
+     * @param user {object} the user-information
+     * @param dimensions {Array|string} an array of dimensions
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after successful user creation
+     */
+    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
+
+        var _onReady = function (user) {
+            if ($.isFunction(onReady)) {
+                onReady(user);
+            }
+        };
+
+        // get the user information
+        new BreinifyUser(user, function (user) {
+
+            if (!user.validate()) {
+                _onReady(null);
+                return;
+            }
+
+            // get some default values for the passed parameters - if not set
+            dimensions = typeof dimensions === 'string' ? [dimensions] : ($.isArray(dimensions) ? dimensions : []);
+            sign = typeof sign === 'boolean' ? sign : false;
+
+            // get the other values needed
+            var unixTimestamp = Breinify.unixTimestamp();
+            var signature = null;
+            if (sign) {
+                var secret = _config.get(ATTR_CONFIG.SECRET);
+                if (typeof secret === 'string') {
+                    var message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
+                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
+                } else {
+                    _onReady(null);
+                    return;
+                }
+            }
+
+            // create the data set
+            var data = {
+                'user': user.all(),
+
+                'lookup': {
+                    'dimensions': dimensions
+                },
+
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
+                'signature': signature,
+                'unixTimestamp': unixTimestamp
+            };
+
+            if ($.isFunction(onReady)) {
+                _onReady(data);
+            }
+        });
     };
 
     // bind the utilities to be available through Breinify
@@ -12880,7 +12977,21 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             onReady();
         }
     };
-    Breinify.activity = function () {};
+    Breinify.activity = function (user, type, category, description, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
+        if (typeof onLookUp === 'function') {
+            onLookUp();
+        }
+    };
     Breinify.unixTimestamp = function () {
         return Math.floor(new Date().getTime() / 1000);
     };
@@ -12909,11 +13020,9 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             if (typeof func === 'function') {
                 func();
             }
-        }
+        },
+        isEmpty: function() { return false; }
     };
-
-    // trigger the lookup result with null
-    Breinify.lookup = function () {};
 
     window['Breinify'] = Breinify;
 }
