@@ -12071,6 +12071,69 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             }
         },
 
+        cookie: {
+
+            /**
+             * Gets all the cookies currently defined and accessible or an empty array if there aren't any.
+             * @returns {object} the found cookies
+             */
+            all: function () {
+                var strCookie = document.cookie;
+console.log(strCookie);
+                var result = {};
+                if ('' !== strCookie.trim()) {
+                    var cookies = strCookie.split(';');
+
+                    for (var i = 0; i < cookies.length; i++) {
+                        var cookie = cookies[i];
+
+                        while (cookie.charAt(0) === ' ') {
+                            cookie = cookie.substring(1);
+                        }
+
+                        var sepPosition = cookie.indexOf('=');
+                        if (sepPosition < 0) {
+                            result[cookie] = null;
+                        } else {
+                            var name = cookie.substring(0, sepPosition);
+                            result[name] = cookie.substring(sepPosition + 1, cookie.length);
+                        }
+                    }
+                }
+
+                return result;
+            },
+
+            reset: function (name) {
+                this.set(name, '', -1);
+            },
+
+            set: function (name, value, expiresInDays) {
+                expiresInDays = typeof expiresInDays === 'number' ? expiresInDays : 1;
+
+                var d = new Date();
+                d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
+
+                var expires = "expires=" + d.toUTCString();
+
+                document.cookie = name + "=" + value + "; " + expires;
+            },
+
+            get: function (name) {
+                var cookies = this.all();
+
+                if (cookies.hasOwnProperty(name)) {
+                    return cookies[name];
+                } else {
+                    return null;
+                }
+            },
+
+            check: function (cookie) {
+                return this.get(cookie) !== null;
+            }
+        },
+
         texts: function (cssSelector, excludeChildren) {
             var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
             excludeChildren = typeof excludeChildren === 'boolean' ? excludeChildren : true;
@@ -12772,6 +12835,13 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             parsedParam: function() { return null; },
             param: function() { return null; },
             url: function() { return window.location.href; }
+        },
+        cookie: {
+            all: function () { return []; },
+            set: function() {},
+            reset: function() {},
+            get: function() { return null; },
+            check: function() { return false; },
         },
         texts: function() { return []; },
         text: function() { return null; },

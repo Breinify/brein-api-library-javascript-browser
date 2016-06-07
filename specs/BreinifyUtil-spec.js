@@ -50,4 +50,43 @@ describe('BreinifyUtil', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.UTL.md5(null)).toBeNull();
     });
+
+    //noinspection JSUnresolvedFunction
+    it('can handle cookies', function () {
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.get('undefined')).toBeNull();
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.all()).toEqual({});
+
+        // set some cookies
+        Breinify.UTL.cookie.set('cookie', 'value');
+        Breinify.UTL.cookie.set('cookie', 'lastValue');
+        Breinify.UTL.cookie.set('anotherCookie', 'anotherValue');
+        Breinify.UTL.cookie.set('specialChars', '?%&*)(');
+        Breinify.UTL.cookie.set('empty', '');
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.all()).toEqual({
+            'anotherCookie': 'anotherValue',
+            'cookie': 'lastValue',
+            'empty': '',
+            'specialChars': '?%&*)('
+        });
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.get('cookie')).toEqual('lastValue');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.get('anotherCookie')).toEqual('anotherValue');
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.get('empty')).toEqual('');
+
+        Breinify.UTL.cookie.reset('cookie');
+
+        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+        expect(Breinify.UTL.cookie.all()).toEqual({
+            'anotherCookie': 'anotherValue',
+            'empty': '',
+            'specialChars': '?%&*)('
+        });
+    });
 });

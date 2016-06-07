@@ -42,11 +42,11 @@ describe('Breinify ExternaljQuery - Fallback', function () {
                 expect([property, typeof propVal]).toEqual([property, typeof failedPropVal]);
 
                 // do a deep comparision
-                if (typeof propVal === 'object') {
+                if (typeof propVal === 'object' && typeof failedPropVal === 'object') {
                     deepCompare(propVal, failedPropVal);
                 }
             });
-        }
+        };
 
         setTimeout(function () {
 
