@@ -1,6 +1,16 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/logo.png" alt="Breinify API JavaScript Library" width="250">
+</p>
+
+<p align="center">
+Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right at your fingertips.
+</p>
+
 ### Comprehensive Example
 
 The following code shows a comprehensive example utilizing the *breinify-api.js* library.
+
+ <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/example.png" alt="Breinify API JavaScript Library" width="300">
 
 **Note:**
 
@@ -294,7 +304,6 @@ The following code shows a comprehensive example utilizing the *breinify-api.js*
         }).appendTo($el);
     });
 </script>
-
 
 </body>
 </html>
