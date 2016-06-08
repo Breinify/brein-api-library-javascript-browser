@@ -1,7 +1,7 @@
 /*
  * breinify-api
  * v1.0.0-snapshot
- * 2016-06-07
+ * 2016-06-08
  **/
 /*
  * We inject a dependencyScope variable, which will be used

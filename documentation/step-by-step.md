@@ -81,7 +81,7 @@ The engine is informed by an activity by executing *Breinify.activity(...)*. If 
 
 ```html
 <script>
-   Breinify.UTL.events.click('.product', function () {
+    Breinify.UTL.events.click('.product', function () {
         var userEmail = Breinify.UTL.cookie.get('session-email');
 
         if (!Breinify.UTL.isEmpty(userEmail)) {
