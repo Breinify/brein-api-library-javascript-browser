@@ -1,7 +1,7 @@
 # Breinify API JavaScript Library
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Breinify/sample/img/master/logo.png" alt="Breinify API JavaScript Library" width="226">
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/sample/img/logo.png" alt="Breinify API JavaScript Library" width="226">
 </p>
 
 <p align="center">Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right at your fingertips.</p>
