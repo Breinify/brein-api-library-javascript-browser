@@ -55,4 +55,9 @@ The following code-snippet shows how to send an activity to the engine:
     </script>
 ```
 
-To understand all the capabilities of Breinify's DigitalDNA API, you should have a look at the [documentation/step-by-step.md](step-by-step instruction), [documentation/api.md](API documentation), [documentation/example-google-tag-manager.md](an example using Google Tag Manager), [example-comprehensive.md](a more comprehensive example), or just our website at [https://www.breinify.com](https://www.breinify.com).
+To understand all the capabilities of Breinify's DigitalDNA API, you should have a look at:
+* the [step-by-step instruction](documentation/step-by-step.md),
+* the [API documentation](documentation/api.md),
+* an [example using Google Tag Manager](documentation/example-google-tag-manager.md),
+* a [more comprehensive example](example-comprehensive.md), or
+* [Breinify's Website](https://www.breinify.com).
