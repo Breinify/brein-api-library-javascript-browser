@@ -20,7 +20,7 @@ As with every JavaScript library, the first things you have to do, is to load th
 
 ##### Using *bower* to download the library
 
-The library breinify.js can be easily integrated using
+The library breinify-api.js can be easily integrated using
 
 ```bash
 bower install breinify/brein-api-library-javascript-browser
@@ -38,29 +38,29 @@ npm install https://github.com/breinify/brein-api-library-javascript-browser/tar
 
 ##### Download the library directly from GitHub
 
-or just download the version from [GitHub](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.min.js) directly.
+or just download the version from [GitHub](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify-api.min.js) directly.
 
 #### 2. Step: Integrate (npm/bower) downloaded files
 
-There are several different ways on how to use the downloaded file(s). The easiest way is to use the minified version *breinify.min.js*. The library is concatenated and contains all the dependencies needed. Thus, the library does not need any additional files and can be directly loaded (same applies for the unminified version [breinify.js](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.js)).
+There are several different ways on how to use the downloaded file(s). The easiest way is to use the minified version *breinify-api.min.js*. The library is concatenated and contains all the dependencies needed. Thus, the library does not need any additional files and can be directly loaded (same applies for the unminified version [breinify-api.js](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify-api.js)).
 
-The file is integrated within a web-site by adding the needed script-tag, pointing to the location of the downloaded file (e.g., *js/breinify.min.js*):
+The file is integrated within a web-site by adding the needed script-tag, pointing to the location of the downloaded file (e.g., *js/breinify-api.min.js*):
 
 ```html
-<script src="js/breinify.min.js"></script>
+<script src="js/breinify-api.min.js"></script>
 ```
 
 It is also possible to omit the download and just point to the library file provided through a CDN (currently we do not publish the library to any CDN, but we will keep you updated) or Breinify's site.
 
 ```html
-<script src="https://libs.breinify.com/javascript/breinify.min.js"></script>
+<script src="https://libs.breinify.com/javascript/breinify-api.min.js"></script>
 ```
 
 **Note:** The library can also be loaded asynchroniously using the *async* and *onload* attribute (officially introduced in HTML5). In that case, the configuration of the library and all bindings should be performed after the library is loaded (i.e., within the *onload* function).
 
 #### 3. Step: Configure the library
 
-The library can be configured easily within a script-block, which should be placed after the loading of the library, but prior to any other usage. This ensures, that the library will be ready for usage, whenever a *activity* or *lookup* is triggered.
+The library can be configured easily within a script-block, which should be placed after the loading of the library, but prior to any other usage. This ensures, that the library will be ready for usage, whenever a *activity* or *lookup* is triggered. The most important and only mandatory value to configure is the API-key used to communicate with the engine. To retrieve a **free API-key** you have to sign up under [https://www.breinify.com](https://www.breinify.com).
 
 ```html
 <script>
@@ -69,4 +69,17 @@ The library can be configured easily within a script-block, which should be plac
 ```
 
 **Note:**
-A full list of the configuration parameters can be found [here](documentation/api.md).
+A full list of the configuration parameters can be found [here](./api.md).
+
+#### 4. Step: Start using the library
+
+##### Placing activity triggers
+
+The engine powering the DigitalDNA API provides two endpoints. The first endpoint is used to inform the engine about the activities performed by visitors of your site. The activities are used to understand the user's current interest and infer the intent. It becomes more and more accurate across different users and verticals, the more activities are collected. It should be noted, that any personal information is not stored within the engine, thus each individuals privacy is safe. The engine understands several different activities performed by a user, e.g., landing, login, search, item selection, or logout.
+
+The engine is informed by an activity, by executing *Breinify.activity(...)*. If you want to trigger an activity, you normally observe events like page-loaded or click.
+```html
+<script>
+    Breinify.setConfig({ 'apiKey': '<your-api-key>' });
+</script>
+```

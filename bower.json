@@ -7,7 +7,7 @@
     "Marco Recchioni <marco@breinify.com>",
     "Diane Keng <diane@breinify.com>"
   ],
-  "main": "dist/breinify.js",
+  "main": "dist/breinify-api.js",
   "ignore": [
     "src/**/*",
     "specs/**/*",

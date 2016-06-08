@@ -64,14 +64,13 @@
             get: function() { return null; },
             check: function() { return false; },
         },
+        events: {
+            click: function() {},
+            pageloaded: function() {}
+        },
         texts: function() { return []; },
         text: function() { return null; },
         md5: function () { return null; },
-        ready: function(func) {
-            if (typeof func === 'function') {
-                func();
-            }
-        },
         isEmpty: function() { return false; }
     };
 

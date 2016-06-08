@@ -275,6 +275,25 @@
 
             return result;
         },
+        
+        events: {
+            click: function (selector, func, onlyOnce) {
+                if ($.isFunction(func)) {
+
+                    if (onlyOnce) {
+                        $(selector).one('click', func);
+                    } else {
+                        $(selector).click(func);
+                    }
+                }
+            },
+
+            pageloaded: function (func) {
+                if ($.isFunction(func)) {
+                    $(document).ready(func);
+                }
+            }
+        },
 
         text: function (cssSelector, excludeChildren) {
             var texts = this.texts(cssSelector, excludeChildren);
@@ -304,17 +323,6 @@
         },
 
         /**
-         * The method ensures that the specified func is only executed after the
-         * whole DOM is loaded.
-         * @param func {function} the function to be excecuted
-         */
-        ready: function (func) {
-            if ($.isFunction(func)) {
-                $(document).ready(func);
-            }
-        },
-
-        /**
          * Checks if the passed value is empty, i.e., is an empty string (trimmed), an empty object, undefined or null.
          * @param val {mixed} the value to be checked
          * @returns {boolean} true if the value is empty, otherwise false
@@ -337,6 +345,6 @@
         }
     };
 
-//noinspection JSUnresolvedFunction
+    //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
 }(window, dependencyScope);
