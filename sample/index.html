@@ -193,7 +193,7 @@
     Breinify.UTL.events.click('tr.clickable', function () {
         var userEmail = Breinify.UTL.cookie.get('session-email');
 
-        if (userEmail !== null) {
+        if (!Breinify.UTL.isEmpty(userEmail)) {
             var product = Breinify.UTL.text(Breinify.UTL.select(this, 'td:first'), false);
             Breinify.activity({
                 'email': userEmail
@@ -215,7 +215,7 @@
     Breinify.UTL.events.pageloaded(function () {
         var userEmail = Breinify.UTL.cookie.get('session-email');
 
-        if (userEmail !== null) {
+        if (!Breinify.UTL.isEmpty(userEmail)) {
             Breinify.activity({
                 'email': userEmail
             }, 'login', null, null, false, function () {

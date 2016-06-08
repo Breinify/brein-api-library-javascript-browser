@@ -77,9 +77,51 @@ A full list of the configuration parameters can be found [here](./api.md).
 
 The engine powering the DigitalDNA API provides two endpoints. The first endpoint is used to inform the engine about the activities performed by visitors of your site. The activities are used to understand the user's current interest and infer the intent. It becomes more and more accurate across different users and verticals, the more activities are collected. It should be noted, that any personal information is not stored within the engine, thus each individuals privacy is safe. The engine understands several different activities performed by a user, e.g., landing, login, search, item selection, or logout.
 
-The engine is informed by an activity, by executing *Breinify.activity(...)*. If you want to trigger an activity, you normally observe events like page-loaded or click.
+The engine is informed by an activity by executing *Breinify.activity(...)*. If you want to trigger an activity, you normally observe events like page-loaded or click.
+
 ```html
 <script>
-    Breinify.setConfig({ 'apiKey': '<your-api-key>' });
+   Breinify.UTL.events.click('.product', function () {
+        var userEmail = Breinify.UTL.cookie.get('session-email');
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+            var product = Breinify.UTL.text(this);
+
+            Breinify.activity({
+                'email': userEmail
+            }, 'selectProduct', 'services', product);
+        }
+    });
 </script>
 ```
+
+The example above, observes a click event on all elements with the *product* class. If such an element is clicked, the library is utilized to read a specific value from a session-cookie, which contains the current user's email. If such a cookie exists, the name of the product is read from the DOM-tree and send to the engine, adding the additional information *selectProduct* (to define the type of the activity), and the category (e.g., *services*).
+
+**Note:**
+A full list of the available utility functions (*Breinify.UTL*) and there purpose and parameters, can be found [here](./api.md).
+
+##### Placing look-up triggers
+
+Look-ups are used, e.g., to change the appearance of the site, increase the quality of service by enhancing recommendations or pre-filtering search results. In the following simple example, the site's message is adapted when the page is loaded.
+
+```html
+<script>
+    Breinify.UTL.events.pageloaded(function () {
+        var userEmail = Breinify.UTL.cookie.get('session-email');
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+
+            Breinify.lookup({
+                'email': userEmail
+            }, ['firstname'], false, function (data) {
+                if (!Breinify.UTL.isEmpty(data)) {
+                    Breinify.UTL.setText('span.welcome', 'Hi ' + data.firstname.result + '!');
+                }
+            });
+        }
+    });
+</script>
+```
+
+**Note:**
+The JSON structure of the reply of the *lookup* is documented in the [API Documentation](./api.md).
