@@ -21,16 +21,14 @@ The following code-snippet shows how to send an activity to the engine:
     <script src="https://libs.breinify.com/javascript/breinify.min.js"></script>
     <script>
         /*
-         * Configure the library, further info @step-by-step instruction
-         * on GitHub.
+         * Configure the library (see 'further links' for a full list)
          */
         Breinify.setConfig({
             'apiKey': '772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6'
         });
         /*
          * Now use the library to inform about activities, e.g., about
-         * a login (for a full list of activities see the @step-by-step
-         * instruction on GitHub).
+         * a login (for a full list of activities see 'further links').
          */
          if (Breinify.UTL.loc.matches('/login$')) {
             Breinify.activity({
@@ -39,8 +37,8 @@ The following code-snippet shows how to send an activity to the engine:
          }
          /*
           * You may want to greet your visitor appropriately, so let's
-          * look-up the first name. Further information can be found
-          * @step-by-step instruction on GitHub.
+          * look-up the first name. For a full list of dimensions have
+          * a look at 'further links'.
           */
           if (Breinify.UTL.loc.matches('/welcome$') &&
               Breinify.UTL.cookie.get('session-email') !== null) {
@@ -55,9 +53,11 @@ The following code-snippet shows how to send an activity to the engine:
     </script>
 ```
 
+### Further links
 To understand all the capabilities of Breinify's DigitalDNA API, you should have a look at:
+
 * the [step-by-step instruction](documentation/step-by-step.md),
 * the [API documentation](documentation/api.md),
 * an [example using Google Tag Manager](documentation/example-google-tag-manager.md),
-* a [more comprehensive example](example-comprehensive.md), or
+* a [more comprehensive example](documentation/example-comprehensive.md), or
 * [Breinify's Website](https://www.breinify.com).
