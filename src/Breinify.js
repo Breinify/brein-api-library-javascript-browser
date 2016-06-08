@@ -167,6 +167,7 @@
             // get some default values for the passed parameters - if not set
             type = typeof type === 'undefined' || type === null ? null : type;
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
+            description = typeof description === 'undefined' || description === null ? null : description;
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
@@ -189,7 +190,8 @@
 
                 'activity': {
                     'type': type,
-                    'category': category
+                    'category': category,
+                    'description': description
                 },
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),

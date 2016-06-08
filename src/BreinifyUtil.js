@@ -76,6 +76,14 @@
             }
 
             return content;
+        },
+
+        isDomEl: function (el) {
+            if (typeof el === 'object') {
+                return el.nodeType === 1;
+            } else {
+                return false;
+            }
         }
     };
 
@@ -213,7 +221,7 @@
             },
 
             set: function (name, value, expiresInDays) {
-                expiresInDays = typeof expiresInDays === 'number' ? expiresInDays : 1;
+                expiresInDays = value === null ? -1 : (typeof expiresInDays === 'number' ? expiresInDays : 1);
 
                 var d = new Date();
                 d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
@@ -235,6 +243,37 @@
 
             check: function (cookie) {
                 return this.get(cookie) !== null;
+            }
+        },
+
+        events: {
+            click: function (selector, func, onlyOnce) {
+                if ($.isFunction(func)) {
+                    onlyOnce = typeof onlyOnce === 'boolean' ? onlyOnce : false;
+
+                    if (onlyOnce) {
+                        $(selector).one('click', func);
+                    } else {
+                        $(selector).click(func);
+                    }
+                }
+            },
+
+            pageloaded: function (func) {
+                if ($.isFunction(func)) {
+                    $(document).ready(func);
+                }
+            }
+        },
+
+        select: function (cssSelector, childSelector, directChild) {
+            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            directChild = typeof directChild === 'boolean' ? directChild : false;
+
+            if (directChild) {
+                return $el.children(childSelector);
+            } else {
+                return $el.find(childSelector);
             }
         },
 
@@ -275,25 +314,6 @@
 
             return result;
         },
-        
-        events: {
-            click: function (selector, func, onlyOnce) {
-                if ($.isFunction(func)) {
-
-                    if (onlyOnce) {
-                        $(selector).one('click', func);
-                    } else {
-                        $(selector).click(func);
-                    }
-                }
-            },
-
-            pageloaded: function (func) {
-                if ($.isFunction(func)) {
-                    $(document).ready(func);
-                }
-            }
-        },
 
         text: function (cssSelector, excludeChildren) {
             var texts = this.texts(cssSelector, excludeChildren);
@@ -301,6 +321,16 @@
                 return '';
             } else {
                 return texts.join('');
+            }
+        },
+
+        setText: function(cssSelector, text) {
+            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+
+            if ($el.is('input')) {
+                $el.val(text);
+            } else {
+                $el.text(text);
             }
         },
 

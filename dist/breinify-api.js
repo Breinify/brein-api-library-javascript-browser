@@ -12010,6 +12010,14 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             }
 
             return content;
+        },
+
+        isDomEl: function (el) {
+            if (typeof el === 'object') {
+                return el.nodeType === 1;
+            } else {
+                return false;
+            }
         }
     };
 
@@ -12147,7 +12155,7 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             },
 
             set: function (name, value, expiresInDays) {
-                expiresInDays = typeof expiresInDays === 'number' ? expiresInDays : 1;
+                expiresInDays = value === null ? -1 : (typeof expiresInDays === 'number' ? expiresInDays : 1);
 
                 var d = new Date();
                 d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
@@ -12169,6 +12177,37 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
             check: function (cookie) {
                 return this.get(cookie) !== null;
+            }
+        },
+
+        events: {
+            click: function (selector, func, onlyOnce) {
+                if ($.isFunction(func)) {
+                    onlyOnce = typeof onlyOnce === 'boolean' ? onlyOnce : false;
+
+                    if (onlyOnce) {
+                        $(selector).one('click', func);
+                    } else {
+                        $(selector).click(func);
+                    }
+                }
+            },
+
+            pageloaded: function (func) {
+                if ($.isFunction(func)) {
+                    $(document).ready(func);
+                }
+            }
+        },
+
+        select: function (cssSelector, childSelector, directChild) {
+            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            directChild = typeof directChild === 'boolean' ? directChild : false;
+
+            if (directChild) {
+                return $el.children(childSelector);
+            } else {
+                return $el.find(childSelector);
             }
         },
 
@@ -12209,25 +12248,6 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
             return result;
         },
-        
-        events: {
-            click: function (selector, func, onlyOnce) {
-                if ($.isFunction(func)) {
-
-                    if (onlyOnce) {
-                        $(selector).one('click', func);
-                    } else {
-                        $(selector).click(func);
-                    }
-                }
-            },
-
-            pageloaded: function (func) {
-                if ($.isFunction(func)) {
-                    $(document).ready(func);
-                }
-            }
-        },
 
         text: function (cssSelector, excludeChildren) {
             var texts = this.texts(cssSelector, excludeChildren);
@@ -12235,6 +12255,16 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
                 return '';
             } else {
                 return texts.join('');
+            }
+        },
+
+        setText: function(cssSelector, text) {
+            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+
+            if ($el.is('input')) {
+                $el.val(text);
+            } else {
+                $el.text(text);
             }
         },
 
@@ -12841,6 +12871,7 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
             // get some default values for the passed parameters - if not set
             type = typeof type === 'undefined' || type === null ? null : type;
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
+            description = typeof description === 'undefined' || description === null ? null : description;
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
@@ -12863,7 +12894,8 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
 
                 'activity': {
                     'type': type,
-                    'category': category
+                    'category': category,
+                    'description': description
                 },
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
