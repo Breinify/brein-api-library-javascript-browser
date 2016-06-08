@@ -179,10 +179,50 @@
 
 <script language="javascript">
 
+    // set the external version
+    $('#breinify-version').text(Breinify.version);
+    $('#breinify-jquery-version').text(Breinify.jQueryVersion);
+    $('#external-jquery-version').text($.fn.jquery);
+
+    // show the configuration
+    var config = Breinify.config();
+    var clonableRow = $('#clonable-configuration-row');
+    $.each(config, function (property, value) {
+
+        var row = clonableRow.clone(false);
+        row.children('td:first-child').text(property);
+
+        // format the value if it's null
+        if (typeof  value === 'undefined' || value === null) {
+            row.children('td:nth-child(2)').html('<span style="font-style:italic">' + value + '</span>');
+        } else {
+            row.children('td:nth-child(2)').text(value);
+        }
+
+        // append the created clone
+        row.removeAttr('id', null).show().appendTo(clonableRow.parent());
+    });
+
+    // sort all the tables
+    $('table[data-sort="true"]').each(function (idx, el) {
+        var $el = $(el);
+
+        $el.find('tr').sort(function (a, b) {
+            var $aTd = $('td:nth-child(1)', a);
+            var $bTd = $('td:nth-child(1)', b);
+
+            return $aTd.text().localeCompare($bTd.text());
+        }).appendTo($el);
+    });
+</script>
+
+<script language="javascript">
+
     if (Breinify.UTL.loc.matches('^http://localhost:20000')) {
         Breinify.setConfig({
-            'url': 'http://dev.breinify.com/api',
-            'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
+            //'url': 'http://dev.breinify.com/api',
+            'url': 'http://localhost:8080/v1.0/controller',
+            'apiKey': '7BEE-DDC3-6FB4-4A70-80F8-43D9-1B33-D0FB'
         });
     } else {
         Breinify.setConfig({
@@ -247,46 +287,6 @@
         }
     }
 </script>
-
-<script language="javascript">
-
-    // set the external version
-    $('#breinify-version').text(Breinify.version);
-    $('#breinify-jquery-version').text(Breinify.jQueryVersion);
-    $('#external-jquery-version').text($.fn.jquery);
-
-    // show the configuration
-    var config = Breinify.config();
-    var clonableRow = $('#clonable-configuration-row');
-    $.each(config, function (property, value) {
-
-        var row = clonableRow.clone(false);
-        row.children('td:first-child').text(property);
-
-        // format the value if it's null
-        if (typeof  value === 'undefined' || value === null) {
-            row.children('td:nth-child(2)').html('<span style="font-style:italic">' + value + '</span>');
-        } else {
-            row.children('td:nth-child(2)').text(value);
-        }
-
-        // append the created clone
-        row.removeAttr('id', null).show().appendTo(clonableRow.parent());
-    });
-
-    // sort all the tables
-    $('table[data-sort="true"]').each(function (idx, el) {
-        var $el = $(el);
-
-        $el.find('tr').sort(function (a, b) {
-            var $aTd = $('td:nth-child(1)', a);
-            var $bTd = $('td:nth-child(1)', b);
-
-            return $aTd.text().localeCompare($bTd.text());
-        }).appendTo($el);
-    });
-</script>
-
 
 </body>
 </html>
