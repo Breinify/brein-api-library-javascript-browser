@@ -12,18 +12,52 @@ Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right 
 
 Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right at your fingertips. Did you ever asked yourself why it is so difficult to provide great user experience to your visitors? With all this data out there in the world wide web, it should be so easy to provide a unique experience to every visitor.
 
-Thanks to **Breinify's DigitalDNA** you are now able to adapt your online presence to your visitors needs and **provide a unique experience**.
+Thanks to **Breinify's DigitalDNA** you are now able to adapt your online presence to your visitors needs and **provide a unique experience**. Let's walk step-by-step through a simple example.
 
-#### Getting started
+#### 1. Step: Download the library
 
 As with every JavaScript library, the first things you have to do, is to load the library (or integerate it into your project).
 
-##### Using *bower* or *npm* to integrate the library
+##### Using *bower* to download the library
 
 The library breinify.js can be easily integrated using
 
-npm install https://github.com/breinify/brein-api-library-javascript-browser/tarball/master
-
-or
-
+```bash
+bower install breinify/brein-api-library-javascript-browser
+bower install github:breinify/brein-api-library-javascript-browser
 bower install https://github.com/breinify/brein-api-library-javascript-browser/tarball/master
+```
+
+##### Using *npm* to download the library
+
+```bash
+npm install breinify/brein-api-library-javascript-browser
+npm install github:breinify/brein-api-library-javascript-browser
+npm install https://github.com/breinify/brein-api-library-javascript-browser/tarball/master
+```
+
+##### Download the library directly from GitHub
+
+or just download the version from [GitHub](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.min.js) directly.
+
+#### 2. Step: Integrate (npm/bower) downloaded files
+
+There are several different ways on how to use the downloaded file(s). The easiest way is to use the minified version *breinify.min.js*. The library is concatenated and contains all the dependencies needed. Thus, the library does not need any additional files and can be directly (same applies for the unminified version [breinify.js](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.js)).
+
+The file is integrated within a web-site by adding the needed script-tag, pointing to the location of the downloaded file (e.g., *js/breinify.min.js*):
+
+```html
+<script src="js/breinify.min.js"></script>
+```
+
+It is also possible to omit the download and just point to the library file provided through a CDN (currently we do not publish the library to any CDN, but we will keep you updated) or Breinify's site.
+
+```html
+<script src="https://libs.breinify.com/javascript/breinify.min.js"></script>
+```
+
+#### 3. Step: Configure the library
+
+
+
+
