@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/sample/img/logo.png" alt="Breinify API JavaScript Library" width="250">
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/logo.png" alt="Breinify API JavaScript Library" width="250">
 </p>
 
 <p align="center">
@@ -55,32 +55,4 @@ The following code-snippet shows how to send an activity to the engine:
     </script>
 ```
 
-### Step-by-step instruction
-
-In this step-by-step instruction, we assume that the following API-key is used:
-
-**772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6**
-
-1. Load the library:
-
-    As with every JavaScript library, it has to be loaded. To achieve that, you can host the library on your own web-server or use the one hosted on the breinify server (i.e., [https://libs.breinify.com/javascript/breinify.min.js](https://libs.breinify.com/javascript/breinify.min.js)).
-
-    ```html
-    <script src="https://libs.breinify.com/javascript/breinify.min.js"></script>
-    ```
-
-    **Note:** The library will also be available through common CDN (content delivery networks). We will keep you updated regarding the available links and recommend a specific CDN to increase performance gains using CDN.
-
-2. Configure the library:
-
-    The configuration of the library is done by calling the **setConfig** method. The method validates the specified attributes and uses the specified configuration directly.
-
-    ```html
-    <script>
-       Breinify.setConfig({
-           'apiKey': '772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6'
-       });
-    </script>
-    ```
-
-    Currently, the following options are available:
+To understand all the capabilities of Breinify's DigitalDNA API, you should have a look at the [documentation/step-by-step.md](step-by-step instruction), [documentation/api.md](API documentation), [documentation/example-google-tag-manager.md](an example using Google Tag Manager), [example-comprehensive.md](a more comprehensive example), or just our website at [https://www.breinify.com](https://www.breinify.com).
