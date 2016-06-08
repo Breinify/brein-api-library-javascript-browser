@@ -7,7 +7,7 @@ Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right 
 </p>
 
 ### Quick start
-First of all, you need a valid API-key, which you can get under [https://www.breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
+First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
 
 **772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6**
 
