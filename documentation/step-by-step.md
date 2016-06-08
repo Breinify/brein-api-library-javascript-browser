@@ -42,7 +42,7 @@ or just download the version from [GitHub](https://raw.githubusercontent.com/Bre
 
 #### 2. Step: Integrate (npm/bower) downloaded files
 
-There are several different ways on how to use the downloaded file(s). The easiest way is to use the minified version *breinify.min.js*. The library is concatenated and contains all the dependencies needed. Thus, the library does not need any additional files and can be directly (same applies for the unminified version [breinify.js](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.js)).
+There are several different ways on how to use the downloaded file(s). The easiest way is to use the minified version *breinify.min.js*. The library is concatenated and contains all the dependencies needed. Thus, the library does not need any additional files and can be directly loaded (same applies for the unminified version [breinify.js](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify.js)).
 
 The file is integrated within a web-site by adding the needed script-tag, pointing to the location of the downloaded file (e.g., *js/breinify.min.js*):
 
@@ -56,8 +56,17 @@ It is also possible to omit the download and just point to the library file prov
 <script src="https://libs.breinify.com/javascript/breinify.min.js"></script>
 ```
 
+**Note:** The library can also be loaded asynchroniously using the *async* and *onload* attribute (officially introduced in HTML5). In that case, the configuration of the library and all bindings should be performed after the library is loaded (i.e., within the *onload* function).
+
 #### 3. Step: Configure the library
 
+The library can be configured easily within a script-block, which should be placed after the loading of the library, but prior to any other usage. This ensures, that the library will be ready for usage, whenever a *activity* or *lookup* is triggered.
 
+```html
+<script>
+    Breinify.setConfig({ 'apiKey': '<your-api-key>' });
+</script>
+```
 
-
+**Note:**
+A full list of the configuration parameters can be found [here](documentation/api.md).
