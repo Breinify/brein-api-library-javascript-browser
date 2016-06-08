@@ -13,7 +13,7 @@ First of all, you need a valid API-key, which you can get for free at [https://w
 
 There are currently two different end-points available through the API. The first one is used to send data - so called activities - to the engine, whereas the second one is used to retrieve data from it (lookup).
 
-The following code-snippet shows how to send an activity to the engine:
+The following code-snippet shows how easy it is to utilize the different end-points:
 
 ```html
 
