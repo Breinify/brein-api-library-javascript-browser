@@ -1,16 +1,12 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/sample/img/logo.png" alt="Breinify API JavaScript Library" width="226">
-</p>
-
-<p align="center" style="border-bottom:0px;padding-bottom:0.1em;font-size:2.25em;">
-Breinify API JavaScript Library
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/sample/img/logo.png" alt="Breinify API JavaScript Library" width="250">
 </p>
 
 <p align="center">
 Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right at your fingertips.
 </p>
 
-## A quick start
+### Quick start
 First of all, you need a valid API-key, which you can get under [https://www.breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
 
 **772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6**
@@ -59,7 +55,7 @@ The following code-snippet shows how to send an activity to the engine:
     </script>
 ```
 
-## A step-by-step instruction
+### Step-by-step instruction
 
 In this step-by-step instruction, we assume that the following API-key is used:
 
@@ -88,10 +84,3 @@ In this step-by-step instruction, we assume that the following API-key is used:
     ```
 
     Currently, the following options are available:
-
-
-
-### Requirements
-This library is used to integrate the Brein Engine (more specific, the API's end-points: activity and lookup) with a web-platform (using JavaScript). The library requires [TODO: add lists of supported and tested browsers].
-
-[TODO: add documentation]
