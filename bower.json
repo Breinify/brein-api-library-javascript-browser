@@ -1,7 +1,7 @@
 {
   "name": "breinify",
   "version": "1.0.0-snapshot",
-  "description": "This is a JavaScript library to provide easy usage of the Breinify API",
+  "description": "This is a JavaScript library simplifying the usage of the Breinify API",
   "authors": [
     "Philipp Meisen <philipp@breinify.com>",
     "Marco Recchioni <marco@breinify.com>",
