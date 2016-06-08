@@ -1,0 +1,301 @@
+### Comprehensive Example
+
+The following code shows a comprehensive example utilizing the *breinify-api.js* library.
+
+**Note:**
+
+* the simple-sample.css can be found [here](https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/sample/css/simple-sample.css)
+* the full example is checkd into the GitHub [here](https://github.com/Breinify/brein-api-library-javascript-browser/tree/master/sample)
+
+```html
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="css/simple-sample.css">
+
+    <script src="js/breinify-api.js"></script>
+    <script src="js/jquery.js"></script>
+
+    <title>Sample: breinify-api.js</title>
+
+    <style>
+        h1 {
+            font-size: 20px;
+            font-weight: bold;
+            padding-left: 5px;
+            padding-bottom: 10px;
+        }
+
+        h1:not(:first-child) {
+            padding-top: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        th:first-child {
+            width: 250px
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2
+        }
+
+        tr.clickable {
+            cursor: pointer;
+        }
+
+        th {
+            background-color: #42a2de;
+            color: white;
+        }
+
+        .info {
+            position: absolute;
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            background-color: #42a2de;
+            color: white;
+            margin: 0 auto 15px auto;
+            top: 5px;
+            left: 0;
+            right: 0;
+            display: none;
+            box-shadow: 3px 3px 2px #888888;
+        }
+
+        .closeBtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .closeBtn:hover {
+            color: black;
+        }
+
+        .text div {
+            line-height: 20px
+        }
+    </style>
+</head>
+<body>
+<div id="infoBox" class="info">
+    <span class="closeBtn" onclick="$(this).parent().hide()">&times;</span>
+    <span class="text"></span>
+</div>
+
+<div class="frame">
+
+    <h1>LookUp Data</h1>
+    <table data-sort="true">
+        <tr>
+            <th></th>
+            <th></th>
+        </tr>
+        <tr>
+            <td>Email:</td>
+            <td>
+                <label><input style="width:90%" type="text" name="email"></label>
+                <button id="dimension-lookup">...</button>
+            </td>
+        </tr>
+    </table>
+
+    <h1>LookUp Result</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Dimension</th>
+            <th>Value</th>
+        </tr>
+        <tr id="dimension-email">
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <h1>General Information</h1>
+    <table>
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+        </tr>
+        <tr class="clickable">
+            <td>Breinify Library Version</td>
+            <td id="breinify-version"></td>
+        </tr>
+        <tr class="clickable">
+            <td>Breinify jQuery Version</td>
+            <td id="breinify-jquery-version"></td>
+        </tr>
+        <tr class="clickable">
+            <td>External jQuery Version</td>
+            <td id="external-jquery-version"></td>
+        </tr>
+    </table>
+
+    <h1>Current Configuration</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+        </tr>
+        <tr id="clonable-configuration-row" class="clickable" style="display:none">
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+</div>
+
+<script language="javascript">
+    var handler = null;
+    var show = function (msg) {
+        var $el = $(infoBox);
+        var $textEl = $el.children('span.text');
+
+        $textEl.prepend('<div>' + msg + '</div>');
+        $el.show();
+
+        clearTimeout(handler);
+        handler = setTimeout(function () {
+            hide();
+        }, 3000);
+    };
+
+    var hide = function () {
+        var $el = $(infoBox);
+
+        handler = null;
+        $el.fadeOut(function () {
+            $el.children('span.text').text('');
+        });
+    };
+</script>
+
+<script language="javascript">
+
+    if (Breinify.UTL.loc.matches('^http://localhost:20000')) {
+        Breinify.setConfig({
+            'url': 'http://dev.breinify.com/api',
+            'apiKey': '5ABA-01F8-8855-4E9B-AB35-DAD7-F4B7-D752'
+        });
+    } else {
+        Breinify.setConfig({
+            'apiKey': '6666-6666-6666-6666-6666-6666-6666-6666'
+        });
+    }
+
+    Breinify.UTL.events.click('tr.clickable', function () {
+        var userEmail = Breinify.UTL.cookie.get('session-email');
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+            var product = Breinify.UTL.text(Breinify.UTL.select(this, 'td:first'), false);
+            Breinify.activity({
+                'email': userEmail
+            }, 'selectProduct', null, product, false, function () {
+                show('Sent activity "selectProduct" with product "' + product + '".');
+            });
+        }
+    });
+
+    Breinify.UTL.events.click('#dimension-lookup', function () {
+        var userEmail = Breinify.UTL.text('input[name="email"');
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+            Breinify.UTL.cookie.set('session-email', userEmail, 1);
+            lookUp(userEmail);
+        }
+    });
+
+    Breinify.UTL.events.pageloaded(function () {
+        var userEmail = Breinify.UTL.cookie.get('session-email');
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+            Breinify.activity({
+                'email': userEmail
+            }, 'login', null, null, false, function () {
+                lookUp(userEmail);
+                show('Sent activity "login" with user "' + userEmail + '".');
+            });
+        }
+    });
+
+    var lookUp = function (userEmail) {
+
+        if (!Breinify.UTL.isEmpty(userEmail)) {
+            Breinify.lookup({
+                'email': userEmail
+            }, ['firstname'], false, function (data) {
+                show('Retrieved lookup result for "' + userEmail + '".');
+
+                var val;
+                if (Breinify.UTL.isEmpty(data)) {
+                    val = 'undefined';
+                } else {
+                    val = data.firstname.result + ' (' + data.firstname.accuracy + ')';
+                }
+
+                Breinify.UTL.setText('input[name="email"]', userEmail);
+                Breinify.UTL.setText('#dimension-email td:nth-child(1)', userEmail);
+                Breinify.UTL.setText('#dimension-email td:nth-child(2)', val);
+            });
+        }
+    }
+</script>
+
+<script language="javascript">
+
+    // set the external version
+    $('#breinify-version').text(Breinify.version);
+    $('#breinify-jquery-version').text(Breinify.jQueryVersion);
+    $('#external-jquery-version').text($.fn.jquery);
+
+    // show the configuration
+    var config = Breinify.config();
+    var clonableRow = $('#clonable-configuration-row');
+    $.each(config, function (property, value) {
+
+        var row = clonableRow.clone(false);
+        row.children('td:first-child').text(property);
+
+        // format the value if it's null
+        if (typeof  value === 'undefined' || value === null) {
+            row.children('td:nth-child(2)').html('<span style="font-style:italic">' + value + '</span>');
+        } else {
+            row.children('td:nth-child(2)').text(value);
+        }
+
+        // append the created clone
+        row.removeAttr('id', null).show().appendTo(clonableRow.parent());
+    });
+
+    // sort all the tables
+    $('table[data-sort="true"]').each(function (idx, el) {
+        var $el = $(el);
+
+        $el.find('tr').sort(function (a, b) {
+            var $aTd = $('td:nth-child(1)', a);
+            var $bTd = $('td:nth-child(1)', b);
+
+            return $aTd.text().localeCompare($bTd.text());
+        }).appendTo($el);
+    });
+</script>
+
+
+</body>
+</html>
+```
