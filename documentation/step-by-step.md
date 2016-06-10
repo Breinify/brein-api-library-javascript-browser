@@ -124,4 +124,4 @@ Look-ups are used, e.g., to change the appearance of the site, increase the qual
 ```
 
 **Note:**
-The JSON structure of the reply of the *lookup* is documented in the [API Documentation](./api.md).
+The JSON structure of the reply of the *lookup* is documented in the [API library documentation](./api.md).

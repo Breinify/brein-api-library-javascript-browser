@@ -37,7 +37,7 @@ module.exports = function (grunt) {
     /*
      * Configuration settings
      */
-    var defaultPort = 10000;
+    var defaultPort = 20000;
     var banner = '/*\n' +
         ' * ' + '<%= pkg.name %>\n' +
         ' * ' + 'v<%= pkg.version %>\n' +

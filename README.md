@@ -57,7 +57,7 @@ The following code-snippet shows how easy it is to utilize the different end-poi
 To understand all the capabilities of Breinify's DigitalDNA API, you should have a look at:
 
 * the [step-by-step instruction](documentation/step-by-step.md),
-* the [API documentation](documentation/api.md),
+* the [API library documentation](documentation/api.md),
 * an [example using Google Tag Manager](documentation/example-google-tag-manager.md),
 * a [more comprehensive example](documentation/example-comprehensive.md), or
 * [Breinify's Website](https://www.breinify.com).
