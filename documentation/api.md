@@ -10,6 +10,21 @@ Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right 
 
 The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. Thus, the following documentation is organized in three sections: *General Information*, *API*, and *Utilities (UTL)*.
 
+This documentation is organized as following:
+
+* [General Attributes](#general-attributes)
+  * Breinify.version
+  * Breinify.config()
+  * Breinify.setConfig(config)
+* [API](#api)
+  * Breinify.activity(user, type, category, description, sign, onReady)
+  * Breinify.lookup(user, dimensions, sign, onLookUp)
+* [Utilities (UTL)]()
+  * [Breinify.UTL (general functions)]()
+  * [Breinify.UTL.events]()
+  * [Breinify.UTL.loc]()
+  * [Breinify.UTL.cookie]()
+
 #### General Attributes
 
 * {string} **Breinify.version**:<br/>
@@ -106,7 +121,7 @@ The library provides several attributes, methods, and objects to simplify the us
   <br/>
 
 * **Breinify.lookup(user, dimensions, sign, onLookUp)**:<br/>
-  Retrieves a lookup result from the engine.
+  Retrieves a lookup result from the engine. The function needs a valid API-key to be configured to succeed.
 
   **Parameters**:
 
@@ -135,7 +150,56 @@ The library provides several attributes, methods, and objects to simplify the us
 
 The utility library provides general functionality, which makes it easy to retrieve values from, e.g., the url or cookies. In addition, it simplifies the retrieval of values from the DOM-tree or the handling of events.
 
+##### Breinify.UTL (general functions)
+
+
+
+        texts: function() { return []; },
+        text: function() { return null; },
+        md5: function () { return null; },
+        isEmpty: function() { return false; }
+
+##### Breinify.UTL.events
+
+For simplicity the library provides the possibility to handle/react to specific events triggered by the DOM-tree. Currently, two events are supported, i.e., *click* and *pageloaded*.
+
+* **Breinify.UTL.events.click(selector, func, onlyOnce)**:<br/>
+  Gets all the cookies currently defined and accessible.
+
+  **Parameters**:
+
+  {string} **selector**: The CSS-selector to specify the element(s) to listen for click-events (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailled overview of available selectors).
+
+  {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using *this*. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
+
+  {boolean} **onlyOnce**: Specify if the event should only be trigger at most once.
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.events.click('body', function () {
+    window.alert('You clicked the document.');
+  });
+  ```
+  <br/>
+
+* **Breinify.UTL.events.pageloaded(func)**:<br/>
+  Gets all the cookies currently defined and accessible.
+
+  **Parameters**:
+
+  {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using *this*. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.events.click('body', function () {
+    window.alert('The document is loaded.');
+  });
+  ```
+  <br/>
+
 ##### Breinify.UTL.loc
+
+The location part of the utilities contains functions to validate, match, or retrieve information from the url or parameters specified within.
 
 * {object} **Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Retrieves an object with representing the parameters specified within the URL.
@@ -201,6 +265,8 @@ The utility library provides general functionality, which makes it easy to retri
 * {boolean} **Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Validates if the specified parameter is equal (*===*) to the *expected* value.
 
+  **Parameters**:
+
   {string} **expected**: The expected value of the parameter to look for.
 
   {string} **param**: The parameter to look for.
@@ -225,6 +291,20 @@ The utility library provides general functionality, which makes it easy to retri
 * {boolean} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Parses the specified parameter to the expected type (i.e., *number*, *string*, *boolean*). If the parameter cannot be parsed, **null** is returned.
 
+  **Parameters**:
+
+  {string} **expectedType**: The expected type, i.e., *number*, *string*, or *boolean*.
+
+  {string} **param**: The parameter to look for.
+
+  {string|null} **paramListSeparator**: The separator used to separate the list of parameters from the url (default: *?*).
+
+  {string|null} **paramSeparator**: The separator used to separate the parameters from each other (default: *&*).
+
+  {string|null} **paramSplit**: The separator used to split the name of the parameter and the value (default: *=*).
+
+  {string|null} **url**: The url to read the parameters from (default: *Breinify.UTL.loc.url()*).
+
   **Example Usage**:
   ```javascript
   var page = Breinify.UTL.loc.parsedParam('number', 'page', null, null, null, 'http://mydomain.com?page=search')
@@ -236,6 +316,18 @@ The utility library provides general functionality, which makes it easy to retri
 
 * {boolean} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Gets a specific parameter from the url. The function returns *null*, if the parameter does not exist.
+
+  **Parameters**:
+
+  {string} **param**: The parameter to look for.
+
+  {string|null} **paramListSeparator**: The separator used to separate the list of parameters from the url (default: *?*).
+
+  {string|null} **paramSeparator**: The separator used to separate the parameters from each other (default: *&*).
+
+  {string|null} **paramSplit**: The separator used to split the name of the parameter and the value (default: *=*).
+
+  {string|null} **url**: The url to read the parameters from (default: *Breinify.UTL.loc.url()*).
 
   **Example Usage**:
   ```javascript
@@ -253,29 +345,89 @@ The utility library provides general functionality, which makes it easy to retri
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.matches()**:<br/>
+* {boolean} **Breinify.UTL.loc.matches(regEx)**:<br/>
   Validates if the current url matches the specified regular expression.
+
+  **Parameters**:
+
+  {string|RegEx} **regEx**: The regular expression used for matching.
 
   **Example Usage**:
   ```javascript
-
+  if (Breinify.UTL.loc.matches('^https?//product.shop.com')) {
+    window.alert('Welcome to our product list.');
+  }
   ```
   <br/>
 
+##### Breinify.UTL.cookie
 
+The cookie part of the utilities contains functions to validate, match, or retrieve information from the available cookies.
 
-        cookie: {
-            all: function () { return []; },
-            set: function() {},
-            reset: function() {},
-            get: function() { return null; },
-            check: function() { return false; },
-        },
-        events: {
-            click: function() {},
-            pageloaded: function() {}
-        },
-        texts: function() { return []; },
-        text: function() { return null; },
-        md5: function () { return null; },
-        isEmpty: function() { return false; }
+* {object} **Breinify.UTL.cookie.all()**:<br/>
+  Gets all the cookies currently defined and accessible.
+
+  **Example Usage**:
+  ```javascript
+  var cookies = Breinify.UTL.cookie.all();
+  window.alert('The following cookies were found: ' + JSON.stringify(cookies));
+  ```
+  <br/>
+
+* **Breinify.UTL.cookie.reset(name)**:<br/>
+  Removes the specified cookie.
+
+  **Parameters**:
+
+  {string} **name**: The name of the cookie to be removed.
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.cookie.reset('myFunnyCookie');
+  ```
+  <br/>
+
+* **Breinify.UTL.cookie.set(name, value, expiresInDays)**:<br/>
+  Sets the specified cookie with the specified value.
+
+  **Parameters**:
+
+  {string} **name**: The name of the cookie to be set.
+
+  {string} **value**: The value to be set for the cookie.
+
+  {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default 1).
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.cookie.set('myFunnyCookie', 'A year of fun!', 365);
+  ```
+  <br/>
+
+* {string} **Breinify.UTL.cookie.get(name)**:<br/>
+  Gets the value of the cookie with the specified name, if no such cookie exists *null* is returned.
+
+  **Parameters**:
+
+  {string} **name**: The name of the cookie to be get.
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.cookie.get('myFunnyCookie');
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.cookie.check(name)**:<br/>
+  Checks if a cookie is currently set or not.
+
+  **Parameters**:
+
+  {string} **name**: The name of the cookie to be get.
+
+  **Example Usage**:
+  ```javascript
+  if (!Breinify.UTL.cookie.check('myFunnyCookie')) {
+    window.alert('Is the funny session over or did it never start?');
+  }
+  ```
+  <br/>

@@ -186,7 +186,7 @@
         cookie: {
 
             /**
-             * Gets all the cookies currently defined and accessible or an empty array if there aren't any.
+             * Gets all the cookies currently defined and accessible or an empty object if there aren't any.
              * @returns {object} the found cookies
              */
             all: function () {

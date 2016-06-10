@@ -12120,7 +12120,7 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
         cookie: {
 
             /**
-             * Gets all the cookies currently defined and accessible or an empty array if there aren't any.
+             * Gets all the cookies currently defined and accessible or an empty object if there aren't any.
              * @returns {object} the found cookies
              */
             all: function () {
