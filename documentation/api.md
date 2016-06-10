@@ -19,11 +19,31 @@ This documentation is organized as following:
 * [API](#api)
   * Breinify.activity(user, type, category, description, sign, onReady)
   * Breinify.lookup(user, dimensions, sign, onLookUp)
-* [Utilities (UTL)]()
-  * [Breinify.UTL (general functions)]()
-  * [Breinify.UTL.events]()
-  * [Breinify.UTL.loc]()
-  * [Breinify.UTL.cookie]()
+* [Utilities (UTL)](#utilities-utl)
+  * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
+    * Breinify.UTL.texts(selector, excludeChildren)
+    * Breinify.UTL.text(selector, excludeChildren)
+    * Breinify.UTL.setText(selector, value)
+    * Breinify.UTL.md5(value)
+    * Breinify.UTL.isEmpty(value)
+  * [Breinify.UTL.events](#breinifyutlevents)
+    * Breinify.UTL.events.click(selector, func, onlyOnce)
+    * Breinify.UTL.events.pageloaded(func)
+  * [Breinify.UTL.loc](#breinifyutlloc)
+    * Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.isParam(param, params)
+    * Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.url()
+    * Breinify.UTL.loc.matches(regEx)
+  * [Breinify.UTL.cookie](#breinifyutlcookie)
+    * Breinify.UTL.cookie.all()
+    * Breinify.UTL.cookie.reset(name)
+    * Breinify.UTL.cookie.set(name, value, expiresInDays)
+    * Breinify.UTL.cookie.get(name)
+    * Breinify.UTL.cookie.check(name)
 
 #### General Attributes
 
@@ -152,12 +172,85 @@ The utility library provides general functionality, which makes it easy to retri
 
 ##### Breinify.UTL (general functions)
 
+* {[string]} **Breinify.UTL.texts(selector, excludeChildren)**:<br/>
+  Gets the text of the elements selected by the specified *selector*.
 
+  **Parameters**:
 
-        texts: function() { return []; },
-        text: function() { return null; },
-        md5: function () { return null; },
-        isEmpty: function() { return false; }
+  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+
+  {boolean|null} **excludeChildren**: true, if the result for an element should also include the text of the children (concatenated by newline if needed), or false, if only the text of the selected element should be read (default true).
+
+  **Example Usage**:
+  ```javascript
+  var texts = Breinify.UTL.texts('ul li', false);
+  console.log(texts);
+  ```
+  <br/>
+
+* {string} **Breinify.UTL.text(selector, excludeChildren)**:<br/>
+  Gets the concatenated text of the specified element(s).
+
+  **Parameters**:
+
+  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+
+  {boolean|null} **excludeChildren**: true, if the result for an element should also include the text of the children (concatenated by newline if needed), or false, if only the text of the selected element should be read (default true).
+
+  **Example Usage**:
+  ```javascript
+  var text = Breinify.UTL.text('input[attr="name"]', false);
+  console.log(text);
+  ```
+  <br/>
+
+* {string} **Breinify.UTL.setText(selector, value)**:<br/>
+  Sets the text for the selected element(s).
+
+  **Parameters**:
+
+  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+
+  {string} **value**: The text to be set.
+
+  **Example Usage**:
+  ```javascript
+  var text = Breinify.UTL.text('input[attr="name"]', false);
+  console.log(text);
+  ```
+  <br/>
+
+* {string} **Breinify.UTL.md5(value)**:<br/>
+  Gets the hashed value for the passed *value*.
+
+  **Parameters**:
+
+  {string} **value**: The value to be hashed.
+
+  **Example Usage**:
+  ```javascript
+  var md5 = Breinify.UTL.text('HELLO', false);
+  window.alert('The hashed value of "HELLO" is ' + md5);
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.isEmpty(value)**:<br/>
+  Checks if the passed *value* is empty. Empty has a different meaning for different types. An *object* is assumed to be empty:
+    * if it is plain and has no attributes
+    * if it is a string equal to *''* after it is trimmed
+    * if it is *null*
+
+  **Parameters**:
+
+  {mixed} **value**: The value to be checked.
+
+  **Example Usage**:
+  ```javascript
+  Breinify.UTL.isEmpty({});     // returns true
+  Breinify.UTL.isEmpty('    '); // returns true
+  Breinify.UTL.isEmpty(null);   // returns true
+  ```
+  <br/>
 
 ##### Breinify.UTL.events
 
@@ -168,7 +261,7 @@ For simplicity the library provides the possibility to handle/react to specific 
 
   **Parameters**:
 
-  {string} **selector**: The CSS-selector to specify the element(s) to listen for click-events (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailled overview of available selectors).
+  {string} **selector**: The CSS-selector to specify the element(s) to listen for click-events (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors).
 
   {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using *this*. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
 
