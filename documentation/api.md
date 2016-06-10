@@ -15,11 +15,40 @@ The library provides several attributes, methods, and objects to simplify the us
 * {string} **Breinify.version**:<br/>
   Contains the current version of the usage library. If an error occurred while loading the library, the version is set to be *'FALLBACK'*.<br/><br/>
   **Example Usage**:<br/>
-  ```
+  ```javascript
   window.alert('The current version of the library is: ' + Breinify.version);
   ```
+  <br/><br/>
 
-* {object} **Breinify.config()**:<br/>Retrieves the current configuration of the library.
+* {object} **Breinify.config()**:<br/>
+  Retrieves the current configuration of the library. The following JSON is a sample object return by this function.
+  ```javascript
+  {
+    activityEndpoint: '/activity',
+    apiKey: '0000-0000-0000-0000-0000-0000-0000-0000',
+    category: 'other',
+    lookupEndpoint: '/lookup',
+    secret: null,
+    timeout: 1000,
+    url: 'https://api.breinify.com',
+    validate: true
+  }
+  ```
+  **Example Usage**:<br/>
+  ```javascript
+  $.each(Breinify.config(), function (property, value) {
+    console.log('The configuration property "' + property + '" has the value "' + value + '".')
+  });
+  ```
+  <br/><br/>
+
+* {string} **Breinify.version**:<br/>
+  Contains the current version of the usage library. If an error occurred while loading the library, the version is set to be *'FALLBACK'*.<br/><br/>
+  **Example Usage**:<br/>
+  ```javascript
+  window.alert('The current version of the library is: ' + Breinify.version);
+  ```
+  <br/><br/>
 
 ##### Example Usage
 
