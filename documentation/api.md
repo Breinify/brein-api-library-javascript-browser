@@ -216,27 +216,31 @@ The utility library provides general functionality, which makes it easy to retri
 
   **Example Usage**:
   ```javascript
-  if (Breinify.UTL.loc.paramIs(5, 'q', null, null, null, 'http://mydomain.com?page=5')) {
+  if (Breinify.UTL.loc.paramIs(5, 'page', null, null, null, 'http://mydomain.com?page=5')) {
     window.alert('The parameter "q" is a number with the value 5.');
   }
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.parsedParam()**:<br/>
-  Validates if the URL contains a specific parameter.
+* {boolean} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Parses the specified parameter to the expected type (i.e., *number*, *string*, *boolean*). If the parameter cannot be parsed, **null** is returned.
 
   **Example Usage**:
   ```javascript
-
+  var page = Breinify.UTL.loc.parsedParam('number', 'page', null, null, null, 'http://mydomain.com?page=search')
+  if (page === null) {
+    window.alert('Invalid parameter information.');
+  }
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.param()**:<br/>
-  Validates if the URL contains a specific parameter.
+* {boolean} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Gets a specific parameter from the url. The function returns *null*, if the parameter does not exist.
 
   **Example Usage**:
   ```javascript
-
+  var page = Breinify.UTL.loc.param('page', null, null, null, 'http://mydomain.com?page=search')
+  window.alert('The parameter "page" has the value "' + page + '".');
   ```
   <br/>
 
@@ -245,7 +249,7 @@ The utility library provides general functionality, which makes it easy to retri
 
   **Example Usage**:
   ```javascript
-
+  window.alert('You are visiting: "' + Breinify.UTL.loc.url() + '".');
   ```
   <br/>
 
