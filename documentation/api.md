@@ -8,7 +8,7 @@ Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right 
 
 ### API Library Documentation
 
-The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. Thus, the following documentation is organized in three sections: *General Information*, *API*, and *Utilities (UTL)*.
+The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. Thus, the following documentation is organized in three sections: *General Attributes*, *API*, and *Utilities (UTL)*.
 
 This documentation is organized as following:
 
@@ -95,7 +95,7 @@ This documentation is organized as following:
   <br/>
 
 * **Breinify.setConfig(config)**:<br/>
-  Contains the current version of the usage library. If an error occurred while loading the library, the version is set to be *'FALLBACK'*.
+  Updates the current configuration of the library for the properties supplied.
 
   **Parameters**:
 
@@ -112,7 +112,7 @@ This documentation is organized as following:
 #### API
 
 * **Breinify.activity(user, type, category, description, sign, onReady)**:<br/>
-  Sends an activity to the engine utilizing the API. The call is done asynchronously as POST request. It is important, that a valid API-key is configured prior to using this function.
+  Sends an activity to the engine utilizing the API. The call is done asynchronously as a POST request. It is important that a valid API-key is configured prior to using this function.
 
   **Parameters**:
 
@@ -122,11 +122,11 @@ This documentation is organized as following:
 
   {string|null} **category**: The category of the platform/service/products, i.e., one of *apparel*, *home*, *education*, *family*, *food*, *health*, *job*, *services*, or *other*. If not specified, the configured type (see *Breinify.config().category*) is used.
 
-  {string|null} **description**: A string with further information about hte activity performed. Depending on the type of the activity, these are typically: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and the amount of items or the value of items with currency (type === 'checkout').
+  {string|null} **description**: A string with further information about the activity performed. Depending on the type of the activity, some typical descriptions are: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and the amount or monetary value items (type === 'checkout').
 
-  {boolean|null} **sign**: A boolean value, specifying if the call should be sign, only available if the *secret* is configured. It is strongly advised, not to use a signed call when utilizing this library.
+  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
 
-  {function|null} **onReady**: A function, which is triggered after the activity was sent to the user. The function has the information sent as first parameter.
+  {function|null} **onReady**: A function which is triggered after the activity was sent to the user. The function has the information sent as the first parameter.
 
   **Example Usage**:
   ```javascript
@@ -145,13 +145,13 @@ This documentation is organized as following:
 
   **Parameters**:
 
-  {object} **user**: A plain object specifying the user information the information should be retrieved for. More information about the structure can be found [here](TODO).
+  {object} **user**: A plain object specifying information about the user to retrieve data for. More about the user structure can be found [here](TODO).
 
   {[string]} **dimensions**: An array containing the names of the dimensions to lookup.
 
-  {boolean|null} **sign**: A boolean value, specifying if the call should be sign, only available if the *secret* is configured. It is strongly advised, not to use a signed call when utilizing this library.
+  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
 
-  {function|null} **onLookUp**: A function, which is triggered after the result of the lookup was retrieved. The function has the retrieved information as first parameter.
+  {function|null} **onLookUp**: A function which is triggered after the lookup result has been retrieved. The function has the retrieved information as the first parameter.
 
   **Example Usage**:
   ```javascript
