@@ -133,17 +133,133 @@ The library provides several attributes, methods, and objects to simplify the us
 
 #### Utilities (UTL)
 
-    Breinify.UTL = {
-        loc: {
-            params: function () { return []; },
-            hasParam: function() { return false; },
-            isParam: function() { return false; },
-            paramIs: function() { return false; },
-            parsedParam: function() { return null; },
-            param: function() { return null; },
-            url: function() { return window.location.href; },
-            matches: function() { return false; }
-        },
+The utility library provides general functionality, which makes it easy to retrieve values from, e.g., the url or cookies. In addition, it simplifies the retrieval of values from the DOM-tree or the handling of events.
+
+##### Breinify.UTL.loc
+
+* {object} **Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Retrieves an object with representing the parameters specified within the URL.
+
+  **Parameters**:
+
+  {string|null} **paramListSeparator**: The separator used to separate the list of parameters from the url (default: *?*).
+
+  {string|null} **paramSeparator**: The separator used to separate the parameters from each other (default: *&*).
+
+  {string|null} **paramSplit**: The separator used to split the name of the parameter and the value (default: *=*).
+
+  {string|null} **url**: The url to read the parameters from (default: *Breinify.UTL.loc.url()*).
+
+  **Example Usage**:
+  ```javascript
+  var params = Breinify.UTL.loc.params(null, null, null, 'http://mydomain.com?q=I\'m%20searching');
+  window.alert('The parameter "q" has the value: ' + params.q);
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Validates if the URL contains a specific parameter.
+
+  **Parameters**:
+
+  {string} **param**: The parameter to look for.
+
+  {string|null} **paramListSeparator**: The separator used to separate the list of parameters from the url (default: *?*).
+
+  {string|null} **paramSeparator**: The separator used to separate the parameters from each other (default: *&*).
+
+  {string|null} **paramSplit**: The separator used to split the name of the parameter and the value (default: *=*).
+
+  {string|null} **url**: The url to read the parameters from (default: *Breinify.UTL.loc.url()*).
+
+  **Example Usage**:
+  ```javascript
+  if (Breinify.UTL.loc.hasParam('#', null, null, 'http://mydomain.com#q=I\'m%20searching')) {
+    window.alert('The parameter "q" was specified.');
+  }
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.isParam(param, params)**:<br/>
+  Validates if the parameter is defined within the specified params.
+
+  **Parameters**:
+
+  {string} **param**: The parameter to look for.
+
+  {object} **params**: The object with the parameters to check for the specified *param*.
+
+  **Example Usage**:
+  ```javascript
+  var params = Breinify.UTL.loc.params(null, null, null, 'http://mydomain.com?q=I\'m%20searching');
+  if (Breinify.UTL.loc.isParam('q', params)) {
+    window.alert('The parameter "q" was specified.');
+  }
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Validates if the specified parameter is equal (*===*) to the *expected* value.
+
+  {string} **expected**: The expected value of the parameter to look for.
+
+  {string} **param**: The parameter to look for.
+
+  {string|null} **paramListSeparator**: The separator used to separate the list of parameters from the url (default: *?*).
+
+  {string|null} **paramSeparator**: The separator used to separate the parameters from each other (default: *&*).
+
+  {string|null} **paramSplit**: The separator used to split the name of the parameter and the value (default: *=*).
+
+  {string|null} **url**: The url to read the parameters from (default: *Breinify.UTL.loc.url()*).
+
+
+  **Example Usage**:
+  ```javascript
+  if (Breinify.UTL.loc.paramIs(5, 'q', null, null, null, 'http://mydomain.com?page=5')) {
+    window.alert('The parameter "q" is a number with the value 5.');
+  }
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.parsedParam()**:<br/>
+  Validates if the URL contains a specific parameter.
+
+  **Example Usage**:
+  ```javascript
+
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.param()**:<br/>
+  Validates if the URL contains a specific parameter.
+
+  **Example Usage**:
+  ```javascript
+
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.url()**:<br/>
+  Gets the current url.
+
+  **Example Usage**:
+  ```javascript
+
+  ```
+  <br/>
+
+* {boolean} **Breinify.UTL.loc.matches()**:<br/>
+  Validates if the current url matches the specified regular expression.
+
+  **Example Usage**:
+  ```javascript
+
+  ```
+  <br/>
+
+
+
         cookie: {
             all: function () { return []; },
             set: function() {},
@@ -159,4 +275,3 @@ The library provides several attributes, methods, and objects to simplify the us
         text: function() { return null; },
         md5: function () { return null; },
         isEmpty: function() { return false; }
-    };
