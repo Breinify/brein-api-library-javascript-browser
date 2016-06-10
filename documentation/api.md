@@ -37,6 +37,20 @@ The library provides several attributes, methods, and objects to simplify the us
   }
   ```
 
+  **Configuration Properties**:
+
+  **{string} activityEndpoint**: The end-point of the API to send activities.
+
+  **{string} apiKey**: The API-key to be used (mandatory).
+
+  **{string} lookupEndpoint**: The end-point of the API to retrieve lookup results.
+
+  **{string} secret**: The secret attached to the API-key (should always be null utilizing this type of library).
+
+  **{number} timeout**: The maximum amount of time in milliseconds an API-call should take. If the API does not response after this amount of time, the call is cancelled.
+
+  **{string} url**: The url of the API.
+
   **Example Usage**:
   ```javascript
   $.each(Breinify.config(), function (property, value) {
@@ -50,8 +64,7 @@ The library provides several attributes, methods, and objects to simplify the us
 
   **Parameters**:
 
-  {object} config: a plain object specifying the configuration properties to be set
-
+  **{object} config**: A plain object specifying the configuration properties to be set. If the validation of the configuration is activated, the passed values will be validated and an *Error* will be thrown, if the specified configuration property is invalid.
 
   **Example Usage**:
   ```javascript
@@ -61,35 +74,65 @@ The library provides several attributes, methods, and objects to simplify the us
   ```
   <br/>
 
-##### Example Usage
-
 #### API
+
+* **Breinify.activity(user, type, category, description, sign, onReady)**:<br/>
+  Sends an activity to the engine utilizing the API. The call is done asynchronously as POST request. It is important, that a valid API-key is configured prior to using this function.
+
+  **Parameters**:
+
+  **{object} user**: A plain object specifying the user information the activity belongs to. More information about the structure can be found [here](TODO).
+
+  **{string|null} type**: The type of the activity collected, i.e., one of *search*, *login*, *logout*, *addToCart*, *removeFromCart*, *checkOut*, *selectProduct*, or *other*. If not specified, the default *other* will be used.
+
+  **{string|null} category**: The category of the platform/service/products, i.e., one of *apparel*, *home*, *education*, *family*, *food*, *health*, *job*, *services*, or *other*. If not specified, the configured type (see *Breinify.config().category*) is used.
+
+  **{string|null} description**: A string with further information about hte activity performed. Depending on the type of the activity, these are typically: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and the amount of items or the value of items with currency (type === 'checkout').
+
+  **{boolean|null} sign**: A boolean value, specifying if the call should be sign, only available if the *secret* is configured. It is strongly advised, not to use a signed call when utilizing this library.
+
+  **{function|null} onReady**: A function, which is triggered after the activity was sent to the user. The function has the information sent as first parameter.
+
+  **Example Usage**:
+  ```javascript
+  var product = 'The selected product';
+  var userEmail = 'thecurrentuser@me.com';
+  Breinify.activity({
+    'email': userEmail
+  }, 'selectProduct', null, product, false, function () {
+    show('Sent activity "selectProduct" with product "' + product + '".');
+  });
+  ```
+  <br/>
+
+* **Breinify.lookup(user, dimensions, sign, onLookUp)**:<br/>
+  Retrieves a lookup result from the engine.
+
+  **Parameters**:
+
+  **{object} user**: A plain object specifying the user information the information should be retrieved for. More information about the structure can be found [here](TODO).
+
+  **{[string]} dimensions**: An array containing the names of the dimensions to lookup.
+
+  **{boolean|null} sign**: A boolean value, specifying if the call should be sign, only available if the *secret* is configured. It is strongly advised, not to use a signed call when utilizing this library.
+
+  **{function|null} onLookUp**: A function, which is triggered after the result of the lookup was retrieved. The function has the retrieved information as first parameter.
+
+  **Example Usage**:
+  ```javascript
+  var userEmail = 'thecurrentuser@me.com';
+  Breinify.lookup({
+    'email': userEmail
+  }, ['firstname'], false, function (data) {
+    if (Breinify.UTL.isEmpty(data)) {
+      window.alert('Hello ' + data.firstname.result);
+    }
+  });
+  ```
+  <br/>
 
 #### Utilities (UTL)
 
-    Breinify.activityUser = function (user, type, category, description, sign, onReady) {
-        if (typeof onReady === 'function') {
-            onReady();
-        }
-    };
-    Breinify.activity = function (user, type, category, description, sign, onReady) {
-        if (typeof onReady === 'function') {
-            onReady();
-        }
-    };
-    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
-        if (typeof onReady === 'function') {
-            onReady();
-        }
-    };
-    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
-        if (typeof onLookUp === 'function') {
-            onLookUp();
-        }
-    };
-    Breinify.unixTimestamp = function () {
-        return Math.floor(new Date().getTime() / 1000);
-    };
     Breinify.UTL = {
         loc: {
             params: function () { return []; },
