@@ -13059,6 +13059,7 @@ this._hasher;f=g.finalize(f);g.reset();return g.finalize(this._oKey.clone().conc
         },
         texts: function() { return []; },
         text: function() { return null; },
+        setText: function() {},
         md5: function () { return null; },
         isEmpty: function() { return false; }
     };

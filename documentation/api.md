@@ -215,8 +215,7 @@ The utility library provides general functionality, which makes it easy to retri
 
   **Example Usage**:
   ```javascript
-  var text = Breinify.UTL.text('input[attr="name"]', false);
-  console.log(text);
+  Breinify.UTL.setText('input[attr="name"]', 'Philipp');
   ```
   <br/>
 
