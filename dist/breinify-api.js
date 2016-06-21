@@ -1,7 +1,7 @@
 /*
  * breinify-api
  * v1.0.0-snapshot
- * 2016-06-14
+ * 2016-06-21
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12545,6 +12545,11 @@ dependencyScope.jQuery = $;;
             instance.add('userAgent', navigator.userAgent);
         }
 
+        // set the referrer to a default value if there isn't one yet
+        if (instance.read('referrer') === null) {
+            instance.add('referrer', document.referrer);
+        }
+
         // try to set the location if there isn't one yet
         if (instance.read('location') === null && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
@@ -12646,7 +12651,7 @@ dependencyScope.jQuery = $;;
             this._user[attribute] = value;
         },
 
-        reset: function(attribute) {
+        reset: function (attribute) {
             if ($.isPlainObject(this._user)) {
                 delete this._user[attribute];
             }
