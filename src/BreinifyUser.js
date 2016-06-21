@@ -106,6 +106,11 @@
             instance.add('userAgent', navigator.userAgent);
         }
 
+        // set the referrer to a default value if there isn't one yet
+        if (instance.read('referrer') === null) {
+            instance.add('referrer', document.referrer);
+        }
+
         // try to set the location if there isn't one yet
         if (instance.read('location') === null && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
@@ -207,7 +212,7 @@
             this._user[attribute] = value;
         },
 
-        reset: function(attribute) {
+        reset: function (attribute) {
             if ($.isPlainObject(this._user)) {
                 delete this._user[attribute];
             }
