@@ -41,7 +41,6 @@ module.exports = function (grunt) {
     var banner = '/*\n' +
         ' * ' + '<%= pkg.name %>\n' +
         ' * ' + 'v<%= pkg.version %>\n' +
-        ' * ' + '<%= grunt.template.today("yyyy-mm-dd") %>\n' +
         ' **/\n';
     var bowerPaths = {
         bowerDirectory: 'bower_components',
