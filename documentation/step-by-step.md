@@ -20,7 +20,7 @@ As with every JavaScript library, the first thing you have to do is to load the 
 
 ##### Using *bower* to download the library
 
-The library breinify-api.js can be easily integrated using
+The library breinify-api.js can be easily integrated using 1 of the following:
 
 ```bash
 bower install breinify/brein-api-library-javascript-browser
@@ -29,7 +29,7 @@ bower install https://github.com/breinify/brein-api-library-javascript-browser/t
 ```
 
 ##### Using *npm* to download the library
-
+Please pick 1 of the following:
 ```bash
 npm install breinify/brein-api-library-javascript-browser
 npm install github:breinify/brein-api-library-javascript-browser
