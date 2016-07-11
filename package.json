@@ -1,12 +1,13 @@
 {
   "name": "breinify-api",
-  "version": "1.0.0-snapshot",
+  "version": "1.0.2-snapshot",
   "description": "This is a JavaScript library simplifying the usage of the Breinify API",
   "authors": [
     "Philipp Meisen <philipp@breinify.com>",
     "Marco Recchioni <marco@breinify.com>",
     "Diane Keng <diane@breinify.com>"
   ],
+
   "license": "MIT",
   "private": false,
   "repository": {
@@ -14,6 +15,9 @@
     "url": "git+https://github.com/breinify/brein-api-library-javascript-browser.git"
   },
   "main": "dist/breinify-api.js",
+  "scripts": {
+    "test": "grunt test"
+  },
   "dependencies": {
   },
   "devDependencies": {
