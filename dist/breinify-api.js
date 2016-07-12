@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.3
+ * v1.0.4
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12181,7 +12181,7 @@ dependencyScope.jQuery = $;;
         },
 
         select: function (cssSelector, childSelector, directChild) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             directChild = typeof directChild === 'boolean' ? directChild : false;
 
             if (directChild) {
@@ -12192,7 +12192,7 @@ dependencyScope.jQuery = $;;
         },
 
         texts: function (cssSelector, excludeChildren) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             excludeChildren = typeof excludeChildren === 'boolean' ? excludeChildren : true;
 
             var result = [];
@@ -12239,7 +12239,7 @@ dependencyScope.jQuery = $;;
         },
 
         setText: function(cssSelector, text) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
 
             if ($el.is('input')) {
                 $el.val(text);
@@ -12373,7 +12373,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.3';
+        this.version = '1.0.4';
 
         /*
          * Validate the passed config-parameters.
@@ -12487,6 +12487,11 @@ dependencyScope.jQuery = $;;
         group: 4,
         optional: false
     });
+    attributes.add('SESSIONID', {
+        name: 'sessionId',
+        group: 5,
+        optional: false
+    });
     attributes.add('additional', {
         validate: function (value) {
             return typeof value === 'undefined' || $.isPlainObject(value);
@@ -12534,19 +12539,36 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.3';
+        instance.version = '1.0.4';
 
         // set the values provided
         instance.setAll(user);
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
-            instance.add('userAgent', navigator.userAgent);
+            var userAgent = navigator.userAgent;
+
+            if (!BreinifyUtil.isEmpty(userAgent)) {
+                instance.add('userAgent', userAgent);
+            }
         }
 
         // set the referrer to a default value if there isn't one yet
         if (instance.read('referrer') === null) {
-            instance.add('referrer', document.referrer);
+            var referrer = document.referrer;
+
+            if (!BreinifyUtil.isEmpty(referrer)) {
+                instance.add('referrer', referrer);
+            }
+        }
+
+        // also add the current URL if not provided
+        if (instance.read('url') === null) {
+            var url = window.location.href;
+
+            if (!BreinifyUtil.isEmpty(url)) {
+                instance.add('url', url);
+            }
         }
 
         // try to set the location if there isn't one yet
@@ -12573,7 +12595,9 @@ dependencyScope.jQuery = $;;
             var instance = this;
 
             _privates.resolveGeoLocation(function (location) {
-                instance.add('location', location);
+                if (!BreinifyUtil.isEmpty(location)) {
+                    instance.add('location', location);
+                }
 
                 if ($.isFunction(onReady)) {
                     onReady(instance);
@@ -12629,10 +12653,12 @@ dependencyScope.jQuery = $;;
             if (!attributes.is(attribute)) {
                 throw new Error('The attribute "' + attribute + '" is not supported by a user.');
             } else if (attribute === BreinifyUser.ATTRIBUTES.EMAIL) {
-                this.reset(attribute);
+                this.reset(BreinifyUser.ATTRIBUTES.MD5EMAIL);
 
-                //noinspection JSUnresolvedFunction
-                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
+                if (!BreinifyUtil.isEmpty(value)) {
+                    //noinspection JSUnresolvedFunction
+                    this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
+                }
             } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
                 var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
@@ -12647,7 +12673,12 @@ dependencyScope.jQuery = $;;
                 this._user = {};
             }
 
-            this._user[attribute] = value;
+            // if the attribute is an empty value, we reset it
+            if (BreinifyUtil.isEmpty(value)) {
+                this.reset(attribute);
+            } else {
+                this._user[attribute] = value;
+            }
         },
 
         reset: function (attribute) {
@@ -12766,7 +12797,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.3',
+        version: '1.0.4',
         jQueryVersion: $.fn.jquery
     };
 

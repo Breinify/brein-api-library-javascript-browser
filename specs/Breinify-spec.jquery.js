@@ -51,8 +51,6 @@ describe('Breinify ExternaljQuery - Fallback', function () {
         setTimeout(function () {
 
             //noinspection JSUnresolvedFunction
-            expect(window.loadedBreinify.version).toMatch(/-snapshot$/);
-            //noinspection JSUnresolvedFunction
             expect(window.failedBreinify.version).toBe('FALLBACK');
 
             deepCompare(window.loadedBreinify, window.failedBreinify);

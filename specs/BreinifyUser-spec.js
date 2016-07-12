@@ -24,13 +24,12 @@ describe('BreinifyUser', function () {
             var a = Breinify.BreinifyUser.ATTRIBUTES;
 
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all()).toEqual({
-                'additional': {
-                    'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1',
-                    'referrer': '',
-                    'location': null
-                }
-            });
+            var all = user.all();
+
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(all.additional.userAgent).toEqual('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            //noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            expect(all.additional.url).toMatch('.*/_SpecRunner.html');
 
             done();
         });
@@ -114,7 +113,7 @@ describe('BreinifyUser', function () {
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.userAgent).toBe('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all().additional.location).toBeNull();
+            expect(user.all().additional.location).toBeUndefined();
 
             var loc = {
                 'longitude': -37.866963,
