@@ -15,7 +15,7 @@
  *  "grunt-string-replace": "^1.2.1",
  *  "main-bower-files": "^2.11.1"
  *
- * Template Version: 1.0.0
+ * Template Version: 1.0.2
  *
  * Change Log:
  *
@@ -68,6 +68,8 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-string-replace');
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-contrib-jasmine');
+    //noinspection JSUnresolvedFunction
+    grunt.loadNpmTasks('grunt-sync-json');
 
     //noinspection JSUnresolvedFunction
     grunt.initConfig({
@@ -78,6 +80,23 @@ module.exports = function (grunt) {
          * file: <%= pkg.name %>.
          */
         pkg: grunt.file.readJSON('package.json'),
+
+        'sync-json': {
+            'options': {
+                'indent': 2,
+                'include': [
+                    'name',
+                    'description',
+                    'version',
+                    'author as authors'
+                ]
+            },
+            bower: {
+                files: {
+                    'bower.json': 'package.json'
+                }
+            }
+        },
 
         /*
          * For some tasks, we want to clean up a little.
@@ -172,19 +191,21 @@ module.exports = function (grunt) {
                     paths: bowerPaths,
                     overrides: {
                         'brein-util': {'main': 'common/dist/brein-util-common.js'},
-                        'cryptojslib': {'main': [
-                            'components/core.js',
+                        'cryptojslib': {
+                            'main': [
+                                'components/core.js',
 
-                            // base64 encoding
-                            'components/enc-base64.js',
+                                // base64 encoding
+                                'components/enc-base64.js',
 
-                            // 'rollups/md5.js',
-                            'components/md5.js',
+                                // 'rollups/md5.js',
+                                'components/md5.js',
 
-                            // 'rollups/hmac-sha256.js'
-                            'components/sha256.js',
-                            'components/hmac.js'
-                        ]}
+                                // 'rollups/hmac-sha256.js'
+                                'components/sha256.js',
+                                'components/hmac.js'
+                            ]
+                        }
                     }
                 },
                 dest: 'target/dep'
@@ -336,6 +357,7 @@ module.exports = function (grunt) {
             tasks.push('clean:dep');
             tasks.push('createBowerDir');
         }
+        tasks.push('sync-json:bower');
         tasks.push('bower-install-simple:dep');
         tasks.push('bower:dep');
 
@@ -373,6 +395,13 @@ module.exports = function (grunt) {
 
     //noinspection JSUnresolvedFunction
     grunt.registerTask('test', 'Tests the files using Jasmine', function () {
+
+        //noinspection JSUnresolvedVariable
+        grunt.task.run('dist', 'jasmine:test', 'jasmine:testWithJQuery');
+    });
+
+    //noinspection JSUnresolvedFunction
+    grunt.registerTask('publish', 'Publishes the package to npm', function () {
 
         //noinspection JSUnresolvedVariable
         grunt.task.run('dist', 'jasmine:test', 'jasmine:testWithJQuery');
