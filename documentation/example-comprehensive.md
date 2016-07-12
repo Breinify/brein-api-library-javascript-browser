@@ -222,7 +222,7 @@ The following code shows a comprehensive example utilizing the *breinify-api.js*
     });
 
     Breinify.UTL.events.click('#dimension-lookup', function () {
-        var userEmail = Breinify.UTL.text('input[name="email"');
+        var userEmail = Breinify.UTL.text('input[name="email"]');
 
         if (!Breinify.UTL.isEmpty(userEmail)) {
             Breinify.UTL.cookie.set('session-email', userEmail, 1);
