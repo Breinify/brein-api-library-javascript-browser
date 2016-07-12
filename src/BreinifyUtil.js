@@ -267,7 +267,7 @@
         },
 
         select: function (cssSelector, childSelector, directChild) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             directChild = typeof directChild === 'boolean' ? directChild : false;
 
             if (directChild) {
@@ -278,7 +278,7 @@
         },
 
         texts: function (cssSelector, excludeChildren) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             excludeChildren = typeof excludeChildren === 'boolean' ? excludeChildren : true;
 
             var result = [];
@@ -325,7 +325,7 @@
         },
 
         setText: function(cssSelector, text) {
-            var $el = cssSelector instanceof jQuery ? cssSelector : $(cssSelector);
+            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
 
             if ($el.is('input')) {
                 $el.val(text);

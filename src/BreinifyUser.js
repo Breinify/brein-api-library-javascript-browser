@@ -49,6 +49,11 @@
         group: 4,
         optional: false
     });
+    attributes.add('SESSIONID', {
+        name: 'sessionId',
+        group: 5,
+        optional: false
+    });
     attributes.add('additional', {
         validate: function (value) {
             return typeof value === 'undefined' || $.isPlainObject(value);
@@ -103,12 +108,29 @@
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
-            instance.add('userAgent', navigator.userAgent);
+            var userAgent = navigator.userAgent;
+
+            if (!BreinifyUtil.isEmpty(userAgent)) {
+                instance.add('userAgent', userAgent);
+            }
         }
 
         // set the referrer to a default value if there isn't one yet
         if (instance.read('referrer') === null) {
-            instance.add('referrer', document.referrer);
+            var referrer = document.referrer;
+
+            if (!BreinifyUtil.isEmpty(referrer)) {
+                instance.add('referrer', referrer);
+            }
+        }
+
+        // also add the current URL if not provided
+        if (instance.read('url') === null) {
+            var url = window.location.href;
+
+            if (!BreinifyUtil.isEmpty(url)) {
+                instance.add('url', url);
+            }
         }
 
         // try to set the location if there isn't one yet
@@ -135,7 +157,9 @@
             var instance = this;
 
             _privates.resolveGeoLocation(function (location) {
-                instance.add('location', location);
+                if (!BreinifyUtil.isEmpty(location)) {
+                    instance.add('location', location);
+                }
 
                 if ($.isFunction(onReady)) {
                     onReady(instance);
@@ -191,10 +215,12 @@
             if (!attributes.is(attribute)) {
                 throw new Error('The attribute "' + attribute + '" is not supported by a user.');
             } else if (attribute === BreinifyUser.ATTRIBUTES.EMAIL) {
-                this.reset(attribute);
+                this.reset(BreinifyUser.ATTRIBUTES.MD5EMAIL);
 
-                //noinspection JSUnresolvedFunction
-                this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
+                if (!BreinifyUtil.isEmpty(value)) {
+                    //noinspection JSUnresolvedFunction
+                    this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
+                }
             } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
                 var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
@@ -209,7 +235,12 @@
                 this._user = {};
             }
 
-            this._user[attribute] = value;
+            // if the attribute is an empty value, we reset it
+            if (BreinifyUtil.isEmpty(value)) {
+                this.reset(attribute);
+            } else {
+                this._user[attribute] = value;
+            }
         },
 
         reset: function (attribute) {
