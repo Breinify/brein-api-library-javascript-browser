@@ -88,7 +88,6 @@
     };
 
     var BreinifyUtil = {
-
         loc: {
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
@@ -324,7 +323,7 @@
             }
         },
 
-        setText: function(cssSelector, text) {
+        setText: function (cssSelector, text) {
             var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
 
             if ($el.is('input')) {
@@ -372,6 +371,46 @@
             } else {
                 return false;
             }
+        },
+
+        isSimpleObject: function (obj) {
+            if (obj == null) {
+                return true;
+            } else if (!$.isPlainObject(obj)) {
+                return false;
+            }
+
+            // check the values of the object
+            var result = true;
+            $.each(obj, function (key, value) {
+                var type = typeof value;
+                if (value === null || type === 'boolean' || type === 'string' || type === 'number') {
+                    return true;
+                } else if ($.isArray(value)) {
+
+                    var globalArrayType = null;
+                    $.each(value, function (idx, arrayValue) {
+                        var arrayType = typeof arrayValue;
+
+                        if (arrayValue === null) {
+                            return true;
+                        } else if (arrayType !== 'boolean' && arrayType !== 'string' && arrayType !== 'number') {
+                            result = false;
+                        } else if (globalArrayType === null) {
+                            globalArrayType = arrayType;
+                        } else if (globalArrayType !== arrayType) {
+                            result = false;
+                        }
+                        return result;
+                    });
+                } else {
+                    result = false;
+                }
+
+                return result;
+            });
+
+            return result;
         }
     };
 

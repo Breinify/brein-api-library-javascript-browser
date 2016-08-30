@@ -113,29 +113,30 @@
     };
 
     /**
+     * Method to create a valid current unix timestamp.
+     * @returns {number} the current unix timestamp (based on the system time)
+     */
+    Breinify.unixTimestamp = function () {
+        return Math.floor(new Date().getTime() / 1000);
+    };
+
+    /**
      * Sends an activity to the Breinify server.
      *
      * @param user {object} the user-information
      * @param type {string|null} the type of activity
      * @param category {string|null} the category (can be null or undefined)
      * @param description {string|null} the description for the activity
+     * @param tags {object} added the change to pass in tags
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after triggering the activity
      */
-    Breinify.activity = function (user, type, category, description, sign, onReady) {
+    Breinify.activity = function (user, type, category, description, tags, sign, onReady) {
 
-        Breinify.activityUser(user, type, category, description, sign, function (data) {
+        Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
             var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
             _privates.ajax(url, data, onReady, onReady);
         });
-    };
-
-    /**
-     * Method to create a valid current unix timestamp.
-     * @returns {number} the current unix timestamp (based on the system time)
-     */
-    Breinify.unixTimestamp = function () {
-        return Math.floor(new Date().getTime() / 1000);
     };
 
     /**
@@ -145,10 +146,11 @@
      * @param type {string|null} the type of activity
      * @param category {string|null} the category (can be null or undefined)
      * @param description {string|null} the description for the activity
+     * @param tags {object} added the change to pass in tags
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after successful user creation
      */
-    Breinify.activityUser = function (user, type, category, description, sign, onReady) {
+    Breinify.activityUser = function (user, type, category, description, tags, sign, onReady) {
 
         var _onReady = function (user) {
             if ($.isFunction(onReady)) {
@@ -168,6 +170,7 @@
             type = typeof type === 'undefined' || type === null ? null : type;
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
             description = typeof description === 'undefined' || description === null ? null : description;
+            tags = BreinifyUtil.isSimpleObject(tags) ? tags : null;
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
@@ -191,7 +194,8 @@
                 'activity': {
                     'type': type,
                     'category': category,
-                    'description': description
+                    'description': description,
+                    'tags': tags
                 },
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
