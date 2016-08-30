@@ -6,13 +6,13 @@ Breinify supports various user properties that you can include in the analytics.
 
 ```javascript
 var user = {
-    'EMAIL':'johndoe@gmail.com',
-    'FIRSTNAME':'John',
-    'LASTNAME':'Doe',
-    'DATEOFBIRTH': new Date(1985,6,30),
-    'DEVICEID' : 'AAAAAAAAA-BBBB-CCCC-1111-222222220000',
-    'MD5EMAIL' : '761cd16b141770ecb0bbb8a4e5962d16',
-    'SESSIONID' : 'SID:ANON:w3.org:j6oAOxCWZ'
+    'email' : 'johndoe@gmail.com',
+    'firstName' : 'John',
+    'lastName' : 'Doe',
+    'dateOfBirth' : new Date(1985,6,30),
+    'deviceId' : 'AAAAAAAAA-BBBB-CCCC-1111-222222220000',
+    'md5Email' : '761cd16b141770ecb0bbb8a4e5962d16',
+    'sessionId' : 'SID:ANON:w3.org:j6oAOxCWZ'
 }
 ```
 
@@ -20,7 +20,7 @@ var user = {
 
 #### Email
 
-Attribute key: `EMAIL`
+Attribute key: `email`
 
 Example value: `johndoe@gmail.com`
 
@@ -28,7 +28,7 @@ Description: The email address of the current user, if known.
 
 #### First Name
 
-Attribute key: `FIRSTNAME`
+Attribute key: `firstName`
 
 Example value: `John`
 
@@ -36,7 +36,7 @@ Description: The first name of the current user, if known.
 
 #### Last Name
 
-Attribute String: `LASTNAME`
+Attribute String: `lastName`
 
 Example: `Doe`
 
@@ -44,7 +44,7 @@ Description: The last name of the current user, if known.
 
 #### Date of Birth
 
-Attribute key: `DATEOFBIRTH`
+Attribute key: `dateOfBirth`
 
 Example value: `new Date(1985, 6, 30)`
 
@@ -52,7 +52,7 @@ Description: The email address of the current user, if known.
 
 #### Device ID
 
-Attribute key: `DEVICEID`
+Attribute key: `deviceId`
 
 Example value: `AAAAAAAAA-BBBB-CCCC-1111-222222220000`
 
@@ -60,7 +60,7 @@ Description: The current user's device's id, if known.
 
 #### MD5 Email
 
-Attribute key: `MD5EMAIL`
+Attribute key: `md5Email`
 
 Example value: `761cd16b141770ecb0bbb8a4e5962d16`
 
@@ -69,7 +69,7 @@ Description: A hashed version of the user's email address.
 
 #### Session ID
 
-Attribute key: `SESSIONID`
+Attribute key: `sessionId`
 
 Example value: `SID:ANON:w3.org:j6oAOxCWZ`
 
