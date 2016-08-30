@@ -53,7 +53,7 @@ The file is integrated within a web-site by adding the needed script-tag, pointi
 It is also possible to omit the download and just point to the library file provided through a CDN (currently we do not publish the library to any CDN, but we will keep you updated) or Breinify's site.
 
 ```html
-<script src="https://libs.breinify.com/javascript/breinify-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/breinify-api/1.0.6/breinify-api.min.js"></script>
 ```
 
 **Note:** The library can also be loaded asynchroniously using the *async* and *onload* attribute (officially introduced in HTML5). In that case, the configuration of the library and all bindings should be performed after the library is loaded (i.e., within the *onload* function).

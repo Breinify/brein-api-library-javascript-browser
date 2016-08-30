@@ -57,7 +57,7 @@ describe('BreinifyUtil', function () {
         expect(Breinify.UTL.cookie.get('undefined')).toBeNull();
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.UTL.cookie.all()).toEqual({});
-        
+
         // set some cookies
         Breinify.UTL.cookie.set('cookie', 'value');
         Breinify.UTL.cookie.set('cookie', 'lastValue');
@@ -97,5 +97,26 @@ describe('BreinifyUtil', function () {
         expect(Breinify.UTL.isEmpty()).toBe(true);
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(Breinify.UTL.isEmpty(null)).toBe(true);
+    });
+
+
+    //noinspection JSUnresolvedFunction
+    it('simple object works', function () {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject(null)).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'array': ['string1']})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'array': ['string1', 'string2']})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'array': [1, 2]})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'array': [1, 2, null, 3]})).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'array': [1, 2, null, '3']})).toBe(false);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.isSimpleObject({'val1': 1, 'val2': 2, 'val3': []})).toBe(true);
     });
 });

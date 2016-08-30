@@ -48,7 +48,7 @@ describe('Breinify', function () {
         };
         Breinify.activityUser({
             email: 'email@sample.com'
-        }, 'search', null, null, true, function (data) {
+        }, 'search', null, null, null, true, function (data) {
 
             //noinspection JSUnresolvedFunction
             expect(data.apiKey).toBe('5D8B-064C-F007-4F92-A8DC-D06B-56B4-FAD8');
