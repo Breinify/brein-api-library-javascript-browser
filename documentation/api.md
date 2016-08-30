@@ -17,7 +17,7 @@ This documentation is organized as following:
   * Breinify.config()
   * Breinify.setConfig(config)
 * [API](#api)
-  * Breinify.activity(user, type, category, description, sign, onReady)
+  * Breinify.activity(user, type, category, description, tags, sign, onReady)
   * Breinify.lookup(user, dimensions, sign, onLookUp)
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
@@ -26,6 +26,7 @@ This documentation is organized as following:
     * Breinify.UTL.setText(selector, value)
     * Breinify.UTL.md5(value)
     * Breinify.UTL.isEmpty(value)
+    * Breinify.UTL.isSimpleObject(obj)
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce)
     * Breinify.UTL.events.pageloaded(func)
@@ -111,7 +112,7 @@ This documentation is organized as following:
 
 #### API
 
-* **Breinify.activity(user, type, category, description, sign, onReady)**:<br/>
+* **Breinify.activity(user, type, category, description, tags, sign, onReady)**:<br/>
   Sends an activity to the engine utilizing the API. The call is done asynchronously as a POST request. It is important that a valid API-key is configured prior to using this function.
 
   **Parameters**:
@@ -123,6 +124,8 @@ This documentation is organized as following:
   {string|null} **category**: The category of the platform/service/products, i.e., one of *apparel*, *home*, *education*, *family*, *food*, *health*, *job*, *services*, or *other*. If not specified, the configured type (see *Breinify.config().category*) is used.
 
   {string|null} **description**: A string with further information about the activity performed. Depending on the type of the activity, some typical descriptions are: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and the amount or monetary value items (type === 'checkout').
+  
+  {object|null} **tags**: The tags associated to the activity, must be a simple object (see utility function: [isSimpleObject](#breinifyutl-general-functions)).
 
   {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
 
@@ -250,6 +253,9 @@ The utility library provides general functionality, which makes it easy to retri
   Breinify.UTL.isEmpty(null);   // returns true
   ```
   <br/>
+
+* {boolean} **Breinify.UTL.isSimpleObject(obj)**:<br/>
+  Checks if the passed object is a simpe object, i.e., is *null** or is an object without any function and just using simple types (e.g., *boolean*, *string*, *number*, *null*) or an array of simple types (of the same type).
 
 ##### Breinify.UTL.events
 
