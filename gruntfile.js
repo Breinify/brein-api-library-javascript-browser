@@ -416,4 +416,12 @@ module.exports = function (grunt) {
         console.log(' - grunt dist:<bool>  : distributes the files of the project; true to uglify the files, otherwise false (default)');
         console.log(' - grunt test         : to run the defined tests');
     });
+
+    /*
+     * Notes when deploying new version:
+     *  -> check version in package.json to be sure (you'll get a warning if it's wrong)
+     *  -> grunt dist:true
+     *  -> npm publish
+     *  -> github (create a new release)
+     */
 };
