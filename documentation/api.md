@@ -137,7 +137,9 @@ This documentation is organized as following:
   var userEmail = 'thecurrentuser@me.com';
   Breinify.activity({
     'email': userEmail
-  }, 'selectProduct', null, product, false, function () {
+  }, 'selectProduct', null, product, {
+    'isAdvertised': true  
+  }, false, function () {
     show('Sent activity "selectProduct" with product "' + product + '".');
   });
   ```
