@@ -117,7 +117,7 @@ This documentation is organized as following:
 
   **Parameters**:
 
-  {object} **user**: A plain object specifying the user information the activity belongs to. More information about the structure can be found [here](TODO).
+  {object} **user**: A plain object specifying the user information the activity belongs to. More information about the structure can be found [here](./user.md).
 
   {string|null} **type**: The type of the activity collected, i.e., one of *search*, *login*, *logout*, *addToCart*, *removeFromCart*, *checkOut*, *selectProduct*, or *other*. If not specified, the default *other* will be used.
 
