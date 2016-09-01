@@ -259,6 +259,16 @@ The utility library provides general functionality, which makes it easy to retri
 * {boolean} **Breinify.UTL.isSimpleObject(obj)**:<br/>
   Checks if the passed object is a simpe object, i.e., is *null** or is an object without any function and just using simple types (e.g., *boolean*, *string*, *number*, *null*) or an array of simple types (of the same type).
 
+  **Example of a simple object**:
+  ```javascript
+  var simpleObject = {
+    'string': 'string',
+    'int': 5,
+    'double': 9.1,
+    'array': ['a', 'b', 'c']
+  }
+  ```
+
 ##### Breinify.UTL.events
 
 For simplicity the library provides the possibility to handle/react to specific events triggered by the DOM-tree. Currently, two events are supported, i.e., *click* and *pageloaded*.
