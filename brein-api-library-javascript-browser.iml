@@ -12,18 +12,5 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module-library">
-      <library name="PHP">
-        <CLASSES>
-          <root url="file:///insts/wordpress/wp-admin" />
-          <root url="file:///insts/wordpress/wp-includes" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES>
-          <root url="file:///insts/wordpress/wp-admin" />
-          <root url="file:///insts/wordpress/wp-includes" />
-        </SOURCES>
-      </library>
-    </orderEntry>
   </component>
 </module>
