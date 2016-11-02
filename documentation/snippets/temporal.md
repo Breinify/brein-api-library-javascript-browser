@@ -1,12 +1,10 @@
-```javascript
-
-var withSecret = false;
-
-var response = Breinify.temporalData({
-    'ipAddress': '74.115.209.58',
-    'localDateTime': '74.115.209.58',
-    'timezone': 'Sun 25 Dec 2016 18:15:48 GMT-0800 (PST)'
-}, withSecret);
-
-
-```
+> ```javascript
+> var withSecret = false;
+> 
+> var response = Breinify.temporalData({
+>     'ipAddress': '74.115.209.58',
+>     'localDateTime': 'Wed Oct 26 2016 13:02:06 GMT-0700 (EDT)',
+>     'timezone': 'America/New_York'
+> }, withSecret);
+> 
+> ```
