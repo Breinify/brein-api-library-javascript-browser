@@ -1,5 +1,6 @@
 >
 ```javascript
+// Invoke activity call
 var product = 'The selected product';
 var userEmail = 'thecurrentuser@me.com';
 Breinify.activity({
