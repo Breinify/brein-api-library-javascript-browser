@@ -70,7 +70,12 @@
             dimensions = $.isArray(dimensions) ? dimensions : [];
             var dimension = dimensions.length === 0 ? '' : dimensions[0];
             return dimension + unixTimestamp + dimensions.length;
-        }
+        },
+
+        //TODO --> when signature algorithm is defined!
+        generateTemporalDataMessage: function (amount, unixTimestamp, type) {
+            return type + unixTimestamp + amount;
+        },
     };
 
     /**
@@ -139,6 +144,7 @@
         });
     };
 
+
     /**
      * Creates a user instance and executes the specified method.
      *
@@ -201,6 +207,83 @@
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
                 'unixTimestamp': unixTimestamp
+            };
+
+            if ($.isFunction(onReady)) {
+                _onReady(data);
+            }
+        });
+    };
+
+    /**
+     * Sends an temporalData request to the Breinify server.
+     *
+     * @param user {object} the user-information
+     * @param timezone {string|null} contains the timezone (e.g. xxx)
+     * @param localDateTime {string|null} contains the localDateTime
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after triggering the activity
+     */
+    Breinify.temporalData = function (user, timezone, localDateTime, sign, onReady) {
+        Breinify.temporalDataUser(user, timezone, localDateTime, sign, function (data) {
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORALDATA_ENDPOINT);
+            _privates.ajax(url, data, onLookUp, onLookUp);
+        });
+    };
+
+    /**
+     * Creates a user instance and executes the specified method.
+     *
+     * @param user {object} the user-information
+     * @param timezone {string|null} contains the timezone (e.g. xxx)
+     * @param localDateTime {string|null} contains the localDateTime
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after successful user creation
+     */
+    Breinify.temporalDataUser = function (user, timezone, localDateTime, sign, onReady) {
+
+        var _onReady = function (user) {
+            if ($.isFunction(onReady)) {
+                onReady(user);
+            }
+        };
+
+        // get the user information
+        new BreinifyUser(user, function (user) {
+
+            if (!user.validate()) {
+                _onReady(null);
+                return;
+            }
+
+            // get some default values for the passed parameters - if not set
+            timezone = typeof timezone === 'undefined' || timezone === null ? null : timezone;
+            localDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? null : localDateTime;
+            sign = typeof sign === 'boolean' ? sign : false;
+
+            // get the other values needed
+            var unixTimestamp = Breinify.unixTimestamp();
+            var signature = null;
+            if (sign) {
+                // might be a different secret
+                var secret = _config.get(ATTR_CONFIG.SECRET);
+                if (typeof secret === 'string') {
+                    var message = _privates.generateTemporalDataMessage(1, unixTimestamp, type);
+                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
+                } else {
+                    _onReady(null);
+                    return;
+                }
+            }
+
+            // create the data set
+            var data = {
+                'user': user.all(),
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
+                'signature': signature,
+                'unixTimestamp': unixTimestamp,
+                'timezone': timezone,
+                'localDataTime': localDateTime
             };
 
             if ($.isFunction(onReady)) {

@@ -37,6 +37,13 @@
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
     });
+    attributes.add('TEMPORALDATA_ENDPOINT', {
+        name: 'lookupEndpoint',
+        defaultValue: '/lookup',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
+        }
+    });
     attributes.add('CATEGORY', {
         name: 'category',
         defaultValue: 'other',
