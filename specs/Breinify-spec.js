@@ -63,4 +63,73 @@ describe('Breinify', function () {
             done();
         });
     });
+
+    it('invokes the temporalDataUser', function (done) {
+        Breinify.setConfig({
+            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
+        });
+
+        //noinspection JSCheckFunctionSignatures
+        Breinify.unixTimestamp = function () {
+            return 1451962516;
+        };
+        // user, timezone, localDateTime, sign, onReady)
+        Breinify.temporalDataUser({
+            email: 'email@sample.com'
+        }, null, null, false, function (data) {
+
+            //noinspection JSUnresolvedFunction
+            expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
+            //noinspection JSUnresolvedFunction
+            expect(data.unixTimestamp).toBe(1451962516);
+
+            done();
+        });
+    });
+
+    it('invokes the temporalData request', function (done) {
+        Breinify.setConfig({
+            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
+        });
+
+        //noinspection JSCheckFunctionSignatures
+        Breinify.unixTimestamp = function () {
+            return 1451962516;
+        };
+        Breinify.temporalData({
+            email: 'email@sample.com'
+        }, null, null, false, function (data) {
+
+            //noinspection JSUnresolvedFunction
+            //expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
+            //noinspection JSUnresolvedFunction
+            //expect(data.unixTimestamp).toBe(1451962516);
+
+            done();
+        });
+    });
+
+    it('invokes the temporalDataUser request', function (done) {
+        Breinify.setConfig({
+            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
+        });
+
+        //noinspection JSCheckFunctionSignatures
+        Breinify.unixTimestamp = function () {
+            return 1451962516;
+        };
+        // user, timezone, localDateTime, sign, onReady)
+        Breinify.temporalDataUser({
+            email: 'email@sample.com'
+        }, null, null, false, function (data) {
+
+            //noinspection JSUnresolvedFunction
+            expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
+            //noinspection JSUnresolvedFunction
+            expect(data.unixTimestamp).toBe(1451962516);
+
+            done();
+        });
+    });
+
 });
