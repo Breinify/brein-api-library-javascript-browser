@@ -263,7 +263,7 @@
             localDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? null : localDateTime;
             sign = typeof sign === 'boolean' ? sign : false;
 
-            if (timzone === null) {
+            if (timezone === null) {
                 // get timezone from moment.js
                 // moment().tz(moment.tz.guess()).format('z');
             }
