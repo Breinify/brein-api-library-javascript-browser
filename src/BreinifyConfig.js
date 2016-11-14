@@ -38,8 +38,8 @@
         }
     });
     attributes.add('TEMPORALDATA_ENDPOINT', {
-        name: 'lookupEndpoint',
-        defaultValue: '/lookup',
+        name: 'temporaldataEndpoint',
+        defaultValue: '/temporaldata',
         validate: function (value) {
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }

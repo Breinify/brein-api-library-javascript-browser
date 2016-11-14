@@ -72,10 +72,12 @@
             return dimension + unixTimestamp + dimensions.length;
         },
 
-        //TODO --> when signature algorithm is defined!
-        generateTemporalDataMessage: function (amount, unixTimestamp, type) {
-            return type + unixTimestamp + amount;
-        },
+        generateTemporalDataMessage: function (localDateTime, timezone, unixTimestamp) {
+            var paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
+            var paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
+
+            return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
+        }
     };
 
     /**
@@ -216,18 +218,18 @@
     };
 
     /**
-     * Sends an temporalData request to the Breinify server.
+     * Sends an temporalData request to the Breinify backend.
      *
      * @param user {object} the user-information
      * @param timezone {string|null} contains the timezone (e.g. xxx)
      * @param localDateTime {string|null} contains the localDateTime
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
-     * @param onReady {function|null} function to be executed after triggering the activity
+     * @param onReady {function|null} function to be executed after triggering the temporalData request
      */
     Breinify.temporalData = function (user, timezone, localDateTime, sign, onReady) {
         Breinify.temporalDataUser(user, timezone, localDateTime, sign, function (data) {
             var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORALDATA_ENDPOINT);
-            _privates.ajax(url, data, onLookUp, onLookUp);
+            _privates.ajax(url, data, onReady, onReady);
         });
     };
 
@@ -261,6 +263,15 @@
             localDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? null : localDateTime;
             sign = typeof sign === 'boolean' ? sign : false;
 
+            if (timzone === null) {
+                // get timezone from moment.js
+                // moment().tz(moment.tz.guess()).format('z');
+            }
+
+            if (localDateTime === null) {
+                // get localDateTime from moment.js
+            }
+
             // get the other values needed
             var unixTimestamp = Breinify.unixTimestamp();
             var signature = null;
@@ -268,7 +279,7 @@
                 // might be a different secret
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateTemporalDataMessage(1, unixTimestamp, type);
+                    var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
