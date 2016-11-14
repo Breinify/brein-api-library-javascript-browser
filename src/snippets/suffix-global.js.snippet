@@ -43,6 +43,16 @@
             onLookUp();
         }
     };
+    Breinify.temporalDataUser = function (user, timezone, localDateTime, sign, onReady) {
+         if (typeof onReady === 'function') {
+            onReady();
+         }
+    }
+    Breinify.temporalData = function (user, timezone, localDateTime, sign, onReady) {
+         if (typeof onReady === 'function') {
+            onReady();
+         }
+    };
     Breinify.unixTimestamp = function () {
         return Math.floor(new Date().getTime() / 1000);
     };
