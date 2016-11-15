@@ -205,7 +205,9 @@ module.exports = function (grunt) {
                                 'components/sha256.js',
                                 'components/hmac.js'
                             ]
-                        }
+                        },
+                        'moment': {'main': 'moment.js'},
+                        'jstz': {'main': 'jstz.js'}
                     }
                 },
                 dest: 'target/dep'
@@ -218,7 +220,9 @@ module.exports = function (grunt) {
                     overrides: {
                         'brein-util': {'main': 'grunt/default-layout/**/*'},
                         'cryptojslib': {'ignore': true},
-                        'jquery': {'ignore': true}
+                        'jquery': {'ignore': true},
+                        'moment': {'ignore': true},
+                        'jstz': {'ignore': true}
                     }
                 },
                 base: bowerPaths.bowerDirectory + '/brein-util/grunt/default-layout',
@@ -261,6 +265,9 @@ module.exports = function (grunt) {
                         'target/dep/md5.js',
                         'target/dep/sha256.js',
                         'target/dep/hmac.js',
+
+                        'target/dep/moment.js',
+                        'target/dep/jstz.js',
 
                         'src/snippets/disable-global-jquery.js.snippet',
                         'src/snippets/prefix-replace-window.js.snippet',

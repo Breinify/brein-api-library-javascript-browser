@@ -15,6 +15,8 @@
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
     var BreinifyUtil = dependencyScope.BreinifyUtil;
+    var moment = dependencyScope.moment;
+    var jstz = dependencyScope.jstz;
 
     var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
@@ -264,12 +266,14 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             if (timezone === null) {
-                // get timezone from moment.js
-                // moment().tz(moment.tz.guess()).format('z');
+            // Determines the time zone of the browser client
+                var tz = jstz.determine();
+                var timezone = tz.name();
             }
 
             if (localDateTime === null) {
-                // get localDateTime from moment.js
+                var date = moment.utc().format();
+                localDateTime = date;
             }
 
             // get the other values needed
