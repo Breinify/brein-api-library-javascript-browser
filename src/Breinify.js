@@ -93,6 +93,8 @@
     Breinify.BreinifyConfig = BreinifyConfig;
     Breinify.BreinifyUser = BreinifyUser;
     Breinify.AttributeCollection = AttributeCollection;
+    Breinify.moment = moment;
+    Breinify.jstz = jstz;
 
     /**
      * Modify the configuration to the specified configuration.
