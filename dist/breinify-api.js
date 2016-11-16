@@ -13111,6 +13111,96 @@ dependencyScope.jQuery = $;;
 
     var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
+    /**
+     * As JS don't supports data types, implements an overload method. This implementation is inspired by
+     * https://github.com/myfingersarebroken/aer
+     */
+    function Wrapper() {
+        this.excludeNullType = function (type) {
+            return false;
+        };
+
+        this.toString = function (pointer) {
+            var output = '';
+
+            var keys = Object.keys(pointer);
+            keys.forEach(function (key) {
+                output += '[' + key + '] ';
+            });
+
+            return output;
+        };
+    }
+
+    Wrapper.prototype = {
+        setExcludeNullType: function (func) {
+            if (typeof func == 'function') {
+                this.excludeNullType = func;
+            }
+        },
+
+        overload: function (o, args, context) {
+            return this._$overload(o, args, context, this);
+        },
+
+        _$overload: function (pointer, args, context, wrapper) {
+            var regex = /function\s+(\w+)s*/;
+            var types = [];
+
+            // create a string to identify the structure of the signature
+            var containsRegEx = false;
+            for (var i = 0; i < args.length; i++) {
+                var arg = args[i];
+
+                var type;
+                if (arg === null) {
+                    type = '([A-Za-z0-9_\\-]+)';
+                    containsRegEx = true;
+                } else {
+                    type = regex.exec(arg.constructor.toString())[1];
+                }
+
+                types.push(type);
+            }
+
+            // check which one of the functions can be used
+            var func = null;
+            if (containsRegEx) {
+                var typeRegEx = new RegExp(types.toString(), 'i');
+
+                Object.keys(pointer).forEach(function (key) {
+                    var matches = typeRegEx.exec(key);
+                    if (matches != null) {
+                        var exclude = false;
+                        for (var i = 1; i < matches.length; i++) {
+                            if (wrapper.excludeNullType(matches[i])) {
+                                exclude = true;
+                                break;
+                            }
+                        }
+
+                        if (exclude) {
+                            // nothing to do
+                        } else if (func === null) {
+                            func = pointer[key];
+                        } else {
+                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + this.toString(pointer));
+                        }
+                    }
+                });
+            } else {
+                func = pointer[types.toString()];
+            }
+            if (typeof func !== 'function') {
+                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + this.toString(pointer));
+            }
+
+            return func.apply(context, args);
+        }
+    };
+
+    var overload = new Wrapper();
+
     /*
      * The internally used configuration used for all calls.
      */
@@ -13212,6 +13302,7 @@ dependencyScope.jQuery = $;;
         return _config.all();
     };
 
+    //noinspection JSCommentMatchesSignature,JSValidateJSDoc
     /**
      * Sends an activity to the Breinify server.
      *
@@ -13223,12 +13314,41 @@ dependencyScope.jQuery = $;;
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after triggering the activity
      */
-    Breinify.activity = function (user, type, category, description, tags, sign, onReady) {
+    Breinify.activity = function () {
+        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
 
-        Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
-            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
-            _privates.ajax(url, data, onReady, onReady);
-        });
+        overload.overload({
+            'Object,String': function (user, type) {
+                Breinify.activityUser(user, type, null, null, null, false, function (data) {
+                    _privates.ajax(url, data);
+                });
+            },
+            'Object,String,Object': function (user, type, tags) {
+                Breinify.activityUser(user, type, null, null, tags, false, function (data) {
+                    _privates.ajax(url, data);
+                });
+            },
+            'Object,String,String,Object': function (user, type, description, tags) {
+                Breinify.activityUser(user, type, null, description, tags, false, function (data) {
+                    _privates.ajax(url, data);
+                });
+            },
+            'Object,String,String,String,Object': function (user, type, category, description, tags) {
+                Breinify.activityUser(user, type, category, description, tags, false, function (data) {
+                    _privates.ajax(url, data);
+                });
+            },
+            'Object,String,String,String,Object,Function': function (user, type, category, description, tags, callback) {
+                Breinify.activityUser(user, type, category, description, tags, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,String,String,String,Object,Boolean,Function': function (user, type, category, description, tags, sign, callback) {
+                Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            }
+        }, arguments, this);
     };
 
 
@@ -13302,6 +13422,7 @@ dependencyScope.jQuery = $;;
         });
     };
 
+    //noinspection JSCommentMatchesSignature,JSValidateJSDoc
     /**
      * Sends an temporalData request to the Breinify backend.
      *
@@ -13309,12 +13430,26 @@ dependencyScope.jQuery = $;;
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after triggering the temporalData request
      */
-    Breinify.temporalData = function (user, sign, onReady) {
+    Breinify.temporalData = function () {
+        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT);
 
-        Breinify.temporalDataUser(user, sign, function (data) {
-            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT);
-            _privates.ajax(url, data, onReady, onReady);
-        });
+        overload.overload({
+            'Function': function (callback) {
+                Breinify.temporalDataUser({}, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Boolean,Function': function (sign, callback) {
+                Breinify.temporalDataUser({}, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Boolean,Function': function (user, sign, callback) {
+                Breinify.temporalDataUser(user, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            }
+        }, arguments, this);
     };
 
     /**
@@ -13356,7 +13491,7 @@ dependencyScope.jQuery = $;;
 
                     var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
                     console.log(message);
-                    console.log( _config.get(ATTR_CONFIG.SECRET));
+                    console.log(_config.get(ATTR_CONFIG.SECRET));
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);

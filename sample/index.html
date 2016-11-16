@@ -266,7 +266,7 @@
             var product = Breinify.UTL.text(Breinify.UTL.select(this, 'td:first'), false);
             Breinify.activity({
                 'email': userEmail
-            }, 'selectProduct', null, product, false, function () {
+            }, 'selectProduct', null, product, null, false, function () {
                 show('Sent activity "selectProduct" with product "' + product + '".');
             });
         }
@@ -287,7 +287,7 @@
         if (!Breinify.UTL.isEmpty(userEmail)) {
             Breinify.activity({
                 'email': userEmail
-            }, 'login', null, null, false, function () {
+            }, 'login', null, null, null, false, function () {
                 lookUp(userEmail);
                 show('Sent activity "login" with user "' + userEmail + '".');
             });
@@ -314,10 +314,10 @@
                 Breinify.UTL.setText('#dimension-email td:nth-child(2)', val);
             });
         }
-    }
+    };
 
     var temporalData = function () {
-        Breinify.temporalData({}, false, function (data) {
+        Breinify.temporalData({}, null, function (data) {
 
             var $template = $('#temporal-data-template');
 

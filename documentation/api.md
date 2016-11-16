@@ -18,6 +18,7 @@ This documentation is organized as following:
   * Breinify.setConfig(config)
 * [API](#api)
   * Breinify.activity(user, type, category, description, tags, sign, onReady)
+  * Breinify.temporaldata(user, sign, onReady)
   * Breinify.lookup(user, dimensions, sign, onLookUp)
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
@@ -27,6 +28,9 @@ This documentation is organized as following:
     * Breinify.UTL.md5(value)
     * Breinify.UTL.isEmpty(value)
     * Breinify.UTL.isSimpleObject(obj)
+    * Breinify.UTL.unixTimestamp()
+    * Breinify.UTL.timezone()
+    * Breinify.UTL.localDateTime()
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce)
     * Breinify.UTL.events.pageloaded(func)
@@ -79,6 +83,8 @@ This documentation is organized as following:
 
   {string} **apiKey**: The API-key to be used (mandatory).
 
+  {string} **temporaldataEndpoint**: The end-point of the API to retrieve temporal-data results.
+  
   {string} **lookupEndpoint**: The end-point of the API to retrieve lookup results.
 
   {string} **secret**: The secret attached to the API-key (should always be null utilizing this type of library).
@@ -129,7 +135,7 @@ This documentation is organized as following:
 
   {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
 
-  {function|null} **onReady**: A function which is triggered after the activity was sent to the user. The function has the information sent as the first parameter.
+  {function|null} **onReady**: A function which is triggered after the activity was sent. The function has the retrieved answer as the first parameter.
 
   **Example Usage**:
   ```javascript
@@ -144,6 +150,26 @@ This documentation is organized as following:
   });
   ```
   <br/>
+
+* **Breinify.temporaldata(user, sign, onReady)**:<br/>
+  Retrieves temporal information about the passed user information. 
+  
+  **Parameters**:
+
+  {object} **user**: A plain object specifying the user information the temporal data should be retrieved for. More information about the structure can be found [here](./user.md).
+
+  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
+
+  {function|null} **onReady**: A function which is triggered after the answer of the call was received. The function has the retrieved information as first parameter.
+
+  **Example Usage**:
+  ```
+  Breinify.temporalData({}, false, function (data) {
+    console.log(data);
+  });
+  ```
+  <br/>
+  
 
 * **Breinify.lookup(user, dimensions, sign, onLookUp)**:<br/>
   Retrieves a lookup result from the engine. The function needs a valid API-key to be configured to succeed.
@@ -269,6 +295,15 @@ The utility library provides general functionality, which makes it easy to retri
     'null': null
   }
   ```
+  
+* {number} **Breinify.UTL.unixTimestamp()**:<br/>
+  Returns the current unix time-stamp (also called epoch time).
+  
+* {string} **Breinify.UTL.timezone()**:<br/>
+  Determines the clients timezone. 
+  
+* {string} **Breinify.UTL.localDateTime()**:<br/>
+  Creates a string representing the current local date and time.
 
 ##### Breinify.UTL.events
 
