@@ -43,7 +43,7 @@ describe('Breinify', function () {
         });
 
         //noinspection JSCheckFunctionSignatures
-        Breinify.unixTimestamp = function () {
+        Breinify.UTL.unixTimestamp = function () {
             return 1451962516;
         };
         Breinify.activityUser({
@@ -60,76 +60,32 @@ describe('Breinify', function () {
             expect(data.activity.category).toBe('other');
             //noinspection JSUnresolvedFunction
             expect(data.signature).toBe('rsXU0ozhfzieNLA2jQs2h2e4sz2+qHGxbgSYyfWr5EM=');
+
             done();
         });
     });
 
-    it('invokes the temporalDataUser', function (done) {
+    //noinspection JSUnresolvedFunction
+    it('creates the correct temporal data request instance', function (done) {
         Breinify.setConfig({
+            'url': 'https://api.breinify.com',
             'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
         });
 
         //noinspection JSCheckFunctionSignatures
-        Breinify.unixTimestamp = function () {
+        Breinify.UTL.unixTimestamp = function () {
             return 1451962516;
         };
-        // user, timezone, localDateTime, sign, onReady)
-        Breinify.temporalDataUser({
-            email: 'email@sample.com'
-        }, null, null, false, function (data) {
+        Breinify.temporalDataUser({}, false, function (data) {
 
             //noinspection JSUnresolvedFunction
             expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
             //noinspection JSUnresolvedFunction
             expect(data.unixTimestamp).toBe(1451962516);
+            //noinspection JSUnresolvedFunction
+            expect(data.timezone).not.toBeNull();
 
             done();
         });
     });
-
-    it('invokes the temporalData request', function (done) {
-        Breinify.setConfig({
-            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
-        });
-
-        //noinspection JSCheckFunctionSignatures
-        Breinify.unixTimestamp = function () {
-            return 1451962516;
-        };
-        Breinify.temporalData({
-            email: 'email@sample.com'
-        }, null, null, false, function (data) {
-
-            //noinspection JSUnresolvedFunction
-            //expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
-            //noinspection JSUnresolvedFunction
-            //expect(data.unixTimestamp).toBe(1451962516);
-
-            done();
-        });
-    });
-
-    it('invokes the temporalDataUser request', function (done) {
-        Breinify.setConfig({
-            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
-        });
-
-        //noinspection JSCheckFunctionSignatures
-        Breinify.unixTimestamp = function () {
-            return 1451962516;
-        };
-        // user, timezone, localDateTime, sign, onReady)
-        Breinify.temporalDataUser({
-            email: 'email@sample.com'
-        }, null, null, false, function (data) {
-
-            //noinspection JSUnresolvedFunction
-            expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
-            //noinspection JSUnresolvedFunction
-            expect(data.unixTimestamp).toBe(1451962516);
-
-            done();
-        });
-    });
-
 });

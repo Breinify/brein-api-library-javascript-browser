@@ -13165,7 +13165,7 @@ dependencyScope.jQuery = $;;
             return dimension + unixTimestamp + dimensions.length;
         },
 
-        generateTemporalDataMessage: function (localDateTime, timezone, unixTimestamp) {
+        generateTemporalDataMessage: function (unixTimestamp, localDateTime, timezone) {
             var paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
             var paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
 
@@ -13351,7 +13351,12 @@ dependencyScope.jQuery = $;;
                 // might be a different secret
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
+                    var localDateTime = user.read('localDateTime');
+                    var timezone = user.read('timezone');
+
                     var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
+                    console.log(message);
+                    console.log( _config.get(ATTR_CONFIG.SECRET));
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -13506,9 +13511,6 @@ dependencyScope.jQuery = $;;
             onReady();
          }
     };
-    Breinify.unixTimestamp = function () {
-        return Math.floor(new Date().getTime() / 1000);
-    };
     Breinify.UTL = {
         loc: {
             params: function () { return []; },
@@ -13534,6 +13536,9 @@ dependencyScope.jQuery = $;;
         select: function() { return null; },
         texts: function() { return []; },
         text: function() { return null; },
+        unixTimestamp: function () {
+            return Math.floor(new Date().getTime() / 1000);
+        },
         setText: function() {},
         md5: function () { return null; },
         isEmpty: function() { return false; },

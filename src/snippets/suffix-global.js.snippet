@@ -53,9 +53,6 @@
             onReady();
          }
     };
-    Breinify.unixTimestamp = function () {
-        return Math.floor(new Date().getTime() / 1000);
-    };
     Breinify.UTL = {
         loc: {
             params: function () { return []; },
@@ -81,6 +78,9 @@
         select: function() { return null; },
         texts: function() { return []; },
         text: function() { return null; },
+        unixTimestamp: function () {
+            return Math.floor(new Date().getTime() / 1000);
+        },
         setText: function() {},
         md5: function () { return null; },
         isEmpty: function() { return false; },
