@@ -29,12 +29,14 @@ bower install https://github.com/breinify/brein-api-library-javascript-browser/t
 ```
 
 ##### Using *npm* to download the library
-Please pick 1 of the following:
+Please pick one of the following:
 ```bash
 npm install breinify/brein-api-library-javascript-browser
 npm install github:breinify/brein-api-library-javascript-browser
 npm install https://github.com/breinify/brein-api-library-javascript-browser/tarball/master
 ```
+
+**Note**: We provide a specific library to be used with node, see [here](https://www.npmjs.com/package/breinify-node).
 
 ##### Download the library directly from GitHub
 
@@ -99,6 +101,22 @@ The example above observes a click event on all elements with the *product* clas
 
 **Note:**
 A full list of the available utility functions (*Breinify.UTL*) and there purpose and parameters, can be found [here](./api.md).
+
+##### Placing look-up triggers
+
+Temporal data can be used to personalize your content, e.g., to change the appearance of the site regarding holidays (even local holidays), weather, part of time (e.g., afternoon, evening), or events.
+
+```html
+<script>
+    Breinify.UTL.events.pageloaded(function () {
+        Breinify.temporalData(function (data) {
+            if (!Breinify.UTL.isEmpty(data)) {
+                window.alert('It is currently ' + data.weather.temperature);
+            }
+        });
+    }
+</script>
+```
 
 ##### Placing look-up triggers
 

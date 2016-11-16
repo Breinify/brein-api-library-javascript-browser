@@ -1,8 +1,8 @@
 > ```javascript
 > var withSecret = false;
 > 
-> // Example with just IP address set
-> var response = Breinify.temporalData({
->     'ipAddress': '74.115.209.58'
-> }, withSecret);
+> // Example to retrieve temporal information through available information
+> Breinify.temporalData(function(data) {
+>    window.alert(JSON.stringify(data, null, 2)); 
+> });
 > ```
