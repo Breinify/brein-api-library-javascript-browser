@@ -26,6 +26,7 @@ The following code-snippet shows how easy it is to utilize the different end-poi
         Breinify.setConfig({
             'apiKey': '772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6'
         });
+        
         /*
          * Now use the library to inform about activities, e.g., about
          * a login (for a full list of activities see 'further links').
