@@ -119,6 +119,18 @@
         </tr>
     </table>
 
+    <h1>TemporalData Result</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Key</th>
+            <th>Value</th>
+        </tr>
+        <tr id="temporal-data-template" style="display: none; visibility: hidden;">
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
     <h1>General Information</h1>
     <table>
         <tr>
@@ -219,10 +231,9 @@
 <script language="javascript">
     if (Breinify.UTL.loc.matches('^http://localhost:20000')) {
         Breinify.setConfig({
-            // both can be used internally
-            // 'url': 'http://dev.breinify.com/api',
-            'url': 'http://localhost:8080/v1.0/controller',
-            'apiKey': '7BEE-DDC3-6FB4-4A70-80F8-43D9-1B33-D0FB'
+            // 'url': 'http://localhost:8080/v1.0/controller',
+            'url': 'https://api.breinify.com',
+            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
         });
     } else {
         Breinify.setConfig({
@@ -286,6 +297,28 @@
             });
         }
     }
+
+    var temporalData = function () {
+        Breinify.temporalData({}, null, function(data) {
+
+            var $template = $('#temporal-data-template');
+
+            for (var property in data) {
+                if (data.hasOwnProperty(property)) {
+                    var $row = $template.clone()
+                            .attr("id", "")
+                            .appendTo($template.parent())
+                            .css("visibility", "visible")
+                            .show();
+
+                    $row.children("td:nth-child(1)").text(property);
+                    $row.children("td:nth-child(2)").text(JSON.stringify(data[property]));
+                }
+            }
+        });
+    };
+
+    temporalData();
 </script>
 
 </body>

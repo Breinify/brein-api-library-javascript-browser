@@ -206,7 +206,6 @@ module.exports = function (grunt) {
                                 'components/hmac.js'
                             ]
                         },
-                        'moment': {'main': 'moment.js'},
                         'jstz': {'main': 'jstz.js'}
                     }
                 },
@@ -221,7 +220,6 @@ module.exports = function (grunt) {
                         'brein-util': {'main': 'grunt/default-layout/**/*'},
                         'cryptojslib': {'ignore': true},
                         'jquery': {'ignore': true},
-                        'moment': {'ignore': true},
                         'jstz': {'ignore': true}
                     }
                 },
@@ -266,7 +264,6 @@ module.exports = function (grunt) {
                         'target/dep/sha256.js',
                         'target/dep/hmac.js',
 
-                        'target/dep/moment.js',
                         'target/dep/jstz.js',
 
                         'src/snippets/disable-global-jquery.js.snippet',

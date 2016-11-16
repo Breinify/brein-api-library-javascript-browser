@@ -411,6 +411,31 @@
             });
 
             return result;
+        },
+
+        /**
+         * Method to create a valid current unix timestamp.
+         * @returns {number} the current unix timestamp (based on the system time)
+         */
+        unixTimestamp: function () {
+            return Math.floor(new Date().getTime() / 1000);
+        },
+
+        /**
+         * Method to get the current timezone of the user.
+         * @returns {string} the current timezone
+         */
+        timezone: function () {
+            //noinspection JSUnresolvedFunction
+            return jstz().timezone_name;
+        },
+
+        /**
+         * Gets the local date and time of the user. The method is based on the toString method of the Date instance.
+         * @returns {string} the current local date and time
+         */
+        localDateTime: function () {
+            return new Date().toString();
         }
     };
 

@@ -16,8 +16,6 @@
     // things that shouldn't be used anyways (not documented)
     Breinify.BreinifyConfig = function() {};
     Breinify.BreinifyUser = function() {};
-    Breinify.moment = function() {};
-    Breinify.jstz = function() {};
     Breinify.AttributeCollection = function() {};
 
     // now all the stuff to ensure save usage
@@ -86,7 +84,9 @@
         setText: function() {},
         md5: function () { return null; },
         isEmpty: function() { return false; },
-        isSimpleObject: function() { return false; }
+        isSimpleObject: function() { return false; },
+        timezone: function() { return null; },
+        localDateTime: function() { return new Date().toString(); }
     };
 
     window['Breinify'] = Breinify;

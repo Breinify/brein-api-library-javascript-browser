@@ -15,8 +15,6 @@
     var BreinifyUser = dependencyScope.BreinifyUser;
     var BreinifyConfig = dependencyScope.BreinifyConfig;
     var BreinifyUtil = dependencyScope.BreinifyUtil;
-    var moment = dependencyScope.moment;
-    var jstz = dependencyScope.jstz;
 
     var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
@@ -93,8 +91,6 @@
     Breinify.BreinifyConfig = BreinifyConfig;
     Breinify.BreinifyUser = BreinifyUser;
     Breinify.AttributeCollection = AttributeCollection;
-    Breinify.moment = moment;
-    Breinify.jstz = jstz;
 
     /**
      * Modify the configuration to the specified configuration.
@@ -121,14 +117,6 @@
         }
 
         return _config.all();
-    };
-
-    /**
-     * Method to create a valid current unix timestamp.
-     * @returns {number} the current unix timestamp (based on the system time)
-     */
-    Breinify.unixTimestamp = function () {
-        return Math.floor(new Date().getTime() / 1000);
     };
 
     /**
@@ -186,7 +174,7 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = Breinify.unixTimestamp();
+            var unixTimestamp = BreinifyUtil.unixTimestamp();
             var signature = null;
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);
@@ -225,14 +213,13 @@
      * Sends an temporalData request to the Breinify backend.
      *
      * @param user {object} the user-information
-     * @param timezone {string|null} contains the timezone (e.g. xxx)
-     * @param localDateTime {string|null} contains the localDateTime
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after triggering the temporalData request
      */
-    Breinify.temporalData = function (user, timezone, localDateTime, sign, onReady) {
-        Breinify.temporalDataUser(user, timezone, localDateTime, sign, function (data) {
-            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORALDATA_ENDPOINT);
+    Breinify.temporalData = function (user, sign, onReady) {
+
+        Breinify.temporalDataUser(user, sign, function (data) {
+            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT);
             _privates.ajax(url, data, onReady, onReady);
         });
     };
@@ -241,12 +228,10 @@
      * Creates a user instance and executes the specified method.
      *
      * @param user {object} the user-information
-     * @param timezone {string|null} contains the timezone (e.g. xxx)
-     * @param localDateTime {string|null} contains the localDateTime
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after successful user creation
      */
-    Breinify.temporalDataUser = function (user, timezone, localDateTime, sign, onReady) {
+    Breinify.temporalDataUser = function (user, sign, onReady) {
 
         var _onReady = function (user) {
             if ($.isFunction(onReady)) {
@@ -263,25 +248,13 @@
             }
 
             // get some default values for the passed parameters - if not set
-            timezone = typeof timezone === 'undefined' || timezone === null ? null : timezone;
-            localDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? null : localDateTime;
             sign = typeof sign === 'boolean' ? sign : false;
 
-            if (timezone === null) {
-            // Determines the time zone of the browser client
-                var tz = jstz.determine();
-                var timezone = tz.name();
-            }
-
-            if (localDateTime === null) {
-                var date = moment.utc().format();
-                localDateTime = date;
-            }
-
             // get the other values needed
-            var unixTimestamp = Breinify.unixTimestamp();
+            var unixTimestamp = BreinifyUtil.unixTimestamp();
             var signature = null;
             if (sign) {
+
                 // might be a different secret
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
@@ -298,9 +271,7 @@
                 'user': user.all(),
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
-                'unixTimestamp': unixTimestamp,
-                'timezone': timezone,
-                'localDataTime': localDateTime
+                'unixTimestamp': unixTimestamp
             };
 
             if ($.isFunction(onReady)) {
@@ -349,7 +320,7 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = Breinify.unixTimestamp();
+            var unixTimestamp = BreinifyUtil.unixTimestamp();
             var signature = null;
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);

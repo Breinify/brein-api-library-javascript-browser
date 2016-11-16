@@ -37,7 +37,7 @@
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
     });
-    attributes.add('TEMPORALDATA_ENDPOINT', {
+    attributes.add('TEMPORAL_DATA_ENDPOINT', {
         name: 'temporaldataEndpoint',
         defaultValue: '/temporaldata',
         validate: function (value) {

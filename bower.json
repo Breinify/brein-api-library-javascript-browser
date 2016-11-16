@@ -16,12 +16,10 @@
   "license": "MIT",
   "private": false,
   "homepage": "https://github.com/Breinify/brein-api-library-javascript-browser",
-  "dependencies": {},
   "devDependencies": {
     "jquery": "^2.2.4",
     "cryptojslib": "^3.1.2",
     "brein-util": "git+https://github.com/breinify/brein-javascript.git",
-    "jstz": "https://github.com/bower-packages/bower-jstz.git#1.0.5",
-    "moment": "https://github.com/moment/moment.git#"
+    "jstz": "*"
   }
 }

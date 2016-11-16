@@ -133,6 +133,24 @@
             }
         }
 
+        // add the timezone
+        if (instance.read('timezone') === null) {
+            var timezone = BreinifyUtil.timezone();
+
+            if (!BreinifyUtil.isEmpty(timezone)) {
+                instance.add('timezone', timezone);
+            }
+        }
+
+        // add the localDateTime
+        if (instance.read('localDateTime') === null) {
+            var localDateTime = BreinifyUtil.localDateTime();
+
+            if (!BreinifyUtil.isEmpty(localDateTime)) {
+                instance.add('localDateTime', localDateTime);
+            }
+        }
+
         // try to set the location if there isn't one yet
         if (instance.read('location') === null && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
