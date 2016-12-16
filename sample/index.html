@@ -137,6 +137,17 @@
         </tr>
     </table>
 
+    <h1>Recommendation Result</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Recommendations</th>
+        </tr>
+        <tr id="recommendation-template" style="display: none; visibility: hidden;">
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
     <h1>TemporalData Result</h1>
     <table data-sort="true">
         <tr>
@@ -338,6 +349,31 @@
         });
     };
 
+    var recommendation = function () {
+        Breinify.recommendation({'email': 'philipp.meisen@breinify.com'}, 1, function (data) {
+            var recommendations;
+            if ($.isPlainObject(data) && $.isArray(data.result)) {
+                recommendations = data.result;
+            } else {
+                recommendations = [];
+            }
+
+            var $template = $('#recommendation-template');
+
+            $.each(recommendations, function(idx, recommendation) {
+                var $row = $template.clone()
+                        .attr("id", "")
+                        .appendTo($template.parent())
+                        .css("visibility", "visible")
+                        .show();
+
+                $row.children("td:nth-child(1)").html("<pre><code>" +
+                        JSON.stringify(recommendation, null, 2) + "</code></pre>");
+            });
+        });
+    };
+
+    recommendation();
     temporalData();
 </script>
 

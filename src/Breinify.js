@@ -39,6 +39,7 @@
         };
     }
 
+    //noinspection JSUnusedGlobalSymbols
     Wrapper.prototype = {
         setExcludeNullType: function (func) {
             if (typeof func == 'function') {
@@ -91,7 +92,7 @@
                         } else if (func === null) {
                             func = pointer[key];
                         } else {
-                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + this.toString(pointer));
+                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + pointer.toString());
                         }
                     }
                 });
@@ -99,7 +100,7 @@
                 func = pointer[types.toString()];
             }
             if (typeof func !== 'function') {
-                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + this.toString(pointer));
+                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + pointer.toString());
             }
 
             return func.apply(context, args);
@@ -154,6 +155,10 @@
 
         generateActivityMessage: function (amount, unixTimestamp, type) {
             return type + unixTimestamp + amount;
+        },
+
+        generateRecommendationMessage: function (amount, unixTimestamp) {
+            return unixTimestamp + amount;
         },
 
         generateLookUpMessage: function (dimensions, unixTimestamp) {
@@ -211,6 +216,97 @@
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
     /**
+     * Sends an recommendation request to the Breinify server.
+     *
+     * @param user {object} the user-information
+     * @param nrOfRecommendations {number|null} the amount of recommendations to get
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} unction to be executed after triggering the recommendation request
+     */
+    Breinify.recommendation = function () {
+        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
+
+        overload.overload({
+            'Object,Function': function (user, callback) {
+                Breinify.recommendationUser(user, 3, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Number,Function': function (user, nrOfRecommendations, callback) {
+                Breinify.recommendationUser(user, nrOfRecommendations, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Number,Boolean,Function': function (user, nrOfRecommendations, sign, callback) {
+                Breinify.recommendationUser(user, nrOfRecommendations, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            }
+        }, arguments, this);
+    };
+
+    /**
+     * Creates a user instance and executes the specified method.
+     *
+     * @param user {object} the user-information
+     * @param nrOfRecommendations {number|null} the amount of recommendations to get
+     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+     * @param onReady {function|null} function to be executed after successful user creation
+     */
+    Breinify.recommendationUser = function (user, nrOfRecommendations, sign, onReady) {
+
+        var _onReady = function (user) {
+            if ($.isFunction(onReady)) {
+                onReady(user);
+            }
+        };
+
+        // get the user information
+        new BreinifyUser(user, function (user) {
+
+            if (!user.validate()) {
+                _onReady(null);
+                return;
+            }
+
+            // get some default values for the passed parameters - if not set
+            sign = typeof sign === 'boolean' ? sign : false;
+
+            // get the other values needed
+            var unixTimestamp = BreinifyUtil.unixTimestamp();
+            var signature = null;
+            if (sign) {
+                var secret = _config.get(ATTR_CONFIG.SECRET);
+                if (typeof secret === 'string') {
+                    var message = _privates.generateRecommendationMessage(1, unixTimestamp, type);
+                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
+                } else {
+                    _onReady(null);
+                    return;
+                }
+            }
+
+            // create the data set
+            var data = {
+                'user': user.all(),
+
+                'recommendation': {
+                    'numRecommendations': nrOfRecommendations
+                },
+
+                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
+                'signature': signature,
+                'unixTimestamp': unixTimestamp
+            };
+
+            if ($.isFunction(onReady)) {
+                _onReady(data);
+            }
+        });
+    };
+
+    //noinspection JSCommentMatchesSignature,JSValidateJSDoc
+    /**
      * Sends an activity to the Breinify server.
      *
      * @param user {object} the user-information
@@ -257,7 +353,6 @@
             }
         }, arguments, this);
     };
-
 
     /**
      * Creates a user instance and executes the specified method.
