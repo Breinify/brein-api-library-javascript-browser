@@ -53,6 +53,16 @@
             onReady();
          }
     };
+    Breinify.recommendation = function (uuser, nr, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.recommendationUser = function (user, nr, sign, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
     Breinify.UTL = {
         loc: {
             params: function () { return []; },
@@ -81,6 +91,7 @@
         unixTimestamp: function () {
             return Math.floor(new Date().getTime() / 1000);
         },
+        trimQuotes: function(str) { return str; },
         setText: function() {},
         md5: function () { return null; },
         isEmpty: function() { return false; },

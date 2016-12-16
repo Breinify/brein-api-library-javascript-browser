@@ -353,7 +353,7 @@
 
         /**
          * Checks if the passed value is empty, i.e., is an empty string (trimmed), an empty object, undefined or null.
-         * @param val {mixed} the value to be checked
+         * @param val {*} the value to be checked
          * @returns {boolean} true if the value is empty, otherwise false
          */
         isEmpty: function (val) {
@@ -371,6 +371,22 @@
             } else {
                 return false;
             }
+        },
+
+        /**
+         * Removes quotes from a string, e.g., "Test" => Test
+         * @param str the string to remove the quotes from
+         * @param {boolean} inclSingle can be true if also single quotes like ' should be removed, be careful something like "Test' would end up to be Test
+         * @returns {*} if the passed value is not a string, this value will be returned, otherwise the trimmed str, without any surrounding quotes will be returned
+         */
+        trimQuotes: function (str, inclSingle) {
+            if (str == null || typeof str != 'string') {
+                return str;
+            }
+
+            var quotes = inclSingle === true ? '["\']' : '["]';
+            var regEx = '^' + quotes + '(.*)' + quotes + '$';
+            return str.replace(new RegExp(regEx), '$1');
         },
 
         isSimpleObject: function (obj) {

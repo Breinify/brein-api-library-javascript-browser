@@ -119,4 +119,18 @@ describe('BreinifyUtil', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.isSimpleObject({'val1': 1, 'val2': 2, 'val3': []})).toBe(true);
     });
+
+    //noinspection JSUnresolvedFunction
+    it('trimQuotes', function() {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.trimQuotes(null)).toBeNull();
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.trimQuotes({})).toEqual({});
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.trimQuotes('"Test"')).toEqual('Test');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.trimQuotes('  "Test"   ')).toEqual('  "Test"   ');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.trimQuotes('\'Test\'', true)).toEqual('Test');
+    });
 });

@@ -22,6 +22,7 @@ This documentation is organized as following:
   * Breinify.lookup(user, dimensions, sign, onLookUp)
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
+    * Breinify.UTL.trimQuotes(str, inclSingleQuotes)
     * Breinify.UTL.texts(selector, excludeChildren)
     * Breinify.UTL.text(selector, excludeChildren)
     * Breinify.UTL.setText(selector, value)
@@ -202,6 +203,22 @@ This documentation is organized as following:
 The utility library provides general functionality, which makes it easy to retrieve values from, e.g., the url or cookies. In addition, it simplifies the retrieval of values from the DOM-tree or the handling of events.
 
 ##### Breinify.UTL (general functions)
+
+* {[string]} **Breinify.UTL.trimQuotes(str, inclSingleQuotes)**:<br/>
+  Trims a string by removing quotes, i.e. if *inclSingleQuotes* is *true* *"* and *'*, otherwise only *"*. It should be noted, that a value like "test' leads to test, if *inclSingleQuotes* is set to *true*.
+  
+  **Parameters**:
+  
+  {string} ****: The string to be trimmed
+  
+  {boolean|null}: **inclSingleQuotes**: true, if only *"* should be removed, otherwise *'*
+  
+  **Example Usage**:
+    ```javascript
+    var trimmedText = Breinify.UTL.trimQuotes('"Hello World"', false);
+    console.log('"Hello World"', trimmedText);
+    ```
+    <br/>
 
 * {[string]} **Breinify.UTL.texts(selector, excludeChildren)**:<br/>
   Gets the text of the elements selected by the specified *selector*.
