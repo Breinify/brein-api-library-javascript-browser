@@ -158,7 +158,7 @@
         },
 
         generateRecommendationMessage: function (amount, unixTimestamp) {
-            return unixTimestamp + amount;
+            return '' + unixTimestamp + amount;
         },
 
         generateLookUpMessage: function (dimensions, unixTimestamp) {
@@ -278,7 +278,7 @@
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateRecommendationMessage(1, unixTimestamp, type);
+                    var message = _privates.generateRecommendationMessage(nrOfRecommendations, unixTimestamp);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
