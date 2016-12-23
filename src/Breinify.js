@@ -158,7 +158,7 @@
         },
 
         generateRecommendationMessage: function (amount, unixTimestamp) {
-            return '' + unixTimestamp + amount;
+            return '' + unixTimestamp;
         },
 
         generateLookUpMessage: function (dimensions, unixTimestamp) {
