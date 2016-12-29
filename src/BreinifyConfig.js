@@ -86,7 +86,7 @@
     });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
-        defaultValue: 1000,
+        defaultValue: 4000,
         validate: function (value) {
             return $.isNumeric(value);
         }
