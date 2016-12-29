@@ -18,7 +18,7 @@ The following code-snippet shows how easy it is to utilize the different end-poi
 ```html
 
     <!-- load the library -->
-    <script src="https://cdn.jsdelivr.net/breinify-api/1.0.7/breinify-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/breinify-api/1.0.9/breinify-api.min.js"></script>
     <script>
         /*
          * Configure the library (see 'further links' for a full list)
