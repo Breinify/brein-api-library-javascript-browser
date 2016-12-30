@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.8
+ * v1.0.11
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12744,14 +12744,14 @@ dependencyScope.jQuery = $;;
     });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
-        defaultValue: 1000,
+        defaultValue: 4000,
         validate: function (value) {
             return $.isNumeric(value);
         }
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.8';
+        this.version = '1.0.11';
 
         /*
          * Validate the passed config-parameters.
@@ -12917,7 +12917,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.8';
+        instance.version = '1.0.11';
 
         // set the values provided
         instance.setAll(user);
@@ -13274,7 +13274,7 @@ dependencyScope.jQuery = $;;
         },
 
         generateRecommendationMessage: function (amount, unixTimestamp) {
-            return '' + unixTimestamp + amount;
+            return '' + unixTimestamp;
         },
 
         generateLookUpMessage: function (dimensions, unixTimestamp) {
@@ -13295,7 +13295,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.8',
+        version: '1.0.11',
         jQueryVersion: $.fn.jquery
     };
 
