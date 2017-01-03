@@ -507,8 +507,6 @@
                     var timezone = user.read('timezone');
 
                     var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
-                    console.log(message);
-                    console.log(_config.get(ATTR_CONFIG.SECRET));
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
