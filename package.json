@@ -1,6 +1,6 @@
 {
   "name": "breinify-api",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "This is a JavaScript library simplifying the usage of the Breinify API",
   "authors": [
     "Philipp Meisen <philipp@breinify.com>",
@@ -17,8 +17,7 @@
   "scripts": {
     "test": "grunt test"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "cdnjs-importer": "^2.0.0-beta",
     "grunt": "^0.4.5",
@@ -34,6 +33,6 @@
     "grunt-sync-json": "^0.4.0",
     "jasmine-jquery": "^2.1.1",
     "jquery": "2.2.2",
-    "main-bower-files": "^2.11.1"
+    "main-bower-files": "^2.13.1"
   }
 }

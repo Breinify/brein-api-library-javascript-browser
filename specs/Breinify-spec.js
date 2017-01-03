@@ -88,4 +88,30 @@ describe('Breinify', function () {
             done();
         });
     });
+
+    //noinspection JSUnresolvedFunction
+    it('creates the correct recommendation data request instance', function (done) {
+        Breinify.setConfig({
+            'url': 'https://api.breinify.com',
+            'apiKey': '41B2-F48C-156A-409A-B465-317F-A0B4-E0E8'
+        });
+
+        //noinspection JSCheckFunctionSignatures
+        Breinify.UTL.unixTimestamp = function () {
+            return 1451962516;
+        };
+        Breinify.recommendationUser({}, 10, "some category", false, function (data) {
+
+            //noinspection JSUnresolvedFunction
+            expect(data.apiKey).toBe('41B2-F48C-156A-409A-B465-317F-A0B4-E0E8');
+            //noinspection JSUnresolvedFunction
+            expect(data.unixTimestamp).toBe(1451962516);
+            //noinspection JSUnresolvedFunction
+            expect(data.recommendation.recommendationCategory).toBe('some category');
+            //noinspection JSUnresolvedFunction
+            expect(data.recommendation.numRecommendations).toBe(10);
+
+            done();
+        });
+    });
 });

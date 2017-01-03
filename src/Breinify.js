@@ -220,6 +220,7 @@
      *
      * @param user {object} the user-information
      * @param nrOfRecommendations {number|null} the amount of recommendations to get
+     * @param category {string|null} contains an optional category for the recommendation
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} unction to be executed after triggering the recommendation request
      */
@@ -228,17 +229,27 @@
 
         overload.overload({
             'Object,Function': function (user, callback) {
-                Breinify.recommendationUser(user, 3, false, function (data) {
+                Breinify.recommendationUser(user, 3, null, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,Function': function (user, nrOfRecommendations, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, false, function (data) {
+                Breinify.recommendationUser(user, nrOfRecommendations, null, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Number,String,Function': function (user, nrOfRecommendations, category, callback) {
+                Breinify.recommendationUser(user, nrOfRecommendations, category, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,Boolean,Function': function (user, nrOfRecommendations, sign, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, sign, function (data) {
+                Breinify.recommendationUser(user, nrOfRecommendations, null, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Number,String,Boolean,Function': function (user, nrOfRecommendations, category, sign, callback) {
+                Breinify.recommendationUser(user, nrOfRecommendations, category, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             }
@@ -250,10 +261,11 @@
      *
      * @param user {object} the user-information
      * @param nrOfRecommendations {number|null} the amount of recommendations to get
+     * @param category {string|null} contains an optional category for the recommendation
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after successful user creation
      */
-    Breinify.recommendationUser = function (user, nrOfRecommendations, sign, onReady) {
+    Breinify.recommendationUser = function (user, nrOfRecommendations, category, sign, onReady) {
 
         var _onReady = function (user) {
             if ($.isFunction(onReady)) {
@@ -286,12 +298,15 @@
                 }
             }
 
+            category = typeof category === 'undefined' || category === null ? '' : category;
+
             // create the data set
             var data = {
                 'user': user.all(),
 
                 'recommendation': {
-                    'numRecommendations': nrOfRecommendations
+                    'numRecommendations': nrOfRecommendations,
+                    'recommendationCategory': category
                 },
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
