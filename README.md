@@ -29,6 +29,8 @@ to:
 
 ## Getting Started
 
+### Retrieving an API-Key
+
 First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In the examples, we assume you have the following api-key:
 
 **938D-3120-64DD-413F-BB55-6573-90CE-473A**
@@ -53,7 +55,7 @@ If you prefer to use **bower** the newest version can be installed using:
 bower install breinify-api --save
 ```
 
-## Usage Examples
+## TemporalData: Selected Usage Examples
 
 ### Retrieve Client's Information (Location, Weather, Events, Timezone, Time)
 
@@ -77,12 +79,9 @@ Breinify.temporalData(function(data) {
 
 
 
-### Further links
-To understand all the capabilities of Breinify's API, you should have a look at:
+## Further links
 
-* the [step-by-step instruction](documentation/step-by-step.md),
-* the [API library documentation](documentation/api.md),
-* an [example using Google Tag Manager](documentation/example-google-tag-manager.md),
-* a [more comprehensive example](documentation/example-comprehensive.md), or
-* the [full API documentation](https://www.breinify.com/documentation/index.html)
-* [Breinify's Website](https://www.breinify.com).
+To understand all the capabilities of Breinify's API, you can find further information:
+- the [library documentation](documentation/api.md),
+- the [full API documentation](https://www.breinify.com/documentation/index.html),
+- [Breinify's Website](https://www.breinify.com).
