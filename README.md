@@ -38,10 +38,11 @@ First of all, you need a valid API-key, which you can get for free at [https://w
 The endpoint is capable to retrieve some information about the client, based on client specific information (e.g., the IP-address). The first example uses this information to retrieve some information, like the weather, events, or the timezone.
 
 <p align="center">
-  <img src="documentation/img/sample-text.png" alt="Client Information" width="250">
+  <img src="documentation/img/sample-text.png" alt="Client Information" width="500"><br/>
+  <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29th of March 2007 at 8:54 p.m.</sup>
 </p>
 
-The whole information is retrieved using the following simple JavaScript (see a running example at the following [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/):
+The whole information is retrieved using the following simple JavaScript (see also [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/)):
 
 ```javascript
 Breinify.setConfig({ 'apiKey': '938D-3120-64DD-413F-BB55-6573-90CE-473A' });
