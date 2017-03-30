@@ -27,6 +27,7 @@ This documentation is organized as following:
     * Breinify.UTL.unixTimestamp()
     * Breinify.UTL.timezone()
     * Breinify.UTL.localDateTime()
+    * Breinify.UTL.uuid()
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce)
     * Breinify.UTL.events.pageloaded(func)
@@ -286,6 +287,9 @@ The utility library provides general functionality, which makes it easy to retri
   
 * {string} **Breinify.UTL.localDateTime()**:<br/>
   Creates a string representing the current local date and time.
+
+* {string} **Breinify.UTL.uuid()**:<br/>
+  Creates a uuid.
 
 ##### Breinify.UTL.events
 
