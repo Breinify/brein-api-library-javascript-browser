@@ -5,7 +5,7 @@
 # Breinify's API Library
 
 The purpose of the library is to simplify the usage of Breinify's available API endpoints, i.e.,
-- /activity, and
+- /activity
 - /temporaldata.
 
 Each of the endpoints has different purposes, which are explained in the following paragraphs. In addition, this documentation gives detailed examples for each of the features available for the different endpoints.
