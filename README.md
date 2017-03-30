@@ -3,6 +3,9 @@
 </p>
 
 # Breinify's API Library
+[![Bower version](https://badge.fury.io/bo/brein-api-library-javascript-browser.svg)](https://badge.fury.io/bo/brein-api-library-javascript-browser)
+[![npm version](https://badge.fury.io/js/brein-api-library-javascript-browser.svg)](https://badge.fury.io/js/brein-api-library-javascript-browser)
+<sup>Features: **Temporal Information**, **Geocoding**, **Reverse Geocoding**, **Events**, **Weather**, **Holidays**, **Analytics**</sup>
 
 The purpose of the library is to simplify the usage of Breinify's available API endpoints, i.e.,
 - /activity
