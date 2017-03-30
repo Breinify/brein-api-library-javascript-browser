@@ -2,7 +2,7 @@
   <img src="https://www.breinify.com/img/Breinify_logo.png" alt="Breinify API JavaScript Library" width="250">
 </p>
 
-# Breinify's API Library (JavaScript for Browsers)
+# Breinify's API Library
 
 The purpose of the library is to simplify the usage of Breinify's available API endpoints, i.e.,
 - /activity, and
