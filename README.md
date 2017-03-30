@@ -29,9 +29,33 @@ to:
 
 ## Getting Started
 
+### Retrieving an API-Key
+
 First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In the examples, we assume you have the following api-key:
 
 **938D-3120-64DD-413F-BB55-6573-90CE-473A**
+
+### Including the Library
+
+The library can be added as script, using:
+
+```html
+<script type="text/javascript" src="https://cdn.jsdelivr.net/breinify-api/1.0.12/breinify-api.min.js"></script>
+```
+
+If you want to use the most current **snapshot** version (only recommended for development purposes), you can also use:
+
+```html
+<script type="text/javascript" src="https://rawgit.com/pmeisen/js-gantt/master/dist/js-gantt.min.js"></script>
+```
+
+If you prefer to use **bower** the newest version can be installed using:
+
+```bash
+bower install breinify-api --save
+```
+
+## TemporalData: Selected Usage Examples
 
 ### Retrieve Client's Information (Location, Weather, Events, Timezone, Time)
 
@@ -39,7 +63,7 @@ The endpoint is capable to retrieve some information about the client, based on 
 
 <p align="center">
   <img src="documentation/img/sample-text.png" alt="Client Information" width="500"><br/>
-  <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29th of March 2007 at 8:54 p.m.</sup>
+  <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29/03/2017 at 8:54 p.m.</sup>
 </p>
 
 The whole information is retrieved using the following simple JavaScript (see also [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/)):
@@ -51,12 +75,13 @@ Breinify.temporalData(function(data) {
 });
 ```
 
-### Further links
-To understand all the capabilities of Breinify's API, you should have a look at:
+### Geocoding and Reverse Geocoding
 
-* the [step-by-step instruction](documentation/step-by-step.md),
-* the [API library documentation](documentation/api.md),
-* an [example using Google Tag Manager](documentation/example-google-tag-manager.md),
-* a [more comprehensive example](documentation/example-comprehensive.md), or
-* the [full API documentation](https://www.breinify.com/documentation/index.html)
-* [Breinify's Website](https://www.breinify.com).
+
+
+## Further links
+
+To understand all the capabilities of Breinify's API, you can find further information:
+- the [library documentation](documentation/api.md),
+- the [full API documentation](https://www.breinify.com/documentation/index.html),
+- [Breinify's Website](https://www.breinify.com).
