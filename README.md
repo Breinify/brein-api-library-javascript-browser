@@ -13,16 +13,16 @@ Each of the endpoints has different purposes, which are explained in the followi
 **Activity Endpoint**: The endpoint is used to understand the usage-patterns and the behavior of a user using, e.g., an application, a mobile app, or a web-browser. The endpoint offers insights through [Breinify's dashboard](https://www.breinify.com).
 
 **TemporalData Endpoint**: The endpoint offers features to resolve temporal information like:
-- a timestamp, 
-- a location (latitude and longitude or free-text), or 
-- an ip-address, 
+  - a timestamp, 
+  - a location (latitude and longitude or free-text), or 
+  - an ip-address, 
 
-to:
-- holidays at the specified time and location,
-- city, zip-code, neighborhood, country, or county of the location,
-- events at the specified time and location (e.g., description, size, type),
-- weather at the specified time and location (e.g., description, temperature),
-- temporal information (e.g., timezone, epoch, formatted dates, day-name)
+  to:
+  - holidays at the specified time and location,
+  - city, zip-code, neighborhood, country, or county of the location,
+  - events at the specified time and location (e.g., description, size, type),
+  - weather at the specified time and location (e.g., description, temperature),
+  - temporal information (e.g., timezone, epoch, formatted dates, day-name)
 
 ## Getting Started
 
