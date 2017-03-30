@@ -71,6 +71,8 @@ Breinify.temporalData(function(data) {
 
 ### Geocoding and Reverse Geocoding
 
+
+
 ## Limitations
 
 The open `/temporalData` endpoint is limited to US specific locations only. Furthermore, weather specific data is only available for the years 2016 and later.
