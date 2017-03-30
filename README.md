@@ -38,7 +38,7 @@ First of all, you need a valid API-key, which you can get for free at [https://w
 The endpoint is capable to retrieve some information about the client, based on client specific information (e.g., the IP-address). The first example uses this information to retrieve some information, like the weather, events, or the timezone.
 
 <p align="center">
-  <img src="documentation/img/sample-text.png" alt="Client Information" width="250">
+  <img src="documentation/img/sample-text.png" alt="Client Information" width="350">
 </p>
 
 The whole information is retrieved using the following simple JavaScript (see a running example at the following [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/):
