@@ -2,11 +2,7 @@
   <img src="https://www.breinify.com/img/Breinify_logo.png" alt="Breinify API JavaScript Library" width="250">
 </p>
 
-<p align="center">
-Breinify's DigitalDNA API puts dynamic behavior-based, people-driven data right at your fingertips.
-</p>
-
-### API Library Documentation
+### Library Documentation
 
 The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. Thus, the following documentation is organized in three sections: *General Attributes*, *API*, and *Utilities (UTL)*.
 
@@ -19,7 +15,6 @@ This documentation is organized as following:
 * [API](#api)
   * Breinify.activity(user, type, category, description, tags, sign, onReady)
   * Breinify.temporaldata(user, sign, onReady)
-  * Breinify.lookup(user, dimensions, sign, onLookUp)
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
     * Breinify.UTL.trimQuotes(str, inclSingleQuotes)
@@ -70,7 +65,6 @@ This documentation is organized as following:
     activityEndpoint: '/activity',
     apiKey: '0000-0000-0000-0000-0000-0000-0000-0000',
     category: 'other',
-    lookupEndpoint: '/lookup',
     secret: null,
     timeout: 1000,
     url: 'https://api.breinify.com',
@@ -86,8 +80,6 @@ This documentation is organized as following:
 
   {string} **temporaldataEndpoint**: The end-point of the API to retrieve temporal-data results.
   
-  {string} **lookupEndpoint**: The end-point of the API to retrieve lookup results.
-
   {string} **secret**: The secret attached to the API-key (should always be null utilizing this type of library).
 
   {number} **timeout**: The maximum amount of time in milliseconds an API-call should take. If the API does not response after this amount of time, the call is cancelled.
@@ -171,33 +163,6 @@ This documentation is organized as following:
   ```
   <br/>
   
-
-* **Breinify.lookup(user, dimensions, sign, onLookUp)**:<br/>
-  Retrieves a lookup result from the engine. The function needs a valid API-key to be configured to succeed.
-
-  **Parameters**:
-
-  {object} **user**: A plain object specifying information about the user to retrieve data for. More about the user structure can be found [here](TODO).
-
-  {[string]} **dimensions**: An array containing the names of the dimensions to lookup.
-
-  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
-
-  {function|null} **onLookUp**: A function which is triggered after the lookup result has been retrieved. The function has the retrieved information as the first parameter.
-
-  **Example Usage**:
-  ```javascript
-  var userEmail = 'thecurrentuser@me.com';
-  Breinify.lookup({
-    'email': userEmail
-  }, ['firstname'], false, function (data) {
-    if (Breinify.UTL.isEmpty(data)) {
-      window.alert('Hello ' + data.firstname.result);
-    }
-  });
-  ```
-  <br/>
-
 #### Utilities (UTL)
 
 The utility library provides general functionality, which makes it easy to retrieve values from, e.g., the url or cookies. In addition, it simplifies the retrieval of values from the DOM-tree or the handling of events.
