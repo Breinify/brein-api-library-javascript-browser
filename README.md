@@ -33,13 +33,35 @@ First of all, you need a valid API-key, which you can get for free at [https://w
 
 **938D-3120-64DD-413F-BB55-6573-90CE-473A**
 
+### Including the Library
+
+The library can be added as script, using:
+
+```html
+<script type="text/javascript" src="https://cdn.jsdelivr.net/breinify-api/1.0.12/breinify-api.min.js"></script>
+```
+
+If you want to use the most current **snapshot** version (only recommended for development purposes), you can also use:
+
+```html
+<script type="text/javascript" src="https://rawgit.com/pmeisen/js-gantt/master/dist/js-gantt.min.js"></script>
+```
+
+If you prefer to use **bower** the newest version can be installed using:
+
+```bash
+bower install breinify-api --save
+```
+
+## Usage Examples
+
 ### Retrieve Client's Information (Location, Weather, Events, Timezone, Time)
 
 The endpoint is capable to retrieve some information about the client, based on client specific information (e.g., the IP-address). The first example uses this information to retrieve some information, like the weather, events, or the timezone.
 
 <p align="center">
   <img src="documentation/img/sample-text.png" alt="Client Information" width="500"><br/>
-  <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29th of March 2007 at 8:54 p.m.</sup>
+  <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29/03/2017 at 8:54 p.m.</sup>
 </p>
 
 The whole information is retrieved using the following simple JavaScript (see also [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/)):
@@ -50,6 +72,10 @@ Breinify.temporalData(function(data) {
 	document.getElementById('result').innerHTML = createText(data);
 });
 ```
+
+### Geocoding and Reverse Geocoding
+
+
 
 ### Further links
 To understand all the capabilities of Breinify's API, you should have a look at:
