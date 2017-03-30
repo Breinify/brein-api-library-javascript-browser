@@ -16,6 +16,7 @@ Each of the endpoints has different purposes, which are explained in the followi
 - a timestamp, 
 - a location (latitude and longitude or free-text), or 
 - an ip-address, 
+
 to:
 - holidays at the specified time and location,
 - city, zip-code, neighborhood, country, or county of the location,
