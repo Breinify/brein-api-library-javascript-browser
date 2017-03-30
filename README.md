@@ -69,9 +69,43 @@ Breinify.temporalData(function(data) {
 });
 ```
 
-### Geocoding and Reverse Geocoding
+### Reverse Geocoding
 
+The `temporalData` endpoint enables you to perform reverse geocoding. To do so, simple pass in the known latitude and longitude
+into the request.
 
+```javascript
+var loc = {
+  latitude: 37.7609295,
+  longitude: -122.4194155
+};
+
+Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+    // use the returned data
+});
+````
+
+If you like to get further information or even visualize the country, county, city, or neighborhood the location is in, it
+is possible to ask for appropriate geoJson instances and utilize them directly in, e.g., [leafLet](http://www.leafletjs.com).
+
+```javascript
+var loc = {
+  latitude: latLon[0],
+  longitude: latLon[1],
+  shapeTypes: ['CITY', 'NEIGHBORHOOD']
+};
+
+Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+    // use the returned data
+});
+````
+
+Have a look at [jsFiddle (qq4ryw6y)](https://jsfiddle.net/breinify/qq4ryw6y/) for a complete example.
+
+<p align="center">
+  <img src="documentation/img/sample-geojson.png" alt="Client Information" width="500"><br/>
+  <sup>This is a screenshot of the jsFiddle (qq4ryw6y), utilizing leafLet to visualize the resolved location</sup>
+</p>
 
 ## Limitations
 
