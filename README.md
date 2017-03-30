@@ -18,7 +18,7 @@ Each of the endpoints has different purposes, which are explained in the followi
 **TemporalData Endpoint**: The endpoint offers features to resolve temporal information like:
 - a timestamp, 
 - a location (latitude and longitude or free-text), or 
-- an ip-address, 
+- an IP-address, 
 
 to:
 - holidays at the specified time and location,
@@ -29,46 +29,25 @@ to:
 
 ## Getting Started
 
-First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In this example, we assume you have the following api-key:
+First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In the examples, we assume you have the following api-key:
 
-**772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6**
+**938D-3120-64DD-413F-BB55-6573-90CE-473A**
 
-The following code-snippet shows how easy it is to utilize the different end-points:
+### Retrieve Client's Information (Location, Weather, Events, Timezone, Time)
 
-```html
+The endpoint is capable to retrieve some information about the client, based on client specific information (e.g., the IP-address). The first example uses this information to retrieve some information, like the weather, events, or the timezone.
 
-    <!-- load the library -->
-    <script src="https://cdn.jsdelivr.net/breinify-api/1.0.12/breinify-api.min.js"></script>
-    <script>
-        /*
-         * Configure the library (see 'further links' for a full list)
-         */
-        Breinify.setConfig({
-            'apiKey': '772A-47D7-93A3-4EA9-9D73-85B9-479B-16C6'
-        });
-        
-        /*
-         * Now use the library to inform about activities, e.g., about
-         * a login (for a full list of activities see 'further links').
-         */
-         if (Breinify.UTL.loc.matches('/login$')) {
-            Breinify.activity({
-                'email': Breinify.text('input[name="name"]')
-            }, 'login');
-         }
-         
-         /*
-          * If you want your visitor to see the current weather 
-          * (holidays, location), or if you'd like to know it 
-          * (for analytical purposes or just for personalization 
-          * purposes).
-          */
-          Breinify.temporalData(function(data) {
-              if (typeof data.weather !== 'undefined') {
-                  window.alert('The temperature is currently ' + data.weather.temperature);
-              }
-          });
-    </script>
+<p align="center">
+  <img src="documentation/img/sample-text.png" alt="Client Information" width="250">
+</p>
+
+The whole information is retrieved using the following simple JavaScript (see a running example at the following [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/):
+
+```javascript
+Breinify.setConfig({ 'apiKey': '938D-3120-64DD-413F-BB55-6573-90CE-473A' });
+Breinify.temporalData(function(data) {
+	document.getElementById('result').innerHTML = createText(data);
+});
 ```
 
 ### Further links
