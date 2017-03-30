@@ -39,9 +39,10 @@ The endpoint is capable to retrieve some information about the client, based on 
 
 <p align="center">
   <img src="documentation/img/sample-text.png" alt="Client Information" width="400">
+  <sup>This is a sample screenshot created on the 29th of March 2007 at 8:54 p.m.</sup>
 </p>
 
-The whole information is retrieved using the following simple JavaScript (see a running example at the following [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/):
+The whole information is retrieved using the following simple JavaScript (see also [jsFiddle (3wz4u5d1)](https://jsfiddle.net/breinify/3wz4u5d1/)):
 
 ```javascript
 Breinify.setConfig({ 'apiKey': '938D-3120-64DD-413F-BB55-6573-90CE-473A' });
