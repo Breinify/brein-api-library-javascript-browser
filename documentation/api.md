@@ -9,43 +9,43 @@ The library provides several attributes, methods, and objects to simplify the us
 This documentation is organized as following:
 
 * [General Attributes](#general-attributes)
-  * Breinify.version
-  * Breinify.config()
-  * Breinify.setConfig(config)
+  * Breinify.version [since version 1.0.1]
+  * Breinify.config() [since version 1.0.1]
+  * Breinify.setConfig(config) [since version 1.0.1]
 * [API](#api)
-  * Breinify.activity(user, type, category, description, tags, sign, onReady)
-  * Breinify.temporaldata(user, sign, onReady)
+  * Breinify.activity(user, type, category, description, tags, sign, onReady) [since version 1.0.1]
+  * Breinify.temporaldata(user, sign, onReady) [since version 1.0.11]
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
-    * Breinify.UTL.trimQuotes(str, inclSingleQuotes)
-    * Breinify.UTL.texts(selector, excludeChildren)
-    * Breinify.UTL.text(selector, excludeChildren)
-    * Breinify.UTL.setText(selector, value)
-    * Breinify.UTL.md5(value)
-    * Breinify.UTL.isEmpty(value)
-    * Breinify.UTL.isSimpleObject(obj)
-    * Breinify.UTL.unixTimestamp()
-    * Breinify.UTL.timezone()
-    * Breinify.UTL.localDateTime()
-    * Breinify.UTL.uuid()
+    * Breinify.UTL.trimQuotes(str, inclSingleQuotes) [since version 1.0.1]
+    * Breinify.UTL.texts(selector, excludeChildren) [since version 1.0.1]
+    * Breinify.UTL.text(selector, excludeChildren) [since version 1.0.1]
+    * Breinify.UTL.setText(selector, value) [since version 1.0.1]
+    * Breinify.UTL.md5(value) [since version 1.0.1]
+    * Breinify.UTL.isEmpty(value) [since version 1.0.1]
+    * Breinify.UTL.isSimpleObject(obj) [since version 1.0.1]
+    * Breinify.UTL.unixTimestamp() [since version 1.0.1]
+    * Breinify.UTL.timezone() [since version 1.0.1]
+    * Breinify.UTL.localDateTime() [since version 1.0.1]
+    * Breinify.UTL.uuid() [since version 1.0.13]
   * [Breinify.UTL.events](#breinifyutlevents)
-    * Breinify.UTL.events.click(selector, func, onlyOnce)
-    * Breinify.UTL.events.pageloaded(func)
+    * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
+    * Breinify.UTL.events.pageloaded(func) [since version 1.0.1]
   * [Breinify.UTL.loc](#breinifyutlloc)
-    * Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)
-    * Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url)
-    * Breinify.UTL.loc.isParam(param, params)
-    * Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)
-    * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)
-    * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)
-    * Breinify.UTL.loc.url()
-    * Breinify.UTL.loc.matches(regEx)
+    * Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
+    * Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
+    * Breinify.UTL.loc.isParam(param, params) [since version 1.0.1]
+    * Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
+    * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
+    * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
+    * Breinify.UTL.loc.url() [since version 1.0.1]
+    * Breinify.UTL.loc.matches(regEx) [since version 1.0.1]
   * [Breinify.UTL.cookie](#breinifyutlcookie)
-    * Breinify.UTL.cookie.all()
-    * Breinify.UTL.cookie.reset(name)
-    * Breinify.UTL.cookie.set(name, value, expiresInDays)
-    * Breinify.UTL.cookie.get(name)
-    * Breinify.UTL.cookie.check(name)
+    * Breinify.UTL.cookie.all() [since version 1.0.1]
+    * Breinify.UTL.cookie.reset(name) [since version 1.0.1]
+    * Breinify.UTL.cookie.set(name, value, expiresInDays) [since version 1.0.1]
+    * Breinify.UTL.cookie.get(name) [since version 1.0.1]
+    * Breinify.UTL.cookie.check(name) [since version 1.0.1]
 
 #### General Attributes
 
