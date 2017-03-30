@@ -105,7 +105,7 @@ Have a look at [jsFiddle (qq4ryw6y)](https://jsfiddle.net/breinify/qq4ryw6y/) fo
 
 <p align="center">
   <img src="documentation/img/sample-geojson.png" alt="Client Information" width="500"><br/>
-  <sup>This is a screenshot of the jsFiddle (qq4ryw6y), utilizing leafLet to visualize the resolved location</sup>
+  <sup>This is a screenshot of the jsFiddle (qq4ryw6y), utilizing leafLet to visualize the resolved geoJsons</sup>
 </p>
 
 ## Limitations
