@@ -92,7 +92,7 @@
                         } else if (func === null) {
                             func = pointer[key];
                         } else {
-                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + pointer.toString());
+                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + JSON.stringify(pointer));
                         }
                     }
                 });
@@ -100,7 +100,7 @@
                 func = pointer[types.toString()];
             }
             if (typeof func !== 'function') {
-                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + pointer.toString());
+                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + JSON.stringify(pointer));
             }
 
             return func.apply(context, args);
@@ -458,6 +458,11 @@
             },
             'Boolean,Function': function (sign, callback) {
                 Breinify.temporalDataUser({}, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Function': function (user, callback) {
+                Breinify.temporalDataUser(user, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
