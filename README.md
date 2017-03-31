@@ -105,7 +105,7 @@ var loc = {
   longitude: -122.4194155
 };
 
-Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+Breinify.temporalData({ additional: { location: loc }}, false, function(data) {
     // use the returned data
 });
 ````
