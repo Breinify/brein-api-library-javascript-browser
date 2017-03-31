@@ -70,7 +70,31 @@ Breinify.temporalData(function(data) {
 });
 ```
 
-### Reverse Geocoding
+### Geocoding (resolve Free-Text to Locations)
+
+The library enables you to use the geocoding feature of the `temporalData` endpoint by passing a free-text and resolving it
+to an associated location.
+
+```javascript
+var loc = {
+  text: 'NYC'
+};
+
+Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+    // use the returned data
+});
+````
+
+The endpoint will return the specific information to the defined location (i.e., the city, the state, and coordinates as 
+latitude/longitude pair). A more advanced example can be found at the [jsFiddle (egyhn5fz)](https://jsfiddle.net/breinify/egyhn5fz/).
+
+<p align="center">
+  <img src="documentation/img/sample-geocoding.png" alt="Geocoding" width="500"><br/>
+  <sup>Screenshot of the sFiddle (egyhn5fz) resolving the texts: `NYC`, `SFO`, `Dallas`, `Miami`, `Bemidji`</sup>
+</p>
+
+
+### Reverse Geocoding (retrieve GeoJsons for, e.g., Cities, Neighborhoods, or Zip-Codes)
 
 The `temporalData` endpoint enables you to perform reverse geocoding. To do so, simple pass in the known latitude and longitude
 into the request.
@@ -104,7 +128,7 @@ Breinify.temporalData({additional: { location: loc }}, false, function(data) {
 Have a look at [jsFiddle (qq4ryw6y)](https://jsfiddle.net/breinify/qq4ryw6y/) for a complete example.
 
 <p align="center">
-  <img src="documentation/img/sample-geojson.png" alt="Client Information" width="500"><br/>
+  <img src="documentation/img/sample-geojson.png" alt="Reverse Geocoding" width="500"><br/>
   <sup>This is a screenshot of the jsFiddle (qq4ryw6y), utilizing leafLet to visualize the resolved geoJsons</sup>
 </p>
 
