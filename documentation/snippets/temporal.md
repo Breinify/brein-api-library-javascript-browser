@@ -1,4 +1,4 @@
-> ```javascript
+> ```javascript--browser
 > var withSecret = false;
 > 
 > // Example to retrieve temporal information through available information

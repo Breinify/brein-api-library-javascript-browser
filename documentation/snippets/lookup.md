@@ -1,4 +1,4 @@
-```javascript
+```javascript--browser
 var userEmail = 'thecurrentuser@me.com';
 Breinify.lookup({
     'email': userEmail
