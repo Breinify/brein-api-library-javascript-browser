@@ -1,10 +1,8 @@
 >
-You selected the documentation for the JavaScript language utilizing the JavaScript Browser library. 
+<blockquote class="lang-specific javascript--browser">
+<p>You selected the documentation for the JavaScript language utilizing the JavaScript Browser library. 
 The library is deployed under the MIT License and is available as [open-source project](https://github.com/Breinify/brein-api-library-javascript-browser) 
-on GitHub.
-
-<blockquote class="lang-specific ruby shell">
-<p>only show for ruby and shell languages</p>
+on GitHub.</p>
 </blockquote>
 
 >
