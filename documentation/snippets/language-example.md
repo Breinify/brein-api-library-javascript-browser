@@ -3,14 +3,3 @@
 The library is deployed under the MIT License and is available as [open-source project](https://github.com/Breinify/brein-api-library-javascript-browser) 
 on GitHub.</p>
 </blockquote>
-
->
-```javascript--browser
-/*
- * I'm an example snippet of the JavaScript library. The following
- * documentation should help you to get started with the library.
- * Even more examples and documentation can be found at:
- *
- * https://github.com/Breinify/brein-api-library-javascript-browser
- */
-```
