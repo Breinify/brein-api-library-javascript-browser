@@ -45,3 +45,8 @@ $(document).ready(function() {
 <p>Another solution is to use the <a href="https://www.w3schools.com/tags/ev_onload.asp" target="_blank">onload-method</a>
 to execute the configuration script right after the library is loaded.</p>
 </blockquote>
+
+>
+```javascript--browser
+<script type="text/javascript" onload="function() { Breinify.setConfig({...}); }" src="https://cdn.jsdelivr.net/breinify-api/{version}/breinify-api.min.js"></script>
+```
