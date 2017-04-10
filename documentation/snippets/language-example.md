@@ -7,6 +7,7 @@ on GitHub.
 <p>only show for ruby and shell languages</p>
 </blockquote>
 
+>
 ```javascript--browser
 /*
  * I'm an example snippet of the JavaScript library. The following
