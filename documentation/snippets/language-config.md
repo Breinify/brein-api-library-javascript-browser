@@ -11,6 +11,6 @@ Breinify.setConfig({
 ```
 
 <blockquote class="lang-specific javascript--browser">
-<p>There are further settings available. To see a list of all possible configurations, please have a look 
+<p>There are further settings available. To see a list of all possible settings for this library, please have a look 
 <a href="https://github.com/Breinify/brein-api-library-javascript-browser/blob/master/documentation/api.md#general-attributes" target="_blank">here</a>.</p>
 </blockquote>
