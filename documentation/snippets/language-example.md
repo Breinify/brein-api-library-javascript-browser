@@ -3,6 +3,10 @@ You selected the documentation for the JavaScript language utilizing the JavaScr
 The library is deployed under the MIT License and is available as [open-source project](https://github.com/Breinify/brein-api-library-javascript-browser) 
 on GitHub.
 
+<blockquote class="lang-specific ruby shell">
+<p>only show for ruby and shell languages</p>
+</blockquote>
+
 ```javascript--browser
 /*
  * I'm an example snippet of the JavaScript library. The following
