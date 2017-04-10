@@ -30,7 +30,7 @@ To see a list of all available version have a look
 
 <blockquote class="lang-specific javascript--browser">
 <p>To use the most current SNAPSHOT version, you can also use the following URL.
-This URL should only be used for developing purposes (see also <a href="https://rawgit.com/" target="_blank">rawgit.com</a>)</p>
+This URL should only be used for developing purposes (see also <a href="https://rawgit.com/" target="_blank">rawgit.com</a>).</p>
 </blockquote>
 
 >
@@ -42,7 +42,7 @@ This URL should only be used for developing purposes (see also <a href="https://
 <h3>Using npm</h3>
 <p>The library can be installed via npm, further information about npm can be found 
 <a href="https://www.npmjs.com/" target="_blank">here</a>. It should be mentioned that it is 
-<b>not recommended</b> to use this library with Node.js, instead use the appropriate
+<b>not recommended</b> to use this library with Node.js, instead use the
 <a href="https://github.com/Breinify/brein-api-library-node" target="_blank">Node.js Library</a></p>
 </blockquote>
 
