@@ -33,7 +33,7 @@ The library can be added as script, using:
 If you want to use the most current **snapshot** version (only recommended for development purposes), you can also use:
 
 ```html
-<script type="text/javascript" src="https://rawgit.com/pmeisen/js-gantt/master/dist/js-gantt.min.js"></script>
+<script type="text/javascript" src="https://rawgit.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify-api.min.js"></script>
 ```
 
 If you prefer to use **bower** the newest version can be installed using:
