@@ -1,6 +1,6 @@
 <blockquote class="lang-specific javascript--browser">
 <p>There are multiple ways on how to integrate the library within your project. 
-The library is available on bower, jsdelivr (CDN), as download on GitHub, or npm.</p>
+The library is available on bower, jsdelivr (CDN), npm, or as download from GitHub.</p>
 </blockquote>
 
 <blockquote class="lang-specific javascript--browser">
