@@ -175,7 +175,7 @@ The utility library provides general functionality, which makes it easy to retri
   
   **Parameters**:
   
-  {string} ****: The string to be trimmed
+  {string} **str**: The string to be trimmed
   
   {boolean|null}: **inclSingleQuotes**: true, if only *"* should be removed, otherwise *'*
   
