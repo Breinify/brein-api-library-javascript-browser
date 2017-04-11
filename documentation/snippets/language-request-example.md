@@ -4,7 +4,7 @@ of the <code class="prettyprint">temporalData</code> method.</p>
 </blockquote>
 
 <blockquote class="lang-specific javascript--browser">
-<h3>Callback only<h3>
+<h3>Callback only</h3>
 <p>If a single callback is provided, the library retrieves other available information
 from the client automatically, e.g., the user-agent, the location (if and only if shared), or
 the ipAddress.</p>
@@ -18,7 +18,7 @@ Breinify.temporalData(function(data) {
 ```
 
 <blockquote class="lang-specific javascript--browser">
-<h3>Providing a User instance<h3>
+<h3>Providing a User instance</h3>
 <p>Another possibility is to provide a user object manually. This is typically done, if
 some specific temporal data should be resolved, e.g., a location based on a free text, 
 a pair of coordinates (latitude/longitude), or a specific ip-address.</p>
