@@ -26,12 +26,7 @@ a pair of coordinates (latitude/longitude), or a specific ip-address.</p>
 
 >
 ```javascript--browser
-var q = {
-        	additional: {
-        		ipAddress: '72.229.28.185'
-        	}
-        };
-        
+var q = { additional: { ipAddress: '72.229.28.185' }}; 
 Breinify.temporalData(q, function(data) {
 	console.log(data);
 });
