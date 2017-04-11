@@ -1,7 +1,7 @@
 >
 ```javascript--browser
-var q = {additional: {location: {'text': 'SFO'}}};
-Breinify.temporalData(q, false, function(data) {
+var text = 'SFO';
+Breinify.temporalData({additional: {location: {'text': text }}}, function(data) {
     // the location will be resolved to San Francisco, CA, US
 	console.log(data);
 });
