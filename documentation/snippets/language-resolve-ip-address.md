@@ -19,8 +19,8 @@ one. To specify the ip-address to resolve, the library provides an overriden ver
 
 >
 ```javascript--browser
-var q = { additional: { ipAddress: '72.229.28.185' }}; 
-Breinify.temporalData(q, false, function(data) {
+var ip = '72.229.28.185'; 
+Breinify.temporalData({ additional: { ipAddress: ip }}, function(data) {
 	console.log(data);
 });
 ```
