@@ -90,7 +90,7 @@ latitude/longitude pair). A more advanced example can be found at the [jsFiddle 
 
 <p align="center">
   <img src="documentation/img/sample-geocoding.png" alt="Geocoding" width="500"><br/>
-  <sup>Screenshot of the sFiddle (egyhn5fz) resolving the texts: `NYC`, `SFO`, `Dallas`, `Miami`, `Bemidji`</sup>
+  <sup>Screenshot of the sFiddle (egyhn5fz) resolving the texts: `NYC`, `San Francisco`, `Dallas`, `Miami`, `Bemidji`</sup>
 </p>
 
 
