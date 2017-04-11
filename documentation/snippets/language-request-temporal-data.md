@@ -21,7 +21,8 @@ Breinify.temporalData(function(data) {
 <h3>Providing a User Instance</h3>
 <p>Another possibility is to provide a user object manually. This is typically done, if
 some specific temporal data should be resolved, e.g., a location based on a free text, 
-a pair of coordinates (latitude/longitude), or a specific ip-address.</p>
+a pair of coordinates (latitude/longitude), or a specific ip-address. Have a look at the
+<a href="#example-use-cases">further use cases</a> to see other examples.</p>
 </blockquote>
 
 >
