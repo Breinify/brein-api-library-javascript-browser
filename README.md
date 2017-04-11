@@ -80,7 +80,7 @@ var loc = {
   text: 'NYC'
 };
 
-Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+Breinify.temporalData({ additional: { location: loc }}, false, function(data) {
     // use the returned data
 });
 ````
@@ -120,7 +120,7 @@ var loc = {
   shapeTypes: ['CITY', 'NEIGHBORHOOD']
 };
 
-Breinify.temporalData({additional: { location: loc }}, false, function(data) {
+Breinify.temporalData({ additional: { location: loc }}, false, function(data) {
     // use the returned data
 });
 ````
