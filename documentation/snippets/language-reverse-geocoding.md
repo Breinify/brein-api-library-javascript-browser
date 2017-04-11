@@ -5,10 +5,8 @@ var loc = {
     longitude: -122.4194155,
     shapeTypes: ['CITY', 'NEIGHBORHOOD']
 };
-var q = {additional: { location: loc };
-
-Breinify.temporalData(q, function(data) {
-    
+var q = {additional: { location: loc }};
+Breinify.temporalData(q, function(data) {    
     /* 
      * The location will be resolved to San Francisco, CA, US.
      * In addition, it will contain the shapes of the 

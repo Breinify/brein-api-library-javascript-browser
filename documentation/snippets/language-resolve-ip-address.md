@@ -24,7 +24,6 @@ var q = {
         		ipAddress: '72.229.28.185'
         	}
         };
-        
 Breinify.temporalData(q, false, function(data) {
 	console.log(data);
 });
