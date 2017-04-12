@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.12
+ * v1.0.15
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12550,6 +12550,19 @@ dependencyScope.jQuery = $;;
         },
 
         /**
+         * Generates a uuid, thanks to
+         * http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+         *
+         * @returns {string} a generated UUID
+         */
+        uuid: function () {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        },
+
+        /**
          * Checks if the passed value is empty, i.e., is an empty string (trimmed), an empty object, undefined or null.
          * @param val {*} the value to be checked
          * @returns {boolean} true if the value is empty, otherwise false
@@ -12751,7 +12764,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.12';
+        this.version = '1.0.15';
 
         /*
          * Validate the passed config-parameters.
@@ -12917,7 +12930,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.12';
+        instance.version = '1.0.15';
 
         // set the values provided
         instance.setAll(user);
@@ -13208,7 +13221,7 @@ dependencyScope.jQuery = $;;
                         } else if (func === null) {
                             func = pointer[key];
                         } else {
-                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + pointer.toString());
+                            throw new SyntaxError('Multiple signatures for  (' + types.toString() + ') found in: ' + JSON.stringify(pointer));
                         }
                     }
                 });
@@ -13216,7 +13229,7 @@ dependencyScope.jQuery = $;;
                 func = pointer[types.toString()];
             }
             if (typeof func !== 'function') {
-                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + pointer.toString());
+                throw new SyntaxError('Invalid signature (' + types.toString() + ') found, use one of: ' + JSON.stringify(pointer));
             }
 
             return func.apply(context, args);
@@ -13295,7 +13308,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.12',
+        version: '1.0.15',
         jQueryVersion: $.fn.jquery
     };
 
@@ -13577,6 +13590,11 @@ dependencyScope.jQuery = $;;
                     _privates.ajax(url, data, callback, callback);
                 });
             },
+            'Object,Function': function (user, callback) {
+                Breinify.temporalDataUser(user, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
             'Object,Boolean,Function': function (user, sign, callback) {
                 Breinify.temporalDataUser(user, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
@@ -13623,8 +13641,6 @@ dependencyScope.jQuery = $;;
                     var timezone = user.read('timezone');
 
                     var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
-                    console.log(message);
-                    console.log(_config.get(ATTR_CONFIG.SECRET));
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -13823,7 +13839,8 @@ dependencyScope.jQuery = $;;
         isEmpty: function() { return false; },
         isSimpleObject: function() { return false; },
         timezone: function() { return null; },
-        localDateTime: function() { return new Date().toString(); }
+        localDateTime: function() { return new Date().toString(); },
+        uuid: function() { return null; }
     };
 
     window['Breinify'] = Breinify;

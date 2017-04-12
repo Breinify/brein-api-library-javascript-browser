@@ -1,5 +1,5 @@
 <blockquote class="lang-specific javascript--browser">
-<p>The JavaScript library offers several overloaded version
+<p>The JavaScript library offers several overloaded versions
 of the <code class="prettyprint">temporalData</code> method.</p>
 </blockquote>
 
