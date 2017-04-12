@@ -57,7 +57,7 @@ The [jsFiddle (ojkvwwd9)](https://jsfiddle.net/breinify/ojkvwwd9/) shows how to 
 The endpoint is capable to retrieve some information about the client, based on client specific information (e.g., the IP-address). The first example uses this information to retrieve some information, like the weather, events, or the timezone.
 
 <p align="center">
-  <img src="documentation/img/sample-text.png" alt="Client Information" width="500"><br/>
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/sample-text.png" alt="Client Information" width="500"><br/>
   <sup>This is a screenshot of the jsFiddle (3wz4u5d1) created on the 29/03/2017 at 8:54 p.m.</sup>
 </p>
 
@@ -89,7 +89,7 @@ The endpoint will return the specific information to the defined location (i.e.,
 latitude/longitude pair). A more advanced example can be found at the [jsFiddle (egyhn5fz)](https://jsfiddle.net/breinify/egyhn5fz/).
 
 <p align="center">
-  <img src="documentation/img/sample-geocoding.png" alt="Geocoding" width="500"><br/>
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/sample-geocoding.png" alt="Geocoding" width="500"><br/>
   <sup>Screenshot of the sFiddle (egyhn5fz) resolving the texts: `NYC`, `San Francisco`, `Dallas`, `Miami`, `Bemidji`</sup>
 </p>
 
@@ -128,7 +128,7 @@ Breinify.temporalData({ additional: { location: loc }}, false, function(data) {
 Have a look at [jsFiddle (qq4ryw6y)](https://jsfiddle.net/breinify/qq4ryw6y/) for a complete example.
 
 <p align="center">
-  <img src="documentation/img/sample-geojson.png" alt="Reverse Geocoding" width="500"><br/>
+  <img src="https://raw.githubusercontent.com/Breinify/brein-api-library-javascript-browser/master/documentation/img/sample-geojson.png" alt="Reverse Geocoding" width="500"><br/>
   <sup>This is a screenshot of the jsFiddle (qq4ryw6y), utilizing leafLet to visualize the resolved geoJsons</sup>
 </p>
 
