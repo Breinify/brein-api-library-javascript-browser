@@ -14,7 +14,7 @@ Breinify.temporalData(function(data) {
 
 <blockquote class="lang-specific javascript--browser">
 <p>Sometimes, it may be necessary to resolve a specific ip-address instead of the client's
-one. To specify the ip-address to resolve, the library provides an overriden version, i.e.,</p>
+one. To specify the ip-address to resolve, the library provides an overloaded version, i.e.,</p>
 </blockquote>
 
 >
