@@ -25,7 +25,7 @@ To see a list of all available version have a look
 
 >
 ```javascript--browser
-<script type="text/javascript" src="https://cdn.jsdelivr.net/breinify-api/{version}/breinify-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/breinify-api/{version}/breinify-api.min.js" type="text/javascript"></script>
 ```
 
 <blockquote class="lang-specific javascript--browser">
@@ -35,7 +35,7 @@ This URL should only be used for developing purposes (see also <a href="https://
 
 >
 ```javascript--browser
-<script type="text/javascript" src="https://rawgit.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify-api.min.js"></script>
+<script src="https://rawgit.com/Breinify/brein-api-library-javascript-browser/master/dist/breinify-api.min.js" type="text/javascript" ></script>
 ```
 
 <blockquote class="lang-specific javascript--browser">
