@@ -465,6 +465,10 @@
          */
         localDateTime: function () {
             return new Date().toString();
+        },
+
+        _jquery: function() {
+            return $;
         }
     };
 
