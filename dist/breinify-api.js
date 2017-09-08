@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.15
+ * v1.0.16
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12663,6 +12663,10 @@ dependencyScope.jQuery = $;;
          */
         localDateTime: function () {
             return new Date().toString();
+        },
+
+        _jquery: function() {
+            return $;
         }
     };
 
@@ -12764,7 +12768,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.15';
+        this.version = '1.0.16';
 
         /*
          * Validate the passed config-parameters.
@@ -12930,7 +12934,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.15';
+        instance.version = '1.0.16';
 
         // set the values provided
         instance.setAll(user);
@@ -13308,7 +13312,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.15',
+        version: '1.0.16',
         jQueryVersion: $.fn.jquery
     };
 
@@ -13840,7 +13844,8 @@ dependencyScope.jQuery = $;;
         isSimpleObject: function() { return false; },
         timezone: function() { return null; },
         localDateTime: function() { return new Date().toString(); },
-        uuid: function() { return null; }
+        uuid: function() { return null; },
+        _jquery: function() { return null; }
     };
 
     window['Breinify'] = Breinify;
