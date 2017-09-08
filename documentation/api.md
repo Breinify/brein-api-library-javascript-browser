@@ -565,7 +565,7 @@ The cookie part of the utilities contains functions to validate, match, or retri
   ```
   <br/>
   
-* jQuery **Breinify.UTL._jquery()**:<br/>
+* {object} **Breinify.UTL._jquery()**:<br/>
   Returns the jQuery instance used internally by the library
 
   **Example Usage**:
