@@ -46,6 +46,7 @@ This documentation is organized as following:
     * Breinify.UTL.cookie.set(name, value, expiresInDays) [since version 1.0.1]
     * Breinify.UTL.cookie.get(name) [since version 1.0.1]
     * Breinify.UTL.cookie.check(name) [since version 1.0.1]
+    * Breinify.UTL._query() [since version 1.0.16]
 
 #### General Attributes
 
@@ -561,5 +562,14 @@ The cookie part of the utilities contains functions to validate, match, or retri
   if (!Breinify.UTL.cookie.check('myFunnyCookie')) {
     window.alert('Is the funny session over or did it never start?');
   }
+  ```
+  <br/>
+  
+* {object} **Breinify.UTL._jquery()**:<br/>
+  Returns the jQuery instance used internally by the library
+
+  **Example Usage**:
+  ```javascript
+  var $ = Breinify.UTL._jquery();
   ```
   <br/>
