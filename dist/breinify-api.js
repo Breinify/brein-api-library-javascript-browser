@@ -12417,15 +12417,15 @@ dependencyScope.jQuery = $;;
                 this.set(name, '', -1);
             },
 
-            set: function (name, value, expiresInDays) {
+            set: function (name, value, expiresInDays, global) {
                 expiresInDays = value === null ? -1 : (typeof expiresInDays === 'number' ? expiresInDays : 1);
 
                 var d = new Date();
                 d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
 
                 var expires = "expires=" + d.toUTCString();
-
-                document.cookie = name + "=" + value + "; " + expires;
+                var path = global === true ? '; path=/' : '';
+                document.cookie = name + "=" + value + "; " + expires + path;
             },
 
             get: function (name) {
@@ -12665,7 +12665,7 @@ dependencyScope.jQuery = $;;
             return new Date().toString();
         },
 
-        _jquery: function() {
+        _jquery: function () {
             return $;
         }
     };
