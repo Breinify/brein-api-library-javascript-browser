@@ -252,7 +252,7 @@ The utility library provides general functionality, which makes it easy to retri
   Checks if the passed *value* is empty. Empty has a different meaning for different types. An *object* is assumed to be empty:
     * if it is plain and has no attributes
     * if it is a string equal to *''* after it is trimmed
-    * if it is *null*
+    * if it is *null* or *undefined*
 
   **Parameters**:
 
