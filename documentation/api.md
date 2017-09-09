@@ -252,7 +252,7 @@ The utility library provides general functionality, which makes it easy to retri
   Checks if the passed *value* is empty. Empty has a different meaning for different types. An *object* is assumed to be empty:
     * if it is plain and has no attributes
     * if it is a string equal to *''* after it is trimmed
-    * if it is *null*
+    * if it is *null* or *undefined*
 
   **Parameters**:
 
@@ -421,7 +421,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+* {object} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Parses the specified parameter to the expected type (i.e., *number*, *string*, *boolean*). If the parameter cannot be parsed, **null** is returned.
 
   **Parameters**:
@@ -447,7 +447,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+* {object} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Gets a specific parameter from the url. The function returns *null*, if the parameter does not exist.
 
   **Parameters**:
@@ -469,7 +469,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.url()**:<br/>
+* {string} **Breinify.UTL.loc.url()**:<br/>
   Gets the current url.
 
   **Example Usage**:
