@@ -469,7 +469,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.url()**:<br/>
+* {string} **Breinify.UTL.loc.url()**:<br/>
   Gets the current url.
 
   **Example Usage**:
