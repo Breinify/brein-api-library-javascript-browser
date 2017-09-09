@@ -421,7 +421,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+* {object} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Parses the specified parameter to the expected type (i.e., *number*, *string*, *boolean*). If the parameter cannot be parsed, **null** is returned.
 
   **Parameters**:
@@ -447,7 +447,7 @@ The location part of the utilities contains functions to validate, match, or ret
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+* {object} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Gets a specific parameter from the url. The function returns *null*, if the parameter does not exist.
 
   **Parameters**:
