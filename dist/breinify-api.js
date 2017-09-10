@@ -13297,7 +13297,7 @@ dependencyScope.jQuery = $;;
                 // let's ignore any error
                 'error': function (jqXHR, text, exception) {
                     if ($.isFunction(error)) {
-                        error(exception, text);
+                        error(jqXHR.responseText, text + ' (' + exception + ')');
                     }
                 },
 
