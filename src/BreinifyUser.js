@@ -24,34 +24,59 @@
         group: 1,
         optional: false
     });
+    attributes.add('EMAILS', {
+        name: 'emails',
+        group: 2,
+        optional: false
+    });
     attributes.add('FIRSTNAME', {
         name: 'firstName',
-        group: 2,
+        group: 3,
         optional: false
     });
     attributes.add('LASTNAME', {
         name: 'lastName',
-        group: 2,
+        group: 3,
         optional: false
     });
     attributes.add('DATEOFBIRTH', {
         name: 'dateOfBirth',
-        group: 2,
+        group: 3,
         optional: false
     });
     attributes.add('DEVICEID', {
         name: 'deviceId',
-        group: 3,
+        group: 4,
         optional: false
     });
     attributes.add('MD5EMAIL', {
         name: 'md5Email',
-        group: 4,
+        group: 5,
         optional: false
     });
     attributes.add('SESSIONID', {
         name: 'sessionId',
-        group: 5,
+        group: 6,
+        optional: false
+    });
+    attributes.add('PHONE', {
+        name: 'phone',
+        group: 7,
+        optional: false
+    });
+    attributes.add('USERID', {
+        name: 'userId',
+        group: 8,
+        optional: false
+    });
+    attributes.add('USERIDS', {
+        name: 'userIds',
+        group: 9,
+        optional: false
+    });
+    attributes.add('TWITTERID', {
+        name: 'twitterId',
+        group: 10,
         optional: false
     });
     attributes.add('additional', {
