@@ -291,8 +291,11 @@ The utility library provides general functionality, which makes it easy to retri
 * {string} **Breinify.UTL.localDateTime()**:<br/>
   Creates a string representing the current local date and time.
 
-* {boolean} **Breinify.UTL.uuid(str, suffix)**:<br/>
+* {boolean} **Breinify.UTL.endsWith(str, suffix)**:<br/>
   Checks if `str` ends with `suffix`.
+
+* {mixed} **Breinify.UTL.getNested(obj, str1, str2, ...)**:<br/>
+  Gets the value behind obj.str1.str2...
 
 * {string} **Breinify.UTL.uuid()**:<br/>
   Creates a uuid.

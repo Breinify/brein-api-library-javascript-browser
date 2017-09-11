@@ -121,7 +121,7 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('trimQuotes', function() {
+    it('trimQuotes', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.trimQuotes(null)).toBeNull();
         //noinspection JSUnresolvedFunction
@@ -135,7 +135,21 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('endsWith', function() {
+    it('getNested', function () {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNested({})).toEqual({});
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNested(null)).toEqual(null);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNested()).toEqual(null);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNested({a: {b: {c: 'value'}}}, 'a', 'b', 'c')).toEqual('value');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNested({a: {b: {c: 'value'}}}, 'a', 'b', 'd')).toEqual(null);
+    });
+
+    //noinspection JSUnresolvedFunction
+    it('endsWith', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.endsWith('abc', 'c')).toBe(true);
         //noinspection JSUnresolvedFunction
@@ -156,7 +170,7 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('extractsNeededInformation', function() {
+    it('extractsNeededInformation', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.loc.extract('http://google.de')).toEqual({
             full: 'http://google.de',

@@ -12686,10 +12686,28 @@ dependencyScope.jQuery = $;;
             return new Date().toString();
         },
 
+        getNested: function (obj /*, level1, level2, ... levelN*/) {
+            if (!$.isPlainObject(obj) || obj === null) {
+                return null;
+            }
+
+            for(var pos = 1; pos < arguments.length; pos++ ) {
+                var property = arguments[pos];
+
+                if (!obj.hasOwnProperty(property)) {
+                    return null;
+                }
+
+                obj = obj[property];
+            }
+
+            return obj;
+        },
+
         endsWith: function (str, suffix) {
-            if (str === null &&  suffix === null) {
+            if (str === null && suffix === null) {
                 return true;
-            } else if (typeof str === 'undefined' &&  typeof suffix === 'undefined') {
+            } else if (typeof str === 'undefined' && typeof suffix === 'undefined') {
                 return true;
             } else if (typeof str !== 'string' || typeof suffix !== 'string') {
                 return false;
@@ -13904,6 +13922,7 @@ dependencyScope.jQuery = $;;
         timezone: function() { return null; },
         localDateTime: function() { return new Date().toString(); },
         uuid: function() { return null; },
+        getNested: function() { return null; },
         endsWith: function() { return false; },
         _jquery: function() { return null; }
     };
