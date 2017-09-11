@@ -175,6 +175,26 @@
                 return window.location.href;
             },
 
+            extract: function (url) {
+                var urlRegEx = /^(?:(?:(http[s]?):\/)?\/?)(?:(\w+):(\w+)@)?([^:\/\s]+)(?::(\d+))?((?:(?:\/\w+)*\/)(?:[\w\(\)\-\.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
+                var match = urlRegEx.exec(url);
+
+                if (match === null) {
+                    return null;
+                } else {
+                    return {
+                        full: match[0] === '' || typeof match[0] === 'undefined' ? null : match[0],
+                        protocol: match[1] === '' || typeof match[1] === 'undefined' ? null : match[1],
+                        username: match[2] === '' || typeof match[2] === 'undefined' ? null : match[2],
+                        password: match[3] === '' || typeof match[3] === 'undefined' ? null : match[3],
+                        domain: match[4] === '' || typeof match[4] === 'undefined' ? null : match[4],
+                        port: match[5] === '' || typeof match[5] === 'undefined' ? null : parseInt(match[5], 10),
+                        path: match[6] === '' || typeof match[6] === 'undefined' ? null : match[6],
+                        parameters: match[7] === '' || typeof match[7] === 'undefined' ? null : match[7]
+                    }
+                }
+            },
+
             matches: function (regEx) {
                 regEx = typeof regEx === 'string' ? new RegExp(regEx) : regEx;
 

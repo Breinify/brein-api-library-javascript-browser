@@ -39,6 +39,7 @@ This documentation is organized as following:
     * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
     * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
     * Breinify.UTL.loc.url() [since version 1.0.1]
+    * Breinify.UTL.loc.extract() [since version 1.0.16]
     * Breinify.UTL.loc.matches(regEx) [since version 1.0.1]
   * [Breinify.UTL.cookie](#breinifyutlcookie)
     * Breinify.UTL.cookie.all() [since version 1.0.1]
@@ -475,6 +476,21 @@ The location part of the utilities contains functions to validate, match, or ret
   **Example Usage**:
   ```javascript
   window.alert('You are visiting: "' + Breinify.UTL.loc.url() + '".');
+  ```
+  <br/>
+
+* {object|null} **Breinify.UTL.loc.extract(url)**:<br/>
+  Tries to extract the parts `protocol`, `port`, `username`, `password`, `domain`, `path`, and `parameters`
+  from the url. The method return `null` if no valid `url` was passed.
+
+  **Parameters**:
+
+  {string} **url**: The url to extract the information from.
+
+  **Example Usage**:
+  ```javascript
+  var extract = Breinify.UTL.loc.extract('http://google.com');
+  console.log(extract.domain);
   ```
   <br/>
 

@@ -133,4 +133,91 @@ describe('BreinifyUtil', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.trimQuotes('\'Test\'', true)).toEqual('Test');
     });
+
+    //noinspection JSUnresolvedFunction
+    it('extractsNeededInformation', function() {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://google.de')).toEqual({
+            full: 'http://google.de',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'google.de',
+            path: null,
+            parameters: null
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://api.breinify.com/activity')).toEqual({
+            full: 'http://api.breinify.com/activity',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'api.breinify.com',
+            path: '/activity',
+            parameters: null
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://142.42.1.1/')).toEqual({
+            full: 'http://142.42.1.1/',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: '142.42.1.1',
+            path: '/',
+            parameters: null
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('https://142.42.1.1:8080/')).toEqual({
+            full: 'https://142.42.1.1:8080/',
+            username: null,
+            password: null,
+            port: 8080,
+            protocol: 'https',
+            domain: '142.42.1.1',
+            path: '/',
+            parameters: null
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://foo.com/blah_(wikipedia)_blah#cite-1')).toEqual({
+            full: 'http://foo.com/blah_(wikipedia)_blah#cite-1',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'foo.com',
+            path: '/blah_(wikipedia)_blah',
+            parameters: '#cite-1'
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://code.google.com/events/#&product=browser')).toEqual({
+            full: 'http://code.google.com/events/#&product=browser',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'code.google.com',
+            path: '/events/',
+            parameters: '#&product=browser'
+        });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://foo.bar/?q=Test%20URL-encoded%20stuff')).toEqual({
+            full: 'http://foo.bar/?q=Test%20URL-encoded%20stuff',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'foo.bar',
+            path: '/',
+            parameters: '?q=Test%20URL-encoded%20stuff'
+        });
+    });
 });
