@@ -12414,7 +12414,8 @@ dependencyScope.jQuery = $;;
             },
 
             reset: function (name) {
-                this.set(name, '', -1);
+                this.set(name, '', -1, false);
+                this.set(name, '', -1, true);
             },
 
             set: function (name, value, expiresInDays, global) {
