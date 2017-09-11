@@ -27,6 +27,7 @@ This documentation is organized as following:
     * Breinify.UTL.unixTimestamp() [since version 1.0.1]
     * Breinify.UTL.timezone() [since version 1.0.1]
     * Breinify.UTL.localDateTime() [since version 1.0.1]
+    * Breinify.UTL.endsWith() [since version 1.0.16]
     * Breinify.UTL.uuid() [since version 1.0.13]
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
@@ -289,6 +290,9 @@ The utility library provides general functionality, which makes it easy to retri
   
 * {string} **Breinify.UTL.localDateTime()**:<br/>
   Creates a string representing the current local date and time.
+
+* {boolean} **Breinify.UTL.uuid(str, suffix)**:<br/>
+  Checks if `str` ends with `suffix`.
 
 * {string} **Breinify.UTL.uuid()**:<br/>
   Creates a uuid.

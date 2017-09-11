@@ -488,6 +488,18 @@
             return new Date().toString();
         },
 
+        endsWith: function (str, suffix) {
+            if (str === null &&  suffix === null) {
+                return true;
+            } else if (typeof str === 'undefined' &&  typeof suffix === 'undefined') {
+                return true;
+            } else if (typeof str !== 'string' || typeof suffix !== 'string') {
+                return false;
+            } else {
+                return str.indexOf(suffix, str.length - suffix.length) !== -1;
+            }
+        },
+
         _jquery: function () {
             return $;
         }

@@ -135,6 +135,27 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
+    it('endsWith', function() {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('abc', 'c')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('abc', 'bc')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('abc', 'abc')).toBe(true);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('abc', 'dabc')).toBe(false);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith(null, 'dabc')).toBe(false);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('dabs', null)).toBe(false);
+
+        var a;
+        expect(Breinify.UTL.endsWith(a, 'dabc')).toBe(false);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.endsWith('dabs', a)).toBe(false);
+    });
+
+    //noinspection JSUnresolvedFunction
     it('extractsNeededInformation', function() {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.loc.extract('http://google.de')).toEqual({
