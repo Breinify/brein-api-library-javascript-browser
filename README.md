@@ -2,7 +2,7 @@
   <img src="https://www.breinify.com/img/Breinify_logo.png" alt="Breinify API JavaScript Library" width="250">
 </p>
 
-# Breinify's API Library
+# Breinify's API Library [![](https://data.jsdelivr.com/v1/package/npm/breinify-api/badge)](https://www.jsdelivr.com/package/npm/breinify-api)
 [![Bower version](https://badge.fury.io/bo/breinify-api.svg)](https://badge.fury.io/bo/breinify-api)
 [![npm version](https://badge.fury.io/js/breinify-api.svg)](https://badge.fury.io/js/breinify-api)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/hyperium/hyper/master/LICENSE)
