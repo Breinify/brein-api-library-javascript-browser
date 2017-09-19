@@ -19,7 +19,7 @@ right after the library is loaded, e.g.:</p>
 
 >
 ```javascript--browser
-<script src="https://cdn.jsdelivr.net/breinify-api/{version}/breinify-api.min.js" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/breinify-api@{version}/dist/breinify-api.min.js" type="text/javascript"></script>
 <script type="text/javascript">
 Breinify.setConfig({ 
     'apiKey': '938D-3120-64DD-413F-BB55-6573-90CE-473A' 

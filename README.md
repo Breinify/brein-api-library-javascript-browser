@@ -27,7 +27,7 @@ First of all, you need a valid API-key, which you can get for free at [https://w
 The library can be added as script, using:
 
 ```html
-<script type="text/javascript" src="https://cdn.jsdelivr.net/breinify-api/1.0.15/breinify-api.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/breinify-api@1.0.15/dist/breinify-api.min.js"></script>
 ```
 
 If you want to use the most current **snapshot** version (only recommended for development purposes), you can also use:
