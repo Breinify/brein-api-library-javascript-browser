@@ -552,7 +552,7 @@ The cookie part of the utilities contains functions to validate, match, or retri
 
   {string} **value**: The value to be set for the cookie.
 
-  {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default 1).
+  {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default `Session` cookie). If a negative value is passed in, the cookie will be removed.
 
   {boolean} **global**: Defines if the cookie is set on a global level (for the domain) or just the current page, i.e., sub-folder (default `false`).
 

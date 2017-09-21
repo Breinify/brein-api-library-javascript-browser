@@ -12439,14 +12439,18 @@ dependencyScope.jQuery = $;;
             },
 
             set: function (name, value, expiresInDays, global) {
-                expiresInDays = value === null ? -1 : (typeof expiresInDays === 'number' ? expiresInDays : 1);
 
-                var d = new Date();
-                d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
+                var expires;
+                if (typeof expiresInDays === 'number') {
+                    var d = new Date();
+                    d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
+                    expires = '; expires=' + d.toUTCString();
+                } else {
+                    expires = '';
+                }
 
-                var expires = "expires=" + d.toUTCString();
                 var path = global === true ? '; path=/' : '';
-                document.cookie = name + "=" + value + "; " + expires + path;
+                document.cookie = name + '=' + value + expires + path;
             },
 
             get: function (name) {
@@ -12691,7 +12695,7 @@ dependencyScope.jQuery = $;;
                 return null;
             }
 
-            for(var pos = 1; pos < arguments.length; pos++ ) {
+            for (var pos = 1; pos < arguments.length; pos++) {
                 var property = arguments[pos];
 
                 if (!obj.hasOwnProperty(property)) {
