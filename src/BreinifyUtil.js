@@ -253,7 +253,7 @@
 
                 var domain;
                 if (typeof specDomain === 'string') {
-                    domain = specDomain;
+                    domain = '; domain=' + specDomain;
                 } else {
                     domain = '';
                 }
