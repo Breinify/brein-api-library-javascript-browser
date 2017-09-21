@@ -240,7 +240,7 @@
                 this.set(name, '', -1, true);
             },
 
-            set: function (name, value, expiresInDays, global) {
+            set: function (name, value, expiresInDays, global, specDomain) {
 
                 var expires;
                 if (typeof expiresInDays === 'number') {
@@ -251,8 +251,15 @@
                     expires = '';
                 }
 
+                var domain;
+                if (typeof specDomain === 'string') {
+                    domain = specDomain;
+                } else {
+                    domain = '';
+                }
+
                 var path = global === true ? '; path=/' : '';
-                document.cookie = name + '=' + value + expires + path;
+                document.cookie = name + '=' + value + expires + domain + path;
             },
 
             get: function (name) {

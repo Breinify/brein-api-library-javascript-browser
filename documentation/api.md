@@ -45,7 +45,7 @@ This documentation is organized as following:
   * [Breinify.UTL.cookie](#breinifyutlcookie)
     * Breinify.UTL.cookie.all() [since version 1.0.1]
     * Breinify.UTL.cookie.reset(name) [since version 1.0.1]
-    * Breinify.UTL.cookie.set(name, value, expiresInDays) [since version 1.0.1]
+    * Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain) [since version 1.0.1]
     * Breinify.UTL.cookie.get(name) [since version 1.0.1]
     * Breinify.UTL.cookie.check(name) [since version 1.0.1]
     * Breinify.UTL._query() [since version 1.0.16]
@@ -543,7 +543,7 @@ The cookie part of the utilities contains functions to validate, match, or retri
   ```
   <br/>
 
-* **Breinify.UTL.cookie.set(name, value, expiresInDays)**:<br/>
+* **Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain)**:<br/>
   Sets the specified cookie with the specified value.
 
   **Parameters**:
@@ -555,6 +555,8 @@ The cookie part of the utilities contains functions to validate, match, or retri
   {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default `Session` cookie). If a negative value is passed in, the cookie will be removed.
 
   {boolean} **global**: Defines if the cookie is set on a global level (for the domain) or just the current page, i.e., sub-folder (default `false`).
+
+  {string} **domain**: Defines the domain of the cookie (default uses the current domain).
 
   **Example Usage**:
   ```javascript
