@@ -554,6 +554,8 @@ The cookie part of the utilities contains functions to validate, match, or retri
 
   {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default 1).
 
+  {boolean} **global**: Defines if the cookie is set on a global level (for the domain) or just the current page, i.e., sub-folder (default `false`).
+
   **Example Usage**:
   ```javascript
   Breinify.UTL.cookie.set('myFunnyCookie', 'A year of fun!', 365);
