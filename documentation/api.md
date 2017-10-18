@@ -44,7 +44,7 @@ This documentation is organized as following:
     * Breinify.UTL.loc.matches(regEx) [since version 1.0.1]
   * [Breinify.UTL.cookie](#breinifyutlcookie)
     * Breinify.UTL.cookie.all() [since version 1.0.1]
-    * Breinify.UTL.cookie.reset(name) [since version 1.0.1]
+    * Breinify.UTL.cookie.reset(name, domain) [since version 1.0.1]
     * Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain) [since version 1.0.1]
     * Breinify.UTL.cookie.get(name) [since version 1.0.1]
     * Breinify.UTL.cookie.check(name) [since version 1.0.1]
@@ -530,12 +530,13 @@ The cookie part of the utilities contains functions to validate, match, or retri
   ```
   <br/>
 
-* **Breinify.UTL.cookie.reset(name)**:<br/>
+* **Breinify.UTL.cookie.reset(name, domain)**:<br/>
   Removes the specified cookie.
 
   **Parameters**:
 
   {string} **name**: The name of the cookie to be removed.
+  {string} **domain**: Defines the domain of the cookie (default uses the current domain).
 
   **Example Usage**:
   ```javascript

@@ -235,9 +235,9 @@
                 return result;
             },
 
-            reset: function (name) {
-                this.set(name, '', -1, false);
-                this.set(name, '', -1, true);
+            reset: function (name, specDomain) {
+                this.set(name, '', -1, false, specDomain);
+                this.set(name, '', -1, true, specDomain);
             },
 
             set: function (name, value, expiresInDays, global, specDomain) {
