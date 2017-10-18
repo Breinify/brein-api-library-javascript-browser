@@ -254,5 +254,17 @@ describe('BreinifyUtil', function () {
             path: '/',
             parameters: '?q=Test%20URL-encoded%20stuff'
         });
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.loc.extract('http://staging.sample.com/beer-cider/craft-brew.html')).toEqual({
+            full: 'http://staging.sample.com/beer-cider/craft-brew.html',
+            username: null,
+            password: null,
+            port: null,
+            protocol: 'http',
+            domain: 'staging.sample.com',
+            path: '/beer-cider/craft-brew.html',
+            parameters: null
+        });
     });
 });

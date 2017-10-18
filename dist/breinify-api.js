@@ -12374,7 +12374,7 @@ dependencyScope.jQuery = $;;
             },
 
             extract: function (url) {
-                var urlRegEx = /^(?:(?:(http[s]?):\/)?\/?)(?:(\w+):(\w+)@)?([^:\/\s]+)(?::(\d+))?((?:(?:\/\w+)*\/)(?:[\w\(\)\-\.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
+                var urlRegEx = /^(?:(?:(http[s]?):\/)?\/?)(?:([\-\w]+):([\-\w]+)@)?([^:\/\s]+)(?::(\d+))?((?:(?:\/[\-\w]+)*\/)(?:[\w\(\)\-\.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
                 var match = urlRegEx.exec(url);
 
                 if (match === null) {
@@ -12433,9 +12433,9 @@ dependencyScope.jQuery = $;;
                 return result;
             },
 
-            reset: function (name) {
-                this.set(name, '', -1, false);
-                this.set(name, '', -1, true);
+            reset: function (name, specDomain) {
+                this.set(name, '', -1, false, specDomain);
+                this.set(name, '', -1, true, specDomain);
             },
 
             set: function (name, value, expiresInDays, global, specDomain) {
