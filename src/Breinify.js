@@ -61,7 +61,7 @@
                 var arg = args[i];
 
                 var type;
-                if (arg === null) {
+                if (typeof arg === 'undefined' || arg === null) {
                     type = '([A-Za-z0-9_\\-]+)';
                     containsRegEx = true;
                 } else {
