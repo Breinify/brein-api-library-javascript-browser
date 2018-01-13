@@ -91,6 +91,13 @@
             return $.isNumeric(value);
         }
     });
+    attributes.add('AJAX_WITH_CREDENTIALS', {
+        name: 'withCredentials',
+        defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '{{PROJECT.VERSION}}';
@@ -98,7 +105,7 @@
         /*
          * Validate the passed config-parameters.
          */
-        if (typeof config == 'undefined' || config == null) {
+        if (typeof config === 'undefined' || config == null) {
             this._config = $.extend({}, attributes.defaults());
         } else if (config instanceof BreinifyConfig) {
             this._config = $.extend({}, attributes.defaults(), config._config);

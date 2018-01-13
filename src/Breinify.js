@@ -42,7 +42,7 @@
     //noinspection JSUnusedGlobalSymbols
     Wrapper.prototype = {
         setExcludeNullType: function (func) {
-            if (typeof func == 'function') {
+            if (typeof func === 'function') {
                 this.excludeNullType = func;
             }
         },
@@ -123,6 +123,11 @@
                 'url': url,
                 'type': 'POST',
                 'crossDomain': true,
+
+                // send also the credentials
+                'xhrFields': {
+                    'withCredentials': _config.get(ATTR_CONFIG.AJAX_WITH_CREDENTIALS)
+                },
 
                 // set the data
                 'dataType': 'json',
