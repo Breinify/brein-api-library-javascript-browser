@@ -12828,6 +12828,13 @@ dependencyScope.jQuery = $;;
             return $.isNumeric(value);
         }
     });
+    attributes.add('AJAX_WITH_CREDENTIALS', {
+        name: 'withCredentials',
+        defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '1.0.16';
@@ -12835,7 +12842,7 @@ dependencyScope.jQuery = $;;
         /*
          * Validate the passed config-parameters.
          */
-        if (typeof config == 'undefined' || config == null) {
+        if (typeof config === 'undefined' || config == null) {
             this._config = $.extend({}, attributes.defaults());
         } else if (config instanceof BreinifyConfig) {
             this._config = $.extend({}, attributes.defaults(), config._config);
@@ -13262,7 +13269,7 @@ dependencyScope.jQuery = $;;
     //noinspection JSUnusedGlobalSymbols
     Wrapper.prototype = {
         setExcludeNullType: function (func) {
-            if (typeof func == 'function') {
+            if (typeof func === 'function') {
                 this.excludeNullType = func;
             }
         },
@@ -13281,7 +13288,7 @@ dependencyScope.jQuery = $;;
                 var arg = args[i];
 
                 var type;
-                if (arg === null) {
+                if (typeof arg === 'undefined' || arg === null) {
                     type = '([A-Za-z0-9_\\-]+)';
                     containsRegEx = true;
                 } else {
@@ -13343,6 +13350,11 @@ dependencyScope.jQuery = $;;
                 'url': url,
                 'type': 'POST',
                 'crossDomain': true,
+
+                // send also the credentials
+                'xhrFields': {
+                    'withCredentials': _config.get(ATTR_CONFIG.AJAX_WITH_CREDENTIALS)
+                },
 
                 // set the data
                 'dataType': 'json',
