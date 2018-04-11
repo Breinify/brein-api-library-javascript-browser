@@ -104,7 +104,7 @@
 
                 var paramsUrl = url.substring(paramListSeparatorPos + 1);
                 var paramStrs = paramsUrl.split(paramSeparator);
-                if (paramStrs.length == 0) {
+                if (paramStrs.length === 0) {
                     return {};
                 }
 
@@ -391,7 +391,7 @@
          */
         uuid: function () {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
         },
@@ -425,7 +425,7 @@
          * @returns {*} if the passed value is not a string, this value will be returned, otherwise the trimmed str, without any surrounding quotes will be returned
          */
         trimQuotes: function (str, inclSingle) {
-            if (str == null || typeof str != 'string') {
+            if (str === null || typeof str !== 'string') {
                 return str;
             }
 
