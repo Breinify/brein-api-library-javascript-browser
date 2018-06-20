@@ -1,0 +1,33 @@
+<project name="brein-api-library-javascript-browser" default="03-wrap-up" basedir=".">
+
+    <!-- This is an internally used build-script. To build the project manually,
+         please resolve the needed dependencies (npm install) and run the default
+         npm and grunt commands!
+      -->
+    <include file="../../brein-workspace/brein-intellij-workspace/common-libs/ant-util/util-ant.xml"/>
+
+    <property name="app" value="brein-api-library-javascript-browser"/>
+
+    <target name="01-resolve-dependencies">
+        <exec-npm module="install"/>
+    </target>
+
+    <target name="04-publish-results">
+        <publish-js-app>
+            <cf>
+                <exec-grunt module="dist"/>
+                <copy todir="tmp" includeEmptyDirs="true">
+                    <fileset dir="dist" />
+                </copy>
+            </cf>
+        </publish-js-app>
+    </target>
+
+    <target name="05-deploy-to-npm" depends="04-publish-results">
+        <exec-grunt module="publish"/>
+    </target>
+
+    <target name="06-run-test-suite" depends="01-resolve-dependencies">
+        <exec-grunt module="test"/>
+    </target>
+</project>

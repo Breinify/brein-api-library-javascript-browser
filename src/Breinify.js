@@ -177,6 +177,71 @@
             var paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
 
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
+        },
+
+        handleGetParameters: function () {
+            var knownParams = {
+                'brec': {
+                    'type': 'clickedRecommendation'
+                }
+            };
+
+            var result = {};
+            var params = BreinifyUtil.params();
+
+            // check for known types
+            for (var knownParam in knownParams) {
+
+                // skip if the are not own properties
+                if (!knownParams.hasOwnProperty(knownParam)) {
+                    continue;
+                }
+                // check if the parameter is set
+                else if (!params.hasOwnProperty(knownParam)) {
+                    continue;
+                }
+
+                // get the value
+                var value = params[knownParam];
+
+                // parse it and make sure it was parseable
+                var parsedValue = _privates.parseGetParameter(knownParam, value);
+                if (parsedValue === null) {
+                    continue;
+                }
+
+                var combinedValue = $.extend({
+                    'user': {},
+                    'activity': {
+                        'category': null,
+                        'description': null,
+                        'tags': {}
+                    }
+                }, parsedValue, knownParams[knownParam]);
+
+                /*
+                 * Sends an activity to the Breinify server.
+                 *
+                 * @param user {object} the user-information
+                 * @param type {string|null} the type of activity
+                 * @param category {string|null} the category (can be null or undefined)
+                 * @param description {string|null} the description for the activity
+                 * @param tags {object} added the change to pass in tags
+                 * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+                 * @param onReady {function|null} function to be executed after triggering the activity
+                 */
+                var user = combinedValue.user;
+                var activity = combinedValue.activity;
+                Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags);
+            }
+        },
+
+        parseGetParameter: function (name, value) {
+            try {
+                return JSON.parse(atob(value));
+            } catch (e) {
+                return null;
+            }
         }
     };
 
@@ -202,6 +267,11 @@
 
         //noinspection JSUnresolvedFunction
         _config = new BreinifyConfig(c);
+
+        // if the parameters should be handled it's done directly after the configuration is set
+        if (_config.get(ATTR_CONFIG.HANDLE_PARAMETERS) === true) {
+            _privates.handleGetParameters();
+        }
     };
 
     /**

@@ -84,6 +84,13 @@
             return value === true || value === false;
         }
     });
+    attributes.add('HANDLE_PARAMETERS', {
+        name: 'handleParameters',
+        defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
         defaultValue: 4000,
