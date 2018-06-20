@@ -19,6 +19,7 @@
   "devDependencies": {
     "jquery": "^2.2.4",
     "cryptojslib": "^3.1.2",
+    "brein-util": "git+https://github.com/breinify/brein-javascript.git",
     "jstz": "*"
   }
 }
