@@ -182,7 +182,9 @@
         handleGetParameters: function () {
             var knownParams = {
                 'brec': {
-                    'type': 'clickedRecommendation'
+                    'activity': {
+                        'type': 'clickedRecommendation'
+                    }
                 }
             };
 
@@ -232,13 +234,13 @@
                  */
                 var user = combinedValue.user;
                 var activity = combinedValue.activity;
-                Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags);
+                Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, null);
             }
         },
 
         parseGetParameter: function (name, value) {
             try {
-                return JSON.parse(atob(value));
+                return JSON.parse(atob(decodeURIComponent(value)));
             } catch (e) {
                 return null;
             }
