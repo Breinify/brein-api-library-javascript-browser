@@ -190,7 +190,6 @@ module.exports = function (grunt) {
                     checkExistence: true,
                     paths: bowerPaths,
                     overrides: {
-                        'brein-util': {'main': 'common/dist/brein-util-common.js'},
                         'cryptojslib': {
                             'main': [
                                 'components/core.js',
