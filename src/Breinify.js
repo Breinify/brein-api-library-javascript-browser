@@ -187,7 +187,7 @@
             };
 
             var result = {};
-            var params = BreinifyUtil.params();
+            var params = BreinifyUtil.loc.params();
 
             // check for known types
             for (var knownParam in knownParams) {
