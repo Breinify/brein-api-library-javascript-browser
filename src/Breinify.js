@@ -203,39 +203,52 @@
                     continue;
                 }
 
-                // get the value
-                var value = params[knownParam];
-
-                // parse it and make sure it was parseable
-                var parsedValue = _privates.parseGetParameter(knownParam, value);
-                if (parsedValue === null) {
-                    continue;
-                }
-
-                var combinedValue = $.extend({
-                    'user': {},
-                    'activity': {
-                        'category': null,
-                        'description': null,
-                        'tags': {}
-                    }
-                }, parsedValue, knownParams[knownParam]);
-
-                /*
-                 * Sends an activity to the Breinify server.
-                 *
-                 * @param user {object} the user-information
-                 * @param type {string|null} the type of activity
-                 * @param category {string|null} the category (can be null or undefined)
-                 * @param description {string|null} the description for the activity
-                 * @param tags {object} added the change to pass in tags
-                 * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
-                 * @param onReady {function|null} function to be executed after triggering the activity
-                 */
-                var user = combinedValue.user;
-                var activity = combinedValue.activity;
-                Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, null);
+                // handle the parameter
+                _privates.handleGetParameter(knownParam, params[knownParam], knownParams[knownParam]);
             }
+        },
+
+        handleGetParameter: function(name, value, overrides) {
+
+            // parse it and make sure it was parseable
+            var parsedValue = _privates.parseGetParameter(name, value);
+            if (parsedValue === null) {
+                return;
+            }
+
+            var combinedValue = $.extend({
+                'user': {},
+                'activity': {
+                    'category': null,
+                    'description': null,
+                    'tags': {}
+                }
+            }, parsedValue, overrides);
+
+            // calculate a hash as unique identifier
+            var hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
+            if (BreinifyUtil.cookie.check(hashId)) {
+                return;
+            }
+
+            /*
+             * Sends an activity to the Breinify server.
+             *
+             * @param user {object} the user-information
+             * @param type {string|null} the type of activity
+             * @param category {string|null} the category (can be null or undefined)
+             * @param description {string|null} the description for the activity
+             * @param tags {object} added the change to pass in tags
+             * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
+             * @param onReady {function|null} function to be executed after triggering the activity
+             */
+            var user = combinedValue.user;
+            var activity = combinedValue.activity;
+            Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, function() {
+
+                // mark it as successfully sent
+                BreinifyUtil.cookie.set(hashId, true);
+            });
         },
 
         parseGetParameter: function (name, value) {
