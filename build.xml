@@ -1,4 +1,4 @@
-<project name="brein-api-library-javascript-browser" default="03-wrap-up" basedir=".">
+<project name="brein-api-library-javascript-browser" basedir=".">
 
     <!-- This is an internally used build-script. To build the project manually,
          please resolve the needed dependencies (npm install) and run the default
@@ -10,9 +10,10 @@
 
     <target name="01-resolve-dependencies">
         <exec-npm module="install"/>
+        <exec-grunt module="dep"/>
     </target>
 
-    <target name="04-publish-results">
+    <target name="04-publish-results" depends="01-resolve-dependencies">
         <publish-js-app>
             <cf>
                 <exec-grunt module="dist"/>

@@ -27,7 +27,7 @@ describe('BreinifyUser', function () {
             var all = user.all();
 
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(all.additional.userAgent).toEqual('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            expect(all.additional.userAgent).to.endsWith('PhantomJS/2.1.1 Safari/538.1');
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(all.additional.url).toMatch('.*/_SpecRunner.html');
 
@@ -111,7 +111,7 @@ describe('BreinifyUser', function () {
 
             user.add('userAgent', navigator.userAgent);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all().additional.userAgent).toBe('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            expect(user.all().additional.userAgent).to.endsWith('PhantomJS/2.1.1 Safari/538.1');
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.location).toBeUndefined();
 
@@ -121,7 +121,7 @@ describe('BreinifyUser', function () {
             };
             user.add('location', loc);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all().additional.userAgent).toBe('Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1');
+            expect(user.all().additional.userAgent).to.endsWith('PhantomJS/2.1.1 Safari/538.1');
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.location).toEqual(loc);
 
