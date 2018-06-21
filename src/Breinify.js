@@ -216,7 +216,7 @@
                 return;
             }
 
-            var combinedValue = $.extend({
+            var combinedValue = $.extend(true, {
                 'user': {},
                 'activity': {
                     'category': null,
