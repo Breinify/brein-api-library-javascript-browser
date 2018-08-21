@@ -193,8 +193,8 @@
             var utmSource = Breinify.UTL.isEmpty(params['utm_source']) ? null : params['utm_source'];
             var utmMedium = Breinify.UTL.isEmpty(params['utm_medium']) ? null : params['utm_medium'];
             var utmCampaign = Breinify.UTL.isEmpty(params['utm_campaign']) ? null : params['utm_campaign'];
-            var utmTerm = Breinify.UTL.isEmpty(params['utmTerm']) ? null : params['utm_term'];
-            var utmContent = Breinify.UTL.isEmpty(params['utmContent']) ? null : params['utm_content'];
+            var utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
+            var utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
 
             // create the data
             var values = mapper({
