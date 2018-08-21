@@ -12828,6 +12828,25 @@ dependencyScope.jQuery = $;;
             return value === true || value === false;
         }
     });
+    attributes.add('HANDLE_UTM', {
+        name: 'handleUtm',
+        defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
+    attributes.add('UTM_MAPPER', {
+        name: 'utmMapper',
+        defaultValue: function(utmData, user) {
+            return {
+                'utmData': utmData,
+                'user': user
+            };
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
         defaultValue: 4000,
@@ -13413,6 +13432,38 @@ dependencyScope.jQuery = $;;
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
         },
 
+        handleUtmParameters: function() {
+
+            // get the mapper to be used
+            var mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
+            if (typeof mapper !== 'function') {
+                return;
+            }
+
+            // see https://en.wikipedia.org/wiki/UTM_parameters
+            var params = BreinifyUtil.loc.params();
+
+            var utmSource = Breinify.UTL.isEmpty(params['utm_source']) ? null : params['utm_source'];
+            var utmMedium = Breinify.UTL.isEmpty(params['utm_medium']) ? null : params['utm_medium'];
+            var utmCampaign = Breinify.UTL.isEmpty(params['utm_campaign']) ? null : params['utm_campaign'];
+            var utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
+            var utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
+
+            // create the data
+            var values = mapper({
+                'utmSource': utmSource,
+                'utmMedium': utmMedium,
+                'utmCampaign': utmCampaign,
+                'utmTerm': utmTerm,
+                'utmContent': utmContent
+            }, {});
+
+            // make sure we have a result and send the activity
+            if ($.isPlainObject(values) && $.isPlainObject(values.user) && $.isPlainObject(values.utmData)) {
+                Breinify.activity(values.user, 'utmData', null, null, values.utmData, null);
+            }
+        },
+
         handleGetParameters: function () {
             var knownParams = {
                 'brec': {
@@ -13442,7 +13493,7 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        handleGetParameter: function(name, value, overrides) {
+        handleGetParameter: function (name, value, overrides) {
 
             // parse it and make sure it was parseable
             var parsedValue = _privates.parseGetParameter(name, value);
@@ -13478,7 +13529,7 @@ dependencyScope.jQuery = $;;
              */
             var user = combinedValue.user;
             var activity = combinedValue.activity;
-            Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, function() {
+            Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, function () {
 
                 // mark it as successfully sent
                 BreinifyUtil.cookie.set(hashId, true);
@@ -13520,6 +13571,10 @@ dependencyScope.jQuery = $;;
         // if the parameters should be handled it's done directly after the configuration is set
         if (_config.get(ATTR_CONFIG.HANDLE_PARAMETERS) === true) {
             _privates.handleGetParameters();
+        }
+
+        if (_config.get(ATTR_CONFIG.HANDLE_UTM) === true) {
+            _privates.handleUtmParameters();
         }
     };
 
