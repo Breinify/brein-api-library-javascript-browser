@@ -203,7 +203,7 @@
                 'utmCampaign': utmCampaign,
                 'utmTerm': utmTerm,
                 'utmContent': utmContent
-            }, user);
+            }, {});
 
             // make sure we have a result and send the activity
             if ($.isPlainObject(values) && $.isPlainObject(values.user) && $.isPlainObject(values.utmData)) {
