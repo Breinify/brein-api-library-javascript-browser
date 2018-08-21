@@ -207,7 +207,9 @@
 
             // make sure we have a result and send the activity
             if ($.isPlainObject(values) && $.isPlainObject(values.user) && $.isPlainObject(values.utmData)) {
-                Breinify.activity(values.user, 'utmData', null, null, values.utmData, null);
+                Breinify.activity(values.user, 'utmData', null, null, values.utmData, null, function() {
+                    // nothing to do
+                });
             }
         },
 
@@ -463,27 +465,27 @@
 
         overload.overload({
             'Object,String': function (user, type) {
-                Breinify.activityUser(user, type, null, null, null, false, function (data) {
+                Breinify.activityUser(user, type, null, null, null, null, function (data) {
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,Object': function (user, type, tags) {
-                Breinify.activityUser(user, type, null, null, tags, false, function (data) {
+                Breinify.activityUser(user, type, null, null, tags, null, function (data) {
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,Object': function (user, type, description, tags) {
-                Breinify.activityUser(user, type, null, description, tags, false, function (data) {
+                Breinify.activityUser(user, type, null, description, tags, null, function (data) {
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object': function (user, type, category, description, tags) {
-                Breinify.activityUser(user, type, category, description, tags, false, function (data) {
+                Breinify.activityUser(user, type, category, description, tags, null, function (data) {
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object,Function': function (user, type, category, description, tags, callback) {
-                Breinify.activityUser(user, type, category, description, tags, false, function (data) {
+                Breinify.activityUser(user, type, category, description, tags, null, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
@@ -527,7 +529,7 @@
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
             description = typeof description === 'undefined' || description === null ? null : description;
             tags = BreinifyUtil.isSimpleObject(tags) ? tags : null;
-            sign = typeof sign === 'boolean' ? sign : false;
+            sign = typeof sign === 'boolean' ? sign : (sign === null ? !BreinifyUtil.isEmpty(_config.get(ATTR_CONFIG.SECRET)) : false);
 
             // get the other values needed
             var unixTimestamp = BreinifyUtil.unixTimestamp();
