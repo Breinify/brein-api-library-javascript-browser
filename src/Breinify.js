@@ -207,9 +207,7 @@
 
             // make sure we have a result and send the activity
             if ($.isPlainObject(values) && $.isPlainObject(values.user) && $.isPlainObject(values.utmData)) {
-                Breinify.activity(values.user, 'utmData', null, null, values.utmData, null, function() {
-                    // nothing to do
-                });
+                Breinify.activity(values.user, 'utmData', null, null, values.utmData);
             }
         },
 
