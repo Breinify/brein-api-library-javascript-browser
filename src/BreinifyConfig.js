@@ -91,6 +91,25 @@
             return value === true || value === false;
         }
     });
+    attributes.add('HANDLE_UTM', {
+        name: 'handleUtm',
+        defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
+    attributes.add('UTM_MAPPER', {
+        name: 'utmMapper',
+        defaultValue: function(utmData, user) {
+            return {
+                'utmData': utmData,
+                'user': user
+            };
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
         defaultValue: 4000,
