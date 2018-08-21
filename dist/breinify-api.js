@@ -13327,7 +13327,7 @@ dependencyScope.jQuery = $;;
             // check which one of the functions can be used
             var func = null;
             if (containsRegEx) {
-                var typeRegEx = new RegExp('^'  + types.toString() + '$', 'i');
+                var typeRegEx = new RegExp(types.toString(), 'i');
 
                 Object.keys(pointer).forEach(function (key) {
                     var matches = typeRegEx.exec(key);
