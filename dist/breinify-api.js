@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.16
+ * v1.0.17
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12863,7 +12863,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.16';
+        this.version = '1.0.17';
 
         /*
          * Validate the passed config-parameters.
@@ -13054,7 +13054,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.16';
+        instance.version = '1.0.17';
 
         // set the values provided
         instance.setAll(user);
@@ -13449,6 +13449,12 @@ dependencyScope.jQuery = $;;
             var utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
             var utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
 
+            // check if we even have parameters, otherwise return
+            if (Breinify.UTL.isEmpty(utmSource) && Breinify.UTL.isEmpty(utmMedium) && Breinify.UTL.isEmpty(utmCampaign) &&
+                Breinify.UTL.isEmpty(utmTerm) && Breinify.UTL.isEmpty(utmContent)) {
+                return;
+            }
+
             // create the data
             var values = mapper({
                 'utmSource': utmSource,
@@ -13549,7 +13555,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.16',
+        version: '1.0.17',
         jQueryVersion: $.fn.jquery
     };
 

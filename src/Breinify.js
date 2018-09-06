@@ -196,6 +196,12 @@
             var utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
             var utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
 
+            // check if we even have parameters, otherwise return
+            if (Breinify.UTL.isEmpty(utmSource) && Breinify.UTL.isEmpty(utmMedium) && Breinify.UTL.isEmpty(utmCampaign) &&
+                Breinify.UTL.isEmpty(utmTerm) && Breinify.UTL.isEmpty(utmContent)) {
+                return;
+            }
+
             // create the data
             var values = mapper({
                 'utmSource': utmSource,
