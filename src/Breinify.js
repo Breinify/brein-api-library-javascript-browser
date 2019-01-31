@@ -223,6 +223,11 @@
                     'activity': {
                         'type': 'clickedRecommendation'
                     }
+                },
+                'btrk': {
+                    'activity': {
+                        'type': 'clickedTracking'
+                    }
                 }
             };
 
