@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.17
+ * v1.0.18
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12863,7 +12863,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.17';
+        this.version = '1.0.18';
 
         /*
          * Validate the passed config-parameters.
@@ -13054,7 +13054,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.17';
+        instance.version = '1.0.18';
 
         // set the values provided
         instance.setAll(user);
@@ -13476,6 +13476,11 @@ dependencyScope.jQuery = $;;
                     'activity': {
                         'type': 'clickedRecommendation'
                     }
+                },
+                'btrk': {
+                    'activity': {
+                        'type': 'clickedTracking'
+                    }
                 }
             };
 
@@ -13555,7 +13560,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.17',
+        version: '1.0.18',
         jQueryVersion: $.fn.jquery
     };
 
