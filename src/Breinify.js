@@ -74,7 +74,7 @@
             // check which one of the functions can be used
             var func = null;
             if (containsRegEx) {
-                var typeRegEx = new RegExp('^'  + types.toString() + '$', 'i');
+                var typeRegEx = new RegExp('^' + types.toString() + '$', 'i');
 
                 Object.keys(pointer).forEach(function (key) {
                     var matches = typeRegEx.exec(key);
@@ -179,7 +179,7 @@
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
         },
 
-        handleUtmParameters: function() {
+        handleUtmParameters: function () {
 
             // get the mapper to be used
             var mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
@@ -259,14 +259,22 @@
                 return;
             }
 
-            var combinedValue = $.extend(true, {
+            // get the mapper to be used
+            var mapper = _config.get(ATTR_CONFIG.PARAMETERS_MAPPER);
+            if (typeof mapper !== 'function') {
+                mapper = function (data) {
+                    return data;
+                };
+            }
+
+            var combinedValue = mapper($.extend(true, {
                 'user': {},
                 'activity': {
                     'category': null,
                     'description': null,
                     'tags': {}
                 }
-            }, parsedValue, overrides);
+            }, parsedValue, overrides));
 
             // calculate a hash as unique identifier
             var hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));

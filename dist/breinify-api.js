@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.18
+ * v1.0.19
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12828,6 +12828,15 @@ dependencyScope.jQuery = $;;
             return value === true || value === false;
         }
     });
+    attributes.add('PARAMETERS_MAPPER', {
+        name: 'parametersMapper',
+        defaultValue: function (parametersData) {
+            return parametersData;
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('HANDLE_UTM', {
         name: 'handleUtm',
         defaultValue: false,
@@ -12837,7 +12846,7 @@ dependencyScope.jQuery = $;;
     });
     attributes.add('UTM_MAPPER', {
         name: 'utmMapper',
-        defaultValue: function(utmData, user) {
+        defaultValue: function (utmData, user) {
             return {
                 'utmData': utmData,
                 'user': user
@@ -12863,7 +12872,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.18';
+        this.version = '1.0.19';
 
         /*
          * Validate the passed config-parameters.
@@ -13054,7 +13063,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.18';
+        instance.version = '1.0.19';
 
         // set the values provided
         instance.setAll(user);
@@ -13327,7 +13336,7 @@ dependencyScope.jQuery = $;;
             // check which one of the functions can be used
             var func = null;
             if (containsRegEx) {
-                var typeRegEx = new RegExp('^'  + types.toString() + '$', 'i');
+                var typeRegEx = new RegExp('^' + types.toString() + '$', 'i');
 
                 Object.keys(pointer).forEach(function (key) {
                     var matches = typeRegEx.exec(key);
@@ -13432,7 +13441,7 @@ dependencyScope.jQuery = $;;
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
         },
 
-        handleUtmParameters: function() {
+        handleUtmParameters: function () {
 
             // get the mapper to be used
             var mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
@@ -13512,14 +13521,22 @@ dependencyScope.jQuery = $;;
                 return;
             }
 
-            var combinedValue = $.extend(true, {
+            // get the mapper to be used
+            var mapper = _config.get(ATTR_CONFIG.PARAMETERS_MAPPER);
+            if (typeof mapper !== 'function') {
+                mapper = function (data) {
+                    return data;
+                };
+            }
+
+            var combinedValue = mapper($.extend(true, {
                 'user': {},
                 'activity': {
                     'category': null,
                     'description': null,
                     'tags': {}
                 }
-            }, parsedValue, overrides);
+            }, parsedValue, overrides));
 
             // calculate a hash as unique identifier
             var hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
@@ -13560,7 +13577,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.18',
+        version: '1.0.19',
         jQueryVersion: $.fn.jquery
     };
 

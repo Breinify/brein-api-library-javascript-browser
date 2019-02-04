@@ -91,6 +91,15 @@
             return value === true || value === false;
         }
     });
+    attributes.add('PARAMETERS_MAPPER', {
+        name: 'parametersMapper',
+        defaultValue: function (parametersData) {
+            return parametersData;
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('HANDLE_UTM', {
         name: 'handleUtm',
         defaultValue: false,
@@ -100,7 +109,7 @@
     });
     attributes.add('UTM_MAPPER', {
         name: 'utmMapper',
-        defaultValue: function(utmData, user) {
+        defaultValue: function (utmData, user) {
             return {
                 'utmData': utmData,
                 'user': user
