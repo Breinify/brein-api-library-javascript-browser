@@ -297,6 +297,9 @@ The utility library provides general functionality, which makes it easy to retri
 * {mixed} **Breinify.UTL.getNested(obj, str1, str2, ...)**:<br/>
   Gets the value behind obj.str1.str2...
 
+* **Breinify.UTL.deleteNullProperties(obj)**:<br/>
+  Removed null and empty objects from the passed obj
+
 * {string} **Breinify.UTL.uuid()**:<br/>
   Creates a uuid.
 
