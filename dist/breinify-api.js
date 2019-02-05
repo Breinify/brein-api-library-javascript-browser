@@ -12697,6 +12697,27 @@ dependencyScope.jQuery = $;;
             return new Date().toString();
         },
 
+        deleteNullProperties: function (input) {
+            if (!$.isPlainObject(input)) {
+                return input;
+            }
+
+            for (var property in input) {
+                if (input.hasOwnProperty(property)) {
+                    if (input[property] === null) {
+                        delete input[property];
+                    } else if ($.isPlainObject(input[property])) {
+                        this.deleteNullProperties(input[property]);
+                        if ($.isEmptyObject(input[property])) {
+                            delete input[property];
+                        }
+                    } else {
+                        // nothing to do
+                    }
+                }
+            }
+        },
+
         getNested: function (obj /*, level1, level2, ... levelN*/) {
             if (!$.isPlainObject(obj) || obj === null) {
                 return null;
@@ -14121,6 +14142,7 @@ dependencyScope.jQuery = $;;
         localDateTime: function() { return new Date().toString(); },
         uuid: function() { return null; },
         getNested: function() { return null; },
+        deleteNullProperties: function(data) { return data; },
         endsWith: function() { return false; },
         _jquery: function() { return null; }
     };

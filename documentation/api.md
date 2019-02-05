@@ -28,6 +28,8 @@ This documentation is organized as following:
     * Breinify.UTL.timezone() [since version 1.0.1]
     * Breinify.UTL.localDateTime() [since version 1.0.1]
     * Breinify.UTL.endsWith() [since version 1.0.16]
+    * Breinify.UTL.getNested() [since version 1.0.17]
+    * Breinify.UTL.deleteNullProperties() [since version 1.0.18]
     * Breinify.UTL.uuid() [since version 1.0.13]
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
