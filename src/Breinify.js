@@ -374,27 +374,44 @@
 
         overload.overload({
             'Object,Function': function (user, callback) {
-                Breinify.recommendationUser(user, 3, null, false, function (data) {
+                Breinify.recommendationUser(user, {
+                    'numRecommendations': 3
+                }, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,Function': function (user, nrOfRecommendations, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, null, false, function (data) {
+                Breinify.recommendationUser(user, {
+                    'numRecommendations': nrOfRecommendations
+                }, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,String,Function': function (user, nrOfRecommendations, category, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, category, false, function (data) {
+                Breinify.recommendationUser(user, {
+                    'numRecommendations': nrOfRecommendations,
+                    'recommendationCategory': category
+                }, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,Boolean,Function': function (user, nrOfRecommendations, sign, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, null, sign, function (data) {
+                Breinify.recommendationUser(user, {
+                    'numRecommendations': nrOfRecommendations
+                }, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,Number,String,Boolean,Function': function (user, nrOfRecommendations, category, sign, callback) {
-                Breinify.recommendationUser(user, nrOfRecommendations, category, sign, function (data) {
+                Breinify.recommendationUser(user, {
+                    'numRecommendations': nrOfRecommendations,
+                    'recommendationCategory': category
+                }, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Object,Boolean,Function': function (user, recommendation, sign, callback) {
+                Breinify.recommendationUser(user, recommendation, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
             }
@@ -405,12 +422,11 @@
      * Creates a user instance and executes the specified method.
      *
      * @param user {object} the user-information
-     * @param nrOfRecommendations {number|null} the amount of recommendations to get
-     * @param category {string|null} contains an optional category for the recommendation
+     * @param recommendation the instance of the recommendations settings
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after successful user creation
      */
-    Breinify.recommendationUser = function (user, nrOfRecommendations, category, sign, onReady) {
+    Breinify.recommendationUser = function (user, recommendation, sign, onReady) {
 
         var _onReady = function (user) {
             if ($.isFunction(onReady)) {
@@ -449,10 +465,7 @@
             var data = {
                 'user': user.all(),
 
-                'recommendation': {
-                    'numRecommendations': nrOfRecommendations,
-                    'recommendationCategory': category
-                },
+                'recommendation': recommendation,
 
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
