@@ -13759,8 +13759,6 @@ dependencyScope.jQuery = $;;
                 'unixTimestamp': unixTimestamp
             };
 
-            console.log(JSON.stringify(data));
-
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
