@@ -162,7 +162,7 @@
             return type + unixTimestamp + amount;
         },
 
-        generateRecommendationMessage: function (amount, unixTimestamp) {
+        generateRecommendationMessage: function (recommendation, unixTimestamp) {
             return '' + unixTimestamp;
         },
 
@@ -410,6 +410,11 @@
                     _privates.ajax(url, data, callback, callback);
                 });
             },
+            'Object,Object,Function': function (user, recommendation, callback) {
+                Breinify.recommendationUser(user, recommendation, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
             'Object,Object,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
@@ -448,18 +453,17 @@
             // get the other values needed
             var unixTimestamp = BreinifyUtil.unixTimestamp();
             var signature = null;
+
             if (sign) {
                 var secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateRecommendationMessage(nrOfRecommendations, unixTimestamp);
+                    var message = _privates.generateRecommendationMessage(recommendation, unixTimestamp);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
                     return;
                 }
             }
-
-            category = typeof category === 'undefined' || category === null ? '' : category;
 
             // create the data set
             var data = {
@@ -471,6 +475,8 @@
                 'signature': signature,
                 'unixTimestamp': unixTimestamp
             };
+
+            console.log(JSON.stringify(data));
 
             if ($.isFunction(onReady)) {
                 _onReady(data);
