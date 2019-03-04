@@ -12438,7 +12438,7 @@ dependencyScope.jQuery = $;;
                 this.set(name, '', -1, true, specDomain);
             },
 
-            set: function (name, value, expiresInDays, global, specDomain) {
+            set: function (name, value, expiresInDays, global, specDomain, httpsOnly) {
 
                 var expires;
                 if (typeof expiresInDays === 'number') {
@@ -12456,8 +12456,15 @@ dependencyScope.jQuery = $;;
                     domain = '';
                 }
 
+                var secure;
+                if (httpsOnly === true) {
+                    secure = '; secure';
+                } else {
+                    secure = '';
+                }
+
                 var path = global === true ? '; path=/' : '';
-                document.cookie = name + '=' + value + expires + domain + path;
+                document.cookie = name + '=' + value + expires + domain + path + secure;
             },
 
             get: function (name) {
