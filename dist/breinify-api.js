@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.19
+ * v1.0.20
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12900,7 +12900,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.19';
+        this.version = '1.0.20';
 
         /*
          * Validate the passed config-parameters.
@@ -13091,7 +13091,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.19';
+        instance.version = '1.0.20';
 
         // set the values provided
         instance.setAll(user);
@@ -13593,8 +13593,21 @@ dependencyScope.jQuery = $;;
         },
 
         parseGetParameter: function (name, value) {
+
+            var base64;
+            if (typeof value !== 'string' || value === null) {
+                return null;
+            } else if (value.charAt(0) === '.') {
+                base64 = value.substr(1)
+                    .replace('/~/g', '+')
+                    .replace('/-/g', '/')
+                    .replace('/_/g', '=');
+            } else {
+                base64 = decodeURIComponent(value);
+            }
+
             try {
-                return JSON.parse(atob(decodeURIComponent(value)));
+                return JSON.parse(atob(base64));
             } catch (e) {
                 return null;
             }
@@ -13605,7 +13618,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.19',
+        version: '1.0.20',
         jQueryVersion: $.fn.jquery
     };
 

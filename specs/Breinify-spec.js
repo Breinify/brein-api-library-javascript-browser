@@ -117,4 +117,123 @@ describe('Breinify', function () {
             done();
         });
     });
+
+
+    //noinspection JSUnresolvedFunction
+    it('handlesGetParameters', function () {
+        var oldParams = Breinify.UTL.loc.params;
+        var oldActivity = Breinify.activity;
+
+        var test = [];
+        var value = {};
+
+        Breinify.activity = function (user, type, category, description, tags, sign, onReady) {
+
+            // create a unique new identifier for the test
+            test.push(true);
+
+            // add the information
+            value[test.length] = {
+                user: user,
+                type: type,
+                category: category,
+                description: description,
+                tags: tags,
+                sign: sign
+            };
+        };
+
+        // use some old configuration without any marker
+        Breinify.UTL.loc.params = function (done) {
+            return {
+                'brec': 'eyJ1c2VyIjogeyJlbWFpbCI6ICJwaGlsaXBwQG1laXNlbi5uZXQiLCJ1c2VySWQiOiAiNDAyODAxOTMxNTQifSwiYWN0aXZpdHkiOiB7InRhZ3MiOiB7InByb2R1Y3RQcmljZXMiOiBbMzkuOTldLCJwcm9kdWN0SWRzIjogWyIyMTg2Il0sIndpZGdldElkIjogIm1heUxpa2UyIiwid2lkZ2V0VHlwZSI6ICJpbWFnZSIsImNhbXBhaWduSWQiOiAiYmV2bW9GcmlkYXlFbWFpbHwyMDE5LTA0LTEyIiwiY2FtcGFpZ25UeXBlIjogImJldm1vRnJpZGF5RW1haWwifX19'
+            };
+        };
+        Breinify.setConfig({
+            'apiKey': '5555-064C-F007-4F92-A8DC-D06B-56B4-FAD8',
+            'category': 'other',
+            'handleParameters': true
+        });
+
+        // another old configuration without marker
+        Breinify.UTL.loc.params = function (done) {
+            return {
+                'brec': 'eyJ1c2VyIjogeyJlbWFpbCI6ICJwaGlsaXBwQG1laXNlbi5uZXQiLCJ1c2VySWQiOiAiNDAyODAxOTMxNTQifSwiYWN0aXZpdHkiOiB7InRhZ3MiOiB7InByb2R1Y3RQcmljZXMiOiBbMjYuOTldLCJwcm9kdWN0SWRzIjogWyI1MTIwNCJdLCJ3aWRnZXRJZCI6ICJtYXlMaWtlNCIsIndpZGdldFR5cGUiOiAiaW1hZ2UiLCJjYW1wYWlnbklkIjogImJldm1vRnJpZGF5RW1haWx8MjAxOS0wNC0xMiIsImNhbXBhaWduVHlwZSI6ICJiZXZtb0ZyaWRheUVtYWlsIn19fQ%3D%3D'
+            };
+        };
+        Breinify.setConfig({
+            'apiKey': '5555-064C-F007-4F92-A8DC-D06B-56B4-FAD8',
+            'category': 'other',
+            'handleParameters': true
+        });
+
+        // use some new configuration with the marker
+        Breinify.UTL.loc.params = function (done) {
+            return {
+                'brec': '.eyJhY3Rpdml0eSI6eyJ0eXBlIjoiY2xpY2tlZFJlY29tbWVuZGF0aW9uIiwidGFncyI6eyJwcm9kdWN0SWRzIjpbIjU0MTIzIl19fSwidXNlciI6eyJlbWFpbCI6InBoaWxpcHBAYnJlaW5pZnkuY29tIn19'
+            };
+        };
+        Breinify.setConfig({
+            'apiKey': '5555-064C-F007-4F92-A8DC-D06B-56B4-FAD8',
+            'category': 'other',
+            'handleParameters': true
+        });
+
+        // reset everything
+        Breinify.UTL.loc.params = oldParams;
+        Breinify.activity = oldActivity;
+
+        //noinspection JSUnresolvedFunction
+        expect(value).toEqual({
+            "1": {
+                "user": {
+                    "email": "philipp@meisen.net",
+                    "userId": "40280193154"
+                },
+                "type": "clickedRecommendation",
+                "category": null,
+                "description": null,
+                "tags": {
+                    "productPrices": [39.99],
+                    "productIds": ["2186"],
+                    "widgetId": "mayLike2",
+                    "widgetType": "image",
+                    "campaignId": "bevmoFridayEmail|2019-04-12",
+                    "campaignType": "bevmoFridayEmail"
+                },
+                "sign": null
+            },
+            "2": {
+                "user": {
+                    "email": "philipp@meisen.net",
+                    "userId": "40280193154"
+                },
+                "type": "clickedRecommendation",
+                "category": null,
+                "description": null,
+                "tags": {
+                    "productPrices": [26.99],
+                    "productIds": ["51204"],
+                    "widgetId": "mayLike4",
+                    "widgetType": "image",
+                    "campaignId": "bevmoFridayEmail|2019-04-12",
+                    "campaignType": "bevmoFridayEmail"
+                },
+                "sign": null
+            },
+            "3": {
+                "user": {
+                    "email": "philipp@breinify.com"
+                },
+                "type": "clickedRecommendation",
+                "category": null,
+                "description": null,
+                "tags": {
+                    "productIds": ["54123"]
+                },
+                "sign": null
+            }
+        });
+    });
+
 });
