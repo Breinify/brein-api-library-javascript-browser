@@ -91,7 +91,14 @@
         loc: {
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
-                url = typeof url === 'string' ? url : this.url();
+
+                // if the url is not passed in we use a special decoding for HTML entities
+                // to avoid this, just pass in the url
+                if (typeof url !== 'string') {
+                    var decoder = document.createElement('textarea');
+                    decoder.innerHTML = this.url();
+                    url = decoder.value;
+                }
 
                 paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
                 paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';

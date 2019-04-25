@@ -309,9 +309,9 @@
                 return null;
             } else if (value.charAt(0) === '.') {
                 base64 = value.substr(1)
-                    .replace('/~/g', '+')
-                    .replace('/-/g', '/')
-                    .replace('/_/g', '=');
+                    .replace(/~/g, '+')
+                    .replace(/-/g, '/')
+                    .replace(/_/g, '=');
             } else {
                 base64 = decodeURIComponent(value);
             }
