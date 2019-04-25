@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.20
+ * v1.0.21
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -12289,7 +12289,14 @@ dependencyScope.jQuery = $;;
         loc: {
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
-                url = typeof url === 'string' ? url : this.url();
+
+                // if the url is not passed in we use a special decoding for HTML entities
+                // to avoid this, just pass in the url
+                if (typeof url !== 'string') {
+                    var decoder = document.createElement('textarea');
+                    decoder.innerHTML = this.url();
+                    url = decoder.value;
+                }
 
                 paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
                 paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
@@ -12900,7 +12907,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.20';
+        this.version = '1.0.21';
 
         /*
          * Validate the passed config-parameters.
@@ -13091,7 +13098,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.20';
+        instance.version = '1.0.21';
 
         // set the values provided
         instance.setAll(user);
@@ -13599,9 +13606,9 @@ dependencyScope.jQuery = $;;
                 return null;
             } else if (value.charAt(0) === '.') {
                 base64 = value.substr(1)
-                    .replace('/~/g', '+')
-                    .replace('/-/g', '/')
-                    .replace('/_/g', '=');
+                    .replace(/~/g, '+')
+                    .replace(/-/g, '/')
+                    .replace(/_/g, '=');
             } else {
                 base64 = decodeURIComponent(value);
             }
@@ -13618,7 +13625,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.20',
+        version: '1.0.21',
         jQueryVersion: $.fn.jquery
     };
 
