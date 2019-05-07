@@ -119,6 +119,15 @@
             return value === null || typeof(value) === 'function';
         }
     });
+    attributes.add('CREATE_USER', {
+        name: 'createUser',
+        defaultValue: function () {
+            return {};
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('AJAX_TIMEOUT', {
         name: 'timeout',
         defaultValue: 4000,

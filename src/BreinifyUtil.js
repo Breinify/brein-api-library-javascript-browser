@@ -411,7 +411,16 @@
             sessionId: null,
 
             create: function (user) {
-                return $.extend(true, user, {
+
+                // get the create user from the configuration
+                var createUser = scope.Breinify.config()['createUser'];
+                if (typeof createUser !== 'function') {
+                    createUser = function () {
+                        return {};
+                    };
+                }
+
+                return $.extend(true, user, createUser(), {
                     sessionId: this.getSessionId(),
                     'additional': {
                         identifiers: {
