@@ -91,6 +91,17 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
+    it('can handle JSON cookies', function () {
+
+        // set some cookies
+        Breinify.UTL.cookie.setJson('json1', {'name': 'json1', 'value': 1});
+        Breinify.UTL.cookie.setJson('json2', {'name': 'json2', 'value': 2});
+
+        expect(Breinify.UTL.cookie.getJson('json1')).toEqual({'name': 'json1', 'value': 1});
+        expect(Breinify.UTL.cookie.getJson('json2')).toEqual({'name': 'json2', 'value': 2});
+    });
+
+    //noinspection JSUnresolvedFunction
     it('detects empty values', function () {
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable

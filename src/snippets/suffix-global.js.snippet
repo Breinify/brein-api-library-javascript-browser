@@ -86,6 +86,8 @@
         cookie: {
             cookieDomain: null,
             all: function () { return []; },
+            setJson: function() {},
+            getJson: function() { return null; },
             set: function() {},
             reset: function() {},
             get: function() { return null; },
@@ -109,8 +111,13 @@
             getAssignedGroup: function() { return null; }
         },
         events: {
+            observerInterval: null,
+            observables: {},
             click: function() {},
-            pageloaded: function() {}
+            pageloaded: function() {},
+            observeDomChange: function() { return null; },
+            removeAllDomObserver: function() {},
+            removeDomObserver: function() {}
         },
         internal: {
             isDevMode: function() { return false; },

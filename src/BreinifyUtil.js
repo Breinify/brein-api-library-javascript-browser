@@ -264,6 +264,31 @@
                 this.set(name, '', -1, true, specDomain);
             },
 
+            setJson: function (name, json, expiresInDays, global, specDomain, httpsOnly) {
+                if ($.isPlainObject(json)) {
+                    try {
+                        var encJson = btoa(JSON.stringify(json));
+                        this.set(name, encJson, expiresInDays, global, specDomain, httpsOnly);
+                    } catch (e) {
+                        this.reset(name, specDomain);
+                    }
+                } else {
+                    this.reset(name, specDomain);
+                }
+            },
+
+            getJson: function (name) {
+                if (this.check(name)) {
+                    try {
+                        return JSON.parse(atob(this.get(name)));
+                    } catch (e) {
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
+            },
+
             set: function (name, value, expiresInDays, global, specDomain, httpsOnly) {
 
                 var expires;
@@ -490,6 +515,9 @@
         },
 
         events: {
+            observerInterval: null,
+            observables: {},
+
             click: function (selector, func, onlyOnce) {
                 if ($.isFunction(func)) {
                     onlyOnce = typeof onlyOnce === 'boolean' ? onlyOnce : false;
@@ -505,6 +533,55 @@
             pageloaded: function (func) {
                 if ($.isFunction(func)) {
                     $(document).ready(func);
+                }
+            },
+
+            observeDomChange: function (selector, callback) {
+                var _self = this;
+
+                var id = BreinifyUtil.uuid();
+                this.observables[id] = {
+                    selector: selector,
+                    callback: typeof callback === 'function' ? callback : null
+                };
+
+                if (this.observerInterval === null) {
+                    this.observerInterval = setInterval(function () {
+                        $.each(_self.observables, function (elId, elParams) {
+                            var elSelector = elParams.selector;
+                            var elCallback = elParams.callback;
+
+                            $(elSelector).each(function () {
+                                var $el = $(this);
+
+                                if ($el.attr('data-brnfy-observation-triggered') !== 'true') {
+                                    $el.attr('data-brnfy-observation-triggered', 'true');
+
+                                    if (elCallback !== null) {
+                                        elCallback($el);
+                                    }
+                                }
+                            });
+                        });
+                    }, 50);
+                }
+
+                return id;
+            },
+
+            removeAllDomObserver: function (id) {
+                this.observables = {};
+                clearInterval(this.observerInterval);
+                this.observerInterval = null;
+            },
+
+            removeDomObserver: function (id) {
+                delete this.observables[id];
+
+                // if empty let's clean up
+                if ($.isEmptyObject(this.observables)) {
+                    clearInterval(this.observerInterval);
+                    this.observerInterval = null;
                 }
             }
         },

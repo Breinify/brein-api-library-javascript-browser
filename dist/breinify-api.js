@@ -13246,6 +13246,31 @@ dependencyScope.jQuery = $;;
                 this.set(name, '', -1, true, specDomain);
             },
 
+            setJson: function (name, json, expiresInDays, global, specDomain, httpsOnly) {
+                if ($.isPlainObject(json)) {
+                    try {
+                        var encJson = btoa(JSON.stringify(json));
+                        this.set(name, encJson, expiresInDays, global, specDomain, httpsOnly);
+                    } catch (e) {
+                        this.reset(name, specDomain);
+                    }
+                } else {
+                    this.reset(name, specDomain);
+                }
+            },
+
+            getJson: function (name) {
+                if (this.check(name)) {
+                    try {
+                        return JSON.parse(atob(this.get(name)));
+                    } catch (e) {
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
+            },
+
             set: function (name, value, expiresInDays, global, specDomain, httpsOnly) {
 
                 var expires;
@@ -13393,7 +13418,16 @@ dependencyScope.jQuery = $;;
             sessionId: null,
 
             create: function (user) {
-                return $.extend(true, user, {
+
+                // get the create user from the configuration
+                var createUser = scope.Breinify.config()['createUser'];
+                if (typeof createUser !== 'function') {
+                    createUser = function () {
+                        return {};
+                    };
+                }
+
+                return $.extend(true, user, createUser(), {
                     sessionId: this.getSessionId(),
                     'additional': {
                         identifiers: {
@@ -13463,6 +13497,9 @@ dependencyScope.jQuery = $;;
         },
 
         events: {
+            observerInterval: null,
+            observables: {},
+
             click: function (selector, func, onlyOnce) {
                 if ($.isFunction(func)) {
                     onlyOnce = typeof onlyOnce === 'boolean' ? onlyOnce : false;
@@ -13478,6 +13515,55 @@ dependencyScope.jQuery = $;;
             pageloaded: function (func) {
                 if ($.isFunction(func)) {
                     $(document).ready(func);
+                }
+            },
+
+            observeDomChange: function (selector, callback) {
+                var _self = this;
+
+                var id = BreinifyUtil.uuid();
+                this.observables[id] = {
+                    selector: selector,
+                    callback: typeof callback === 'function' ? callback : null
+                };
+
+                if (this.observerInterval === null) {
+                    this.observerInterval = setInterval(function () {
+                        $.each(_self.observables, function (elId, elParams) {
+                            var elSelector = elParams.selector;
+                            var elCallback = elParams.callback;
+
+                            $(elSelector).each(function () {
+                                var $el = $(this);
+
+                                if ($el.attr('data-brnfy-observation-triggered') !== 'true') {
+                                    $el.attr('data-brnfy-observation-triggered', 'true');
+
+                                    if (elCallback !== null) {
+                                        elCallback($el);
+                                    }
+                                }
+                            });
+                        });
+                    }, 50);
+                }
+
+                return id;
+            },
+
+            removeAllDomObserver: function (id) {
+                this.observables = {};
+                clearInterval(this.observerInterval);
+                this.observerInterval = null;
+            },
+
+            removeDomObserver: function (id) {
+                delete this.observables[id];
+
+                // if empty let's clean up
+                if ($.isEmptyObject(this.observables)) {
+                    clearInterval(this.observerInterval);
+                    this.observerInterval = null;
                 }
             }
         },
@@ -13859,6 +13945,15 @@ dependencyScope.jQuery = $;;
                 'utmData': utmData,
                 'user': user
             };
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
+    attributes.add('CREATE_USER', {
+        name: 'createUser',
+        defaultValue: function () {
+            return {};
         },
         validate: function (value) {
             return value === null || typeof(value) === 'function';
@@ -15185,6 +15280,8 @@ dependencyScope.jQuery = $;;
         cookie: {
             cookieDomain: null,
             all: function () { return []; },
+            setJson: function() {},
+            getJson: function() { return null; },
             set: function() {},
             reset: function() {},
             get: function() { return null; },
@@ -15208,8 +15305,13 @@ dependencyScope.jQuery = $;;
             getAssignedGroup: function() { return null; }
         },
         events: {
+            observerInterval: null,
+            observables: {},
             click: function() {},
-            pageloaded: function() {}
+            pageloaded: function() {},
+            observeDomChange: function() { return null; },
+            removeAllDomObserver: function() {},
+            removeDomObserver: function() {}
         },
         internal: {
             isDevMode: function() { return false; },
