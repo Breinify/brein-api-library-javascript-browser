@@ -295,9 +295,6 @@ module.exports = function (grunt) {
                 }
             },
             plugins: {
-                options: {
-                    banner: banner
-                },
                 files: {
                     'dist/breinify-activities.min.js': 'src/plugins/Activities.js',
                     'dist/breinify-alertme.min.js': 'src/plugins/AlertMe.js',
@@ -322,9 +319,6 @@ module.exports = function (grunt) {
                 ]
             },
             plugins: {
-                options: {
-                    banner: banner
-                },
                 files: [
                     {expand: true, cwd: 'src/plugins', src: 'Activities.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-activities.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'AlertMe.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-alertme.js' } },
