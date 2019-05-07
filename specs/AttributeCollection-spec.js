@@ -10,8 +10,6 @@ describe('AttributeCollection', function () {
 
         //noinspection JSUnresolvedFunction
         expect(typeof AttributeCollection).toBe('function');
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(typeof AttributeCollection).toBe('function');
     });
 
     //noinspection JSUnresolvedFunction

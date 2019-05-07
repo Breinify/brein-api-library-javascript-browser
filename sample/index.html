@@ -3,6 +3,9 @@
     <link rel="stylesheet" type="text/css" href="css/simple-sample.css">
 
     <script src="js/breinify-api.js"></script>
+    <script src="js/breinify-activities.js"></script>
+    <script src="js/breinify-alertme.js"></script>
+    <script src="js/breinify-sms.js"></script>
 
     <!-- just for test purposes we add another jQuery library -->
     <script src="js/jquery.js"></script>
@@ -38,10 +41,6 @@
 
         tr:nth-child(even) {
             background-color: #f2f2f2
-        }
-
-        tr.clickable {
-            cursor: pointer;
         }
 
         th {
@@ -110,44 +109,6 @@
 
 <div class="frame">
 
-    <h1>LookUp Data</h1>
-    <table data-sort="true">
-        <tr>
-            <th></th>
-            <th></th>
-        </tr>
-        <tr>
-            <td>Email:</td>
-            <td>
-                <label><input style="width:90%" type="text" name="email"></label>
-                <button id="dimension-lookup">...</button>
-            </td>
-        </tr>
-    </table>
-
-    <h1>LookUp Result</h1>
-    <table data-sort="true">
-        <tr>
-            <th>Dimension</th>
-            <th>Value</th>
-        </tr>
-        <tr id="dimension-email">
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
-
-    <h1>Recommendation Result</h1>
-    <table data-sort="true">
-        <tr>
-            <th>Recommendations</th>
-        </tr>
-        <tr id="recommendation-template" style="display: none; visibility: hidden;">
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
-
     <h1>TemporalData Result</h1>
     <table data-sort="true">
         <tr>
@@ -166,15 +127,15 @@
             <th>Property</th>
             <th>Value</th>
         </tr>
-        <tr class="clickable">
+        <tr>
             <td>Breinify Library Version</td>
             <td id="breinify-version"></td>
         </tr>
-        <tr class="clickable">
+        <tr>
             <td>Breinify jQuery Version</td>
             <td id="breinify-jquery-version"></td>
         </tr>
-        <tr class="clickable">
+        <tr>
             <td>External jQuery Version</td>
             <td id="external-jquery-version"></td>
         </tr>
@@ -186,7 +147,7 @@
             <th>Property</th>
             <th>Value</th>
         </tr>
-        <tr id="clonable-configuration-row" class="clickable" style="display:none">
+        <tr id="clonable-configuration-row" style="display:none">
             <td></td>
             <td></td>
         </tr>
@@ -270,28 +231,6 @@
         });
     }
 
-    Breinify.UTL.events.click('tr.clickable', function () {
-        var userEmail = Breinify.UTL.cookie.get('session-email');
-
-        if (!Breinify.UTL.isEmpty(userEmail)) {
-            var product = Breinify.UTL.text(Breinify.UTL.select(this, 'td:first'), false);
-            Breinify.activity({
-                'email': userEmail
-            }, 'selectProduct', null, product, null, false, function () {
-                show('Sent activity "selectProduct" with product "' + product + '".');
-            });
-        }
-    });
-
-    Breinify.UTL.events.click('#dimension-lookup', function () {
-        var userEmail = Breinify.UTL.text('input[name="email"]');
-
-        if (!Breinify.UTL.isEmpty(userEmail)) {
-            Breinify.UTL.cookie.set('session-email', userEmail, 1);
-            lookUp(userEmail);
-        }
-    });
-
     Breinify.UTL.events.pageloaded(function () {
         var userEmail = Breinify.UTL.cookie.get('session-email');
 
@@ -299,33 +238,10 @@
             Breinify.activity({
                 'email': userEmail
             }, 'login', null, null, null, false, function () {
-                lookUp(userEmail);
                 show('Sent activity "login" with user "' + userEmail + '".');
             });
         }
     });
-
-    var lookUp = function (userEmail) {
-
-        if (!Breinify.UTL.isEmpty(userEmail)) {
-            Breinify.lookup({
-                'email': userEmail
-            }, ['firstname'], false, function (data) {
-                show('Retrieved lookup result for "' + userEmail + '".');
-
-                var val;
-                if (Breinify.UTL.isEmpty(data)) {
-                    val = 'undefined';
-                } else {
-                    val = data.firstname.result + ' (' + data.firstname.accuracy + ')';
-                }
-
-                Breinify.UTL.setText('input[name="email"]', userEmail);
-                Breinify.UTL.setText('#dimension-email td:nth-child(1)', userEmail);
-                Breinify.UTL.setText('#dimension-email td:nth-child(2)', val);
-            });
-        }
-    };
 
     var temporalData = function () {
         Breinify.temporalData({}, null, function (data) {
@@ -349,31 +265,6 @@
         });
     };
 
-    var recommendation = function () {
-        Breinify.recommendation({'email': 'philipp.meisen@breinify.com'}, 1, function (data) {
-            var recommendations;
-            if ($.isPlainObject(data) && $.isArray(data.result)) {
-                recommendations = data.result;
-            } else {
-                recommendations = [];
-            }
-
-            var $template = $('#recommendation-template');
-
-            $.each(recommendations, function(idx, recommendation) {
-                var $row = $template.clone()
-                        .attr("id", "")
-                        .appendTo($template.parent())
-                        .css("visibility", "visible")
-                        .show();
-
-                $row.children("td:nth-child(1)").html("<pre><code>" +
-                        JSON.stringify(recommendation, null, 2) + "</code></pre>");
-            });
-        });
-    };
-
-    recommendation();
     temporalData();
 </script>
 

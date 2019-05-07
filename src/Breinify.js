@@ -783,6 +783,40 @@
     // bind the utilities to be available through Breinify
     Breinify.UTL = BreinifyUtil;
 
+    // also set a plug-ins instance, with the needed accessible stuff
+    Breinify.plugins = {
+        _overload: function () {
+            return overload;
+        },
+
+        _add: function(name, plugin, def) {
+            var defConfig = $.isPlainObject(def) ? def : {};
+
+            this[name] = $.extend({
+                config: defConfig,
+
+                setConfig: function(key, value) {
+                    if ($.isPlainObject(key) && (typeof value === 'undefined' || value == null)) {
+                        this.config = $.extend(this.config, key);
+                    } else if (typeof key === 'string') {
+                        this.config[key] = value;
+                    } else {
+                        // ignore
+                    }
+                },
+
+                getConfig: function(key, def) {
+                    var current = this.config[key];
+                    if (typeof current === 'undefined') {
+                        return typeof def === 'undefined' ? null : def;
+                    } else {
+                        return current;
+                    }
+                }
+            }, plugin);
+        }
+    };
+
     //noinspection JSUnresolvedFunction
     misc.export(scope, 'Breinify', Breinify);
 }(window, dependencyScope);

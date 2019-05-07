@@ -267,4 +267,31 @@ describe('BreinifyUtil', function () {
             parameters: null
         });
     });
+
+    //noinspection JSUnresolvedFunction
+    it('cbCollection', function (done) {
+        var collector = Breinify.UTL.internal.cbCollector({
+            '_callback': function (errors, results) {
+                expect(results.success).toBe('successful');
+                expect(results.error).toBe(undefined);
+                expect(errors.success).toBe(undefined);
+                expect(errors.error).toEqual(new Error('failed'));
+
+                done();
+            },
+            'success': function (error, data) {
+                this._set('success', error, data);
+            },
+            'error': function (error, data) {
+                this._set('error', error, data);
+            }
+        });
+
+        setTimeout(function () {
+            collector.success(null, 'successful')
+        }, 10);
+        setTimeout(function () {
+            collector.error(new Error('failed'))
+        }, 10);
+    });
 });

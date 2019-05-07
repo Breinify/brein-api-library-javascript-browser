@@ -64,6 +64,14 @@
         }
     };
     Breinify.UTL = {
+        constants: {
+            errors: {
+                prefix: {
+                    validation: '[VALIDATION] ',
+                    api: '[API] '
+                }
+            }
+        },
         loc: {
             params: function () { return []; },
             hasParam: function() { return false; },
@@ -76,15 +84,37 @@
             matches: function() { return false; }
         },
         cookie: {
+            cookieDomain: null,
             all: function () { return []; },
             set: function() {},
             reset: function() {},
             get: function() { return null; },
             check: function() { return false; },
+            domain: function () { return null; }
+        },
+        cookies: {
+            assignedGroup: 'x-breinify-ag',
+            sessionId: 'x-breinify-uuid',
+            browserId: 'x-breinify-bid',
+            delayedActivities: 'x-breinify-delayed'
+        },
+        user: {
+            assignedGroup: null,
+            sessionId: null,
+            browserId: null,
+            create: function() { return {}; },
+            getBrowserId: function() { return null; },
+            getSessionId: function() { return null; },
+            resetSessionId: function() { return null; },
+            getAssignedGroup: function() { return null; }
         },
         events: {
             click: function() {},
             pageloaded: function() {}
+        },
+        internal: {
+            isDevMode: function() { return false; },
+            cbCollector: function(collection) { return collection; }
         },
         select: function() { return null; },
         texts: function() { return []; },
@@ -104,6 +134,12 @@
         deleteNullProperties: function(data) { return data; },
         endsWith: function() { return false; },
         _jquery: function() { return null; }
+    };
+
+    // no additional plugins available
+    Breinify.plugins = {
+        _overload: function() { return { overload: function() {} } },
+        _add: function() {}
     };
 
     window['Breinify'] = Breinify;

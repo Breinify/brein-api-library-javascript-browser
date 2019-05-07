@@ -234,7 +234,7 @@ module.exports = function (grunt) {
         'string-replace': {
             combine: {
                 files: [{
-                    expand: true, cwd: 'src/', src: '**/*.js', dest: 'target/replaced'
+                    expand: true, cwd: 'src/', src: '*.js', dest: 'target/replaced'
                 }],
                 options: {
                     replacements: [
@@ -293,6 +293,16 @@ module.exports = function (grunt) {
                 files: {
                     'target/combined/<%= pkg.name %>.min.js': 'target/combined/<%= pkg.name %>.js'
                 }
+            },
+            plugins: {
+                options: {
+                    banner: banner
+                },
+                files: {
+                    'dist/breinify-activities.min.js': 'src/plugins/Activities.js',
+                    'dist/breinify-alertme.min.js': 'src/plugins/AlertMe.js',
+                    'dist/breinify-sms.min.js': 'src/plugins/Sms.js'
+                }
             }
         },
 
@@ -302,14 +312,23 @@ module.exports = function (grunt) {
         copy: {
             setup: {
                 files: [
-                    {expand: true, cwd: 'dist', src: '**/<%= pkg.name %>.js', dest: 'target/root/js'},
-                    {expand: true, cwd: 'dist', src: '**/<%= pkg.name %>.min.js', dest: 'target/root/js'},
+                    {expand: true, cwd: 'dist', src: '**/*.js', dest: 'target/root/js'},
                     {expand: true, cwd: 'sample', src: '**', dest: 'target/root'}
                 ]
             },
             dist: {
                 files: [
                     {expand: true, cwd: 'target/combined', src: '**/*.js', dest: 'dist'}
+                ]
+            },
+            plugins: {
+                options: {
+                    banner: banner
+                },
+                files: [
+                    {expand: true, cwd: 'src/plugins', src: 'Activities.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-activities.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'AlertMe.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-alertme.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'Sms.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-sms.js' } }
                 ]
             }
         },
@@ -319,13 +338,13 @@ module.exports = function (grunt) {
          */
         jasmine: {
             test: {
-                src: ['dist/<%= pkg.name %>.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-sms.js'],
                 options: {
                     specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
                 }
             },
             testWithJQuery: {
-                src: ['dist/<%= pkg.name %>.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-sms.js'],
                 options: {
                     vendor: ['node_modules/jquery/dist/jquery.js', 'node_modules/jasmine-jquery/lib/jasmine-jquery.js'],
                     specs: 'specs/**/*.jquery.js'
@@ -387,7 +406,7 @@ module.exports = function (grunt) {
     grunt.registerTask('dist', 'Distributes the file for deployment', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('clean:combine', 'clean:dist', 'combine:true', 'copy:dist');
+        grunt.task.run('clean:combine', 'clean:dist', 'combine:true', 'copy:dist', 'uglify:plugins', 'copy:plugins');
     });
 
     //noinspection JSUnresolvedFunction

@@ -88,6 +88,22 @@
     };
 
     var BreinifyUtil = {
+        cookies: {
+            assignedGroup: 'x-breinify-ag',
+            sessionId: 'x-breinify-uuid',
+            browserId: 'x-breinify-bid',
+            delayedActivities: 'x-breinify-delayed'
+        },
+
+        constants: {
+            errors: {
+                prefix: {
+                    validation: '[VALIDATION] ',
+                    api: '[API] '
+                }
+            }
+        },
+
         loc: {
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
@@ -210,6 +226,7 @@
         },
 
         cookie: {
+            cookieDomain: null,
 
             /**
              * Gets all the cookies currently defined and accessible or an empty object if there aren't any.
@@ -288,6 +305,178 @@
 
             check: function (cookie) {
                 return this.get(cookie) !== null;
+            },
+
+            domain: function () {
+
+                if (this.cookieDomain !== null) {
+                    return this.cookieDomain;
+                }
+
+                // check if one is configured
+                var configuredDomain = scope.Breinify.config()['cookieDomain'];
+                if (typeof configuredDomain === 'string' && configuredDomain.trim() !== '') {
+                    this.cookieDomain = '.' + configuredDomain;
+                    return this.cookieDomain;
+                }
+
+                var url = BreinifyUtil.loc.extract(BreinifyUtil.loc.url());
+
+                var domParts = url !== null && typeof url.domain === 'string' ? url.domain.split('.') : [];
+                var domPartsLen = domParts.length;
+
+                // local domain
+                if (domPartsLen === 0) {
+                    this.cookieDomain = null;
+                }
+                // any domain like localhost or just a server's name
+                else if (domPartsLen === 1) {
+                    if (domParts[0] === 'localhost') {
+                        return null;
+                    } else {
+                        this.cookieDomain = '.' + domParts[0];
+                    }
+                }
+                // even if this is the most common case it gets tricky (because of all the co.uk)
+                // we have two or more parts (so keep the last two), i.e., .[toplevel].[ending]
+                else {
+                    var possibleEnding = domParts[domPartsLen - 2] + '.' + domParts[domPartsLen - 1];
+
+                    // there are possible domain-endings with larger 6, but honestly when this is the case
+                    // use the configuration (cookieDomain)
+                    if (domPartsLen === 2 || possibleEnding.length > 6) {
+                        this.cookieDomain = '.' + possibleEnding;
+                    } else {
+                        this.cookieDomain = '.' + domParts[domPartsLen - 3] + '.' + possibleEnding;
+                    }
+                }
+
+                return this.cookieDomain;
+            }
+        },
+
+        internal: {
+            isDevMode: function () {
+
+                // we just assume that there is a variable set in the sessionStorage in Dev-Mode
+                try {
+                    return sessionStorage['breinify'] === 'true';
+                } catch (e) {
+                    return false;
+                }
+            },
+
+            cbCollector: function (collection) {
+                return $.extend({
+                    _expectedCounter: null,
+                    _errorCounter: 0,
+                    _resultCounter: 0,
+                    _errors: {},
+                    _results: {},
+                    _callback: function (errors, results) {
+                    },
+                    _check: function () {
+                        if (this._expectedCounter === null) {
+                            this._expectedCounter = 0;
+                            for (var key in this) {
+                                if (key.indexOf('_') !== 0 && this.hasOwnProperty(key)) {
+                                    this._expectedCounter++;
+                                }
+                            }
+                        }
+
+                        // check if we are done
+                        if (this._errorCounter + this._resultCounter === this._expectedCounter) {
+                            this._callback(this._errorCounter > 0 ? this._errors : null, this._resultCounter > 0 ? this._results : {});
+                        }
+                    },
+                    _set: function (property, error, data) {
+                        if (error === null) {
+                            this._results[property] = data;
+                            this._resultCounter++;
+                        } else {
+                            this._errors[property] = error;
+                            this._errorCounter++;
+                        }
+
+                        this._check();
+                    }
+                }, collection);
+            }
+        },
+
+        user: {
+            assignedGroup: null,
+            browserId: null,
+            sessionId: null,
+
+            create: function (user) {
+                return $.extend(true, user, {
+                    sessionId: this.getSessionId(),
+                    'additional': {
+                        identifiers: {
+                            browserId: this.getBrowserId(),
+                            assignedGroup: this.getAssignedGroup()
+                        }
+                    }
+                });
+            },
+
+            getBrowserId: function () {
+                var cookie = BreinifyUtil.cookies.browserId;
+                if (this.browserId !== null) {
+                    // nothing to do
+                } else if (BreinifyUtil.cookie.check(cookie)) {
+                    this.browserId = BreinifyUtil.cookie.get(cookie);
+                } else {
+                    this.browserId = BreinifyUtil.uuid();
+                    BreinifyUtil.cookie.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
+                }
+
+                return this.browserId;
+            },
+
+            getSessionId: function () {
+                var cookie = BreinifyUtil.cookies.sessionId;
+
+                if (this.sessionId !== null) {
+                    // nothing to do
+                } else if (BreinifyUtil.cookie.check(cookie)) {
+                    this.sessionId = BreinifyUtil.cookie.get(cookie);
+                } else {
+                    this.resetSessionId(false);
+                }
+
+                return this.sessionId;
+            },
+
+            resetSessionId: function (reset) {
+                if (reset === true || BreinifyUtil.isEmpty(this.sessionId)) {
+                    this.sessionId = BreinifyUtil.uuid();
+                }
+
+                var cookie = BreinifyUtil.cookies.sessionId;
+                BreinifyUtil.cookie.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
+
+                return this.sessionId;
+            },
+
+            getAssignedGroup: function () {
+
+                if (this.assignedGroup !== null) {
+                    // nothing to do
+                } else if (BreinifyUtil.internal.isDevMode()) {
+                    this.assignedGroup = 'DEV';
+                } else if (navigator.cookieEnabled === false) {
+                    this.assignedGroup = 'DISABLED';
+                } else if (BreinifyUtil.cookie.check(BreinifyUtil.cookies.assignedGroup)) {
+                    this.assignedGroup = BreinifyUtil.cookie.get(BreinifyUtil.cookies.assignedGroup);
+                } else {
+                    this.assignedGroup = (Math.floor(Math.random() * 100)) < 75 ? 'TEST' : 'CONTROL';
+                    BreinifyUtil.cookie.set(BreinifyUtil.cookies.assignedGroup, this.assignedGroup, 10 * 365, true, BreinifyUtil.cookie.domain());
+                }
+
+                return this.assignedGroup;
             }
         },
 

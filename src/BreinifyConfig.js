@@ -133,6 +133,13 @@
             return value === true || value === false;
         }
     });
+    attributes.add('COOKIE_DOMAIN', {
+        name: 'cookieDomain',
+        defaultValue: null,
+        validate: function (value) {
+            return value === null || typeof(value) === 'string';
+        }
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '{{PROJECT.VERSION}}';

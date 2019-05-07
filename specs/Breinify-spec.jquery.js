@@ -53,7 +53,19 @@ describe('Breinify ExternaljQuery - Fallback', function () {
             //noinspection JSUnresolvedFunction
             expect(window.failedBreinify.version).toBe('FALLBACK');
 
+            // remove any plugins and just keep general functionality
+            var plugins = window.loadedBreinify.plugins;
+            window.loadedBreinify.plugins = {};
+            for (var key in plugins) {
+                if (key.indexOf('_') === 0 && plugins.hasOwnProperty(key)) {
+                    window.loadedBreinify.plugins[key] = plugins[key];
+                }
+            }
+
             deepCompare(window.loadedBreinify, window.failedBreinify);
+
+            // reset the modification
+            window.loadedBreinify.plugins = plugins;
 
             done();
         }, 500);

@@ -9,7 +9,8 @@
   ],
   "main": "dist/breinify-api.js",
   "ignore": [
-    "src/**/*",
+    "src/*",
+    "src/snippets/*",
     "specs/**/*",
     "sample/**/*"
   ],
@@ -17,7 +18,7 @@
   "private": false,
   "homepage": "https://github.com/Breinify/brein-api-library-javascript-browser",
   "devDependencies": {
-    "jquery": "^2.2.4",
+    "jquery": "^3.4.1",
     "cryptojslib": "^3.1.2",
     "brein-util": "git+https://github.com/breinify/brein-javascript.git",
     "jstz": "*"
