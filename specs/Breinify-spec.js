@@ -187,6 +187,8 @@ describe('Breinify', function () {
         expect(value).toEqual({
             "1": {
                 "user": {
+                    "additional": value["1"].user.additional,
+                    "sessionId": value["1"].user.sessionId,
                     "email": "philipp@meisen.net",
                     "userId": "40280193154"
                 },
@@ -205,6 +207,8 @@ describe('Breinify', function () {
             },
             "2": {
                 "user": {
+                    "additional": value["2"].user.additional,
+                    "sessionId": value["2"].user.sessionId,
                     "email": "philipp@meisen.net",
                     "userId": "40280193154"
                 },
@@ -223,6 +227,8 @@ describe('Breinify', function () {
             },
             "3": {
                 "user": {
+                    "additional": value["3"].user.additional,
+                    "sessionId": value["3"].user.sessionId,
                     "email": "philipp@breinify.com"
                 },
                 "type": "clickedRecommendation",

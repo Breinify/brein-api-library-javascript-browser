@@ -14480,14 +14480,13 @@ dependencyScope.jQuery = $;;
             }
 
             // create the data
-            var user = Breinify.UTL.user.create();
             var result = mapper({
                 'utmSource': utmSource,
                 'utmMedium': utmMedium,
                 'utmCampaign': utmCampaign,
                 'utmTerm': utmTerm,
                 'utmContent': utmContent
-            }, user);
+            }, Breinify.UTL.user.create());
 
             // make sure we have a result and send the activity
             if ($.isPlainObject(result) && $.isPlainObject(result.user) && $.isPlainObject(result.utmData)) {
