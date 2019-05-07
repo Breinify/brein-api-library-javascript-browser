@@ -468,5 +468,5 @@
     };
 
     // bind the module
-    Breinify.plugins.activities = Activities;
+    Breinify.plugins._add('activities', Activities);
 })();
