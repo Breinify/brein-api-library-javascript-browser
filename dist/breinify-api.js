@@ -14480,17 +14480,18 @@ dependencyScope.jQuery = $;;
             }
 
             // create the data
-            var values = mapper({
+            var user = Breinify.UTL.user.create({});
+            var result = mapper({
                 'utmSource': utmSource,
                 'utmMedium': utmMedium,
                 'utmCampaign': utmCampaign,
                 'utmTerm': utmTerm,
                 'utmContent': utmContent
-            }, {});
+            }, user);
 
             // make sure we have a result and send the activity
-            if ($.isPlainObject(values) && $.isPlainObject(values.user) && $.isPlainObject(values.utmData)) {
-                Breinify.activity(values.user, 'utmData', null, null, values.utmData);
+            if ($.isPlainObject(result) && $.isPlainObject(result.user) && $.isPlainObject(result.utmData)) {
+                Breinify.activity(result.user, 'utmData', null, null, result.utmData);
             }
         },
 
