@@ -14480,7 +14480,7 @@ dependencyScope.jQuery = $;;
             }
 
             // create the data
-            var user = Breinify.UTL.user.create({});
+            var user = Breinify.UTL.user.create();
             var result = mapper({
                 'utmSource': utmSource,
                 'utmMedium': utmMedium,
@@ -14546,7 +14546,7 @@ dependencyScope.jQuery = $;;
             }
 
             var combinedValue = mapper($.extend(true, {
-                'user': {},
+                'user': Breinify.UTL.user.create(),
                 'activity': {
                     'category': null,
                     'description': null,
