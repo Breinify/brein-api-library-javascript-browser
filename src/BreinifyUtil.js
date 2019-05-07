@@ -308,7 +308,7 @@
                 }
 
                 var secure;
-                if (httpsOnly === true) {
+                if (httpsOnly === true || scope.Breinify.config()['cookieHttpsOnly'] === true) {
                     secure = '; secure';
                 } else {
                     secure = '';

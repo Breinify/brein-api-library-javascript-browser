@@ -149,6 +149,13 @@
             return value === null || typeof(value) === 'string';
         }
     });
+    attributes.add('COOKIE_HTTPS_ONLY', {
+        name: 'cookieHttpsOnly',
+        defaultValue: false,
+        validate: function (value) {
+            return value === null || typeof(value) === 'boolean';
+        }
+    });
 
     var BreinifyConfig = function (config) {
         this.version = '{{PROJECT.VERSION}}';

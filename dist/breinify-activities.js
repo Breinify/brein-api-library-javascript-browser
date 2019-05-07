@@ -12,7 +12,6 @@
 
     // create the AlertMe module
     var Activities = {
-
         pageVisit: function () {
             var type = 'pageVisit';
 
@@ -233,6 +232,163 @@
                     _self._send(type, user, tags);
                 }
             }, arguments, this);
+        },
+
+        /**
+         * Schedules (or overrides) a delayed activity sending.
+         * @param user {object} the user of the activity
+         * @param type {string} the type of the activity
+         * @param tags {object} the tags of the activity
+         * @param maxAgeInMs {number} the max age of the activity to be sent
+         * @param filter {string} the filter that is executed when the delayed activity is found and in time
+         * @param id {string} the identifier (optional), should be set to override an existing scheduled activity
+         * @returns {string} the id assigned to the activity
+         */
+        scheduleDelayedActivity: function (user, type, tags, maxAgeInMs, filter, id) {
+
+            // get the activity data
+            var activityData = {
+                user: user,
+                tags: tags,
+                type: type,
+                maxAgeInMs: maxAgeInMs,
+                filter: filter,
+                timestamp: new Date().getTime()
+            };
+
+            var cookieName = Breinify.UTL.cookies.delayedActivities;
+
+            // store the activity in a cookie that will be evaluated each run
+            var activitiesData = {};
+            if (Breinify.UTL.cookie.check(cookieName)) {
+                activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            }
+
+            // add the new activityData to the list
+            var activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
+            activitiesData[activityDataId] = activityData;
+
+            // reset the cookie (just session is fine)
+            var domain = Breinify.UTL.cookie.domain();
+            Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
+
+            // return the identifier
+            return activityDataId;
+        },
+
+        readDelayedActivityData: function (id) {
+            var cookieName = Breinify.UTL.cookies.delayedActivities;
+            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            if (!$.isPlainObject(activitiesData)) {
+                return null;
+            } else if ($.isPlainObject(activitiesData[id])) {
+                return activitiesData[id];
+            } else {
+                return null;
+            }
+        },
+
+        hasDelayedActivityData: function (input) {
+            var filter;
+            if (typeof input === 'string') {
+                filter = function (id) {
+                    return id === input;
+                };
+            } else if ($.isFunction(input)) {
+                filter = input;
+            } else if (input instanceof RegExp) {
+                filter = function (id) {
+                    return input.test(id);
+                };
+            } else {
+                filter = function () {
+                    return false;
+                };
+            }
+
+            var cookieName = Breinify.UTL.cookies.delayedActivities;
+            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            if (activitiesData === null || !$.isPlainObject(activitiesData)) {
+                return false;
+            } else {
+                return $.grep(activitiesData, filter).length > 0;
+            }
+        },
+
+        removeDelayedActivityData: function (id) {
+            var domain = Breinify.UTL.cookie.domain();
+            var cookieName = Breinify.UTL.cookies.delayedActivities;
+
+            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            delete activitiesData[id];
+
+            Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
+        },
+
+        checkDelayedActivityData: function () {
+            var cookieName = Breinify.UTL.cookies.delayedActivities;
+            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+
+            // check each activity after ready
+            var _self = this;
+            $.each(activitiesData, function (id, activityData) {
+                _self._checkDelayedActivityData(id, activityData);
+            });
+        },
+
+        _checkDelayedActivityData: function (id, activityData) {
+
+            if (typeof activityData.type !== 'string' ||
+                !($.isPlainObject(activityData.tags) || typeof activityData.tags === 'undefined' || activityData.tags === null) ||
+                !($.isPlainObject(activityData.user) || typeof activityData.user  === 'undefined' || activityData.user === null)) {
+                return;
+            }
+
+            // get the expiration
+            var now = new Date().getTime();
+            var expires = typeof activityData.maxAgeInMs === 'number' && activityData.maxAgeInMs > 0 ?
+                activityData.timestamp + activityData.maxAgeInMs : now;
+
+            // if expired remove directly
+            if (expires < now) {
+                this.removeDelayedActivityData(id);
+                return;
+            }
+
+            // otherwise let's see if we can handle the activity and find the function
+            var filter = activityData.filter;
+            var filterParts = typeof filter === 'string' ? filter.split('::') : [];
+
+            var funcName = null, instance = null;
+            if (filterParts.length === 3) {
+                var plugin = Breinify.plugins[filterParts[0]];
+                instance = $.isPlainObject(plugin) ? plugin[filterParts[1]] : null;
+                funcName = filterParts[2];
+            } else if (filterParts.length === 2) {
+                instance = Breinify.plugins[filterParts[0]];
+                funcName = filterParts[1];
+            } else if (filterParts.length === 1) {
+                instance = window;
+                funcName = filterParts[0];
+            } else {
+                instance = null;
+                funcName = null;
+            }
+
+            // make sure we have a function and execute it
+            if (typeof instance !== 'object' || typeof funcName !== 'string' || instance === null) {
+                this._send(activityData.type, activityData.user, activityData.tags);
+            } else if ($.isFunction(instance[funcName])) {
+                var _self = this;
+                instance[funcName].apply(instance, [id, activityData, function (id, activityData, sendAndRemoveActivity, removeActivity) {
+                    if (sendAndRemoveActivity === true) {
+                        _self._send(activityData.type, activityData.user, activityData.tags);
+                        _self.removeDelayedActivityData(id);
+                    } else if (removeActivity === true) {
+                        _self.removeDelayedActivityData(id);
+                    }
+                }]);
+            }
         },
 
         _productMethods: function (type) {
@@ -466,6 +622,11 @@
             });
         }
     };
+
+    // bind a check when breinify is ready
+    $(document).on('breinifyReady', function() {
+        Activities.checkDelayedActivityData();
+    });
 
     // bind the module
     Breinify.plugins._add('activities', Activities);

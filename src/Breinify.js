@@ -347,11 +347,18 @@
         //noinspection JSUnresolvedFunction
         _config = new BreinifyConfig(c);
 
+        // trigger the Breinify ready event on both jQuery instances
+        $(document).trigger('breinifyReady');
+        if (typeof window.$ === 'function' && typeof window.$.fn === 'function') {
+            window.$(document).trigger('breinifyReady');
+        }
+
         // if the parameters should be handled it's done directly after the configuration is set
         if (_config.get(ATTR_CONFIG.HANDLE_PARAMETERS) === true) {
             _privates.handleGetParameters();
         }
 
+        // check if UTM should be handled
         if (_config.get(ATTR_CONFIG.HANDLE_UTM) === true) {
             _privates.handleUtmParameters();
         }
@@ -789,13 +796,13 @@
             return overload;
         },
 
-        _add: function(name, plugin, def) {
+        _add: function (name, plugin, def) {
             var defConfig = $.isPlainObject(def) ? def : {};
 
             this[name] = $.extend({
                 config: defConfig,
 
-                setConfig: function(key, value) {
+                setConfig: function (key, value) {
                     if ($.isPlainObject(key) && (typeof value === 'undefined' || value == null)) {
                         this.config = $.extend(this.config, key);
                     } else if (typeof key === 'string') {
@@ -803,9 +810,14 @@
                     } else {
                         // ignore
                     }
+
+                    // trigger an onConfigChange
+                    if (typeof this['_onConfigChange'] === 'function') {
+                        this['_onConfigChange']();
+                    }
                 },
 
-                getConfig: function(key, def) {
+                getConfig: function (key, def) {
                     var current = this.config[key];
                     if (typeof current === 'undefined') {
                         return typeof def === 'undefined' ? null : def;
