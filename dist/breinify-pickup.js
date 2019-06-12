@@ -243,17 +243,4 @@
 
     // bind the module
     Breinify.plugins._add('pickUp', PickUp);
-
-Breinify.plugins.pickUp.addOrder('987654321', {
-        userId: 'ABC-DEF-GEH',
-        email: 'myshopping@email.com'
-    }, {
-        id: '14',
-        name: 'Portal Specific Store Name'
-    }, {
-        name: 'Philipp'
-    }, function (error, data) {
-        // if (error === null) { [handle data] } else { [handle error] }
-    });
-
 })();
