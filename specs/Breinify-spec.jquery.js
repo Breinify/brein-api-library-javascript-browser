@@ -39,7 +39,7 @@ describe('Breinify ExternaljQuery - Fallback', function () {
                 var failedPropVal = o2[property];
 
                 //noinspection JSUnresolvedFunction
-                expect([property, typeof propVal]).toEqual([property, typeof failedPropVal]);
+                expect([property, typeof propVal]).toEqual([property, failedPropVal == null ? typeof propVal : typeof failedPropVal]);
 
                 // do a deep comparision
                 if (typeof propVal === 'object' && typeof failedPropVal === 'object') {
