@@ -9,6 +9,7 @@
     var overload = Breinify.plugins._overload();
 
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
+    var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
     // create the AlertMe module
     var Activities = {
