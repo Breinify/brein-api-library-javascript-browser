@@ -13367,7 +13367,7 @@ dependencyScope.jQuery = $;;
 
                 // we just assume that there is a variable set in the sessionStorage in Dev-Mode
                 try {
-                    return sessionStorage['breinify'] === 'true';
+                    return window.sessionStorage['breinify'] === 'true';
                 } catch (e) {
                     return false;
                 }
