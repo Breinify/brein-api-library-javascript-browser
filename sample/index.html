@@ -7,6 +7,7 @@
     <script src="js/breinify-alertme.js"></script>
     <script src="js/breinify-pickup.js"></script>
     <script src="js/breinify-sms.js"></script>
+    <script src="js/breinify-ui-popup.js"></script>
 
     <!-- just for test purposes we add another jQuery library -->
     <script src="js/jquery.js"></script>
@@ -153,6 +154,18 @@
             <td></td>
         </tr>
     </table>
+
+    <h1>Ui Plugins</h1>
+    <table data-sort="true">
+        <tr>
+            <th>Plugin</th>
+            <th>Example</th>
+        </tr>
+        <tr>
+            <td>UiPopup</td>
+            <td><button id="popup-sample">Click Me</button></td>
+        </tr>
+    </table>
 </div>
 
 <script language="javascript">
@@ -267,6 +280,22 @@
     };
 
     temporalData();
+</script>
+
+<script language="javascript">
+    var popup = new Breinify.plugins.uiPopup.create('myId', {
+        showFooter: false,
+        maxWidth: 800
+    });
+    popup.setHeader('Breinify PopUp');
+    popup.addPage('<div>1 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>2 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>3 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>4 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+
+    $('#popup-sample').click(function() {
+        popup.show();
+    });
 </script>
 
 </body>
