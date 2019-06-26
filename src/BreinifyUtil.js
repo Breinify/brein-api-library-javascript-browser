@@ -809,19 +809,37 @@
             }
         },
 
-        getNested: function (obj /*, level1, level2, ... levelN*/) {
-            if (!$.isPlainObject(obj) || obj === null) {
-                return null;
-            }
+        getNestedByPath: function (obj, path) {
+            var paths = path.split('.');
+            var current = obj;
 
-            for (var pos = 1; pos < arguments.length; pos++) {
-                var property = arguments[pos];
-
-                if (!obj.hasOwnProperty(property)) {
+            for (var pos = 0; pos < paths.length; pos++) {
+                if (!$.isPlainObject(obj) || obj === null || typeof obj === 'undefined') {
                     return null;
                 }
 
-                obj = obj[property];
+                var property = paths[pos];
+                if (!obj.hasOwnProperty(property)) {
+                    return null;
+                } else {
+                    obj = obj[property];
+                }
+            }
+            return current;
+        },
+
+        getNested: function (obj /*, level1, level2, ... levelN*/) {
+            for (var pos = 1; pos < arguments.length; pos++) {
+                if (!$.isPlainObject(obj) || obj === null || typeof obj === 'undefined') {
+                    return null;
+                }
+
+                var property = arguments[pos];
+                if (!obj.hasOwnProperty(property)) {
+                    return null;
+                } else {
+                    obj = obj[property];
+                }
             }
 
             return obj;

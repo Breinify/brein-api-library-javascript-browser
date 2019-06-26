@@ -15,6 +15,12 @@
     var minHtml = "<div class=\"" + prefix + "\"><div class=\"" + prefix + "-content\"><div class=\"" + prefix + "-header\"><div style=\"display:inline-block\"></div><span class=\"" + prefix + "-close\">&times;</span></div><div class=\"" + prefix + "-pages\"></div><div class=\"" + prefix + "-footer\"></div></div></div>";
     var minCss = "<style id=\"" + prefix + "-style\">." + prefix + "{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:#000;background-color:rgba(0,0,0,.4)}." + prefix + "-content>." + prefix + "-header{padding-bottom:0;min-height:16px}." + prefix + "-content{background-color:#fefefe;margin:15% auto;padding:0px;border:1px solid #888;width:80%}." + prefix + "-close{line-height:12px;vertical-align:top;color:#aaa;float:right;font-size:28px;font-weight:700}." + prefix + "-close:focus,." + prefix + "-close:hover{color:#000;text-decoration:none;cursor:pointer}." + prefix + "-content>div{padding:10px}." + prefix + "-page{border:1px solid #e7e7e7;border-radius:4px;background:#f8f8f8 none repeat scroll 0 0;padding:10px 13px}</style>";
 
+    var defaultPages = {
+        'loading': '',
+        'success': '',
+        'error': ''
+    };
+
     var UiPopup = function UiPopup() {
     };
 
@@ -101,6 +107,10 @@
         this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
     };
 
+    UiPopup.prototype.setBindings = function (bindings) {
+        this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
+    };
+
     UiPopup.prototype.show = function (pageNr) {
         pageNr = this.validatePage(typeof pageNr === 'number' ? pageNr : 1);
         this.showPage(pageNr);
@@ -163,12 +173,20 @@
         this.$popup.show();
     };
 
-    UiPopup.prototype._applyBindings = function($el) {
+    UiPopup.prototype._applyBindings = function ($el) {
+        var $placeholder = $el.find('[data-breinify-placeholder!=""]');
+        $placeholder.each(function() {
+            var $el = $(this);
+            var placeholder = $el.attr('data-breinify-placeholder');
 
+            if (placeholder.startsWith())
+
+            $el.text();
+        });
     };
 
-    UiPopup.prototype._resetBindings = function($el) {
-
+    UiPopup.prototype._resetBindings = function ($el) {
+        var $placeholder = $el.find('[data-breinify-placeholder!=""]');
     };
 
     UiPopup.prototype.validatePage = function (pageNr) {
@@ -199,6 +217,15 @@
 
     // bind the module
     Breinify.plugins._add('uiPopup', {
+
+        getDefaultPage: function (id) {
+            var page = defaultPages[id];
+            if (typeof page !== 'string') {
+                return null;
+            } else {
+                return '' + page;
+            }
+        },
 
         create: function (id, options) {
             var popup = new UiPopup();

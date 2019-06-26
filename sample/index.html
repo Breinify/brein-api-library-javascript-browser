@@ -285,13 +285,20 @@
 <script language="javascript">
     var popup = new Breinify.plugins.uiPopup.create('myId', {
         showFooter: false,
-        maxWidth: 800
+        maxWidth: 800,
+        bindings: {
+            'samples': {
+                'string': 'a string',
+                'integer': 1,
+                'boolean': true
+            }
+        }
     });
     popup.setHeader('Breinify PopUp');
-    popup.addPage('<div>1 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>2 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>3 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>4 <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>1 <span data-breinify-placeholder="popup.currentPage"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>2 <span data-breinify-placeholder="samples.integer"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>3 <span data-breinify-placeholder="samples.string"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>4 <span data-breinify-placeholder="samples.boolean"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
 
     $('#popup-sample').click(function() {
         popup.show();
