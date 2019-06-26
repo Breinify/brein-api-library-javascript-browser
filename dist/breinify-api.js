@@ -15401,6 +15401,7 @@ dependencyScope.jQuery = $;;
         getNested: function() { return null; },
         deleteNullProperties: function(data) { return data; },
         endsWith: function() { return false; },
+        bindjQueryPlugins: function() {},
         _jquery: function() { return null; }
     };
 
