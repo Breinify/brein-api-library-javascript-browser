@@ -86,6 +86,13 @@
         this.id = id;
     };
 
+    UiPopup.prototype.css = function (selector, css) {
+        var $el = this.$popup.find(selector);
+        $el.css($.isPlainObject(css) ? css : {});
+
+        return css;
+    };
+
     UiPopup.prototype.find = function (selector) {
         return this.$popup.find(selector);
     };
