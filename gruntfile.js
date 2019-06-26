@@ -300,7 +300,8 @@ module.exports = function (grunt) {
                     'dist/breinify-alertme.min.js': 'src/plugins/AlertMe.js',
                     'dist/breinify-pickup.min.js': 'src/plugins/PickUp.js',
                     'dist/breinify-sms.min.js': 'src/plugins/Sms.js',
-                    'dist/breinify-ui-popup.min.js': 'src/plugins/UiPopup.js'
+                    'dist/breinify-ui-popup.min.js': 'src/plugins/UiPopup.js',
+                    'dist/breinify-ui-validator.min.js': 'src/plugins/UiValidator.js'
                 }
             }
         },
@@ -326,7 +327,8 @@ module.exports = function (grunt) {
                     {expand: true, cwd: 'src/plugins', src: 'AlertMe.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-alertme.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'PickUp.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-pickup.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Sms.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-sms.js' } },
-                    {expand: true, cwd: 'src/plugins', src: 'UiPopup.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-popup.js' } }
+                    {expand: true, cwd: 'src/plugins', src: 'UiPopup.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-popup.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'UiValidator.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-validator.js' } }
                 ]
             }
         },
@@ -336,13 +338,13 @@ module.exports = function (grunt) {
          */
         jasmine: {
             test: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-ui-validator.js'],
                 options: {
                     specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
                 }
             },
             testWithJQuery: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-ui-validator.js'],
                 options: {
                     vendor: ['node_modules/jquery/dist/jquery.js', 'node_modules/jasmine-jquery/lib/jasmine-jquery.js'],
                     specs: 'specs/**/*.jquery.js'

@@ -864,6 +864,28 @@
             }
         },
 
+        bindjQueryPlugins: function (plugins, jQuery) {
+            if (!$.isPlainObject(plugins)) {
+                return;
+            } else if (typeof jQuery === 'undefined') {
+                jQuery = $;
+            }
+
+            // first we take the windows jQuery
+            var wndjQuery = window.jQuery;
+            window.jQuery = jQuery;
+
+            $.each(plugins, function (key, plugin) {
+                if ($.isFunction(plugin)) {
+                    plugin();
+                } else {
+                    console.error('Unable to load plugin: ' + key);
+                }
+            });
+
+            window.jQuery = wndjQuery;
+        },
+
         _jquery: function () {
             return $;
         }
