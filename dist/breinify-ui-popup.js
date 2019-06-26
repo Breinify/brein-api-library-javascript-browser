@@ -30,7 +30,8 @@
             showClose: true,
             showFooter: true,
             header: null,
-            maxWidth: null
+            maxWidth: null,
+            bindings: null
         }, options);
 
         // make sure we have the minimal CSS needed
@@ -51,7 +52,7 @@
 
         // check if we show close
         var $close = this.$popup.find('.' + prefix + '-close');
-        if (this.getOption('showClose') === true) {
+        if (this.getOption('showClose', true) === true) {
             $close.show();
             $close.click(function () {
                 _self.hide();
@@ -62,14 +63,14 @@
 
         // check if we show the footer
         var $footer = this.$popup.find('.' + prefix + '-footer');
-        if (this.getOption('showFooter') === true) {
+        if (this.getOption('showFooter', true) === true) {
             $footer.show();
         } else {
             $footer.hide()
         }
 
         // check the maxWidth
-        var maxWidth = this.getOption('maxWidth');
+        var maxWidth = this.getOption('maxWidth', null);
         if (typeof maxWidth === 'number') {
             maxWidth = maxWidth + 'px';
         }
@@ -78,14 +79,15 @@
             $content.css('maxWidth', maxWidth);
         }
 
-        // set the header (using the options, explicit null)
+        // use some setters
+        this.setBindings(null);
         this.setHeader(null);
 
         this.id = id;
     };
 
     UiPopup.prototype.setBindings = function (bindings) {
-        this.bindings = $.isPlainObject(bindings) ? bindings : {};
+        this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
     };
 
     UiPopup.prototype.show = function (pageNr) {
@@ -168,11 +170,11 @@
 
     UiPopup.prototype.setHeader = function (header) {
         if (typeof header !== 'string') {
-            header = this.getOption('header');
+            header = this.getOption('header', '');
         }
 
         var $header = this.$popup.find('.' + prefix + '-header>div:first');
-        $header.text(header);
+        $header.html(header);
     };
 
     UiPopup.prototype.getOption = function (option, def) {
