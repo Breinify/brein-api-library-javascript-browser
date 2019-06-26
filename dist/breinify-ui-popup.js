@@ -167,6 +167,15 @@
         return $page;
     };
 
+    UiPopup.prototype.addDefaultPage = function (id) {
+        var page = defaultPages[id];
+        if (typeof page === 'string') {
+            return this.addPage(page);
+        } else {
+            return null;
+        }
+    };
+
     UiPopup.prototype.showNextPage = function () {
         this.showPage(this.currentPageNr + 1);
     };
@@ -260,15 +269,6 @@
 
     // bind the module
     Breinify.plugins._add('uiPopup', {
-
-        addDefaultPage: function (id) {
-            var page = defaultPages[id];
-            if (typeof page !== 'string') {
-                return null;
-            } else {
-                return '' + page;
-            }
-        },
 
         create: function (id, options) {
             var popup = new UiPopup();
