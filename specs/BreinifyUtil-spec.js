@@ -160,6 +160,20 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
+    it('getNestedByPath', function () {
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNestedByPath({})).toEqual({});
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNestedByPath(null)).toEqual(null);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNestedByPath()).toEqual(null);
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNestedByPath({a: {b: {c: 'value'}}}, 'a.b.c')).toEqual('value');
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.getNestedByPath({a: {b: {c: 'value'}}}, 'a.b.d')).toEqual(null);
+    });
+
+    //noinspection JSUnresolvedFunction
     it('endsWith', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.endsWith('abc', 'c')).toBe(true);

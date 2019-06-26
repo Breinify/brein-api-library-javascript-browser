@@ -295,10 +295,10 @@
         }
     });
     popup.setHeader('Breinify PopUp');
-    popup.addPage('<div>1 <span data-breinify-placeholder="popup.currentPage"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>2 <span data-breinify-placeholder="samples.integer"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>3 <span data-breinify-placeholder="samples.string"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>4 <span data-breinify-placeholder="samples.boolean"> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>1 <span data-breinify-placeholder="popup.currentPageNr"></span>/<span data-breinify-placeholder="popup.totalPageNr"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>2 <span data-breinify-placeholder="samples.integer"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>3 <span data-breinify-placeholder="samples.string"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    popup.addPage('<div>4 <span data-breinify-placeholder="samples.boolean"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
 
     $('#popup-sample').click(function() {
         popup.show();

@@ -158,13 +158,13 @@
             $currentPage.hide();
         }
 
+        // set the current-page it will become affective now
+        this.currentPageNr = pageNr;
         if (pageNr > 0) {
             var $page = this.$pages[pageNr - 1];
             this._applyBindings($page);
             $page.show();
         }
-
-        this.currentPageNr = pageNr;
 
         $('html')
             .css('marginRight', '15px')
@@ -174,14 +174,27 @@
     };
 
     UiPopup.prototype._applyBindings = function ($el) {
-        var $placeholder = $el.find('[data-breinify-placeholder!=""]');
-        $placeholder.each(function() {
-            var $el = $(this);
-            var placeholder = $el.attr('data-breinify-placeholder');
+        var _self = this;
 
-            if (placeholder.startsWith())
+        var $placeholders = $el.find('[data-breinify-placeholder]');
+        var popupPlaceholders = {
+            popup: {
+                currentPageNr: this.currentPageNr,
+                totalPageNr: this.$pages.length
+            }
+        };
+        $placeholders.each(function () {
+            var $placeholderEl = $(this);
+            var placeholder = $placeholderEl.attr('data-breinify-placeholder');
 
-            $el.text();
+            var value;
+            if (placeholder.indexOf('popup.') === 0) {
+                value = Breinify.UTL.getNestedByPath(popupPlaceholders, placeholder);
+            } else {
+                value = Breinify.UTL.getNestedByPath(_self.bindings, placeholder);
+            }
+
+            $placeholderEl.text(value);
         });
     };
 

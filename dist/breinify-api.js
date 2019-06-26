@@ -13792,9 +13792,7 @@ dependencyScope.jQuery = $;;
         },
 
         getNestedByPath: function (obj, path) {
-            var paths = path.split('.');
-            var current = obj;
-
+            var paths = typeof path === 'string' ? path.split('.') : [];
             for (var pos = 0; pos < paths.length; pos++) {
                 if (!$.isPlainObject(obj) || obj === null || typeof obj === 'undefined') {
                     return null;
@@ -13807,7 +13805,12 @@ dependencyScope.jQuery = $;;
                     obj = obj[property];
                 }
             }
-            return current;
+
+            if (typeof obj === 'undefined') {
+                return null;
+            } else {
+                return obj;
+            }
         },
 
         getNested: function (obj /*, level1, level2, ... levelN*/) {
@@ -13824,7 +13827,11 @@ dependencyScope.jQuery = $;;
                 }
             }
 
-            return obj;
+            if (typeof obj === 'undefined') {
+                return null;
+            } else {
+                return obj;
+            }
         },
 
         endsWith: function (str, suffix) {
