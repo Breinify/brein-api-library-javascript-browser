@@ -20,6 +20,18 @@
                 var mobileNumberRegEx = /\d{10}/i;
                 return mobileNumberRegEx.test(val);
             }
+        },
+
+        mandatory: function(val) {
+            if (typeof val === 'undefined') {
+                return false;
+            } else if (val === null) {
+                return false;
+            } else if (typeof val === 'string' && val.trim() === '') {
+                return false;
+            } else {
+                return true;
+            }
         }
     };
 
