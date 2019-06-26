@@ -84,6 +84,10 @@
         this.id = id;
     };
 
+    UiPopup.prototype.setBindings = function (bindings) {
+        this.bindings = $.isPlainObject(bindings) ? bindings : {};
+    };
+
     UiPopup.prototype.show = function (pageNr) {
         pageNr = this.validatePage(typeof pageNr === 'number' ? pageNr : 1);
         this.showPage(pageNr);
@@ -127,11 +131,13 @@
 
         if (this.currentPageNr !== 0) {
             var $currentPage = this.$pages[this.currentPageNr - 1];
+            this._resetBindings($currentPage);
             $currentPage.hide();
         }
 
         if (pageNr > 0) {
             var $page = this.$pages[pageNr - 1];
+            this._applyBindings($page);
             $page.show();
         }
 
@@ -142,6 +148,14 @@
             .css('overflow', 'hidden');
 
         this.$popup.show();
+    };
+
+    UiPopup.prototype._applyBindings = function($el) {
+
+    };
+
+    UiPopup.prototype._resetBindings = function($el) {
+
     };
 
     UiPopup.prototype.validatePage = function (pageNr) {
