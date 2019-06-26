@@ -86,6 +86,10 @@
         this.id = id;
     };
 
+    UiPopup.prototype.find = function (selector) {
+        return this.$popup.find(selector);
+    };
+
     UiPopup.prototype.setBindings = function (bindings) {
         this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
     };
