@@ -145,14 +145,15 @@
                 var timeParts = time.split('|');
                 var start = timeParts.length > 0 ? parseInt(timeParts[0]) : 9;
                 var end = timeParts.length > 1 ? parseInt(timeParts[1]) : 18;
+                var weekdays = timeParts.length > 2 ? parseInt(timeParts[2]) : 0;
                 var weekends = timeParts.length > 2 ? parseInt(timeParts[2]) : 0;
 
                 return {
-                    start: start * 60 * 60, end: end * 60 * 60, weekends: weekends === -1 || weekends === 1
+                    start: start * 60 * 60, end: end * 60 * 60, weekdays: weekends === -1 || weekends === 0, weekends: weekends === -1 || weekends === 1
                 }
             } else {
                 return {
-                    start: 9 * 60 * 60, end: 18 * 60 * 60, weekends: false
+                    start: 9 * 60 * 60, end: 18 * 60 * 60, weekdays: true, weekends: false
                 }
             }
         },
