@@ -28,7 +28,7 @@
         '   .' + alertMePrefix + '-set-alert-container .labeled { margin-bottom:5px;font-weight:bold; }' +
         '   .' + alertMePrefix + '-set-alert-container .centered { text-align:center; }' +
         '   .' + alertMePrefix + '-set-alert-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
-        '   .' + alertMePrefix + '-set-alert-container input, .' + alertMePrefix + '-set-alert-container select, { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
+        '   .' + alertMePrefix + '-set-alert-container input, .' + alertMePrefix + '-set-alert-container select { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
         '   .' + alertMePrefix + '-set-alert-container select { -moz-appearance:none;-webkit-appearance:none; }' +
         '   .' + alertMePrefix + '-set-alert-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
         '</style>' +
