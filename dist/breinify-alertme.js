@@ -15,127 +15,124 @@
     var AlertMe = {
 
         pages: {
+            setAlert: {
+                init: function (popup, $setAlertPage, settings) {
+                    var _self = this;
 
-            setAlert: function () {
-                return {
-                    init: function (popup, $setAlertPage, settings) {
-                        var _self = this;
+                    this.settings = settings;
+                    if (typeof this.settings.validator === 'object') {
+                        this.validator = this.settings.validator;
+                    } else if (typeof Breinify.plugins.uiValidator === 'object') {
+                        this.validator = Breinify.plugins.uiValidator;
+                    } else {
+                        this.validator = null;
+                    }
 
-                        this.settings = settings;
-                        if (typeof this.settings.validator === 'object') {
-                            this.validator = this.settings.validator;
-                        } else if (typeof Breinify.plugins.uiValidator === 'object') {
-                            this.validator = Breinify.plugins.uiValidator;
-                        } else {
-                            this.validator = null;
-                        }
+                    var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
+                    var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
+                    var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
 
-                        var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
-                        var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
-                        var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
-
-                        if (typeof $().mask === 'function') {
-                            $mobileInput
-                                .mask('(999) 999-9999')
-                                .on('propertychange change keyup input paste', function () {
-                                    _self.validate(popup, $setAlertPage);
-                                });
-                        } else {
-                            $mobileInput
-                                .on('propertychange change keyup input paste', function () {
-                                    _self.validate(popup, $setAlertPage);
-                                });
-                        }
-
-                        $timeInput.change(function () {
-                            _self.validate(popup, $setAlertPage);
-                        });
-
-                        $setAlertButton.click(function () {
-                            _self.sendAlert(popup, $setAlertPage);
-                        });
-
-                        this.validate(popup, $setAlertPage);
-                    },
-
-                    validate: function (popup, $setAlertPage) {
-                        var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
-                        var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
-                        var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
-
-                        var mobileNr = typeof $().mask === 'function' ? $mobileInput.data().mask.getCleanVal() : $mobileInput.val();
-                        var validMobileNr = this.validator !== null && this.validator.usMobile(mobileNr);
-
-                        var time = $timeInput.val();
-                        var validTime = this.validator !== null && this.validator.mandatory(time);
-
-                        if (validMobileNr && validTime) {
-                            popup.extendBindings({
-                                alert: {
-                                    time: AlertMe.parseTime(time),
-                                    mobileNr: mobileNr,
-                                    e164MobileNr: '+1' + mobileNr
-                                }
+                    if (typeof $().mask === 'function') {
+                        $mobileInput
+                            .mask('(999) 999-9999')
+                            .on('propertychange change keyup input paste', function () {
+                                _self.validate(popup, $setAlertPage);
                             });
-                            $setAlertButton.prop('disabled', false);
-                        } else {
-                            $setAlertButton.prop('disabled', true);
-                        }
-                    },
+                    } else {
+                        $mobileInput
+                            .on('propertychange change keyup input paste', function () {
+                                _self.validate(popup, $setAlertPage);
+                            });
+                    }
 
-                    sendAlert: function (popup, $setAlertPage) {
-                        var alert = popup.getBinding('alert');
-                        var location = popup.getBinding('location');
-                        var product = popup.getBinding('product');
-                        console.log(JSON.stringify(alert));
+                    $timeInput.change(function () {
+                        _self.validate(popup, $setAlertPage);
+                    });
 
-                        // AlertMe.set(alert.e164MobileNr, product, location, alert.time, function (error, data) {
-                        //
-                        // });
-                    },
+                    $setAlertButton.click(function () {
+                        _self.sendAlert(popup, $setAlertPage);
+                    });
 
-                    style:
-                    '<style id=\"' + alertMePrefix + '-set-alert-style\">' +
-                    '   .' + alertMePrefix + '-set-alert-container { color:#000;font-size:13px;line-height:17px; }' +
-                    '   .' + alertMePrefix + '-set-alert-container .paragraph { padding:10px 0 0 0; }' +
-                    '   .' + alertMePrefix + '-set-alert-container .labeled { margin-bottom:5px;font-weight:bold; }' +
-                    '   .' + alertMePrefix + '-set-alert-container .centered { text-align:center; }' +
-                    '   .' + alertMePrefix + '-set-alert-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
-                    '   .' + alertMePrefix + '-set-alert-container input, .' + alertMePrefix + '-set-alert-container select { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
-                    '   .' + alertMePrefix + '-set-alert-container select { -moz-appearance:none;-webkit-appearance:none; }' +
-                    '   .' + alertMePrefix + '-set-alert-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
-                    '   .' + alertMePrefix + '-set-alert-container button:disabled { cursor:not-allowed;border-color:#eeeeee;background:#cccccc; }' +
-                    '</style>',
+                    this.validate(popup, $setAlertPage);
+                },
 
-                    html:
-                    '<div class="' + alertMePrefix + '-set-alert-container">' +
-                    '   <div>You are about to set an alert to be informed via text message when <b data-breinify-placeholder=\"product.name\"></b> will be available at <span data-breinify-placeholder=\"company.name\"></span> within the next <span data-breinify-placeholder=\"settings.alertExpiresInDays\"></span> days. Setting an alert does not reserve the product, it notifies you when it is available.</div>' +
-                    '   <div class="paragraph">Please provide the following information:</div>' +
-                    '   <div class="paragraph">' +
-                    '       <div class="labeled"><label style="" for=\"' + alertMePrefix + '-mobile-number\">Mobile Number:</label></div>  ' +
-                    '       <div><input id=\"' + alertMePrefix + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
-                    '   </div>' +
-                    '   <div class="paragraph">' +
-                    '       <div class="labeled"><label for=\"' + alertMePrefix + '-alert-time\">Alert-Time (when available):</label></div>  ' +
-                    '       <div><select id=\"' + alertMePrefix + '-alert-time\">' +
-                    '           <option value=\"0|24|-1\">anytime, as soon as available</option>' +
-                    '           <option value=\"9|18|-1\">between 9:00am - 6:00pm</option>' +
-                    '           <option value=\"9|12|-1\">between 9:00am - noon</option>' +
-                    '           <option value=\"12|18|-1\">between noon - 6:00pm</option>' +
-                    '           <option value=\"9|18|0\">between 9:00am - 6:00pm (weekdays only)</option>' +
-                    '           <option value=\"9|18|1\">between 9:00am - 6:00pm (weekends only)</option>' +
-                    '           <option value=\"9|12|0\">between 9:00am - noon (weekdays only)</option>' +
-                    '           <option value=\"9|12|1\">between 9:00am - noon (weekends only)</option>' +
-                    '           <option value=\"12|18|0\">between noon - 6:00pm (weekdays only)</option>' +
-                    '           <option value=\"12|18|1\">between noon - 6:00pm (weekends only)</option>' +
-                    '       </select></div>' +
-                    '   </div>' +
-                    '   <div class="paragraph small-print">By setting this alert, you confirm that the entered mobile number is yours and that you consent to receive text messages to inform you about the alert. By providing your mobile number and signing up for alerts you agree to receive text messages that may be deemed marketing under applicable law, and that these messages may be sent using an autodialer. Your consent is not a condition of any purchase. Setting an alert is not a reservation of a product.</div>' +
-                    '   <div class="paragraph centered">' +
-                    '       <button id=\"' + alertMePrefix + '-set-alert\" type=\"submit\" title=\"Set Alert\"><span>Set Alert</span></button>' +
-                    '   </div>' +
-                    '</div>'
-                }
+                validate: function (popup, $setAlertPage) {
+                    var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
+                    var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
+                    var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
+
+                    var mobileNr = typeof $().mask === 'function' ? $mobileInput.data().mask.getCleanVal() : $mobileInput.val();
+                    var validMobileNr = this.validator !== null && this.validator.usMobile(mobileNr);
+
+                    var time = $timeInput.val();
+                    var validTime = this.validator !== null && this.validator.mandatory(time);
+
+                    if (validMobileNr && validTime) {
+                        popup.extendBindings({
+                            alert: {
+                                time: AlertMe.parseTime(time),
+                                mobileNr: mobileNr,
+                                e164MobileNr: '+1' + mobileNr
+                            }
+                        });
+                        $setAlertButton.prop('disabled', false);
+                    } else {
+                        $setAlertButton.prop('disabled', true);
+                    }
+                },
+
+                sendAlert: function (popup, $setAlertPage) {
+                    var alert = popup.getBinding('alert');
+                    var location = popup.getBinding('location');
+                    var product = popup.getBinding('product');
+                    console.log(JSON.stringify(alert));
+
+                    // AlertMe.set(alert.e164MobileNr, product, location, alert.time, function (error, data) {
+                    //
+                    // });
+                },
+
+                style:
+                '<style id=\"' + alertMePrefix + '-set-alert-style\">' +
+                '   .' + alertMePrefix + '-set-alert-container { color:#000;font-size:13px;line-height:17px; }' +
+                '   .' + alertMePrefix + '-set-alert-container .paragraph { padding:10px 0 0 0; }' +
+                '   .' + alertMePrefix + '-set-alert-container .labeled { margin-bottom:5px;font-weight:bold; }' +
+                '   .' + alertMePrefix + '-set-alert-container .centered { text-align:center; }' +
+                '   .' + alertMePrefix + '-set-alert-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
+                '   .' + alertMePrefix + '-set-alert-container input, .' + alertMePrefix + '-set-alert-container select { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
+                '   .' + alertMePrefix + '-set-alert-container select { -moz-appearance:none;-webkit-appearance:none; }' +
+                '   .' + alertMePrefix + '-set-alert-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
+                '   .' + alertMePrefix + '-set-alert-container button:disabled { cursor:not-allowed;border-color:#eeeeee;background:#cccccc; }' +
+                '</style>',
+
+                html:
+                '<div class="' + alertMePrefix + '-set-alert-container">' +
+                '   <div>You are about to set an alert to be informed via text message when <b data-breinify-placeholder=\"product.name\"></b> will be available at <span data-breinify-placeholder=\"company.name\"></span> within the next <span data-breinify-placeholder=\"settings.alertExpiresInDays\"></span> days. Setting an alert does not reserve the product, it notifies you when it is available.</div>' +
+                '   <div class="paragraph">Please provide the following information:</div>' +
+                '   <div class="paragraph">' +
+                '       <div class="labeled"><label style="" for=\"' + alertMePrefix + '-mobile-number\">Mobile Number:</label></div>  ' +
+                '       <div><input id=\"' + alertMePrefix + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
+                '   </div>' +
+                '   <div class="paragraph">' +
+                '       <div class="labeled"><label for=\"' + alertMePrefix + '-alert-time\">Alert-Time (when available):</label></div>  ' +
+                '       <div><select id=\"' + alertMePrefix + '-alert-time\">' +
+                '           <option value=\"0|24|-1\">anytime, as soon as available</option>' +
+                '           <option value=\"9|18|-1\">between 9:00am - 6:00pm</option>' +
+                '           <option value=\"9|12|-1\">between 9:00am - noon</option>' +
+                '           <option value=\"12|18|-1\">between noon - 6:00pm</option>' +
+                '           <option value=\"9|18|0\">between 9:00am - 6:00pm (weekdays only)</option>' +
+                '           <option value=\"9|18|1\">between 9:00am - 6:00pm (weekends only)</option>' +
+                '           <option value=\"9|12|0\">between 9:00am - noon (weekdays only)</option>' +
+                '           <option value=\"9|12|1\">between 9:00am - noon (weekends only)</option>' +
+                '           <option value=\"12|18|0\">between noon - 6:00pm (weekdays only)</option>' +
+                '           <option value=\"12|18|1\">between noon - 6:00pm (weekends only)</option>' +
+                '       </select></div>' +
+                '   </div>' +
+                '   <div class="paragraph small-print">By setting this alert, you confirm that the entered mobile number is yours and that you consent to receive text messages to inform you about the alert. By providing your mobile number and signing up for alerts you agree to receive text messages that may be deemed marketing under applicable law, and that these messages may be sent using an autodialer. Your consent is not a condition of any purchase. Setting an alert is not a reservation of a product.</div>' +
+                '   <div class="paragraph centered">' +
+                '       <button id=\"' + alertMePrefix + '-set-alert\" type=\"submit\" title=\"Set Alert\"><span>Set Alert</span></button>' +
+                '   </div>' +
+                '</div>'
             }
         },
 
