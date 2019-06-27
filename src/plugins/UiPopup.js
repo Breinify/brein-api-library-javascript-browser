@@ -129,8 +129,10 @@
 
         // check esc-handling
         if (this.getOption('closeOnEscape', true) === true) {
-            this.escHandler = function () {
-                _self.hide();
+            this.escHandler = function (event) {
+                if (event.keyCode === 27) {
+                    _self.hide();
+                }
             };
             $(document).bind('keyup', this.escHandler);
         } else {
