@@ -22,16 +22,26 @@
         'success': '',
         'error': '',
         'setAlert': '' +
-        '<div style="color:#000;font-size:13px;line-height:17px;">' +
+        '<style id=\"' + alertMePrefix + '-set-alert-style\">' +
+        '   .' + alertMePrefix + '-set-alert-container { color:#000;font-size:13px;line-height:17px; }' +
+        '   .' + alertMePrefix + '-set-alert-container .paragraph { padding:10px 0 0 0; }' +
+        '   .' + alertMePrefix + '-set-alert-container .labeled { margin-bottom:5px;font-weight:bold; }' +
+        '   .' + alertMePrefix + '-set-alert-container .centered { text-align:center; }' +
+        '   .' + alertMePrefix + '-set-alert-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
+        '   .' + alertMePrefix + '-set-alert-container input, .' + alertMePrefix + '-set-alert-container select, { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
+        '   .' + alertMePrefix + '-set-alert-container select { -moz-appearance:none;-webkit-appearance:none; }' +
+        '   .' + alertMePrefix + '-set-alert-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
+        '</style>' +
+        '<div class="' + alertMePrefix + '-set-alert-container">' +
         '   <div>You are about to set an alert to be informed via text message when <b data-breinify-placeholder=\"product.name\"></b> will be available at <span data-breinify-placeholder=\"company.name\"></span> within the next <span data-breinify-placeholder=\"settings.alertExpiresInDays\"></span> days. Setting an alert does not reserve the product, it notifies you when it is available.</div>' +
-        '   <div style="padding:10px 0 0 0">Please provide the following information:</div>' +
-        '   <div style="padding:10px 0 0 0">' +
-        '       <div style="margin-bottom:5px"><label style="font-weight:bold" for=\"' + alertMePrefix + '-mobile-number\">Mobile Number:</label></div>  ' +
-        '       <div><input style="font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999" id=\"' + alertMePrefix + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
+        '   <div class="paragraph">Please provide the following information:</div>' +
+        '   <div class="paragraph">' +
+        '       <div class="labeled"><label style="" for=\"' + alertMePrefix + '-mobile-number\">Mobile Number:</label></div>  ' +
+        '       <div><input id=\"' + alertMePrefix + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
         '   </div>' +
-        '   <div style="padding:10px 0 0 0">' +
-        '       <div style="margin-bottom:5px"><label style="font-weight:bold" for=\"' + alertMePrefix + '-alert-time\">Alert-Time (when available):</label></div>  ' +
-        '       <div><select style="-moz-appearance:none;-webkit-appearance:none;font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background:#fff no-repeat 98% 50%;border-radius:5px;border:1px solid #999999" id=\"' + alertMePrefix + '-alert-time\">' +
+        '   <div class="paragraph">' +
+        '       <div class="labeled"><label for=\"' + alertMePrefix + '-alert-time\">Alert-Time (when available):</label></div>  ' +
+        '       <div><select id=\"' + alertMePrefix + '-alert-time\">' +
         '           <option value=\"0|24|-1\">anytime, as soon as available</option>' +
         '           <option value=\"9|18|-1\">between 9:00am - 6:00pm</option>' +
         '           <option value=\"9|12|-1\">between 9:00am - noon</option>' +
@@ -44,9 +54,9 @@
         '           <option value=\"12|18|1\">between noon - 6:00pm (weekends only)</option>' +
         '       </select></div>' +
         '   </div>' +
-        '   <div style="padding:10px 0 0 0;font-size:10px;line-height:13px;font-weight:400;color:#222222;">By setting this alert, you confirm that the entered mobile number is yours and that you consent to receive text messages to inform you about the alert. By providing your mobile number and signing up for alerts you agree to receive text messages that may be deemed marketing under applicable law, and that these messages may be sent using an autodialer. Your consent is not a condition of any purchase. Setting an alert is not a reservation of a product.</div>' +
-        '   <div style="padding:10px 0 0 0;text-align:center;">' +
-        '       <button id=\"' + alertMePrefix + '-set-alert\" style=\"min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff;\" type=\"submit\" title=\"Set Alert\" disabled=\"\"><span>Set Alert</span></button>' +
+        '   <div class="paragraph small-print">By setting this alert, you confirm that the entered mobile number is yours and that you consent to receive text messages to inform you about the alert. By providing your mobile number and signing up for alerts you agree to receive text messages that may be deemed marketing under applicable law, and that these messages may be sent using an autodialer. Your consent is not a condition of any purchase. Setting an alert is not a reservation of a product.</div>' +
+        '   <div class="paragraph centered">' +
+        '       <button id=\"' + alertMePrefix + '-set-alert\" type=\"submit\" title=\"Set Alert\"><span>Set Alert</span></button>' +
         '   </div>' +
         '</div>'
     };
