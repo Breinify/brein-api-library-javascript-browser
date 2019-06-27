@@ -148,7 +148,7 @@
         }
     };
 
-    UiPopup.prototype.addPage = function (page, settings) {
+    UiPopup.prototype.addPage = function (page, pageSettings) {
 
         var code;
         var hasInit;
@@ -175,7 +175,7 @@
 
         // initialize the page now
         if (hasInit) {
-            page.init(this, $page, $.isPlainObject(settings) ? settings : {});
+            page.init(this, $page, $.isPlainObject(pageSettings) ? pageSettings : {});
         }
 
         return $page;
