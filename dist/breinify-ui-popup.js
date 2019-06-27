@@ -148,8 +148,8 @@
         this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
     };
 
-    UiPopup.prototype.setBindings = function (bindings) {
-        this.bindings = $.isPlainObject(bindings) ? bindings : this.getOption('bindings', {});
+    UiPopup.prototype.extendBindings = function (bindings) {
+        this.bindings = $.extend(true, {}, this.bindings, bindings);
     };
 
     UiPopup.prototype.show = function (pageNr) {
