@@ -174,8 +174,12 @@
             .css('overflow', '');
 
         this.$popup.hide();
+    };
+
+    UiPopup.prototype.destroy = function () {
         if (this.escHandler !== null) {
             $(document).unbind('keyup', this.escHandler);
+            this.escHandler = null;
         }
     };
 
