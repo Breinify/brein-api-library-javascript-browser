@@ -11,17 +11,10 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
-    var popupPrefix = "breinify-popup";
-    var alertMePrefix = 'breinify-alert-me';
+    var prefixCssPopup = "breinify-popup";
 
-    var minHtml = "<div class=\"" + popupPrefix + "\"><div class=\"" + popupPrefix + "-content\"><div class=\"" + popupPrefix + "-header\"><div style=\"display:inline-block\"></div><span class=\"" + popupPrefix + "-close\">&times;</span></div><div class=\"" + popupPrefix + "-pages\"></div><div class=\"" + popupPrefix + "-footer\"></div></div></div>";
-    var minCss = "<style id=\"" + popupPrefix + "-style\">." + popupPrefix + "{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:#000;background-color:rgba(0,0,0,.4)}." + popupPrefix + "-content>." + popupPrefix + "-header{padding-bottom:0;min-height:16px}." + popupPrefix + "-content{position:relative;background-color:#fefefe;margin:15% auto;padding:0px;border:1px solid #888;width:80%}." + popupPrefix + "-close{position:absolute;right:10px;top:10px;line-height:12px;vertical-align:top;color:#aaa;float:right;font-size:28px;font-weight:700}." + popupPrefix + "-close:focus,." + popupPrefix + "-close:hover{color:#000;text-decoration:none;cursor:pointer}." + popupPrefix + "-content>div{padding:10px}." + popupPrefix + "-page{border:1px solid #e7e7e7;border-radius:4px;background:#f8f8f8 none repeat scroll 0 0;padding:10px 13px}</style>";
-
-    var defaultPages = {
-        'loading': '',
-        'success': '',
-        'error': ''
-    };
+    var minHtml = "<div class=\"" + prefixCssPopup + "\"><div class=\"" + prefixCssPopup + "-content\"><div class=\"" + prefixCssPopup + "-header\"><div style=\"display:inline-block\"></div><span class=\"" + prefixCssPopup + "-close\">&times;</span></div><div class=\"" + prefixCssPopup + "-pages\"></div><div class=\"" + prefixCssPopup + "-footer\"></div></div></div>";
+    var minCss = "<style id=\"" + prefixCssPopup + "-style\">." + prefixCssPopup + "{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:#000;background-color:rgba(0,0,0,.4)}." + prefixCssPopup + "-content>." + prefixCssPopup + "-header{padding-bottom:0;min-height:16px}." + prefixCssPopup + "-content{position:relative;background-color:#fefefe;margin:15% auto;padding:0px;border:1px solid #888;width:80%}." + prefixCssPopup + "-close{position:absolute;right:10px;top:10px;line-height:12px;vertical-align:top;color:#aaa;float:right;font-size:28px;font-weight:700}." + prefixCssPopup + "-close:focus,." + prefixCssPopup + "-close:hover{color:#000;text-decoration:none;cursor:pointer}." + prefixCssPopup + "-content>div{padding:10px}." + prefixCssPopup + "-page{border:1px solid #e7e7e7;border-radius:4px;background:#f8f8f8 none repeat scroll 0 0;padding:10px 13px}</style>";
 
     var UiPopup = function UiPopup() {
     };
@@ -44,7 +37,7 @@
         }, options);
 
         // make sure we have the minimal CSS needed
-        if ($('#' + popupPrefix + '-style').length === 0) {
+        if ($('#' + prefixCssPopup + '-style').length === 0) {
             $body.append(minCss);
         }
 
@@ -60,7 +53,7 @@
         }
 
         // check if we show close
-        var $close = this.$popup.find('.' + popupPrefix + '-close');
+        var $close = this.$popup.find('.' + prefixCssPopup + '-close');
         if (this.getOption('showClose', true) === true) {
             $close.show();
             $close.click(function () {
@@ -71,7 +64,7 @@
         }
 
         // check if we show the footer
-        var $footer = this.$popup.find('.' + popupPrefix + '-footer');
+        var $footer = this.$popup.find('.' + prefixCssPopup + '-footer');
         if (this.getOption('showFooter', true) === true) {
             $footer.show();
         } else {
@@ -84,7 +77,7 @@
             maxWidth = maxWidth + 'px';
         }
         if (typeof maxWidth === 'string') {
-            var $content = this.$popup.find('.' + popupPrefix + '-content');
+            var $content = this.$popup.find('.' + prefixCssPopup + '-content');
             $content.css('maxWidth', maxWidth);
         }
 
@@ -171,8 +164,8 @@
             return null;
         }
 
-        var $pagesContainer = this.$popup.find('.' + popupPrefix + '-pages');
-        var $page = $('<div class="' + popupPrefix + '-page">' + code + '</div>');
+        var $pagesContainer = this.$popup.find('.' + prefixCssPopup + '-pages');
+        var $page = $('<div class="' + prefixCssPopup + '-page">' + code + '</div>');
 
         var pageNr = this.$pages.push($page);
         $page.attr('data-pageNr', pageNr);
@@ -186,11 +179,6 @@
         }
 
         return $page;
-    };
-
-    UiPopup.prototype.addDefaultPage = function (id, settings) {
-        var page = defaultPages[id];
-        this.addPage(page);
     };
 
     UiPopup.prototype.showNextPage = function () {
@@ -271,7 +259,7 @@
             header = this.getOption('header', '');
         }
 
-        var $header = this.$popup.find('.' + popupPrefix + '-header>div:first');
+        var $header = this.$popup.find('.' + prefixCssPopup + '-header>div:first');
         $header.html(header);
     };
 
