@@ -76,6 +76,7 @@
         this.options = $.extend(true, {
             showClose: true,
             showFooter: true,
+            closeOnEscape: true,
             header: null,
             maxWidth: null,
             bindings: null
@@ -126,6 +127,16 @@
             $content.css('maxWidth', maxWidth);
         }
 
+        // check esc-handling
+        if (this.getOption('closeOnEscape', true) === true) {
+            this.escHandler = function () {
+                _self.hide();
+            };
+            $(document).bind('keyup', this.escHandler);
+        } else {
+            this.escHandler = null;
+        }
+
         // use some setters
         this.setBindings(null);
         this.setHeader(null);
@@ -163,6 +174,9 @@
             .css('overflow', '');
 
         this.$popup.hide();
+        if (this.escHandler !== null) {
+            $(document).unbind('keyup', this.escHandler);
+        }
     };
 
     UiPopup.prototype.addPage = function (page) {
