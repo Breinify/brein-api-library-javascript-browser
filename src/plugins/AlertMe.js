@@ -88,6 +88,8 @@
                     var location = popup.getBinding('location');
                     var product = popup.getBinding('product');
                     console.log(JSON.stringify(alert));
+                    console.log(JSON.stringify(location));
+                    console.log(JSON.stringify(product));
 
                     // AlertMe.set(alert.e164MobileNr, product, location, alert.time, function (error, data) {
                     //
