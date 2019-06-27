@@ -33,17 +33,17 @@
                     $mobileInput
                         .mask('(999) 999-9999')
                         .on('propertychange change keyup input paste', function () {
-                            _self.validate($setAlertPage);
+                            _self.validate(popup, $setAlertPage);
                         });
                 } else {
                     $mobileInput
                         .on('propertychange change keyup input paste', function () {
-                            _self.validate($setAlertPage);
+                            _self.validate(popup, $setAlertPage);
                         });
                 }
 
                 $timeInput.change(function () {
-                    _self.validate($setAlertPage);
+                    _self.validate(popup, $setAlertPage);
                 });
 
                 $setAlertButton.click(function () {
