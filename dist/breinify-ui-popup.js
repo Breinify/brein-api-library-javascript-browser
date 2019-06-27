@@ -148,7 +148,7 @@
         }
     };
 
-    UiPopup.prototype.addPage = function (page) {
+    UiPopup.prototype.addPage = function (page, settings) {
 
         var code;
         var hasInit;
