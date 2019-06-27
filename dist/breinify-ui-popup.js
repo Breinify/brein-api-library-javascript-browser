@@ -22,7 +22,7 @@
         'success': '',
         'error': '',
         'setAlert': {
-            init: function ($setAlertPage) {
+            init: function (popup, $setAlertPage) {
                 var _self = this;
 
                 var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
@@ -50,9 +50,9 @@
 
                 });
 
-                this.validate($setAlertPage);
+                this.validate(popup, $setAlertPage);
             },
-            validate: function ($setAlertPage) {
+            validate: function (popup, $setAlertPage) {
                 var validator = typeof Breinify.plugins.uiValidator === 'object' ? Breinify.plugins.uiValidator : null;
 
                 var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
@@ -66,7 +66,7 @@
                 var validTime = validator !== null && validator.mandatory(time);
 
                 if (validMobileNr && validTime) {
-                    this.popup.extendBindings({
+                    popup.extendBindings({
                         alert: {
                             time: time,
                             mobileNr: mobileNr,
@@ -263,9 +263,9 @@
             var style = typeof page.style === 'string' ? page.style : '';
             var html = typeof page.html === 'string' ? page.html : '';
             var $page = this.addPage(style + html);
-            
+
             if ($.isFunction(page.init)) {
-                page.init($page);
+                page.init(this, $page);
             }
 
             return $page;
