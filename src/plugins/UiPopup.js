@@ -11,7 +11,9 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
-    var prefixCssPopup = "breinify-popup";
+    var prefixCssPopup = 'breinify-popup';
+    var prefixCssLoadPage = prefixCssPopup + '-page-load';
+    var prefixCssDonePage = prefixCssPopup + '-page-done';
 
     var minHtml = "<div class=\"" + prefixCssPopup + "\"><div class=\"" + prefixCssPopup + "-content\"><div class=\"" + prefixCssPopup + "-header\"><div style=\"display:inline-block\"></div><span class=\"" + prefixCssPopup + "-close\">&times;</span></div><div class=\"" + prefixCssPopup + "-pages\"></div><div class=\"" + prefixCssPopup + "-footer\"></div></div></div>";
     var minCss = "<style id=\"" + prefixCssPopup + "-style\">." + prefixCssPopup + "{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:#000;background-color:rgba(0,0,0,.4)}." + prefixCssPopup + "-content>." + prefixCssPopup + "-header{padding-bottom:0;min-height:16px}." + prefixCssPopup + "-content{position:relative;background-color:#fefefe;margin:15% auto;padding:0px;border:1px solid #888;width:80%}." + prefixCssPopup + "-close{position:absolute;right:10px;top:10px;line-height:12px;vertical-align:top;color:#aaa;float:right;font-size:28px;font-weight:700}." + prefixCssPopup + "-close:focus,." + prefixCssPopup + "-close:hover{color:#000;text-decoration:none;cursor:pointer}." + prefixCssPopup + "-content>div{padding:10px}." + prefixCssPopup + "-page{border:1px solid #e7e7e7;border-radius:4px;background:#f8f8f8 none repeat scroll 0 0;padding:10px 13px}</style>";
@@ -274,6 +276,110 @@
 
     // bind the module
     Breinify.plugins._add('uiPopup', {
+
+        pages: {
+            load: {
+                init: function (popup, $loadPage, settings) {
+                    this.settings = $.extend(true, {
+                        message: null
+                    }, settings);
+
+                    var $msgEl = $('#' + prefixCssLoadPage + '-message');
+                    if (typeof this.settings.message === 'string' && this.settings.message !== '') {
+                        $msgEl.html(this.settings.message);
+                    } else {
+                        $msgEl.html('');
+                    }
+                },
+                style:
+                '<style id="' + prefixCssLoadPage + '-style">' +
+                '.' + prefixCssLoadPage + '-container { text-align: center; }' +
+                '.' + prefixCssLoadPage + '-container svg { max-width: 150px;width: 100%;padding: 1em 0; }' +
+                '#' + prefixCssLoadPage + '-message { font-size: 1.5em;line-height: 1.5em; }' +
+                '#' + prefixCssLoadPage + '-svg { stroke-dasharray: 150, 200;stroke-dashoffset: -10;-webkit-animation: ' + prefixCssLoadPage + '-dash 1.5s ease-in-out infinite, ' + prefixCssLoadPage + '-color 6s ease-in-out infinite;animation: ' + prefixCssLoadPage + '-dash 1.5s ease-in-out infinite, ' + prefixCssLoadPage + '-color 6s ease-in-out infinite;stroke-width: 2px;stroke: #8EC343;fill: none; }' +
+                '@-webkit-keyframes ' + prefixCssLoadPage + '-dash {' +
+                '    0% { stroke-dasharray: 1, 200;stroke-dashoffset: 0; }' +
+                '    50% { stroke-dasharray: 89, 200;stroke-dashoffset: -35; }' +
+                '    100% { stroke-dasharray: 89, 200;stroke-dashoffset: -150; }' +
+                '}' +
+                '@keyframes ' + prefixCssLoadPage + '-dash {' +
+                '    0% { stroke-dasharray: 1, 200;stroke-dashoffset: 0; }' +
+                '    50% { stroke-dasharray: 89, 200;stroke-dashoffset: -35; }' +
+                '    100% { stroke-dasharray: 89, 200;stroke-dashoffset: -150; }' +
+                '}' +
+                '@-webkit-keyframes ' + prefixCssLoadPage + '-color { 0% { stroke: #8EC343; } 100% { stroke: #8EC343; } }' +
+                '@keyframes ' + prefixCssLoadPage + '-color { 0% { stroke: #8EC343; } 100% { stroke: #8EC343; } }' +
+                '</style>',
+                html:
+                '<div class="' + prefixCssLoadPage + '-container">' +
+                '  <svg xmlns="http://www.w3.org/2000/svg" viewBox="-263.5 236.5 26 26">' +
+                '    <circle id="' + prefixCssLoadPage + '-svg" cx="-250.5" cy="249.5" r="12">' +
+                '  </svg>' +
+                '  <div id="' + prefixCssLoadPage + '-message">' +
+                '  </div>' +
+                '</div>'
+            },
+            success: {
+                init: function (popup, $loadPage, settings) {
+                    this.settings = $.extend(true, {
+                        showCloseButton: false,
+                        closeButtonLabel: null,
+                        message: null
+                    }, settings);
+
+                    var $closeButton = $('#' + prefixCssDonePage + '-close-button');
+                    var hasButtonLabel = typeof this.settings.closeButtonLabel === 'string' && this.settings.closeButtonLabel !== ''
+                    if (hasButtonLabel === true && this.settings.showCloseButton === true) {
+                        $closeButton.click(function() {
+                            popup.hide();
+                        });
+                        $closeButton.show();
+                    } else {
+                        $closeButton.hide();
+                    }
+
+                    if (hasButtonLabel) {
+                        $closeButton.html(this.settings.closeButtonLabel);
+                    } else {
+                        $closeButton.html('');
+                    }
+
+                    var $msgEl = $('#' + prefixCssDonePage + '-message');
+                    if (typeof this.settings.message === 'string' && this.settings.message !== '') {
+                        $msgEl.html(this.settings.message);
+                    } else {
+                        $msgEl.html('');
+                    }
+                },
+                style:
+                '<style id="' + prefixCssDonePage + '-style">' +
+                '.' + prefixCssDonePage + '-container { text-align: center; }' +
+                '.' + prefixCssDonePage + '-container svg { max-width: 150px;width: 100%;padding: 1em 0; }' +
+                '#' + prefixCssDonePage + '-message { font-size: 1.5em;line-height: 1.5em; }' +
+                '.' + prefixCssDonePage + '-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#cccccc;background:#cccccc;color:#fff; }' +
+                '.' + prefixCssDonePage + '-container button:disabled { cursor:not-allowed;border-color:#eeeeee;background:#cccccc; }' +
+                '#' + prefixCssDonePage + '-svg { stroke-width: 2px;stroke: #8EC343;fill: none; }' +
+                '#' + prefixCssDonePage + '-svg path { stroke-dasharray: 17px,17px;stroke-dashoffset: 0px;-webkit-animation: ' + prefixCssDonePage + '-checkmark 0.25s ease-in-out 0.7s backwards;animation: ' + prefixCssDonePage + '-checkmark 0.25s ease-in-out 0.7s backwards; }' +
+                '#' + prefixCssDonePage + '-svg circle { stroke-dasharray: 76px, 76px;stroke-dashoffset: 0pxtransform-origin: 50% 50%;-webkit-animation: ' + prefixCssDonePage + '-checkmark-circle 0.6s ease-in-out forwards;animation: ' + prefixCssDonePage + '-checkmark-circle 0.6s ease-in-out forwards;' +
+                '}' +
+                '@keyframes ' + prefixCssDonePage + '-checkmark { 0% { stroke-dashoffset: 17px; } 100% { stroke-dashoffset: 0 } }' +
+                '@keyframes ' + prefixCssDonePage + '-checkmark-circle { 0% { stroke-dashoffset: 76px; } 100% { stroke-dashoffset: 0px; } }' +
+                '</style>',
+                html:
+                '<div class="' + prefixCssDonePage + '-container">' +
+                '  <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="-263.5 236.5 26 26">' +
+                '    <g id="' + prefixCssDonePage + '-svg">' +
+                '      <circle cx="-250.5" cy="249.5" r="12"></circle>' +
+                '      <path d="M-256.46 249.65l3.9 3.74 8.02-7.8"></path>' +
+                '    </g>' +
+                '  </svg>' +
+                '  <div>' +
+                '    <div id="' + prefixCssDonePage + '-message"></div>' +
+                '    <button id="' + prefixCssDonePage + '-close-button" class="button"></button>' +
+                '  </div>' +
+                '</div>'
+            }
+        },
 
         create: function (id, options) {
             var popup = new UiPopup();

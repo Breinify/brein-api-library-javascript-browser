@@ -157,7 +157,7 @@
     </table>
 
     <h1>Ui Plugins</h1>
-    <table data-sort="true">
+    <table data-sort="false">
         <tr>
             <th>Plugin</th>
             <th>Example</th>
@@ -165,6 +165,10 @@
         <tr>
             <td>UiPopup</td>
             <td><button id="popup-sample">Click Me</button></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><button id="popup-alert-me">Alert Me</button></td>
         </tr>
     </table>
 </div>
@@ -284,7 +288,7 @@
 </script>
 
 <script language="javascript">
-    var popup = new Breinify.plugins.uiPopup.create('myId', {
+    var samplePopup = new Breinify.plugins.uiPopup.create('samplePopup', {
         showFooter: false,
         maxWidth: 800,
         bindings: {
@@ -295,14 +299,62 @@
             }
         }
     });
-    popup.setHeader('Breinify PopUp');
-    popup.addPage('<div>1 <span data-breinify-placeholder="popup.currentPageNr"></span>/<span data-breinify-placeholder="popup.totalPageNr"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>2 <span data-breinify-placeholder="samples.integer"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>3 <span data-breinify-placeholder="samples.string"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
-    popup.addPage('<div>4 <span data-breinify-placeholder="samples.boolean"></span> <button onClick="popup.showPrevPage()">Prev</button> <button onClick="popup.showNextPage()">Next</button></div>');
+    samplePopup.setHeader('Breinify PopUp');
+    samplePopup.addPage('<div>1 <span data-breinify-placeholder="popup.currentPageNr"></span>/<span data-breinify-placeholder="popup.totalPageNr"></span> <button onClick="samplePopup.showPrevPage()">Prev</button> <button onClick="samplePopup.showNextPage()">Next</button></div>');
+    samplePopup.addPage('<div>2 <span data-breinify-placeholder="samples.integer"></span> <button onClick="samplePopup.showPrevPage()">Prev</button> <button onClick="samplePopup.showNextPage()">Next</button></div>');
+    samplePopup.addPage('<div>3 <span data-breinify-placeholder="samples.string"></span> <button onClick="samplePopup.showPrevPage()">Prev</button> <button onClick="samplePopup.showNextPage()">Next</button></div>');
+    samplePopup.addPage('<div>4 <span data-breinify-placeholder="samples.boolean"></span> <button onClick="samplePopup.showPrevPage()">Prev</button> <button onClick="samplePopup.showNextPage()">Next</button></div>');
 
     $('#popup-sample').click(function() {
-        popup.show();
+        samplePopup.show();
+    });
+
+    var alertMePopup = new Breinify.plugins.uiPopup.create('alertMePopup', {
+        showFooter: false,
+        maxWidth: 800,
+        bindings: {
+            'product': {
+                'name': 'Sample Product',
+                'sku': '12345'
+            },
+            'location': {
+                'name': 'Sample World',
+                'id': 'SAMPLE_WORLD',
+                type: 'delivery'
+            }
+        }
+    });
+    alertMePopup.setHeader('<span style="font-size:20px;line-height:30px">Breinify AlertMe</span>');
+    alertMePopup.css('.breinify-popup-header', {
+        'textAlign': 'center'
+    });
+    alertMePopup.addPage(Breinify.plugins.alertMe.pages.setAlert, {
+        onPreSet: function(popup, $page, data) {
+            popup.showPage(2);
+        },
+        onSuccess: function(popup, $page, data) {
+            popup.showPage(3);
+        },
+        onError: function(popup, $page, error) {
+            //popup.displayError();
+            setTimeout(function() {
+                popup.showPage(3);
+            }, 1000);
+        }
+    });
+    alertMePopup.addPage(Breinify.plugins.uiPopup.pages.load);
+    var $successPage = alertMePopup.addPage(Breinify.plugins.uiPopup.pages.success, {
+        showCloseButton: true,
+        closeButtonLabel: 'Close',
+        message: '<div style="padding: 5px 0 15px 0;">We sent you a text-message!<br/>Please check your phone and confirm the alert.</div>'
+    });
+
+    $successPage.find('button').css({
+
+    });
+
+    $('#popup-alert-me').click(function() {
+        alertMePopup.show();
     });
 </script>
 

@@ -12,7 +12,7 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
-    var prefixCssAlertMe = 'breinify-alert-me';
+    var prefixCssSetAlertPage = 'breinify-alert-me-page-set';
 
     var AlertMe = {
 
@@ -21,7 +21,7 @@
                 init: function (popup, $setAlertPage, settings) {
                     var _self = this;
 
-                    this.settings = settings;
+                    this.settings = $.isPlainObject(settings) ? settings : {};
                     if (typeof this.settings.validator === 'object') {
                         this.validator = this.settings.validator;
                     } else if (typeof Breinify.plugins.uiValidator === 'object') {
@@ -30,9 +30,9 @@
                         this.validator = null;
                     }
 
-                    var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
-                    var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
-                    var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
+                    var $mobileInput = $setAlertPage.find('#' + prefixCssSetAlertPage + '-mobile-number');
+                    var $timeInput = $setAlertPage.find('#' + prefixCssSetAlertPage + '-alert-time');
+                    var $setAlertButton = $setAlertPage.find('#' + prefixCssSetAlertPage + '-confirm');
 
                     if (typeof $().mask === 'function') {
                         $mobileInput
@@ -52,16 +52,16 @@
                     });
 
                     $setAlertButton.click(function () {
-                        _self.sendAlert(popup, $setAlertPage);
+                        _self.setAlert(popup, $setAlertPage);
                     });
 
                     this.validate(popup, $setAlertPage);
                 },
 
                 validate: function (popup, $setAlertPage) {
-                    var $mobileInput = $setAlertPage.find('#breinify-alert-me-mobile-number');
-                    var $timeInput = $setAlertPage.find('#breinify-alert-me-alert-time');
-                    var $setAlertButton = $setAlertPage.find('#breinify-alert-me-set-alert');
+                    var $mobileInput = $setAlertPage.find('#' + prefixCssSetAlertPage + '-mobile-number');
+                    var $timeInput = $setAlertPage.find('#' + prefixCssSetAlertPage + '-alert-time');
+                    var $setAlertButton = $setAlertPage.find('#' + prefixCssSetAlertPage + '-confirm');
 
                     var mobileNr = typeof $().mask === 'function' ? $mobileInput.data().mask.getCleanVal() : $mobileInput.val();
                     var validMobileNr = this.validator !== null && this.validator.usMobile(mobileNr);
@@ -72,7 +72,10 @@
                     if (validMobileNr && validTime) {
                         popup.extendBindings({
                             alert: {
-                                time: AlertMe.parseTime(time),
+
+                                // don't use the AlertMe object directly, things may have
+                                // changed when the plugin was added
+                                time: Breinify.plugins.alertMe.parseTime(time),
                                 mobileNr: mobileNr,
                                 e164MobileNr: '+1' + mobileNr
                             }
@@ -83,43 +86,62 @@
                     }
                 },
 
-                sendAlert: function (popup, $setAlertPage) {
+                setAlert: function (popup, $setAlertPage, cb) {
                     var alert = popup.getBinding('alert');
                     var location = popup.getBinding('location');
                     var product = popup.getBinding('product');
-                    console.log(JSON.stringify(alert));
-                    console.log(JSON.stringify(location));
-                    console.log(JSON.stringify(product));
 
-                    // AlertMe.set(alert.e164MobileNr, product, location, alert.time, function (error, data) {
-                    //
-                    // });
+                    if ($.isFunction(this.settings.onPreSet)) {
+                        var result = this.settings.onPreSet(popup, $setAlertPage, {
+                            alert: alert,
+                            location: location,
+                            product: product
+                        });
+
+                        if ($.isPlainObject(result)) {
+                            alert = result.alert;
+                            location = result.location;
+                            product = result.product;
+                        }
+                    }
+
+                    var _self = this;
+
+                    // don't use the AlertMe object directly, things may have
+                    // changed when the plugin was added
+                    Breinify.plugins.alertMe.set(alert.e164MobileNr, product, location, alert.time, function (error, data) {
+                        if (error === null && $.isFunction(_self.settings.onSuccess)) {
+                            _self.settings.onSuccess(popup, $setAlertPage, data);
+                        } else if ($.isFunction(_self.settings.onError)) {
+                            _self.settings.onError(popup, $setAlertPage, error);
+                        }
+                    });
                 },
 
                 style:
-                '<style id=\"' + prefixCssAlertMe + '-set-alert-style\">' +
-                '   .' + prefixCssAlertMe + '-set-alert-container { color:#000;font-size:13px;line-height:17px; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container .paragraph { padding:10px 0 0 0; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container .labeled { margin-bottom:5px;font-weight:bold; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container .centered { text-align:center; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container input, .' + prefixCssAlertMe + '-set-alert-container select { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container select { -moz-appearance:none;-webkit-appearance:none; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
-                '   .' + prefixCssAlertMe + '-set-alert-container button:disabled { cursor:not-allowed;border-color:#eeeeee;background:#cccccc; }' +
+                '<style id="' + prefixCssSetAlertPage + '-style">' +
+                '.' + prefixCssSetAlertPage + '-container { color:#000;font-size:13px;line-height:17px; }' +
+                '.' + prefixCssSetAlertPage + '-container .paragraph { padding:10px 0 0 0; }' +
+                '.' + prefixCssSetAlertPage + '-container .labeled { margin-bottom:5px;font-weight:bold; }' +
+                '.' + prefixCssSetAlertPage + '-container .centered { text-align:center; }' +
+                '.' + prefixCssSetAlertPage + '-container .small-print { font-size:10px;line-height:13px;font-weight:400;color:#222222; }' +
+                '.' + prefixCssSetAlertPage + '-container input, .' + prefixCssSetAlertPage + '-container select { font-size:inherit;font-family:inherit;color:#000;box-sizing:border-box;max-width:450px;width:100%;height:40px;padding: 0 8px;background-color:#fff;border-radius:5px;border:1px solid #999999; }' +
+                '.' + prefixCssSetAlertPage + '-container select { -moz-appearance:none;-webkit-appearance:none; }' +
+                '.' + prefixCssSetAlertPage + '-container button { min-width:150px;width:50%;white-space:nowrap;cursor:pointer;line-height:25px;font-size:14px;border-radius:4px;border-color:#de0000;background:#de0000;color:#fff; }' +
+                '.' + prefixCssSetAlertPage + '-container button:disabled { cursor:not-allowed;border-color:#eeeeee;background:#cccccc; }' +
                 '</style>',
 
                 html:
-                '<div class="' + prefixCssAlertMe + '-set-alert-container">' +
+                '<div class="' + prefixCssSetAlertPage + '-container">' +
                 '   <div>You are about to set an alert to be informed via text message when <b data-breinify-placeholder=\"product.name\"></b> will be available at <span data-breinify-placeholder=\"company.name\"></span> within the next <span data-breinify-placeholder=\"settings.alertExpiresInDays\"></span> days. Setting an alert does not reserve the product, it notifies you when it is available.</div>' +
                 '   <div class="paragraph">Please provide the following information:</div>' +
                 '   <div class="paragraph">' +
-                '       <div class="labeled"><label style="" for=\"' + prefixCssAlertMe + '-mobile-number\">Mobile Number:</label></div>  ' +
-                '       <div><input id=\"' + prefixCssAlertMe + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
+                '       <div class="labeled"><label style="" for=\"' + prefixCssSetAlertPage + '-mobile-number\">Mobile Number:</label></div>  ' +
+                '       <div><input id=\"' + prefixCssSetAlertPage + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
                 '   </div>' +
                 '   <div class="paragraph">' +
-                '       <div class="labeled"><label for=\"' + prefixCssAlertMe + '-alert-time\">Alert-Time (when available):</label></div>  ' +
-                '       <div><select id=\"' + prefixCssAlertMe + '-alert-time\">' +
+                '       <div class="labeled"><label for=\"' + prefixCssSetAlertPage + '-alert-time\">Alert-Time (when available):</label></div>  ' +
+                '       <div><select id=\"' + prefixCssSetAlertPage + '-alert-time\">' +
                 '           <option value=\"0|24|-1\">anytime, as soon as available</option>' +
                 '           <option value=\"9|18|-1\">between 9:00am - 6:00pm</option>' +
                 '           <option value=\"9|12|-1\">between 9:00am - noon</option>' +
@@ -134,7 +156,7 @@
                 '   </div>' +
                 '   <div class="paragraph small-print">By setting this alert, you confirm that the entered mobile number is yours and that you consent to receive text messages to inform you about the alert. By providing your mobile number and signing up for alerts you agree to receive text messages that may be deemed marketing under applicable law, and that these messages may be sent using an autodialer. Your consent is not a condition of any purchase. Setting an alert is not a reservation of a product.</div>' +
                 '   <div class="paragraph centered">' +
-                '       <button id=\"' + prefixCssAlertMe + '-set-alert\" type=\"submit\" title=\"Set Alert\"><span>Set Alert</span></button>' +
+                '       <button id=\"' + prefixCssSetAlertPage + '-confirm\" type=\"submit\" title=\"Set Alert\"><span>Set Alert</span></button>' +
                 '   </div>' +
                 '</div>'
             }
@@ -151,7 +173,10 @@
                 var weekends = timeParts.length > 2 ? parseInt(timeParts[2]) : 0;
 
                 return {
-                    start: start * 60 * 60, end: end * 60 * 60, weekdays: weekends === -1 || weekends === 0, weekends: weekends === -1 || weekends === 1
+                    start: start * 60 * 60,
+                    end: end * 60 * 60,
+                    weekdays: weekends === -1 || weekends === 0,
+                    weekends: weekends === -1 || weekends === 1
                 }
             } else {
                 return {
