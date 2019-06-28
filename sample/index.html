@@ -343,14 +343,10 @@
         }
     });
     alertMePopup.addPage(Breinify.plugins.uiPopup.pages.load);
-    var $successPage = alertMePopup.addPage(Breinify.plugins.uiPopup.pages.success, {
+    alertMePopup.addPage(Breinify.plugins.uiPopup.pages.success, {
         showCloseButton: true,
         closeButtonLabel: 'Close',
         message: '<div style="padding: 5px 0 15px 0;">We sent you a text-message!<br/>Please check your phone and confirm the alert.</div>'
-    });
-
-    $successPage.find('button').css({
-
     });
 
     $('#popup-alert-me').click(function() {

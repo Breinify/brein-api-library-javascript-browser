@@ -102,6 +102,36 @@
         this.id = id;
     };
 
+    UiPopup.prototype.reset = function ($page) {
+        if (typeof $page === 'number') {
+            var pageNr = this.validatePage($page);
+            this.reset(this.$pages[pageNr]);
+        } else if (typeof $page === 'undefined') {
+            var _self = this;
+            $.each(this.$pages, function (idx, $p) {
+                _self.reset($p);
+            });
+        } else {
+            var $resetEls = $page.find('[data-breinify-reset=true]');
+            $resetEls.each(function () {
+                var $resetEl = $(this);
+                var val = $resetEl.attr('data-breinify-reset-value');
+
+                if ($resetEl.is('input[type="text"]')) {
+                    $resetEl.val(val);
+                } else if ($resetEl.is('select')) {
+                    $resetEl.val(val);
+                } else if ($resetEl.is('textarea')) {
+                    $resetEl.val(val);
+                } else if ($resetEl.is('input[type="checkbox"]')) {
+                    $resetEl.prop('checked', val === 'true');
+                } else {
+                    $resetEl.text(val);
+                }
+            });
+        }
+    };
+
     UiPopup.prototype.css = function (selector, css) {
         var $el = this.$popup.find(selector);
         $el.css($.isPlainObject(css) ? css : {});
@@ -140,6 +170,7 @@
             .css('marginRight', '')
             .css('overflow', '');
 
+        this.reset();
         this.$popup.hide();
     };
 
@@ -173,6 +204,26 @@
         $page.attr('data-pageNr', pageNr);
         $page.hide();
 
+        var $resetEls = $page.find('[data-breinify-reset=true]');
+        $resetEls.each(function () {
+            var $resetEl = $(this);
+
+            var val;
+            if ($resetEl.is('input[type="text"]')) {
+                val = $resetEl.val();
+            } else if ($resetEl.is('select')) {
+                val = $resetEl.val();
+            } else if ($resetEl.is('textarea')) {
+                val = $resetEl.val();
+            } else if ($resetEl.is('input[type="checkbox"]')) {
+                val = $resetEl.is(":checked");
+            } else {
+                val = $resetEl.text();
+            }
+
+            $resetEl.attr('data-breinify-reset-value', val);
+        });
+
         $pagesContainer.append($page);
 
         // initialize the page now
@@ -188,9 +239,7 @@
     };
 
     UiPopup.prototype.showPrevPage = function () {
-        if (this.currentPageNr <= 1) {
-            return;
-        } else {
+        if (this.currentPageNr > 1) {
             this.showPage(this.currentPageNr - 1);
         }
     };
@@ -330,7 +379,7 @@
                     var $closeButton = $('#' + prefixCssDonePage + '-close-button');
                     var hasButtonLabel = typeof this.settings.closeButtonLabel === 'string' && this.settings.closeButtonLabel !== ''
                     if (hasButtonLabel === true && this.settings.showCloseButton === true) {
-                        $closeButton.click(function() {
+                        $closeButton.click(function () {
                             popup.hide();
                         });
                         $closeButton.show();

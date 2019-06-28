@@ -87,10 +87,17 @@
                 },
 
                 setAlert: function (popup, $setAlertPage, cb) {
-                    var alert = popup.getBinding('alert');
+
+                    // make sure we have an alert object, and get the location and product
+                    var alert = $.extend(true, {
+                        time: null,
+                        mobileNr: null,
+                        e164MobileNr: null
+                    }, popup.getBinding('alert'));
                     var location = popup.getBinding('location');
                     var product = popup.getBinding('product');
 
+                    // call the pre-set method if data should be modified
                     if ($.isFunction(this.settings.onPreSet)) {
                         var result = this.settings.onPreSet(popup, $setAlertPage, {
                             alert: alert,
@@ -137,11 +144,11 @@
                 '   <div class="paragraph">Please provide the following information:</div>' +
                 '   <div class="paragraph">' +
                 '       <div class="labeled"><label style="" for=\"' + prefixCssSetAlertPage + '-mobile-number\">Mobile Number:</label></div>  ' +
-                '       <div><input id=\"' + prefixCssSetAlertPage + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-alert-me-visualize-error=\"false\"></div>' +
+                '       <div><input id=\"' + prefixCssSetAlertPage + '-mobile-number\" type=\"text\" placeholder=\"(xxx) xxx-xxxx\" autocomplete=\"off\" maxlength=\"14\" data-breinify-reset="true"></div>' +
                 '   </div>' +
                 '   <div class="paragraph">' +
                 '       <div class="labeled"><label for=\"' + prefixCssSetAlertPage + '-alert-time\">Alert-Time (when available):</label></div>  ' +
-                '       <div><select id=\"' + prefixCssSetAlertPage + '-alert-time\">' +
+                '       <div><select id=\"' + prefixCssSetAlertPage + '-alert-time\" data-breinify-reset="true">' +
                 '           <option value=\"0|24|-1\">anytime, as soon as available</option>' +
                 '           <option value=\"9|18|-1\">between 9:00am - 6:00pm</option>' +
                 '           <option value=\"9|12|-1\">between 9:00am - noon</option>' +
