@@ -295,7 +295,7 @@
         setAll: function (user) {
 
             var plainUser = {};
-            if (typeof user == 'undefined' || user == null) {
+            if (typeof user === 'undefined' || user == null) {
                 // nothing to do
             } else if (user instanceof BreinifyUser) {
                 plainUser = user._user;

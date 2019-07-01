@@ -187,6 +187,13 @@
     BreinifyConfig.ATTRIBUTES = $.extend({}, attributes.all());
 
     /*
+     * Constants used within the library
+     */
+    BreinifyConfig.CONSTANTS = {
+        USER_LOOKUP_PLUGIN: 'userLookup'
+    };
+
+    /*
      * The prototype of the configuration.
      */
     BreinifyConfig.prototype = {

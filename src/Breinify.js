@@ -321,6 +321,18 @@
             } catch (e) {
                 return null;
             }
+        },
+
+        createUser: function(user, onSuccess) {
+
+            // check if we have a Breinify userLookup module
+            var userLookupPlugin = Breinify.plugins[BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
+            if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
+                user = $.extend(true, user, userLookupPlugin.get());
+            }
+
+            // trigger the user
+            new BreinifyUser(user, onSuccess);
         }
     };
 
@@ -460,7 +472,7 @@
         };
 
         // get the user information
-        new BreinifyUser(user, function (user) {
+        _privates.createUser(user, function (user) {
 
             if (!user.validate()) {
                 _onReady(null);
@@ -571,7 +583,7 @@
         };
 
         // get the user information
-        new BreinifyUser(user, function (user) {
+        _privates.createUser(user, function (user) {
 
             if (!user.validate()) {
                 _onReady(null);
@@ -672,7 +684,7 @@
         };
 
         // get the user information
-        new BreinifyUser(user, function (user) {
+        _privates.createUser(user, function (user) {
 
             if (!user.validate()) {
                 _onReady(null);
@@ -743,7 +755,7 @@
         };
 
         // get the user information
-        new BreinifyUser(user, function (user) {
+        _privates.createUser(user, function (user) {
 
             if (!user.validate()) {
                 _onReady(null);
