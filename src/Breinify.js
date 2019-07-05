@@ -818,6 +818,16 @@
             return overload;
         },
 
+        _setConfig: function(name, config) {
+            if ($.isPlainObject(this[name])) {
+                this[name].setConfig(config);
+            } else {
+                $(document).on('plugInAdded[' + name + ']', function(event, name, plugIn) {
+                    plugIn.setConfig(config);
+                });
+            }
+        },
+
         _addCustomization: function (name, customization) {
 
             var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
@@ -843,7 +853,13 @@
             return plugIn;
         },
 
-        _add: function (name, plugin, def) {
+        _add: function (name, plugIn, def) {
+
+            // make sure we don't have a plugin loaded already
+            if ($.isPlainObject(this[name])) {
+                return this[name];
+            }
+
             var defConfig = $.isPlainObject(def) ? def : {};
 
             this[name] = $.extend({
@@ -872,7 +888,10 @@
                         return current;
                     }
                 }
-            }, plugin);
+            }, plugIn);
+
+            // trigger an event
+            $(document).trigger('plugInAdded[' + name + ']', [name, this[name]]);
 
             return this[name];
         }
