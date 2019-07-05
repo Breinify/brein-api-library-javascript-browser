@@ -190,7 +190,8 @@
      * Constants used within the library
      */
     BreinifyConfig.CONSTANTS = {
-        USER_LOOKUP_PLUGIN: 'userLookup'
+        CUSTOMER_PLUGIN: 'customization',
+        CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp'
     };
 
     /*

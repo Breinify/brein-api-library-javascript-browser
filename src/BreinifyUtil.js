@@ -447,12 +447,12 @@
                 }
 
                 // check if we have a Breinify userLookup module
-                var userLookupPlugin = scope.Breinify.plugins[dependencyScope.BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
+                var userLookUpPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP);
                 var userLookupResult;
-                if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
-                    userLookupResult = userLookupPlugin.get();
-                } else {
+                if (userLookUpPlugIn === null || !$.isFunction(userLookUpPlugIn.get)) {
                     userLookupResult = {};
+                } else {
+                    userLookupResult = userLookupPlugin.get();
                 }
 
                 var defaultUser = {

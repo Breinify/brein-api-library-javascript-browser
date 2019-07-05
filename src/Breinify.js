@@ -800,6 +800,32 @@
             return overload;
         },
 
+        _addCustomization: function (name, customization) {
+
+            var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            if (!$.isPlainObject(customization)) {
+                customizations = {};
+                this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, customizations);
+            }
+
+            // add the customization
+            customizations[name] = customization;
+        },
+
+        _getCustomization: function (name) {
+            var customerPlugIn = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            if (!$.isPlainObject(customerPlugIn)) {
+                return null;
+            }
+
+            var plugIn = customerPlugIn[name];
+            if (!$.isPlainObject(plugIn)) {
+                return null;
+            }
+
+            return plugIn;
+        },
+
         _add: function (name, plugin, def) {
             var defConfig = $.isPlainObject(def) ? def : {};
 

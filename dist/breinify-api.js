@@ -13429,12 +13429,12 @@ dependencyScope.jQuery = $;;
                 }
 
                 // check if we have a Breinify userLookup module
-                var userLookupPlugin = scope.Breinify.plugins[dependencyScope.BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
+                var userLookUpPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP);
                 var userLookupResult;
-                if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
-                    userLookupResult = userLookupPlugin.get();
-                } else {
+                if (userLookUpPlugIn === null || !$.isFunction(userLookUpPlugIn.get)) {
                     userLookupResult = {};
+                } else {
+                    userLookupResult = userLookupPlugin.get();
                 }
 
                 var defaultUser = {
@@ -14080,7 +14080,8 @@ dependencyScope.jQuery = $;;
      * Constants used within the library
      */
     BreinifyConfig.CONSTANTS = {
-        USER_LOOKUP_PLUGIN: 'userLookup'
+        CUSTOMER_PLUGIN: 'customization',
+        CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp'
     };
 
     /*
@@ -15243,6 +15244,32 @@ dependencyScope.jQuery = $;;
     Breinify.plugins = {
         _overload: function () {
             return overload;
+        },
+
+        _addCustomization: function (name, customization) {
+
+            var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            if (!$.isPlainObject(customization)) {
+                customizations = {};
+                this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, customizations);
+            }
+
+            // add the customization
+            customizations[name] = customization;
+        },
+
+        _getCustomization: function (name) {
+            var customerPlugIn = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            if (!$.isPlainObject(customerPlugIn)) {
+                return null;
+            }
+
+            var plugIn = customerPlugIn[name];
+            if (!$.isPlainObject(plugIn)) {
+                return null;
+            }
+
+            return plugIn;
         },
 
         _add: function (name, plugin, def) {
