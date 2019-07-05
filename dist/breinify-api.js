@@ -15250,8 +15250,7 @@ dependencyScope.jQuery = $;;
 
             var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
             if (!$.isPlainObject(customizations)) {
-                customizations = {};
-                this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, customizations);
+                customizations = this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, {});
             }
 
             // add the customization
@@ -15302,6 +15301,8 @@ dependencyScope.jQuery = $;;
                     }
                 }
             }, plugin);
+
+            return this[name];
         }
     };
 
