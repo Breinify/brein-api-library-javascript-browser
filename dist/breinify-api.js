@@ -15270,7 +15270,7 @@ dependencyScope.jQuery = $;;
             if ($.isPlainObject(this[name])) {
                 this[name].setConfig(config);
             } else {
-                $(document).on('plugInAdded[' + name + ']', function(event, name, plugIn) {
+                $(document).on('breinifyPlugInAdded[' + name + ']', function(event, name, plugIn) {
                     plugIn.setConfig(config);
                 });
             }
@@ -15339,7 +15339,7 @@ dependencyScope.jQuery = $;;
             }, plugIn);
 
             // trigger an event
-            $(document).trigger('plugInAdded[' + name + ']', [name, this[name]]);
+            $(document).trigger('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
 
             return this[name];
         }
