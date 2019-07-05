@@ -447,7 +447,7 @@
                 }
 
                 // check if we have a Breinify userLookup module
-                var userLookupPlugin = Breinify.plugins[BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
+                var userLookupPlugin = scope.Breinify.plugins[dependencyScope.BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
                 var userLookupResult;
                 if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
                     userLookupResult = userLookupPlugin.get();
