@@ -14081,7 +14081,9 @@ dependencyScope.jQuery = $;;
      */
     BreinifyConfig.CONSTANTS = {
         CUSTOMER_PLUGIN: 'customization',
-        CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp'
+        CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp',
+        CUSTOMER_PLUGIN_UTM_MAPPER: 'utmMapper',
+        CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper'
     };
 
     /*
@@ -14627,10 +14629,17 @@ dependencyScope.jQuery = $;;
 
         handleUtmParameters: function () {
 
-            // get the mapper to be used
-            var mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
-            if (typeof mapper !== 'function') {
-                return;
+            // check if we have a plugin defined
+            var mapper = Breinify.plguins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_UTM_MAPPER);
+            if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
+                mapper = mapper.map;
+            }
+            // use the configured one
+            else {
+                mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
+                if (typeof mapper !== 'function') {
+                    return;
+                }
             }
 
             // see https://en.wikipedia.org/wiki/UTM_parameters
@@ -14705,8 +14714,17 @@ dependencyScope.jQuery = $;;
                 return;
             }
 
-            // get the mapper to be used
-            var mapper = _config.get(ATTR_CONFIG.PARAMETERS_MAPPER);
+            // check if we have a plugin defined
+            var mapper = Breinify.plguins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_PARAMETER_MAPPER);
+            if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
+                mapper = mapper.map;
+            }
+            // use the configured one
+            else {
+                mapper = _config.get(ATTR_CONFIG.PARAMETERS_MAPPER);
+            }
+
+            // define a default mapper
             if (typeof mapper !== 'function') {
                 mapper = function (data) {
                     return data;
