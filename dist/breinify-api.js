@@ -14630,16 +14630,18 @@ dependencyScope.jQuery = $;;
         handleUtmParameters: function () {
 
             // check if we have a plugin defined
-            var mapper = Breinify.plguins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_UTM_MAPPER);
+            var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_UTM_MAPPER);
             if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
                 mapper = mapper.map;
             }
             // use the configured one
             else {
                 mapper = _config.get(ATTR_CONFIG.UTM_MAPPER);
-                if (typeof mapper !== 'function') {
-                    return;
-                }
+            }
+
+            // make sure we have a mapper
+            if (!$.isFunction(mapper)) {
+                return;
             }
 
             // see https://en.wikipedia.org/wiki/UTM_parameters
@@ -14715,7 +14717,7 @@ dependencyScope.jQuery = $;;
             }
 
             // check if we have a plugin defined
-            var mapper = Breinify.plguins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_PARAMETER_MAPPER);
+            var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_PARAMETER_MAPPER);
             if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
                 mapper = mapper.map;
             }
@@ -14724,8 +14726,8 @@ dependencyScope.jQuery = $;;
                 mapper = _config.get(ATTR_CONFIG.PARAMETERS_MAPPER);
             }
 
-            // define a default mapper
-            if (typeof mapper !== 'function') {
+            // define a default mapper (if there isn't one yet)
+            if (!$.isFunction(mapper)) {
                 mapper = function (data) {
                     return data;
                 };
