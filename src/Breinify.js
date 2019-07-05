@@ -323,16 +323,8 @@
             }
         },
 
-        createUser: function(user, onSuccess) {
-
-            // check if we have a Breinify userLookup module
-            var userLookupPlugin = Breinify.plugins[BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
-            if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
-                user = $.extend(true, user, userLookupPlugin.get());
-            }
-
-            // trigger the user
-            new BreinifyUser(user, onSuccess);
+        createUser: function (user, onSuccess) {
+            new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
         }
     };
 

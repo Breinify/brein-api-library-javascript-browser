@@ -13421,13 +13421,23 @@ dependencyScope.jQuery = $;;
 
                 // get the create user from the configuration
                 var createUser = scope.Breinify.config()['createUser'];
-                if (typeof createUser !== 'function') {
-                    createUser = function () {
-                        return {};
-                    };
+                var createdUser;
+                if ($.isFunction(createUser)) {
+                    createdUser = createUser();
+                } else {
+                    createdUser = {};
                 }
 
-                return $.extend(true, user, createUser(), {
+                // check if we have a Breinify userLookup module
+                var userLookupPlugin = Breinify.plugins[BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
+                var userLookupResult;
+                if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
+                    userLookupResult = userLookupPlugin.get();
+                } else {
+                    userLookupResult = {};
+                }
+
+                var defaultUser = {
                     sessionId: this.getSessionId(),
                     'additional': {
                         identifiers: {
@@ -13435,7 +13445,9 @@ dependencyScope.jQuery = $;;
                             assignedGroup: this.getAssignedGroup()
                         }
                     }
-                });
+                };
+
+                return $.extend(true, {}, createdUser, defaultUser, user, userLookupResult);
             },
 
             getBrowserId: function () {
@@ -14756,16 +14768,8 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        createUser: function(user, onSuccess) {
-
-            // check if we have a Breinify userLookup module
-            var userLookupPlugin = Breinify.plugins[BreinifyConfig.CONSTANTS.USER_LOOKUP_PLUGIN];
-            if ($.isPlainObject(userLookupPlugin) && $.isFunction(userLookupPlugin.get)) {
-                user = $.extend(true, user, userLookupPlugin.get());
-            }
-
-            // trigger the user
-            new BreinifyUser(user, onSuccess);
+        createUser: function (user, onSuccess) {
+            new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
         }
     };
 
