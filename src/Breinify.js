@@ -803,7 +803,7 @@
         _addCustomization: function (name, customization) {
 
             var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
-            if (!$.isPlainObject(customization)) {
+            if (!$.isPlainObject(customizations)) {
                 customizations = {};
                 this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, customizations);
             }
