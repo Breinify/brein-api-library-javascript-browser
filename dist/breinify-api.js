@@ -13434,7 +13434,7 @@ dependencyScope.jQuery = $;;
                 if (userLookUpPlugIn === null || !$.isFunction(userLookUpPlugIn.get)) {
                     userLookupResult = {};
                 } else {
-                    userLookupResult = userLookupPlugin.get();
+                    userLookupResult = userLookUpPlugIn.get();
                 }
 
                 var defaultUser = {
