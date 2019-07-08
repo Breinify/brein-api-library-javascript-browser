@@ -14791,6 +14791,15 @@ dependencyScope.jQuery = $;;
 
         createUser: function (user, onSuccess) {
             new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
+        },
+
+        triggerEvent: function(eventName, data) {
+
+            // trigger the Breinify ready event on both jQuery instances
+            $(document).trigger(eventName, data);
+            if (typeof window.$ === 'function' && typeof window.$.fn === 'function') {
+                window.$(document).trigger(eventName, data);
+            }
         }
     };
 
@@ -14818,10 +14827,7 @@ dependencyScope.jQuery = $;;
         _config = new BreinifyConfig(c);
 
         // trigger the Breinify ready event on both jQuery instances
-        $(document).trigger('breinifyReady');
-        if (typeof window.$ === 'function' && typeof window.$.fn === 'function') {
-            window.$(document).trigger('breinifyReady');
-        }
+        _privates.triggerEvent('breinifyReady');
 
         // if the parameters should be handled it's done directly after the configuration is set
         if (_config.get(ATTR_CONFIG.HANDLE_PARAMETERS) === true) {
@@ -14990,31 +14996,37 @@ dependencyScope.jQuery = $;;
         overload.overload({
             'Object,String': function (user, type) {
                 Breinify.activityUser(user, type, null, null, null, null, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,Object': function (user, type, tags) {
                 Breinify.activityUser(user, type, null, null, tags, null, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,Object': function (user, type, description, tags) {
                 Breinify.activityUser(user, type, null, description, tags, null, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object': function (user, type, category, description, tags) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object,Function': function (user, type, category, description, tags, callback) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,String,String,String,Object,Boolean,Function': function (user, type, category, description, tags, sign, callback) {
                 Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
+                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
                     _privates.ajax(url, data, callback, callback);
                 });
             }
@@ -15339,7 +15351,7 @@ dependencyScope.jQuery = $;;
             }, plugIn);
 
             // trigger an event
-            $(document).trigger('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
+            _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
 
             return this[name];
         }
