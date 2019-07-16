@@ -341,7 +341,7 @@
 
             if (typeof activityData.type !== 'string' ||
                 !($.isPlainObject(activityData.tags) || typeof activityData.tags === 'undefined' || activityData.tags === null) ||
-                !($.isPlainObject(activityData.user) || typeof activityData.user  === 'undefined' || activityData.user === null)) {
+                !($.isPlainObject(activityData.user) || typeof activityData.user === 'undefined' || activityData.user === null)) {
                 return;
             }
 
@@ -361,20 +361,16 @@
             var filterParts = typeof filter === 'string' ? filter.split('::') : [];
 
             var funcName = null, instance = null;
-            if (filterParts.length >= 3) {
-                var plugin = Breinify.plugins[filterParts[0]];
+            if (filterParts.length >= 2) {
 
                 // find the instance
-                instance = plugin;
+                instance = Breinify.plugins[filterParts[0]];
                 for (var i = 1; i < filterParts.length - 1; i++) {
                     instance = $.isPlainObject(instance) ? instance[filterParts[i]] : null;
                 }
 
                 // set the function-name
                 funcName = filterParts[2];
-            } else if (filterParts.length === 2) {
-                instance = Breinify.plugins[filterParts[0]];
-                funcName = filterParts[1];
             } else if (filterParts.length === 1) {
                 instance = window;
                 funcName = filterParts[0];
@@ -632,7 +628,7 @@
     };
 
     // bind a check when breinify is ready
-    $(document).on('breinifyReady', function() {
+    $(document).on('breinifyReady', function () {
         Activities.checkDelayedActivityData();
     });
 
