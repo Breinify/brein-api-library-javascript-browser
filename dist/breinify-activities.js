@@ -370,7 +370,7 @@
                 }
 
                 // set the function-name
-                funcName = filterParts[2];
+                funcName = filterParts[filterParts.length - 1];
             } else if (filterParts.length === 1) {
                 instance = window;
                 funcName = filterParts[0];
