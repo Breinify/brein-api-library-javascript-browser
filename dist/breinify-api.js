@@ -14804,7 +14804,7 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        markReady: function() {
+        markReady: function () {
             if (this.isReady()) {
                 return;
             }
@@ -14813,7 +14813,7 @@ dependencyScope.jQuery = $;;
             this.triggerEvent('breinifyReady');
         },
 
-        isReady: function() {
+        isReady: function () {
             return this.ready;
         }
     };
@@ -14872,7 +14872,9 @@ dependencyScope.jQuery = $;;
 
     Breinify.onReady = function (cb) {
         if (_privates.isReady()) {
-            cb();
+            setTimeout(function () {
+                cb()
+            }, 0);
         } else {
             $(document).on('breinifyReady', cb);
         }
@@ -15408,6 +15410,7 @@ dependencyScope.jQuery = $;;
     Breinify.jQueryVersion = 'FALLBACK';
     Breinify.setConfig = function () {};
     Breinify.config = function () { return {} };
+    Breinify.onReady = function () {};
     Breinify.activityUser = function (user, type, category, description, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();

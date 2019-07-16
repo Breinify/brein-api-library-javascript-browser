@@ -356,7 +356,7 @@
             }
         },
 
-        markReady: function() {
+        markReady: function () {
             if (this.isReady()) {
                 return;
             }
@@ -365,7 +365,7 @@
             this.triggerEvent('breinifyReady');
         },
 
-        isReady: function() {
+        isReady: function () {
             return this.ready;
         }
     };
@@ -424,7 +424,9 @@
 
     Breinify.onReady = function (cb) {
         if (_privates.isReady()) {
-            cb();
+            setTimeout(function () {
+                cb()
+            }, 0);
         } else {
             $(document).on('breinifyReady', cb);
         }
