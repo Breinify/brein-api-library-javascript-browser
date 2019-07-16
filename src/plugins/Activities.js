@@ -361,9 +361,16 @@
             var filterParts = typeof filter === 'string' ? filter.split('::') : [];
 
             var funcName = null, instance = null;
-            if (filterParts.length === 3) {
+            if (filterParts.length >= 3) {
                 var plugin = Breinify.plugins[filterParts[0]];
-                instance = $.isPlainObject(plugin) ? plugin[filterParts[1]] : null;
+
+                // find the instance
+                instance = plugin;
+                for (var i = 1; i < filterParts.length - 1; i++) {
+                    instance = $.isPlainObject(instance) ? instance[filterParts[i]] : null;
+                }
+
+                // set the function-name
                 funcName = filterParts[2];
             } else if (filterParts.length === 2) {
                 instance = Breinify.plugins[filterParts[0]];
