@@ -628,7 +628,7 @@
     };
 
     // bind a check when breinify is ready
-    $(document).on('breinifyReady', function () {
+    Breinify.onReady(function () {
         Activities.checkDelayedActivityData();
     });
 

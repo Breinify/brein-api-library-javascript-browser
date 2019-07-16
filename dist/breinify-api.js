@@ -14563,6 +14563,8 @@ dependencyScope.jQuery = $;;
     var _config = null;
 
     var _privates = {
+        ready: false,
+
         ajax: function (url, data, success, error) {
 
             $.ajax({
@@ -14793,13 +14795,26 @@ dependencyScope.jQuery = $;;
             new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
         },
 
-        triggerEvent: function(eventName, data) {
+        triggerEvent: function (eventName, data) {
 
             // trigger the Breinify ready event on both jQuery instances
             $(document).trigger(eventName, data);
             if (typeof window.$ === 'function' && typeof window.$.fn === 'function') {
                 window.$(document).trigger(eventName, data);
             }
+        },
+
+        markReady: function() {
+            if (this.isReady()) {
+                return;
+            }
+
+            this.ready = true;
+            this.triggerEvent('breinifyReady');
+        },
+
+        isReady: function() {
+            return this.ready;
         }
     };
 
@@ -14827,7 +14842,7 @@ dependencyScope.jQuery = $;;
         _config = new BreinifyConfig(c);
 
         // trigger the Breinify ready event on both jQuery instances
-        _privates.triggerEvent('breinifyReady');
+        _privates.markReady();
 
         // if the parameters should be handled it's done directly after the configuration is set
         if (_config.get(ATTR_CONFIG.HANDLE_PARAMETERS) === true) {
@@ -14853,6 +14868,14 @@ dependencyScope.jQuery = $;;
         }
 
         return _config.all();
+    };
+
+    Breinify.onReady = function (cb) {
+        if (_privates.isReady()) {
+            cb();
+        } else {
+            $(document).on('breinifyReady', cb);
+        }
     };
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
@@ -15278,11 +15301,11 @@ dependencyScope.jQuery = $;;
             return overload;
         },
 
-        _setConfig: function(name, config) {
+        _setConfig: function (name, config) {
             if ($.isPlainObject(this[name])) {
                 this[name].setConfig(config);
             } else {
-                $(document).on('breinifyPlugInAdded[' + name + ']', function(event, name, plugIn) {
+                $(document).on('breinifyPlugInAdded[' + name + ']', function (event, name, plugIn) {
                     plugIn.setConfig(config);
                 });
             }
