@@ -13,6 +13,22 @@
 
     // create the AlertMe module
     var Activities = {
+
+        generic: function() {
+            var _self = this;
+            overload.overload({
+                'String,Object': function (type, user) {
+                    _self._send(type, user, {}, null);
+                },
+                'String,Object,Object': function (type, user, tags) {
+                    _self._send(type, user, tags, null);
+                },
+                'String,Object,Object,Function': function (type, user, tags, cb) {
+                    _self._send(type, user, tags, cb);
+                }
+            });
+        },
+
         pageVisit: function () {
             var type = 'pageVisit';
 
