@@ -26,7 +26,7 @@
                 'String,Object,Object,Function': function (type, user, tags, cb) {
                     _self._send(type, user, tags, cb);
                 }
-            });
+            }, arguments, this);
         },
 
         pageVisit: function () {
