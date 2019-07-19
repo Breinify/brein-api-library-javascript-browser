@@ -13871,7 +13871,10 @@ dependencyScope.jQuery = $;;
 
             $.each(plugins, function (key, plugin) {
                 if ($.isFunction(plugin)) {
-                    plugin();
+
+                    // the https://learn.jquery.com/plugins/basic-plugin-creation/ indicates that jQuery should
+                    // be the expected parameter
+                    plugin(jQuery);
                 } else {
                     console.error('Unable to load plugin: ' + key);
                 }
