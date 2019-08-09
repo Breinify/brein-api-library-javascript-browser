@@ -993,16 +993,16 @@
 
                 var _self = this;
                 var loader = entry.loader;
-                var expiresInSec = $.isNumeric(entry.expiresInSec) ? expiresInSec : -1;
+                var expiresInSec = $.isNumeric(entry.expiresInSec) ? entry.expiresInSec : -1;
                 if ($.isFunction(loader)) {
                     loader(function (error, data) {
                         if (error === null) {
-                            _self.instance.setItem(name, _self.createStorabledata(expiresInSec, data));
+                            _self.instance.setItem('breinify-' + name, _self.createStorabledata(expiresInSec, data));
                         }
                         callback(error, name);
                     });
                 } else if (typeof entry.values !== 'undefined') {
-                    _self.instance.setItem(name, _self.createStorabledata(expiresInSec, entry.values));
+                    _self.instance.setItem('breinify-' + name, _self.createStorabledata(expiresInSec, entry.values));
                     callback(null, name);
                 } else {
                     callback(new Error('No values or loader specified.'));
@@ -1019,7 +1019,7 @@
             },
 
             isExpired: function(name) {
-                var json = this.instance.getItem(name);
+                var json = this.instance.getItem('breinify-' + name);
 
                 if (typeof json === 'string') {
                     var storableData = JSON.parse(json);
@@ -1034,7 +1034,7 @@
             },
 
             get: function (name) {
-                var json = this.instance.getItem(name);
+                var json = this.instance.getItem('breinify-' + name);
                 if (typeof json === 'string') {
                     var storableData = JSON.parse(json);
                     return $.isPlainObject(storableData) ? storableData.data : null;
