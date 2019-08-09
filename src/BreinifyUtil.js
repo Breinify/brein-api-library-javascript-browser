@@ -956,7 +956,6 @@
 
                 var loaded = [];
                 var failed = [];
-
                 $.each(toBeLoaded, function (key, entry) {
                     _self.load(key, entry, function (error, name) {
                         loadingStatus.splice($.inArray(name, loadingStatus), 1);
