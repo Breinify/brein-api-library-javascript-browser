@@ -13994,7 +13994,7 @@ dependencyScope.jQuery = $;;
             createStorabledata: function(expiresInSec, data) {
                 var now = new Date().getTime();
                 return JSON.stringify({
-                    'expires': expiresInSec <= 0 ? -1 : now + expiresInSec,
+                    'expires': expiresInSec <= 0 ? -1 : now + (expiresInSec * 1000),
                     'created': now,
                     'data': data
                 });
