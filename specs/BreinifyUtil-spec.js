@@ -319,4 +319,22 @@ describe('BreinifyUtil', function () {
             collector.error(new Error('failed'))
         }, 10);
     });
+
+    it('initializesTheStorage', function (done) {
+        Breinify.UTL.storage.init({
+            'products': {
+                'values': []
+            },
+            'awards': {
+                'values': []
+            }
+        }, true, function (error, result) {
+            expect(result).toEqual({
+                'loaded': ['products', 'awards'],
+                'failed': []
+            });
+
+            done();
+        });
+    });
 });

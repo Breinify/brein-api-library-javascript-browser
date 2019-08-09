@@ -901,6 +901,150 @@
             window.jQuery = wndjQuery;
         },
 
+        storage: {
+            instance: null,
+
+            init: function (entries, reset, callback) {
+                if (!$.isPlainObject(entries)) {
+                    return;
+                }
+                // we allow also to not specify reset
+                else if ($.isFunction(reset) && typeof callback === 'undefined') {
+                    callback = reset;
+                    reset = false;
+                }
+
+                // check if we already have an instance (init may be called multiple times)
+                if (this.instance === null) {
+                    if (typeof window.localStorage === 'object') {
+                        this.instance = window.localStorage;
+                    } else {
+
+                        // we create a simple shim, which only works within the correct loading
+                        this.instance = {
+                            store: {},
+                            setItem: function (key, value) {
+                                this.store[key] = value;
+                            },
+                            getItem: function (key) {
+                                var result = this.store[key];
+                                return typeof result === 'undefined' ? null : result;
+                            },
+                            removeItem: function (key) {
+                                delete this.store[key];
+                            },
+                            clear: function () {
+                                this.store = {}
+                            }
+                        }
+                    }
+                }
+
+                if (reset) {
+                    this.instance.clear();
+                }
+
+                var _self = this;
+                var toBeLoaded = {};
+                var loadingStatus = [];
+                $.each(entries, function (key, entry) {
+                    if (_self.get(key) === null || _self.isExpired(key)) {
+                        toBeLoaded[key] = entry;
+                        loadingStatus.push(key);
+                    }
+                });
+
+                var loaded = [];
+                var failed = [];
+
+                $.each(toBeLoaded, function (key, entry) {
+                    _self.load(key, entry, function (error, name) {
+                        loadingStatus.splice($.inArray(name, loadingStatus), 1);
+
+                        if (error === null) {
+                            loaded.push(name);
+                        } else {
+                            failed.push(name);
+                        }
+                        if (loadingStatus.length === 0) {
+                            callback(null, {
+                                loaded: loaded,
+                                failed: failed
+                            });
+                        }
+                    });
+                });
+
+                if (loadingStatus.length === 0) {
+                    callback(null, {
+                        loaded: 0,
+                        failed: 0
+                    });
+                }
+            },
+
+            load: function (name, entry, callback) {
+                if (!$.isPlainObject(entry) || typeof name !== 'string' || name.trim() === '') {
+                    callback(new Error("Invalid type(s): " + JSON.stringify({
+                        'name': name,
+                        'entry': entry
+                    })));
+                    return;
+                }
+
+                var _self = this;
+                var loader = entry.loader;
+                var expiresInSec = $.isNumeric(entry.expiresInSec) ? expiresInSec : -1;
+                if ($.isFunction(loader)) {
+                    loader(function (error, data) {
+                        if (error === null) {
+                            _self.instance.setItem(name, _self.createStorabledata(expiresInSec, data));
+                        }
+                        callback(error, name);
+                    });
+                } else if (typeof entry.values !== 'undefined') {
+                    _self.instance.setItem(name, _self.createStorabledata(expiresInSec, entry.values));
+                    callback(null, name);
+                } else {
+                    callback(new Error('No values or loader specified.'));
+                }
+            },
+
+            createStorabledata: function(expiresInSec, data) {
+                var now = new Date().getTime();
+                return JSON.stringify({
+                    'expires': expiresInSec <= 0 ? -1 : now + expiresInSec,
+                    'created': now,
+                    'data': data
+                });
+            },
+
+            isExpired: function(name) {
+                var json = this.instance.getItem(name);
+
+                if (typeof json === 'string') {
+                    var storableData = JSON.parse(json);
+                    if ($.isPlainObject(storableData)) {
+                        return new Date().getTime() > storableData.expires;
+                    } else {
+                        return true;
+                    }
+                } else {
+                    return true;
+                }
+            },
+
+            get: function (name) {
+                var json = this.instance.getItem(name);
+                if (typeof json === 'string') {
+                    var storableData = JSON.parse(json);
+                    return $.isPlainObject(storableData) ? storableData.data : null;
+                } else {
+                    return null;
+                }
+            }
+        },
+
         _jquery: function () {
             return $;
         }
