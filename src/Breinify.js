@@ -463,7 +463,7 @@
             'Object,Number,String,Function': function (user, nrOfRecommendations, category, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations,
-                    'recommendationCategory': category
+                    'recommendationCategories': [category]
                 }, false, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
@@ -478,7 +478,7 @@
             'Object,Number,String,Boolean,Function': function (user, nrOfRecommendations, category, sign, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations,
-                    'recommendationCategory': category
+                    'recommendationCategories': [category]
                 }, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
