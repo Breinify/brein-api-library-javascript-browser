@@ -32,17 +32,17 @@
     attributes.add('FIRSTNAME', {
         name: 'firstName',
         group: 3,
-        optional: false
+        optional: true
     });
     attributes.add('LASTNAME', {
         name: 'lastName',
         group: 3,
-        optional: false
+        optional: true
     });
     attributes.add('DATEOFBIRTH', {
         name: 'dateOfBirth',
         group: 3,
-        optional: false
+        optional: true
     });
     attributes.add('DEVICEID', {
         name: 'deviceId',
