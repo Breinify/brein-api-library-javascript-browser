@@ -566,7 +566,7 @@
 
             if (hasIds) {
                 return $.extend(true, {}, tags, {
-                    'productQuantity': hasQuantities ? productQuantities : null,
+                    'productQuantities': hasQuantities ? productQuantities : null,
                     'productPrices': hasPrices ? productPrices : null,
                     'productIds': hasIds ? productIds : null,
                     'productCategories': hasCategories ? productCategories : null
