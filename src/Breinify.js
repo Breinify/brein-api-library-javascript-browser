@@ -488,7 +488,17 @@
                     _privates.ajax(url, data, callback, callback);
                 });
             },
+            'Object,Array,Function': function (user, recommendation, callback) {
+                Breinify.recommendationUser(user, recommendation, false, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
             'Object,Object,Boolean,Function': function (user, recommendation, sign, callback) {
+                Breinify.recommendationUser(user, recommendation, sign, function (data) {
+                    _privates.ajax(url, data, callback, callback);
+                });
+            },
+            'Object,Array,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
                     _privates.ajax(url, data, callback, callback);
                 });
@@ -541,13 +551,16 @@
             // create the data set
             var data = {
                 'user': user.all(),
-
-                'recommendation': recommendation,
-
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
                 'unixTimestamp': unixTimestamp
             };
+
+            if ($.isArray(recommendation)) {
+                data.recommendations = recommendation;
+            } else {
+                data.recommendation = recommendation;
+            }
 
             if ($.isFunction(onReady)) {
                 _onReady(data);
