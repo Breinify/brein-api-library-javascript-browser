@@ -257,7 +257,7 @@
                 return null;
             }
 
-            var mapProduct = _self.getConfig('mapProduct', function (product) {
+            var mapProduct = this.getConfig('mapProduct', function (product) {
                 return {
                     'dataIdExternal': product.dataIdExternal,
                     'sku': product.dataIdExternal,
