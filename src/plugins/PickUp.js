@@ -12,7 +12,6 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
-    // create the AlertMe module
     var PickUp = {
 
         addOrder: function () {
@@ -207,7 +206,6 @@
 
             user = Breinify.UTL.user.create(user);
 
-            // create the alert instance
             var pickUp = {
                 'pickUpMessage': 'addPickUp',
                 'pickUpExternalIds': externalIds,
