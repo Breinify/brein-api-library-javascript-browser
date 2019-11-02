@@ -488,7 +488,6 @@
                 mappedSecondaryLocations.push(mappedSecondaryLocation);
             }
 
-            // create the alert instance
             var alert = {
                 'alertMeMessage': 'SetAlert',
                 'alertMeAlternativeLocations': mappedSecondaryLocations,

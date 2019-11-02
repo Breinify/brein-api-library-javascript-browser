@@ -13,7 +13,16 @@
 
     var uiValidator = {
 
-        usMobile: function(val) {
+        email: function (val) {
+            if (typeof val !== 'string') {
+                return false;
+            } else {
+                var emailRegEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+                return emailRegEx.test(val);
+            }
+        },
+
+        usMobile: function (val) {
             if (typeof val !== 'string') {
                 return false;
             } else {
@@ -22,7 +31,7 @@
             }
         },
 
-        mandatory: function(val) {
+        mandatory: function (val) {
             if (typeof val === 'undefined') {
                 return false;
             } else if (val === null) {
