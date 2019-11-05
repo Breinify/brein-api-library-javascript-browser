@@ -90,6 +90,7 @@
                 var recommendationId = recommendations.recommendationIds[i];
                 var recommendationSetting = this._getSettings(recommendationId);
                 var recommendationFilter = recommendationSetting.filter;
+                var removeDuplicates = typeof recommendationSettings.removeDuplicates === 'boolean' ? recommendationSettings.removeDuplicates : true;
                 var recommendationPayloadId = recommendationSetting.recommendationPayloadId;
 
                 var result = results[recommendationPayloadId];
@@ -98,8 +99,12 @@
                     continue;
                 }
 
-                // remove used, apply the filter and amount
-                result = this._removeUsedProducts(usedProducts, result);
+                // remove duplicates if configured
+                if (removeDuplicates) {
+                    result = this._removeUsedProducts(usedProducts, result);
+                }
+
+                // apply the filter and amount
                 if ($.isFunction(recommendationFilter)) {
                     result = recommendationFilter(result);
                 }
@@ -147,7 +152,7 @@
             // let's find the recommendations that have to be fired
             var neededRecommendationPayloadIds = [];
 
-            // iterate over the requested recomemndations and see which calls are needed
+            // iterate over the requested recommendations and see which calls are needed
             var payloadIdToRecommendationIds = {};
             var finalRecommendationIds = [];
             for (var i = 0; i < recommendationIds.length; i++) {
@@ -184,8 +189,8 @@
             }
 
             // resolve the neededRecommendationPayloadIds
-            for (var i = 0; i < neededRecommendationPayloadIds.length; i++) {
-                var neededRecommendationPayloadId = neededRecommendationPayloadIds[i];
+            for (var k = 0; k < neededRecommendationPayloadIds.length; k++) {
+                var neededRecommendationPayloadId = neededRecommendationPayloadIds[k];
                 var payload = this._getPayload(neededRecommendationPayloadId);
                 if (!$.isPlainObject(payload)) {
                     continue;
@@ -202,7 +207,6 @@
 
             response.payloadIdToRecommendationIds = payloadIdToRecommendationIds;
             response.recommendationIds = finalRecommendationIds;
-
 
             return response;
         },
