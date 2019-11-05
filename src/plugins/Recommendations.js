@@ -147,7 +147,7 @@
             // let's find the recommendations that have to be fired
             var neededRecommendationPayloadIds = [];
 
-            // iterate over the requested recomemndations and see which calls are needed
+            // iterate over the requested recommendations and see which calls are needed
             var payloadIdToRecommendationIds = {};
             var finalRecommendationIds = [];
             for (var i = 0; i < recommendationIds.length; i++) {
@@ -184,8 +184,8 @@
             }
 
             // resolve the neededRecommendationPayloadIds
-            for (var i = 0; i < neededRecommendationPayloadIds.length; i++) {
-                var neededRecommendationPayloadId = neededRecommendationPayloadIds[i];
+            for (var k = 0; k < neededRecommendationPayloadIds.length; k++) {
+                var neededRecommendationPayloadId = neededRecommendationPayloadIds[k];
                 var payload = this._getPayload(neededRecommendationPayloadId);
                 if (!$.isPlainObject(payload)) {
                     continue;
@@ -202,7 +202,6 @@
 
             response.payloadIdToRecommendationIds = payloadIdToRecommendationIds;
             response.recommendationIds = finalRecommendationIds;
-
 
             return response;
         },
