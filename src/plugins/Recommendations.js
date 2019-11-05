@@ -90,7 +90,7 @@
                 var recommendationId = recommendations.recommendationIds[i];
                 var recommendationSetting = this._getSettings(recommendationId);
                 var recommendationFilter = recommendationSetting.filter;
-                var removeDuplicates = typeof recommendationSettings.removeDuplicates === 'boolean' ? recommendationSettings.removeDuplicates : true;
+                var removeDuplicates = typeof recommendationSetting.removeDuplicates === 'boolean' ? recommendationSetting.removeDuplicates : true;
                 var recommendationPayloadId = recommendationSetting.recommendationPayloadId;
 
                 var result = results[recommendationPayloadId];
