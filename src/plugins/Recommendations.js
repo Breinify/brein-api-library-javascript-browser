@@ -97,7 +97,7 @@
                 var nestedUsedProducts = [];
                 var result = [];
                 for (var j = 0; j < recommendationPayloadIds.length && result.length < amount; j++) {
-                    var payloadResult = _self._apply(recommendationPayloadIds[j], recommendationFilter, nestedUsedProducts);
+                    var payloadResult = this._applyRecommendationPayload(recommendationPayloadIds[j], recommendationFilter, nestedUsedProducts);
 
                     // remove the generally used products (if duplicates should be removed
                     if (removeDuplicates) {
@@ -120,7 +120,7 @@
             return appliedResult;
         },
 
-        _apply: function (recPayloadId, recFilter, usedProducts) {
+        _applyRecommendationPayload: function (recPayloadId, recFilter, usedProducts) {
 
             var result = results[recPayloadId];
             if (!$.isArray(result)) {
