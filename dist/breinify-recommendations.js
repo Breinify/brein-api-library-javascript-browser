@@ -86,31 +86,30 @@
         _applyRecommendationSettings: function (amount, recommendations, results) {
             var appliedResult = {};
             var usedProducts = [];
+
             for (var i = 0; i < recommendations.recommendationIds.length; i++) {
                 var recommendationId = recommendations.recommendationIds[i];
                 var recommendationSetting = this._getSettings(recommendationId);
                 var recommendationFilter = recommendationSetting.filter;
                 var removeDuplicates = typeof recommendationSetting.removeDuplicates === 'boolean' ? recommendationSetting.removeDuplicates : true;
-                var recommendationPayloadId = recommendationSetting.recommendationPayloadId;
+                var recommendationPayloadIds = $.isArray(recommendationSetting.recommendationPayloadId) ? recommendationSetting.recommendationPayloadId : [recommendationSetting.recommendationPayloadId];
 
-                var result = results[recommendationPayloadId];
-                if (!$.isArray(result)) {
-                    appliedResult[recommendationId] = [];
-                    continue;
+                var nestedUsedProducts = [];
+                var result = [];
+                for (var j = 0; j < recommendationPayloadIds.length && result.length < amount; j++) {
+                    var payloadResult = _self._apply(recommendationPayloadIds[j], recommendationFilter, nestedUsedProducts);
+
+                    // remove the generally used products (if duplicates should be removed
+                    if (removeDuplicates) {
+                        payloadResult = this._removeUsedProducts(usedProducts, payloadResult);
+                    }
+
+                    result = result
+                        .concat(payloadResult)
+                        .slice(0, amount);
                 }
 
-                // remove duplicates if configured
-                if (removeDuplicates) {
-                    result = this._removeUsedProducts(usedProducts, result);
-                }
-
-                // apply the filter and amount
-                if ($.isFunction(recommendationFilter)) {
-                    result = recommendationFilter(result);
-                }
-                result = result.slice(0, amount);
-
-                // add the products to be used
+                // add the products to the once used
                 for (var k = 0; k < result.length; k++) {
                     usedProducts.push(result[k].dataIdExternal);
                 }
@@ -119,6 +118,29 @@
             }
 
             return appliedResult;
+        },
+
+        _apply: function (recPayloadId, recFilter, usedProducts) {
+
+            var result = results[recPayloadId];
+            if (!$.isArray(result)) {
+                return [];
+            }
+
+            // remove duplicates
+            result = this._removeUsedProducts(usedProducts, result);
+
+            // apply the filter and amount
+            if ($.isFunction(recFilter)) {
+                result = recFilter(result);
+            }
+
+            // add the used products
+            for (var k = 0; k < result.length; k++) {
+                usedProducts.push(result[k].dataIdExternal);
+            }
+
+            return result;
         },
 
         _removeUsedProducts: function (usedProducts, products) {
