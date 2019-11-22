@@ -184,23 +184,28 @@
                 }
 
                 // check the needed payload and add it if we don't have it yet
-                var recommendationPayloadId = recommendationSetting.recommendationPayloadId;
-                if ($.inArray(recommendationPayloadId, neededRecommendationPayloadIds) === -1) {
-                    neededRecommendationPayloadIds.push(recommendationPayloadId);
-                }
+                var recommendationPayloadIds = $.isArray(recommendationSetting.recommendationPayloadId) ? recommendationSetting.recommendationPayloadId : [recommendationSetting.recommendationPayloadId];
 
-                var currentPayloadIdMapping = payloadIdToRecommendationIds[recommendationPayloadId];
-                if (!$.isArray(currentPayloadIdMapping)) {
-                    currentPayloadIdMapping = [];
-                    payloadIdToRecommendationIds[recommendationPayloadId] = currentPayloadIdMapping;
-                }
+                for (var j = 0; j < recommendationPayloadIds.length; j++) {
+                    var recommendationPayloadId = recommendationPayloadIds[j];
 
-                if ($.inArray(recommendationId, currentPayloadIdMapping) === -1) {
-                    currentPayloadIdMapping.push(recommendationId);
-                }
+                    if ($.inArray(recommendationPayloadId, neededRecommendationPayloadIds) === -1) {
+                        neededRecommendationPayloadIds.push(recommendationPayloadId);
+                    }
 
-                if ($.inArray(recommendationId, finalRecommendationIds) === -1) {
-                    finalRecommendationIds.push(recommendationId);
+                    var currentPayloadIdMapping = payloadIdToRecommendationIds[recommendationPayloadId];
+                    if (!$.isArray(currentPayloadIdMapping)) {
+                        currentPayloadIdMapping = [];
+                        payloadIdToRecommendationIds[recommendationPayloadId] = currentPayloadIdMapping;
+                    }
+
+                    if ($.inArray(recommendationId, currentPayloadIdMapping) === -1) {
+                        currentPayloadIdMapping.push(recommendationId);
+                    }
+
+                    if ($.inArray(recommendationId, finalRecommendationIds) === -1) {
+                        finalRecommendationIds.push(recommendationId);
+                    }
                 }
             }
 
