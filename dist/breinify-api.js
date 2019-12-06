@@ -13419,6 +13419,17 @@ dependencyScope.jQuery = $;;
 
             create: function (user) {
 
+                // get the default user
+                var defaultUser = {
+                    sessionId: this.getSessionId(),
+                    'additional': {
+                        identifiers: {
+                            browserId: this.getBrowserId(),
+                            assignedGroup: this.getAssignedGroup()
+                        }
+                    }
+                };
+
                 // get the create user from the configuration
                 var createUser = scope.Breinify.config()['createUser'];
                 var createdUser;
@@ -13437,17 +13448,7 @@ dependencyScope.jQuery = $;;
                     userLookupResult = userLookUpPlugIn.get();
                 }
 
-                var defaultUser = {
-                    sessionId: this.getSessionId(),
-                    'additional': {
-                        identifiers: {
-                            browserId: this.getBrowserId(),
-                            assignedGroup: this.getAssignedGroup()
-                        }
-                    }
-                };
-
-                return $.extend(true, {}, createdUser, defaultUser, user, userLookupResult);
+                return $.extend(true, {}, createdUser, defaultUser, userLookupResult, user);
             },
 
             getBrowserId: function () {
@@ -13991,7 +13992,7 @@ dependencyScope.jQuery = $;;
                 }
             },
 
-            createStorabledata: function(expiresInSec, data) {
+            createStorabledata: function (expiresInSec, data) {
                 var now = new Date().getTime();
                 return JSON.stringify({
                     'expires': expiresInSec <= 0 ? -1 : now + (expiresInSec * 1000),
@@ -14000,7 +14001,7 @@ dependencyScope.jQuery = $;;
                 });
             },
 
-            isExpired: function(name) {
+            isExpired: function (name) {
                 var json = this.instance.getItem('breinify-' + name);
 
                 if (typeof json === 'string') {
