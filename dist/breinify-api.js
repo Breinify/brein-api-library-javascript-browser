@@ -13506,7 +13506,7 @@ dependencyScope.jQuery = $;;
                 // create the groupName
                 var groupName = cookie + '::' + split;
 
-                if (this.assignedGroup[groupName] !== null) {
+                if (typeof this.assignedGroup[groupName] === 'string') {
                     // nothing to do
                 } else if (BreinifyUtil.internal.isDevMode()) {
                     this.assignedGroup[groupName] = 'DEV';
