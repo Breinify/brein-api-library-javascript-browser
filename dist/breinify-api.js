@@ -13413,7 +13413,7 @@ dependencyScope.jQuery = $;;
         },
 
         user: {
-            assignedGroup: null,
+            assignedGroup: {},
             browserId: null,
             sessionId: null,
 
@@ -13490,22 +13490,36 @@ dependencyScope.jQuery = $;;
                 return this.sessionId;
             },
 
-            getAssignedGroup: function () {
-
-                if (this.assignedGroup !== null) {
-                    // nothing to do
-                } else if (BreinifyUtil.internal.isDevMode()) {
-                    this.assignedGroup = 'DEV';
-                } else if (navigator.cookieEnabled === false) {
-                    this.assignedGroup = 'DISABLED';
-                } else if (BreinifyUtil.cookie.check(BreinifyUtil.cookies.assignedGroup)) {
-                    this.assignedGroup = BreinifyUtil.cookie.get(BreinifyUtil.cookies.assignedGroup);
-                } else {
-                    this.assignedGroup = (Math.floor(Math.random() * 100)) < 75 ? 'TEST' : 'CONTROL';
-                    BreinifyUtil.cookie.set(BreinifyUtil.cookies.assignedGroup, this.assignedGroup, 10 * 365, true, BreinifyUtil.cookie.domain());
+            getAssignedGroup: function (cookie, split) {
+                if (typeof cookie !== 'string' || cookie.trim() === '') {
+                    cookie = BreinifyUtil.cookies.assignedGroup;
                 }
 
-                return this.assignedGroup;
+                if (typeof split !== 'number') {
+                    split = 75;
+                } else if (split < 0) {
+                    split = 0;
+                } else if (split > 100) {
+                    split = 100;
+                }
+
+                // create the groupName
+                var groupName = cookie + '::' + split;
+
+                if (this.assignedGroup[groupName] !== null) {
+                    // nothing to do
+                } else if (BreinifyUtil.internal.isDevMode()) {
+                    this.assignedGroup[groupName] = 'DEV';
+                } else if (navigator.cookieEnabled === false) {
+                    this.assignedGroup[groupName] = 'DISABLED';
+                } else if (BreinifyUtil.cookie.check(groupName)) {
+                    this.assignedGroup[groupName] = BreinifyUtil.cookie.get(groupName);
+                } else {
+                    this.assignedGroup[groupName] = (Math.floor(Math.random() * 100)) < split ? 'TEST' : 'CONTROL';
+                    BreinifyUtil.cookie.set(groupName, this.assignedGroup[groupName], 10 * 365, true, BreinifyUtil.cookie.domain());
+                }
+
+                return this.assignedGroup[groupName];
             }
         },
 
