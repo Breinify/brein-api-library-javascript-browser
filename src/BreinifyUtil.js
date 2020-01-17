@@ -289,7 +289,7 @@
                 }
             },
 
-            set: function (name, value, expiresInDays, global, specDomain, httpsOnly) {
+            set: function (name, value, expiresInDays, global, specDomain, httpsOnly, specSamesite) {
 
                 var expires;
                 if (typeof expiresInDays === 'number') {
@@ -308,13 +308,20 @@
                 }
 
                 var secure;
-                if (httpsOnly === true || scope.Breinify.config()['cookieHttpsOnly'] === true) {
+                if (httpsOnly === false) {
+                    secure = '';
+                } else if (httpsOnly === true || scope.Breinify.config()['cookieHttpsOnly'] === true) {
                     secure = '; secure';
                 } else {
                     secure = '';
                 }
 
-                var samesite = scope.Breinify.config()['cookieSamesite'];
+                var samesite;
+                if (typeof specSamesite === 'string' && specSamesite.trim() !== '') {
+                    samesite = specSamesite;
+                } else {
+                    samesite = scope.Breinify.config()['cookieSameSite'];
+                }
                 if (typeof samesite === 'string' && samesite.trim() !== '') {
                     samesite = '; samesite=' + samesite;
                 } else {
