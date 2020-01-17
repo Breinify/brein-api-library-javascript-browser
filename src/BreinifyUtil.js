@@ -314,8 +314,15 @@
                     secure = '';
                 }
 
+                var samesite = scope.Breinify.config()['cookieSamesite'];
+                if (typeof samesite === 'string' && samesite.trim() !== '') {
+                    samesite = '; samesite=' + samesite;
+                } else {
+                    samesite = '';
+                }
+
                 var path = global === true ? '; path=/' : '';
-                document.cookie = name + '=' + value + expires + domain + path + secure;
+                document.cookie = name + '=' + value + expires + domain + path + secure + samesite;
             },
 
             get: function (name) {

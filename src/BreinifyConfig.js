@@ -151,9 +151,16 @@
     });
     attributes.add('COOKIE_HTTPS_ONLY', {
         name: 'cookieHttpsOnly',
-        defaultValue: false,
+        defaultValue: true,
         validate: function (value) {
             return value === null || typeof(value) === 'boolean';
+        }
+    });
+    attributes.add('COOKIE_SAME_SITE', {
+        name: 'cookieSameSite',
+        defaultValue: 'none',
+        validate: function (value) {
+            return value === null || typeof(value) === 'string';
         }
     });
 

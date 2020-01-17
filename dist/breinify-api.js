@@ -13296,8 +13296,15 @@ dependencyScope.jQuery = $;;
                     secure = '';
                 }
 
+                var samesite = scope.Breinify.config()['cookieSamesite'];
+                if (typeof samesite === 'string' && samesite.trim() !== '') {
+                    samesite = '; samesite=' + samesite;
+                } else {
+                    samesite = '';
+                }
+
                 var path = global === true ? '; path=/' : '';
-                document.cookie = name + '=' + value + expires + domain + path + secure;
+                document.cookie = name + '=' + value + expires + domain + path + secure + samesite;
             },
 
             get: function (name) {
@@ -14202,9 +14209,16 @@ dependencyScope.jQuery = $;;
     });
     attributes.add('COOKIE_HTTPS_ONLY', {
         name: 'cookieHttpsOnly',
-        defaultValue: false,
+        defaultValue: true,
         validate: function (value) {
             return value === null || typeof(value) === 'boolean';
+        }
+    });
+    attributes.add('COOKIE_SAME_SITE', {
+        name: 'cookieSameSite',
+        defaultValue: 'none',
+        validate: function (value) {
+            return value === null || typeof(value) === 'string';
         }
     });
 
