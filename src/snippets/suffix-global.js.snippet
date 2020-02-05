@@ -137,6 +137,7 @@
         isSimpleObject: function() { return false; },
         timezone: function() { return null; },
         localDateTime: function() { return new Date().toString(); },
+        localString: function(date) { return date.toLocaleString(); },
         uuid: function() { return null; },
         getNestedByPath: function() { return null; },
         getNested: function() { return null; },

@@ -829,6 +829,31 @@
             return new Date().toString();
         },
 
+        /**
+         * Method wrapping up the toLocaleString functionality from JavaScript utilizing by default and fallback the
+         * `UTC` timezone.
+         * @param date {Date} the date to format
+         * @param additional additional parameters passed to the toLocaleString method
+         * @returns {string} by default a formatted MM/dd/yyyy is returned, which can be modified by the passed
+         * additional parameters
+         */
+        localString: function (date, additional) {
+            var defaultPayload = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour12: false,
+                timeZone: 'UTC'
+            };
+
+            // some browser don't support other timeZones
+            try {
+                return date.toLocaleString('en-US', $.extend(defaultPayload, additional));
+            } catch (e) {
+                return date.toLocaleString('en-US', defaultPayload);
+            }
+        },
+
         deleteNullProperties: function (input) {
             if (!$.isPlainObject(input)) {
                 return input;
