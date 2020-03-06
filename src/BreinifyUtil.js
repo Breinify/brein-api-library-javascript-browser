@@ -176,6 +176,12 @@
                         parsed = _private.parseNumber(value);
                     } else if (expectedType === 'boolean') {
                         parsed = _private.parseBoolean(value);
+                    } else if (expectedType === 'json') {
+                        try {
+                            parsed = JSON.parse(value);
+                        } catch (e) {
+                            return null;
+                        }
                     } else {
                         return null;
                     }
