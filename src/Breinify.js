@@ -265,7 +265,7 @@
         handleGetParameter: function (name, value, overrides) {
 
             // parse it and make sure it was parseable
-            var parsedValue = _privates.parseGetParameter(name, value);
+            var parsedValue = BreinifyUtil.loc.parseGetParameter(name, value);
             if (parsedValue === null) {
                 return;
             }
@@ -320,27 +320,6 @@
                 // mark it as successfully sent
                 BreinifyUtil.cookie.set(hashId, true);
             });
-        },
-
-        parseGetParameter: function (name, value) {
-
-            var base64;
-            if (typeof value !== 'string' || value === null) {
-                return null;
-            } else if (value.charAt(0) === '.') {
-                base64 = value.substr(1)
-                    .replace(/~/g, '+')
-                    .replace(/-/g, '/')
-                    .replace(/_/g, '=');
-            } else {
-                base64 = decodeURIComponent(value);
-            }
-
-            try {
-                return JSON.parse(atob(base64));
-            } catch (e) {
-                return null;
-            }
         },
 
         createUser: function (user, onSuccess) {

@@ -106,6 +106,40 @@
 
         loc: {
 
+            createGetParameter: function (value) {
+                try {
+                    value = btoa(JSON.stringify(value));
+
+                    return '.' + value
+                        .replace(/\+/g, '~')
+                        .replace(/\//g, '-')
+                        .replace(/=/g, '_');
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            parseGetParameter: function (name, value) {
+
+                var base64;
+                if (typeof value !== 'string' || value === null) {
+                    return null;
+                } else if (value.charAt(0) === '.') {
+                    base64 = value.substr(1)
+                        .replace(/~/g, '+')
+                        .replace(/-/g, '/')
+                        .replace(/_/g, '=');
+                } else {
+                    base64 = decodeURIComponent(value);
+                }
+
+                try {
+                    return JSON.parse(atob(base64));
+                } catch (e) {
+                    return null;
+                }
+            },
+
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
 
                 // if the url is not passed in we use a special decoding for HTML entities

@@ -337,4 +337,20 @@ describe('BreinifyUtil', function () {
             done();
         });
     });
+
+    it('handlesGetParameters', function () {
+        var result;
+        var input = [
+            {},
+            'a string',
+            {special: '/\\Àäã.~!@#$%^&*()_-+='},
+            1232151.123213,
+            12312
+        ];
+
+        for (var i = 0; i < input.length; i++) {
+            result = Breinify.UTL.loc.createGetParameter(input[i]);
+            expect(Breinify.UTL.loc.parseGetParameter('test', result)).toEqual(input[i]);
+        }
+    });
 });

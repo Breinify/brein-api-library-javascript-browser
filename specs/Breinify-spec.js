@@ -118,7 +118,6 @@ describe('Breinify', function () {
         });
     });
 
-
     //noinspection JSUnresolvedFunction
     it('handlesGetParameters', function () {
         var oldParams = Breinify.UTL.loc.params;

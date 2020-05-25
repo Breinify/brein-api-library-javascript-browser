@@ -13088,6 +13088,40 @@ dependencyScope.jQuery = $;;
 
         loc: {
 
+            createGetParameter: function (value) {
+                try {
+                    value = btoa(JSON.stringify(value));
+
+                    return '.' + value
+                        .replace(/\+/g, '~')
+                        .replace(/\//g, '-')
+                        .replace(/=/g, '_');
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            parseGetParameter: function (name, value) {
+
+                var base64;
+                if (typeof value !== 'string' || value === null) {
+                    return null;
+                } else if (value.charAt(0) === '.') {
+                    base64 = value.substr(1)
+                        .replace(/~/g, '+')
+                        .replace(/-/g, '/')
+                        .replace(/_/g, '=');
+                } else {
+                    base64 = decodeURIComponent(value);
+                }
+
+                try {
+                    return JSON.parse(atob(base64));
+                } catch (e) {
+                    return null;
+                }
+            },
+
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
 
                 // if the url is not passed in we use a special decoding for HTML entities
@@ -14926,7 +14960,7 @@ dependencyScope.jQuery = $;;
         handleGetParameter: function (name, value, overrides) {
 
             // parse it and make sure it was parseable
-            var parsedValue = _privates.parseGetParameter(name, value);
+            var parsedValue = BreinifyUtil.loc.parseGetParameter(name, value);
             if (parsedValue === null) {
                 return;
             }
@@ -14981,27 +15015,6 @@ dependencyScope.jQuery = $;;
                 // mark it as successfully sent
                 BreinifyUtil.cookie.set(hashId, true);
             });
-        },
-
-        parseGetParameter: function (name, value) {
-
-            var base64;
-            if (typeof value !== 'string' || value === null) {
-                return null;
-            } else if (value.charAt(0) === '.') {
-                base64 = value.substr(1)
-                    .replace(/~/g, '+')
-                    .replace(/-/g, '/')
-                    .replace(/_/g, '=');
-            } else {
-                base64 = decodeURIComponent(value);
-            }
-
-            try {
-                return JSON.parse(atob(base64));
-            } catch (e) {
-                return null;
-            }
         },
 
         createUser: function (user, onSuccess) {
@@ -15687,6 +15700,8 @@ dependencyScope.jQuery = $;;
             }
         },
         loc: {
+            createGetParameter: function() { return null; },
+            parseGetParameter: function() { return null; },
             params: function () { return []; },
             hasParam: function() { return false; },
             isParam: function() { return false; },
