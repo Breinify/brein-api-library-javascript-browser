@@ -34,6 +34,7 @@
             showFooter: true,
             closeOnEscape: true,
             header: null,
+            footer: null,
             maxWidth: null,
             bindings: null
         }, options);
@@ -98,6 +99,7 @@
         // use some setters
         this.setBindings(null);
         this.setHeader(null);
+        this.setFooter(null);
 
         this.id = id;
     };
@@ -312,6 +314,15 @@
 
         var $header = this.$popup.find('.' + prefixCssPopup + '-header>div:first');
         $header.html(header);
+    };
+
+    UiPopup.prototype.setFooter = function (footer) {
+        if (typeof footer !== 'string') {
+            footer = this.getOption('footer', '');
+        }
+
+        var $footer = this.$popup.find('.' + prefixCssPopup + '-footer');
+        $footer.html(footer);
     };
 
     UiPopup.prototype.getOption = function (option, def) {
