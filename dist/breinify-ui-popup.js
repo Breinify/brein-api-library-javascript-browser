@@ -36,7 +36,8 @@
             header: null,
             footer: null,
             maxWidth: null,
-            bindings: null
+            bindings: null,
+            onClose: null
         }, options);
 
         // make sure we have the minimal CSS needed
@@ -171,6 +172,10 @@
         $('html')
             .css('marginRight', '')
             .css('overflow', '');
+
+        if ($.isFunction(this.options.onClose)) {
+            this.options.onClose(this);
+        }
 
         this.reset();
         this.$popup.hide();
