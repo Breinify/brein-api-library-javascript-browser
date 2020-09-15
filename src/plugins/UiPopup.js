@@ -168,12 +168,12 @@
         this.showPage(pageNr);
     };
 
-    UiPopup.prototype.hide = function (id) {
+    UiPopup.prototype.hide = function (ignoreOnClose) {
         $('html')
             .css('marginRight', '')
             .css('overflow', '');
 
-        if ($.isFunction(this.options.onClose)) {
+        if ($.isFunction(this.options.onClose) && ignoreOnClose !== true) {
             this.options.onClose(this);
         }
 
