@@ -178,7 +178,7 @@
         }
 
         this.reset();
-        this.$popup.hide();
+        this.$popup.css('display', 'none');
     };
 
     UiPopup.prototype.destroy = function () {
@@ -272,7 +272,7 @@
             .css('marginRight', '15px')
             .css('overflow', 'hidden');
 
-        this.$popup.show();
+        this.$popup.css('display', 'block');
     };
 
     UiPopup.prototype._applyBindings = function ($el) {
