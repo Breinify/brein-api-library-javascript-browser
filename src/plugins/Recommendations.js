@@ -302,7 +302,7 @@
                 };
             });
 
-            return mapProduct(product);
+            return mapProduct(product, additionalData);
         }
     };
 
