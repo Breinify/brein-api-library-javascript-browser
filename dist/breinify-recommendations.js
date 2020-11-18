@@ -262,11 +262,12 @@
             // let's map the responses to a more readable way
             for (var i = 0; i < results.length; i++) {
                 var result = results[i].result;
+                var additionalData = $.isPlainObject(result[i].additionalData) ? result[i].additionalData : {};
 
                 var recommendationResult = [];
                 if ($.isArray(result)) {
                     for (var k = 0; k < result.length; k++) {
-                        var product = this._mapProduct(result[k]);
+                        var product = this._mapProduct(result[k], additionalData);
                         if ($.isPlainObject(product)) {
                             recommendationResult.push(product);
                         }
@@ -280,14 +281,14 @@
             return allRecommendationResults;
         },
 
-        _mapProduct: function (product) {
+        _mapProduct: function (product, additionalData) {
             if (!$.isPlainObject(product) || typeof product.dataIdExternal !== 'string') {
                 return null;
             } else if (!$.isPlainObject(product.additionalData)) {
                 return null;
             }
 
-            var mapProduct = this.getConfig('mapProduct', function (product) {
+            var mapProduct = this.getConfig('mapProduct', function (product, additionalData) {
                 return {
                     'dataIdExternal': product.dataIdExternal,
                     'sku': product.dataIdExternal,
@@ -296,7 +297,8 @@
                     'name': product.additionalData['product::productName'],
                     'url': product.additionalData['product::productUrl'],
                     'image': product.additionalData['product::productImageUrl'],
-                    'description': product.additionalData['product::productDescription']
+                    'description': product.additionalData['product::productDescription'],
+                    'additionalData': additionalData
                 };
             });
 
