@@ -267,7 +267,7 @@
                 var recommendationResult = [];
                 if ($.isArray(result)) {
                     for (var k = 0; k < result.length; k++) {
-                        var product = this._mapProduct(result[k], additionalData);
+                        var product = this._mapProduct(result[k], payloadId, additionalData);
                         if ($.isPlainObject(product)) {
                             recommendationResult.push(product);
                         }
@@ -281,7 +281,7 @@
             return allRecommendationResults;
         },
 
-        _mapProduct: function (product, additionalData) {
+        _mapProduct: function (product, payloadId, additionalData) {
             if (!$.isPlainObject(product) || typeof product.dataIdExternal !== 'string') {
                 return null;
             } else if (!$.isPlainObject(product.additionalData)) {
@@ -302,7 +302,7 @@
                 };
             });
 
-            return mapProduct(product, additionalData);
+            return mapProduct(product, payloadId, additionalData);
         }
     };
 
