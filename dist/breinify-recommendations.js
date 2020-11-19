@@ -262,7 +262,7 @@
             // let's map the responses to a more readable way
             for (var i = 0; i < results.length; i++) {
                 var result = results[i].result;
-                var additionalData = $.isPlainObject(result.additionalData) ? result.additionalData : {};
+                var additionalData = $.isPlainObject(results[i].additionalData) ? results[i].additionalData : {};
 
                 var recommendationResult = [];
                 if ($.isArray(result)) {
