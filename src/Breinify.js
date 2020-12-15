@@ -10,6 +10,10 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'Breinify')) {
+        return;
+    }
+
     var $ = dependencyScope.jQuery;
     var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUser = dependencyScope.BreinifyUser;

@@ -8,6 +8,10 @@
     "use strict";
 
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyUser')) {
+        return;
+    }
+
     var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUtil = dependencyScope.BreinifyUtil;
 

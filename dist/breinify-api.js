@@ -12829,6 +12829,9 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'AttributeCollection')) {
+        return;
+    }
 
     var AttributeCollection = function () {
         this._defaultValues = {};
@@ -12991,6 +12994,9 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyUtil')) {
+        return;
+    }
 
     var _private = {
         parseNumber: function (value) {
@@ -14139,6 +14145,10 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyConfig')) {
+        return;
+    }
+
     //noinspection JSUnresolvedVariable
     var AttributeCollection = dependencyScope.AttributeCollection;
 
@@ -14378,6 +14388,10 @@ dependencyScope.jQuery = $;;
     "use strict";
 
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyUser')) {
+        return;
+    }
+
     var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUtil = dependencyScope.BreinifyUtil;
 
@@ -14705,6 +14719,10 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'Breinify')) {
+        return;
+    }
+
     var $ = dependencyScope.jQuery;
     var AttributeCollection = dependencyScope.AttributeCollection;
     var BreinifyUser = dependencyScope.BreinifyUser;

@@ -9,6 +9,9 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyUtil')) {
+        return;
+    }
 
     var _private = {
         parseNumber: function (value) {

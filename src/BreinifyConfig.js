@@ -9,6 +9,10 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'BreinifyConfig')) {
+        return;
+    }
+
     //noinspection JSUnresolvedVariable
     var AttributeCollection = dependencyScope.AttributeCollection;
 

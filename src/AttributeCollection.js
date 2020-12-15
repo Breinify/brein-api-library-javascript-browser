@@ -4,6 +4,9 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
+    if (misc.check(window, 'AttributeCollection')) {
+        return;
+    }
 
     var AttributeCollection = function () {
         this._defaultValues = {};
