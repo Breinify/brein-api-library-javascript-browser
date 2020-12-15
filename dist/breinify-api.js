@@ -15597,10 +15597,14 @@ dependencyScope.jQuery = $;;
             return plugIn;
         },
 
+        _isAdded: function(name) {
+            return $.isPlainObject(this[name]);
+        },
+
         _add: function (name, plugIn, def) {
 
             // make sure we don't have a plugin loaded already
-            if ($.isPlainObject(this[name])) {
+            if (this._isAdded(name)) {
                 return this[name];
             }
 

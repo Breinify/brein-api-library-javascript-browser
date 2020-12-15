@@ -4,6 +4,10 @@
     if (typeof Breinify !== 'object') {
         return;
     }
+    // make sure the plugin isn't loaded yet
+    else if (Breinify.plugins._isAdded('pickUp')) {
+        return;
+    }
 
     // bind the jQuery default object $
     var $ = Breinify.UTL._jquery();

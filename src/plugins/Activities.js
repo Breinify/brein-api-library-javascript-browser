@@ -4,6 +4,10 @@
     if (typeof Breinify !== 'object') {
         return;
     }
+    // make sure the plugin isn't loaded yet
+    else if (Breinify.plugins._isAdded('activities')) {
+        return;
+    }
 
     var $ = Breinify.UTL._jquery();
     var overload = Breinify.plugins._overload();
@@ -13,7 +17,7 @@
 
     var Activities = {
 
-        generic: function() {
+        generic: function () {
             var _self = this;
             overload.overload({
                 'String,Object': function (type, user) {
