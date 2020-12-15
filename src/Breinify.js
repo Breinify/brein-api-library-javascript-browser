@@ -868,8 +868,10 @@
                 customizations = this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, {});
             }
 
-            // add the customization
-            customizations[name] = customization;
+            // add the customization if there isn't one
+            if (typeof customizations[name] === 'undefined') {
+                customizations[name] = customization;
+            }
         },
 
         _getCustomization: function (name) {
