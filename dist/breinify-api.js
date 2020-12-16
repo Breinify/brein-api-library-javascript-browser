@@ -13418,6 +13418,14 @@ dependencyScope.jQuery = $;;
                     }
                 }
 
+                // there are some special domains to handle
+                // 1. .pantheonsite.io: https://pantheon.io/docs/cookies#setting-cookies-for-platform-domains
+                if ('.pantheonsite.io' === this.cookieDomain) {
+                    if (domPartsLen >= 3) {
+                        this.cookieDomain = '.' + domParts[domPartsLen - 3] + this.cookieDomain;
+                    }
+                }
+
                 return this.cookieDomain;
             }
         },
