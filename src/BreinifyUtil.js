@@ -102,7 +102,8 @@
             errors: {
                 prefix: {
                     validation: '[VALIDATION] ',
-                    api: '[API] '
+                    api: '[API] ',
+                    assets: '[ASSETS] ',
                 }
             }
         },

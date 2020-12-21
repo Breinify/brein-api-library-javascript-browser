@@ -297,6 +297,7 @@ module.exports = function (grunt) {
             plugins: {
                 files: {
                     'dist/breinify-activities.min.js': 'src/plugins/Activities.js',
+                    'dist/breinify-assets.min.js': 'src/plugins/Assets.js',
                     'dist/breinify-recommendations.min.js': 'src/plugins/Recommendations.js',
                     'dist/breinify-alertme.min.js': 'src/plugins/AlertMe.js',
                     'dist/breinify-pickup.min.js': 'src/plugins/PickUp.js',
@@ -325,6 +326,7 @@ module.exports = function (grunt) {
             plugins: {
                 files: [
                     {expand: true, cwd: 'src/plugins', src: 'Activities.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-activities.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'Assets.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-assets.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Recommendations.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-recommendations.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'AlertMe.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-alertme.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'PickUp.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-pickup.js' } },
