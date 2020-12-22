@@ -176,11 +176,11 @@
         }
     };
 
+    // bind the module
+    var BoundAssets = Breinify.plugins._add('assets', Assets);
+
     // bind the observation if configured and Breinify is ready
     Breinify.onReady(function () {
-        Assets.observeNamedResourceDomElements();
+        BoundAssets.observeNamedResourceDomElements();
     });
-
-    // bind the module
-    Breinify.plugins._add('assets', Assets);
 })();
