@@ -13075,6 +13075,7 @@ dependencyScope.jQuery = $;;
         },
 
         domObserver: {
+            isInitialized: false,
             mutationObserver: null,
             modifications: {},
 
@@ -13097,6 +13098,36 @@ dependencyScope.jQuery = $;;
                 var $body = $('body');
                 if ($body.length > 0) {
                     this.checkModifications($body);
+                }
+
+                this.isInitialized = true;
+            },
+
+            addModification: function (name, modification) {
+
+                /**
+                 * A modification should have the following structure:
+                 * {
+                 *     'selector': '.fp-create-account-label',
+                 *     'preCondition': function ($el) {
+                 *         return window.location.hash.match(/#!\/login(?:$|\?)/) !== null &&
+                 *             $el.closest('#account').length > 0;
+                 *     },
+                 *     'modifier': function ($el) {
+                 *         $el.css('borderBottom', 'unset');
+                 *         $el.after('<div><img src="https://www.bevmo.com/wp-content/uploads/003630_ClubBev_874x96_2A.png"></div>');
+                 *         return true;
+                 *     },
+                 * }
+                 */
+                if (typeof name === 'string' && name.trim() !== '' &&
+                    $.isPlainObject(modification) && typeof modification.selector === 'string' && modification.selector.trim() !== '') {
+                    this.modifications[name] = modification;
+
+                    // if the system is already initialized we trigger a check for this modification
+                    if (this.isInitialized === true) {
+                        this.checkModification($('body'), name, modification);
+                    }
                 }
             },
 
@@ -13550,25 +13581,7 @@ dependencyScope.jQuery = $;;
         dom: {
 
             addModification: function (modificationId, modification) {
-
-                /**
-                 * A modification should have the following structure:
-                 * {
-                 *     'selector': '.fp-create-account-label',
-                 *     'preCondition': function ($el) {
-                 *         return window.location.hash.match(/#!\/login(?:$|\?)/) !== null &&
-                 *             $el.closest('#account').length > 0;
-                 *     },
-                 *     'modifier': function ($el) {
-                 *         $el.css('borderBottom', 'unset');
-                 *         $el.after('<div><img src="https://www.bevmo.com/wp-content/uploads/003630_ClubBev_874x96_2A.png"></div>');
-                 *         return true;
-                 *     },
-                 * }
-                 */
-                if ($.isPlainObject(modification) && typeof modification.selector === 'string' && modification.selector.trim() !== '') {
-                    _private.domObserver.modifications[modificationId] = modification;
-                }
+                _private.domObserver.addModification(modificationId, modification);
             },
 
             removeModification: function (modificationId) {
