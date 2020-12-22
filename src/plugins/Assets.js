@@ -155,7 +155,7 @@
 
         observeNamedResourceDomElements: function (options) {
             options = $.extend({
-                imgObserver: this.getConfig('assetsObserveImages', true)
+                imgObserver: this.getConfig('assetsObserveImages', false)
             }, options);
 
             if (options.imgObserver === true) {
