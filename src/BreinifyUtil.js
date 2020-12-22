@@ -581,7 +581,7 @@
                  *     },
                  * }
                  */
-                if ($.isPlainObject(modification && typeof modification.selector === 'string' && modification.selector.trim() !== '')) {
+                if ($.isPlainObject(modification) && typeof modification.selector === 'string' && modification.selector.trim() !== '') {
                     _private.domObserver.modifications[modificationId] = modification;
                 }
             },
