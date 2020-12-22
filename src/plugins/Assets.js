@@ -62,6 +62,7 @@
         },
 
         registerNamedResourcesImgObserver: function () {
+            var _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
                 selector: 'img[data-frameId][data-resourceType][data-resourceId][data-frameLoaded!="true"]',
