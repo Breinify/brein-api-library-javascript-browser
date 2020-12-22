@@ -13137,6 +13137,11 @@ dependencyScope.jQuery = $;;
     };
 
     var BreinifyUtil = {
+
+        _init: function () {
+            _private.domObserver.init();
+        },
+
         cookies: {
             assignedGroup: 'x-breinify-ag',
             sessionId: 'x-breinify-uuid',
@@ -13149,7 +13154,7 @@ dependencyScope.jQuery = $;;
                 prefix: {
                     validation: '[VALIDATION] ',
                     api: '[API] ',
-                    assets: '[ASSETS] ',
+                    assets: '[ASSETS] '
                 }
             }
         },
@@ -14230,11 +14235,6 @@ dependencyScope.jQuery = $;;
         }
     };
 
-    // bind a check when breinify is ready
-    Breinify.onReady(function () {
-        _privates.domObserver.init();
-    });
-
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
 }(window, dependencyScope);;
@@ -15201,6 +15201,9 @@ dependencyScope.jQuery = $;;
         if (_config.get(ATTR_CONFIG.HANDLE_UTM) === true) {
             _privates.handleUtmParameters();
         }
+
+        // initialize util
+        BreinifyUtil._init();
     };
 
     /**
@@ -15829,7 +15832,7 @@ dependencyScope.jQuery = $;;
         },
         dom: {
             addModification: function() {},
-            removeModification: function() {},
+            removeModification: function() {}
         },
         loc: {
             createGetParameter: function() { return null; },

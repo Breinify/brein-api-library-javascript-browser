@@ -152,6 +152,11 @@
     };
 
     var BreinifyUtil = {
+
+        _init: function () {
+            _private.domObserver.init();
+        },
+
         cookies: {
             assignedGroup: 'x-breinify-ag',
             sessionId: 'x-breinify-uuid',
@@ -164,7 +169,7 @@
                 prefix: {
                     validation: '[VALIDATION] ',
                     api: '[API] ',
-                    assets: '[ASSETS] ',
+                    assets: '[ASSETS] '
                 }
             }
         },
@@ -1244,11 +1249,6 @@
             return $;
         }
     };
-
-    // bind a check when breinify is ready
-    Breinify.onReady(function () {
-        _privates.domObserver.init();
-    });
 
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);

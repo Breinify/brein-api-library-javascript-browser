@@ -388,6 +388,9 @@
         if (_config.get(ATTR_CONFIG.HANDLE_UTM) === true) {
             _privates.handleUtmParameters();
         }
+
+        // initialize util
+        BreinifyUtil._init();
     };
 
     /**

@@ -154,7 +154,7 @@
 
         observeNamedResourceDomElements: function (options) {
             options = $.extend({
-                imgObserver: true
+                imgObserver: this.getConfig('assetsObserveImages', true)
             }, options);
 
             if (options.imgObserver === true) {
@@ -177,9 +177,11 @@
     };
 
     // bind the observation if configured and Breinify is ready
-    Breinify.onReady(function () {
-        Assets.observeNamedResourceDomElements();
-    });
+    if (this.getConfig('assetsObserveNamedResourceDomElements', false) === true) {
+        Breinify.onReady(function () {
+            Assets.observeNamedResourceDomElements();
+        });
+    }
 
     // bind the module
     Breinify.plugins._add('assets', Assets);
