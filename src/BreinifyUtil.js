@@ -87,6 +87,67 @@
             } else {
                 return false;
             }
+        },
+
+        domObserver: {
+            mutationObserver: null,
+            modifications: {},
+
+            init: function () {
+                var _self = this;
+
+                this.mutationObserver = new MutationObserver(function (mutations, observer) {
+                    for (var i = 0; i < mutations.length; i++) {
+                        for (var k = 0; k < mutations[i].addedNodes.length; k++) {
+                            _self.checkModifications($(mutations[i].addedNodes[k]));
+                        }
+                    }
+                });
+                this.mutationObserver.observe(document, {
+                    childList: true,
+                    subtree: true
+                });
+
+                // if we have the body already, let's check the modifications
+                var $body = $('body');
+                if ($body.length > 0) {
+                    this.checkModifications($body);
+                }
+            },
+
+            checkModifications: function ($modifiedNode) {
+                var _self = this;
+                $.each(this.modifications, function (name, modification) {
+                    _self.checkModification($modifiedNode, name, modification);
+                });
+            },
+
+            checkModification: function ($modifiedNode, name, modification) {
+
+                var $el = $modifiedNode
+                    .find(modification.selector)
+                    .addBack(modification.selector);
+
+                if ($el.length === 0) {
+                    return;
+                } else if ($.isFunction(modification.preCondition) && !modification.preCondition($el)) {
+                    return;
+                } else if (!$.isFunction(modification.modifier)) {
+                    return;
+                }
+
+                // get the current applied modifiers
+                var appliedModifier = $el.attr('data-applied-modifier');
+                appliedModifier = typeof appliedModifier === 'string' ? JSON.parse(appliedModifier) : [];
+                if ($.inArray(name, appliedModifier) !== -1) {
+                    return;
+                }
+
+                if (modification.modifier($el) === true) {
+                    appliedModifier.push(name);
+                    $el.attr('data-applied-modifier', JSON.stringify(appliedModifier));
+                }
+            }
         }
     };
 
@@ -493,6 +554,35 @@
                         this._check();
                     }
                 }, collection);
+            }
+        },
+
+        dom: {
+
+            addModification: function (modificationId, modification) {
+
+                /**
+                 * A modification should have the following structure:
+                 * {
+                 *     'selector': '.fp-create-account-label',
+                 *     'preCondition': function ($el) {
+                 *         return window.location.hash.match(/#!\/login(?:$|\?)/) !== null &&
+                 *             $el.closest('#account').length > 0;
+                 *     },
+                 *     'modifier': function ($el) {
+                 *         $el.css('borderBottom', 'unset');
+                 *         $el.after('<div><img src="https://www.bevmo.com/wp-content/uploads/003630_ClubBev_874x96_2A.png"></div>');
+                 *         return true;
+                 *     },
+                 * }
+                 */
+                if ($.isPlainObject(modification && typeof modification.selector === 'string' && modification.selector.trim() !== '')) {
+                    _private.domObserver.modifications[modificationId] = modification;
+                }
+            },
+
+            removeModification: function (modificationId) {
+                delete _private.domObserver.modifications[modificationId];
             }
         },
 
@@ -1154,6 +1244,11 @@
             return $;
         }
     };
+
+    // bind a check when breinify is ready
+    Breinify.onReady(function () {
+        _privates.domObserver.init();
+    });
 
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
