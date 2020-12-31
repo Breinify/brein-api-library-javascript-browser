@@ -66,24 +66,26 @@
 
             Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
                 selector: 'img[data-frameId][data-resourceType][data-resourceId][data-frameLoaded!="true"]',
-                modifier: function ($el) {
-                    var frameId = $el.attr('data-frameId');
-                    var resourceType = $el.attr('data-resourceType');
-                    var resourceId = $el.attr('data-resourceId');
-                    var fallbackSrc = $el.attr('data-fallbackSrc');
+                modifier: function ($els) {
+                    $els.each(function ($el) {
+                        var frameId = $el.attr('data-frameId');
+                        var resourceType = $el.attr('data-resourceType');
+                        var resourceId = $el.attr('data-resourceId');
+                        var fallbackSrc = $el.attr('data-fallbackSrc');
 
-                    _self.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
-                        if (typeof result === 'string' && result.trim() !== '') {
-                            $el.attr('src', result);
-                        } else if (typeof fallbackSrc === 'string' && fallbackSrc.trim() !== '') {
-                            $el.attr('src', fallbackSrc);
-                        } else {
-                            $el.attr('src', '');
-                        }
+                        _self.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
+                            if (typeof result === 'string' && result.trim() !== '') {
+                                $el.attr('src', result);
+                            } else if (typeof fallbackSrc === 'string' && fallbackSrc.trim() !== '') {
+                                $el.attr('src', fallbackSrc);
+                            } else {
+                                $el.attr('src', '');
+                            }
 
-                        if ($el.attr('src').trim() !== '') {
-                            $el.attr('data-frameLoaded', 'true').show();
-                        }
+                            if ($el.attr('src').trim() !== '') {
+                                $el.attr('data-frameLoaded', 'true').show();
+                            }
+                        });
                     });
                 }
             })
