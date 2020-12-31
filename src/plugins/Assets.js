@@ -116,7 +116,7 @@
             if (typeof timestampInMs === 'number') {
                 timestamp = Math.floor(timestampInMs / 1000);
             } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
-                var paramTimestampInSec = Breinify.UTL.loc.get('assetTimestamp');
+                var paramTimestampInSec = Breinify.UTL.loc.param('assetTimestamp');
                 if (/[0-9]+/.test(paramTimestampInSec)) {
                     timestamp = parseInt(paramTimestampInSec);
                 }
