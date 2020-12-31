@@ -51,7 +51,7 @@
                 if (this.resultCache[frameId] === true) {
 
                     // push it again in the execution loop
-                    setTimeout(function() {
+                    setTimeout(function () {
                         _self.determineTextResourceValue(frameId, resourceType, resourceId, callback, timestampInMs);
                     }, 10);
                 } else {
@@ -111,7 +111,17 @@
         },
 
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
-            var timestamp = Math.floor((typeof timestampInMs === 'number' ? timestampInMs : new Date().getTime()) / 1000);
+
+            var timestamp;
+            if (typeof timestampInMs === 'number') {
+                timestamp = Math.floor(timestampInMs / 1000);
+            } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
+                var paramTimestampInSec = Breinify.UTL.loc.get('assetTimestamp');
+                if (/[0-9]+/.test(paramTimestampInSec)) {
+                    timestamp = parseInt(paramTimestampInSec);
+                }
+            }
+            timestamp = typeof timestamp === 'number' ? timestamp : Math.floor(new Date().getTime() / 1000);
 
             // determine which theme to use:
             //  - a theme is a higher level object which has a [start, end) defined in which it's valid
