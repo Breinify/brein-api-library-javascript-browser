@@ -67,7 +67,8 @@
             Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
                 selector: 'img[data-frameId][data-resourceType][data-resourceId][data-frameLoaded!="true"]',
                 modifier: function ($els) {
-                    $els.each(function ($el) {
+                    $els.each(function () {
+                        var $el = $(this);
                         var frameId = $el.attr('data-frameId');
                         var resourceType = $el.attr('data-resourceType');
                         var resourceId = $el.attr('data-resourceId');
