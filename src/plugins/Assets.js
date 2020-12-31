@@ -40,14 +40,31 @@
          * @param {number|optional} timestampInMs optional parameter which is used if themes are available (default: now)
          */
         determineTextResourceValue: function (frameId, resourceType, resourceId, callback, timestampInMs) {
+            var _self = this;
 
             if (typeof resourceId !== 'string' || resourceId.trim() === '') {
                 callback(null, null);
             } else if ($.isPlainObject(this.resultCache[frameId])) {
                 this.extractResource(timestampInMs, resourceType, resourceId, this.resultCache[frameId], callback);
+            } else if (typeof this.resultCache[frameId] === 'boolean') {
+
+                if (this.resultCache[frameId] === true) {
+
+                    // push it again in the execution loop
+                    setTimeout(function() {
+                        _self.determineTextResourceValue(frameId, resourceType, resourceId, callback, timestampInMs);
+                    }, 10);
+                } else {
+
+                    // we had an error as result, so let's keep it
+                    callback(null, null);
+                }
             } else {
 
-                var _self = this;
+                // mark the resource to be in progress (to be loaded)
+                this.resultCache[frameId] = true;
+
+                // fire the query
                 this.textResource(frameId, function (error, data) {
 
                     // if we have an error just return the fallback
@@ -55,6 +72,7 @@
                         _self.resultCache[frameId] = data;
                         _self.extractResource(timestampInMs, resourceType, resourceId, data, callback);
                     } else {
+                        _self.resultCache[frameId] = false;
                         callback(null, null);
                     }
                 });
