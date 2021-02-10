@@ -125,7 +125,7 @@
             var _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesDataTagsObserver', {
-                selector: '[data-frameId][data-personalize-group][data-personalize-item][data-personalize-value][data-frameLoaded!="true"]',
+                selector: '[data-frameId][data-personalize-group][data-personalize-item][data-personalize-value][data-personalize-loaded!="true"]',
                 modifier: function ($els) {
                     $els.each(function () {
 
@@ -139,11 +139,11 @@
 
                         _self.determineDataTagsResourceValue(frameId, group, item, function (dataTags) {
                             _self.applyDataTagsModifications($el, dataTags, modifications);
-                            $el.attr('data-frameLoaded', 'true').show();
+                            $el.attr('data-personalize-loaded', 'true');
                         });
                     });
                 }
-            })
+            });
         },
 
         applyDataTagsModifications: function ($el, dataTags, modifications) {
@@ -192,7 +192,7 @@
             var _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
-                selector: 'img[data-frameId][data-resourceType][data-resourceId][data-frameLoaded!="true"]',
+                selector: 'img[data-frameId][data-resourceType][data-resourceId][data-resourceLoaded!="true"]',
                 modifier: function ($els) {
                     $els.each(function () {
                         var $el = $(this);
@@ -211,7 +211,7 @@
                             }
 
                             if ($el.attr('src').trim() !== '') {
-                                $el.attr('data-frameLoaded', 'true').show();
+                                $el.attr('data-resourceLoaded', 'true').show();
                             }
                         });
                     });
