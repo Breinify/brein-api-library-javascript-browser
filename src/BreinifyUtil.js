@@ -590,6 +590,27 @@
                         this._check();
                     }
                 }, collection);
+            },
+
+            runExternaljQuery: function (plugin, func) {
+                var _self = this;
+
+                var executed = false;
+                if ($.isFunction(window.$)) {
+                    if (plugin === 'jquery') {
+                        func();
+                        executed = true;
+                    } else if ($.isFunction(window.$.fn[plugin])) {
+                        func();
+                        executed = true;
+                    }
+                }
+
+                if (executed === false) {
+                    setTimeout(function () {
+                        _self.runExternaljQuery(plugin, func);
+                    }, 25);
+                }
             }
         },
 

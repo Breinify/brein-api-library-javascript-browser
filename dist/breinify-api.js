@@ -13575,6 +13575,27 @@ dependencyScope.jQuery = $;;
                         this._check();
                     }
                 }, collection);
+            },
+
+            runExternaljQuery: function (plugin, func) {
+                var _self = this;
+
+                var executed = false;
+                if ($.isFunction(window.$)) {
+                    if (plugin === 'jquery') {
+                        func();
+                        executed = true;
+                    } else if ($.isFunction(window.$.fn[plugin])) {
+                        func();
+                        executed = true;
+                    }
+                }
+
+                if (executed === false) {
+                    setTimeout(function () {
+                        _self.runExternaljQuery(plugin, func);
+                    }, 25);
+                }
             }
         },
 
@@ -15898,7 +15919,8 @@ dependencyScope.jQuery = $;;
         },
         internal: {
             isDevMode: function() { return false; },
-            cbCollector: function(collection) { return collection; }
+            cbCollector: function(collection) { return collection; },
+            runExternaljQuery: function(plugin, func) { return false; },
         },
         select: function() { return null; },
         texts: function() { return []; },

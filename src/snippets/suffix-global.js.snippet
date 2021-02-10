@@ -128,7 +128,8 @@
         },
         internal: {
             isDevMode: function() { return false; },
-            cbCollector: function(collection) { return collection; }
+            cbCollector: function(collection) { return collection; },
+            runExternaljQuery: function(plugin, func) { return false; },
         },
         select: function() { return null; },
         texts: function() { return []; },

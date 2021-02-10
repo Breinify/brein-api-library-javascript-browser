@@ -30,6 +30,48 @@
             });
         },
 
+        determineDataTagsResourceValue: function(frameId, group, item, callback) {
+
+            var _self = this;
+
+            if (typeof group !== 'string' || group.trim() === '' ||
+                typeof item !== 'string' || item.trim() === '') {
+                callback(null, null);
+            } else if ($.isPlainObject(this.resultCache[frameId])) {
+                this.extractDataTagsSettings(group, item, this.resultCache[frameId], callback);
+            } else if (typeof this.resultCache[frameId] === 'boolean') {
+
+                if (this.resultCache[frameId] === true) {
+
+                    // push it again in the execution loop
+                    setTimeout(function () {
+                        _self.determineDataTagsResourceValue(frameId, group, item, callback);
+                    }, 10);
+                } else {
+
+                    // we had an error as result, so let's keep it
+                    callback(null, null);
+                }
+            } else {
+
+                // mark the resource to be in progress (to be loaded)
+                this.resultCache[frameId] = true;
+
+                // fire the query
+                this.textResource(frameId, function (error, data) {
+
+                    // if we have an error just return the fallback
+                    if (error === null) {
+                        _self.resultCache[frameId] = data;
+                        _self.extractDataTagsSettings(group, item, data, callback);
+                    } else {
+                        _self.resultCache[frameId] = false;
+                        callback(null, null);
+                    }
+                });
+            }
+        },
+
         /**
          * Determines the value behind a text-resource (<resourceType>.<resourceId>). Supports the usage of themes,
          * which allows that a theme is active at a specific time.
@@ -79,6 +121,30 @@
             }
         },
 
+        registerNamedResourcesDataTagsObserver: function() {
+            var _self = this;
+
+            Breinify.UTL.dom.addModification('assets::namedResourcesDataTagsObserver', {
+                selector: '[data-frameId][data-personalize-group][data-personalize-item][data-personalize-value][data-frameLoaded!="true"]',
+                modifier: function ($els) {
+                    $els.each(function () {
+
+                        // get the values from the element
+                        var $el = $(this);
+                        var frameId = $el.attr('data-frameId');
+                        var group = $el.attr('data-personalize-group');
+                        var item = $el.attr('data-personalize-item');
+                        var value = $el.attr('data-personalize-value');
+
+                        _self.determineDataTagsResourceValue(frameId, group, item, function (result) {
+                            console.log(result);
+                            $el.attr('data-frameLoaded', 'true').show();
+                        });
+                    });
+                }
+            })
+        },
+
         registerNamedResourcesImgObserver: function () {
             var _self = this;
 
@@ -108,6 +174,11 @@
                     });
                 }
             })
+        },
+
+        extractDataTagsSettings: function (data, group, item, callback) {
+            console.log(data);
+            callback(null, null);
         },
 
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
@@ -186,11 +257,16 @@
 
         observeNamedResourceDomElements: function (options) {
             options = $.extend({
-                imgObserver: this.getConfig('observeImages', false)
+                imgObserver: this.getConfig('observeImages', false),
+                dataTagsObserver: this.getConfig('observeDataTags', false)
             }, options);
 
             if (options.imgObserver === true) {
                 _private.registerNamedResourcesImgObserver();
+            }
+
+            if (options.dataTagsObserver === true) {
+                _private.registerNamedResourcesDataTagsObserver();
             }
         },
 
