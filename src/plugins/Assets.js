@@ -30,7 +30,7 @@
             });
         },
 
-        determineDataTagsResourceValue: function(frameId, group, item, callback) {
+        determineDataTagsResourceValue: function (frameId, group, item, callback) {
 
             var _self = this;
 
@@ -121,7 +121,7 @@
             }
         },
 
-        registerNamedResourcesDataTagsObserver: function() {
+        registerNamedResourcesDataTagsObserver: function () {
             var _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesDataTagsObserver', {
@@ -135,14 +135,57 @@
                         var group = $el.attr('data-personalize-group');
                         var item = $el.attr('data-personalize-item');
                         var value = $el.attr('data-personalize-value');
+                        var modifications = value.split(/\s*,\s*/);
 
-                        _self.determineDataTagsResourceValue(frameId, group, item, function (result) {
-                            console.log(result);
+                        _self.determineDataTagsResourceValue(frameId, group, item, function (dataTags) {
+                            _self.applyDataTagsModifications($el, dataTags, modifications);
                             $el.attr('data-frameLoaded', 'true').show();
                         });
                     });
                 }
             })
+        },
+
+        applyDataTagsModifications: function ($el, dataTags, modifications) {
+
+            if (!$.isArray(modifications) || modifications.length === 0) {
+                return;
+            } else if (!$.isArray(dataTags)) {
+                return;
+            }
+
+            console.log(dataTags);
+            console.log(modifications);
+
+            for (var i = 0; i < dataTags.length; i++) {
+                var dataTag = dataTags[i];
+                if (!$.isPlainObject(dataTag)) {
+                    continue;
+                }
+
+                // check if we are on the right journey
+                var journey = typeof dataTag.journey === 'string' && dataTag.journey.trim() !== '' ? dataTag.journey : null;
+                if (journey !== null && !Journey.is(journey)) {
+                    continue;
+                }
+
+                // apply the defined modifications
+                for (var k = 0; k < modifications.length; k++) {
+                    var modification = modifications[k];
+                    var modificationValue = typeof dataTag[modification] === 'undefined' ? null : dataTag[modification];
+
+                    this.applyDataTagsModification($el, modification, modificationValue);
+                }
+            }
+        },
+
+        applyDataTagsModification: function ($el, modification, modificationValue) {
+            if (modificationValue === null) {
+                return;
+            }
+
+            console.log(modification);
+            console.log(modificationValue);
         },
 
         registerNamedResourcesImgObserver: function () {
@@ -177,8 +220,11 @@
         },
 
         extractDataTagsSettings: function (data, group, item, callback) {
-            console.log(data);
-            callback(null, null);
+            data = $.isPlainObject(data) ? data : {};
+            var dataGroup = $.isPlainObject(data[group]) ? data[group] : {};
+            var dataItem = $.isPlainObject(dataGroup[item]) ? dataGroup[item] : {};
+
+            callback(null, dataItem);
         },
 
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
