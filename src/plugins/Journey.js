@@ -45,13 +45,13 @@
 
         handleClick: function ($el, utilizeDataTags) {
 
-            var group = utilizeDataTags ? $el.attr('data-journey-group') : null;
-            var item = utilizeDataTags ? $el.attr('data-journey-item') : null;
+            var group = utilizeDataTags ? $el.attr('data-journey-group') : undefined;
+            var item = utilizeDataTags ? $el.attr('data-journey-item') : undefined;
 
             var entry = {
                 path: window.location.pathname,
-                group: typeof group === 'string' && group.trim() !== '' ? group : null,
-                item: typeof item === 'string' && item.trim() !== '' ? item : null
+                group: typeof group === 'string' && group.trim() !== '' ? group : undefined,
+                item: typeof item === 'string' && item.trim() !== '' ? item : undefined
             };
 
             this.appendEntry(entry);
