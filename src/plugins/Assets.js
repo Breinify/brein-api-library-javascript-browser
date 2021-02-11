@@ -188,11 +188,11 @@
                 $el.text(modificationValue);
             } else if ('html' === modification) {
                 $el.html(modificationValue);
-            } else if ('font-color') {
+            } else if ('font-color' === modification) {
                 $el.css('color', modificationValue);
-            } else if ('background-color') {
+            } else if ('background-color' === modification) {
                 $el.css('background-color', modificationValue);
-            } else if ('background-color') {
+            } else if ('style' === modification) {
                 $el.attr('style', modificationValue);
             } else {
                 console.log('Unknown modification: ' + modification);
