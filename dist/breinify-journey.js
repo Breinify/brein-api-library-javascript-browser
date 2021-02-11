@@ -13,7 +13,7 @@
     var $ = Breinify.UTL._jquery();
     var overload = Breinify.plugins._overload();
 
-    var storageKey = '';
+    var storageKey = 'br::journey';
     var maxSize = 20;
     var _private = {
         currentJourney: [],
