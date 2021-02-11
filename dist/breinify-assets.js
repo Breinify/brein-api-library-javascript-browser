@@ -142,9 +142,7 @@
                             if (error === null) {
                                 _self.applyDataTagsModifications($el, dataTags, modifications);
                             }
-
                             $el.attr('data-personalize-loaded', 'true');
-
                             if ($el.attr('data-personalize-show') === 'true') {
                                 $el.show();
                             }
