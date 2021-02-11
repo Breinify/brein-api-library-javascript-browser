@@ -29,8 +29,6 @@
             } else {
                 this.currentJourney = [];
             }
-
-            console.log(this.currentJourney);
         },
 
         appendEntry: function (entry) {
