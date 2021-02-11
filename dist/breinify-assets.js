@@ -164,7 +164,7 @@
                 }
 
                 // check if we are on the right journey
-                var journey = typeof dataTag.journey === 'string' && dataTag.journey.trim() !== '' ? dataTag.journey : null;
+                var journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
                 if (journey !== null && !Journey.is(journey)) {
                     continue;
                 }

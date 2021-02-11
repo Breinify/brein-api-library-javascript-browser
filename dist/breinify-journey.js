@@ -100,9 +100,17 @@
                 return false;
             }
 
+            if ($.isArray(entry)) {
+                // nothing to do
+            } else if (typeof entry === 'string' && entry.trim() !== '') {
+                entry = [entry];
+            } else {
+                return false
+            }
+
             var lastEntry = this.currentJourney[length - 1];
-            return (matchByPath === true && lastEntry.path === entry) ||
-                (matchByDataTag === true  && (lastEntry.group + '::' + lastEntry.item) === entry);
+            return matchByPath && $.inArray(lastEntry.path, entry) > -1 &&
+                matchByDataTag && $.inArray(lastEntry.group + '::' + lastEntry.item, entry) > -1;
         }
     };
 
