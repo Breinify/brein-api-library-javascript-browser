@@ -93,7 +93,7 @@
             }
         },
 
-        is: function (entry) {
+        is: function (entry, matchByPath, matchByDataTag) {
             var length = this.currentJourney.length;
 
             if (length === 0) {
@@ -103,9 +103,8 @@
             }
 
             var lastEntry = this.currentJourney[length - 1];
-            var entryKey = lastEntry.group + '::' + lastEntry.item;
-
-            return entryKey === entry;
+            return (matchByPath === true && lastEntry.path === entry) ||
+                (matchByDataTag === true  && (lastEntry.group + '::' + lastEntry.item) === entry);
         }
     };
 
@@ -124,7 +123,7 @@
         },
 
         is: function (journey) {
-            return _private.is(journey);
+            return _private.is(journey, true, true);
         }
     };
 
