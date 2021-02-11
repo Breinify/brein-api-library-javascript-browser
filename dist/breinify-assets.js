@@ -137,8 +137,10 @@
                         var value = $el.attr('data-personalize-value');
                         var modifications = value.split(/\s*,\s*/);
 
-                        _self.determineDataTagsResourceValue(frameId, group, item, function (dataTags) {
-                            _self.applyDataTagsModifications($el, dataTags, modifications);
+                        _self.determineDataTagsResourceValue(frameId, group, item, function (error, dataTags) {
+                            if (error === null) {
+                                _self.applyDataTagsModifications($el, dataTags, modifications);
+                            }
                             $el.attr('data-personalize-loaded', 'true');
                         });
                     });
