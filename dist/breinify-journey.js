@@ -109,8 +109,8 @@
             }
 
             var lastEntry = this.currentJourney[length - 1];
-            return matchByPath && $.inArray(lastEntry.path, entry) > -1 &&
-                matchByDataTag && $.inArray(lastEntry.group + '::' + lastEntry.item, entry) > -1;
+            return (matchByPath && $.inArray(lastEntry.path, entry) > -1) ||
+                (matchByDataTag && $.inArray(lastEntry.group + '::' + lastEntry.item, entry) > -1);
         }
     };
 

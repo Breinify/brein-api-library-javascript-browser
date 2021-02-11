@@ -157,9 +157,6 @@
                 return;
             }
 
-            console.log(dataTags);
-            console.log(modifications);
-
             for (var i = 0; i < dataTags.length; i++) {
                 var dataTag = dataTags[i];
                 if (!$.isPlainObject(dataTag)) {
