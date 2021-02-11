@@ -223,7 +223,7 @@
             data = $.isPlainObject(data) ? data : {};
             var dataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
             var dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
-            var dataItem = $.isPlainObject(dataGroup[item]) ? dataGroup[item] : {};
+            var dataItem = $.isArray(dataGroup[item]) ? dataGroup[item] : [];
 
             callback(null, dataItem);
         },
