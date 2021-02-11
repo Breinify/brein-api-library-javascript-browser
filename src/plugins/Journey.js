@@ -130,6 +130,12 @@
 
         is: function (journey) {
             return _private.is(journey, true, true);
+        },
+
+        get: function() {
+
+            // let's return a copy so that the result cannot be changed
+            return _private.currentJourney.slice(0, _private.currentJourney.length);
         }
     };
 
