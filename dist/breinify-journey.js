@@ -29,6 +29,8 @@
             } else {
                 this.currentJourney = [];
             }
+
+            console.log(this.currentJourney);
         },
 
         appendEntry: function (entry) {
@@ -41,40 +43,69 @@
             window.sessionStorage.setItem(storageKey, JSON.stringify(this.currentJourney));
         },
 
-        handleClick: function ($el) {
-            var group = $el.attr('data-journey-group');
-            var item = $el.attr('data-journey-item');
-            var entry = group + '::' + item;
+        handleClick: function ($el, utilizeDataTags) {
+
+            var group = utilizeDataTags ? $el.attr('data-journey-group') : null;
+            var item = utilizeDataTags ? $el.attr('data-journey-item') : null;
+
+            var entry = {
+                path: window.location.pathname,
+                group: typeof group === 'string' && group.trim() !== '' ? group : null,
+                item: typeof item === 'string' && item.trim() !== '' ? item : null
+            };
 
             this.appendEntry(entry);
         },
 
-        registerTracker: function () {
+        registerTracker: function (trackJourney, trackAnchors) {
             var _self = this;
 
-            Breinify.UTL.dom.addModification('journey::tracker', {
-                selector: '[data-journey-group][data-journey-item][data-journey-set!="true"]',
-                modifier: function ($els) {
-                    $els.each(function () {
+            if (trackJourney === true) {
+                Breinify.UTL.dom.addModification('journey::dataTagTracker', {
+                    selector: '[data-journey-group][data-journey-item][data-journey-set!="true"]',
+                    modifier: function ($els) {
+                        $els.each(function () {
 
-                        // get the values from the element
-                        var $el = $(this);
-                        $el.attr('data-journey-set', 'true').click(function () {
-                            _self.handleClick($(this));
+                            // get the values from the element
+                            var $el = $(this);
+                            $el.attr('data-journey-set', 'true').click(function () {
+                                _self.handleClick($(this), true);
+                            });
                         });
-                    });
-                }
-            });
+                    }
+                });
+            }
+
+            if (trackAnchors === true) {
+                Breinify.UTL.dom.addModification('journey::anchorTracker', {
+                    selector: 'a[data-journey-set!="true"]:not([data-journey-group][data-journey-item])',
+                    modifier: function ($els) {
+                        $els.each(function () {
+
+                            // get the values from the element
+                            var $el = $(this);
+                            $el.attr('data-journey-set', 'true').click(function () {
+                                _self.handleClick($(this), false);
+                            });
+                        });
+                    }
+                });
+            }
         },
 
         is: function (entry) {
-            if (this.currentJourney.length === 0) {
+            var length = this.currentJourney.length;
+
+            if (length === 0) {
                 return false;
             } else if (entry === null) {
                 return false;
-            } else {
-                return this.currentJourney[this.currentJourney.length - 1] === entry;
             }
+
+            var lastEntry = this.currentJourney[length - 1];
+            var entryKey = lastEntry.group + '::' + lastEntry.item;
+
+            return entryKey === entry;
         }
     };
 
@@ -85,12 +116,11 @@
 
         observeJourneyElements: function (options) {
             options = $.extend({
-                trackJourney: this.getConfig('trackJourney', false)
+                trackJourney: this.getConfig('trackJourney', false),
+                trackAnchors: this.getConfig('trackAnchors', false),
             }, options);
 
-            if (options.trackJourney === true) {
-                _private.registerTracker();
-            }
+            _private.registerTracker(options.trackJourney === true, options.trackAnchors === true);
         },
 
         is: function (journey) {
