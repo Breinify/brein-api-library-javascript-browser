@@ -219,7 +219,7 @@
             })
         },
 
-        extractDataTagsSettings: function (data, group, item, callback) {
+        extractDataTagsSettings: function (group, item, data, callback) {
             data = $.isPlainObject(data) ? data : {};
             var dataGroup = $.isPlainObject(data[group]) ? data[group] : {};
             var dataItem = $.isPlainObject(dataGroup[item]) ? dataGroup[item] : {};
