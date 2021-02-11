@@ -221,7 +221,8 @@
 
         extractDataTagsSettings: function (group, item, data, callback) {
             data = $.isPlainObject(data) ? data : {};
-            var dataGroup = $.isPlainObject(data[group]) ? data[group] : {};
+            var dataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
+            var dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
             var dataItem = $.isPlainObject(dataGroup[item]) ? dataGroup[item] : {};
 
             callback(null, dataItem);
