@@ -12,6 +12,7 @@
     // bind the jQuery default object $
     var $ = Breinify.UTL._jquery();
     var overload = Breinify.plugins._overload();
+    var Journey = Breinify.plugins.journey;
 
     var prefixAssets = Breinify.UTL.constants.errors.prefix.assets;
 
