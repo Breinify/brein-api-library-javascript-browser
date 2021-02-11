@@ -184,8 +184,19 @@
                 return;
             }
 
-            console.log(modification);
-            console.log(modificationValue);
+            if ('text' === modification) {
+                $el.text(modificationValue);
+            } else if ('html' === modification) {
+                $el.html(modificationValue);
+            } else if ('font-color') {
+                $el.css('color', modificationValue);
+            } else if ('background-color') {
+                $el.css('background-color', modificationValue);
+            } else if ('background-color') {
+                $el.attr('style', modificationValue);
+            } else {
+                console.log('Unknown modification: ' + modification);
+            }
         },
 
         registerNamedResourcesImgObserver: function () {
