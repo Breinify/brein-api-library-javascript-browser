@@ -286,11 +286,11 @@
             } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
                 try {
                     var assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
-                    if (/[0-9]+/.test(assetTimestamp)) {
+                    if (/^[0-9]+$/.test(assetTimestamp)) {
                         timestamp = parseInt(assetTimestamp);
-                    } else if (/[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}/.test(assetTimestamp)) {
+                    } else if (/^[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}$/.test(assetTimestamp)) {
                         timestamp = this.parseDate(assetTimestamp);
-                    } else if (/[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}[_\- ][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}/.test(assetTimestamp)) {
+                    } else if (/^[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}[_\- ][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$/.test(assetTimestamp)) {
                         var parts = assetTimestamp.split(/[_\- ]/);
                         timestamp = this.parseDateTime(parts[0], parts[1]);
                     }
