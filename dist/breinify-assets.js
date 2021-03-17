@@ -242,15 +242,61 @@
             callback(null, dataItem);
         },
 
+        parseDate: function(strDate) {
+            var parts = strDate.split('\/');
+
+            var year = parseInt(parts[0]);
+            var month = parseInt(parts[1]);
+            var day = parseInt(parts[2]);
+
+            var date = new Date();
+            date.setFullYear(year);
+            date.setMonth(month -1);
+            date.setDate(day);
+            date.setHours(0);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+
+            return date.getTime();
+        },
+
+        parseDateTime: function(strDate, strTime) {
+            var timestamp = this.parseDate(strDate);
+            var date = new Date(timestamp);
+
+            var parts = strTime.split(':');
+            var hours = parseInt(parts[0]);
+            var minutes = parseInt(parts[1]);
+            var seconds = parseInt(parts[2]);
+
+            date.setHours(hours);
+            date.setMinutes(minutes);
+            date.setSeconds(seconds);
+            date.setMilliseconds(0);
+
+            return new Date().getTime();
+        },
+
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
 
             var timestamp;
             if (typeof timestampInMs === 'number') {
                 timestamp = Math.floor(timestampInMs / 1000);
             } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
-                var paramTimestampInSec = Breinify.UTL.loc.param('assetTimestamp');
-                if (/[0-9]+/.test(paramTimestampInSec)) {
-                    timestamp = parseInt(paramTimestampInSec);
+                try {
+                    var assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
+                    if (/[0-9]+/.test(assetTimestamp)) {
+                        timestamp = parseInt(assetTimestamp);
+                    } else if (/[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}/.test(assetTimestamp)) {
+                        timestamp = this.parseDate(assetTimestamp);
+                    } else if (/[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}[_\- ][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}/.test(assetTimestamp)) {
+                        var parts = assetTimestamp.split(/[_\- ]/);
+                        timestamp = this.parseDateTime(parts[0], parts[1]);
+                    }
+                } catch (e) {
+                    console.log('Failed to parse: ' + assetTimestamp);
+                    timestamp = null;
                 }
             }
             timestamp = typeof timestamp === 'number' ? timestamp : Math.floor(new Date().getTime() / 1000);
