@@ -251,19 +251,19 @@
 
             var date = new Date();
             date.setFullYear(year);
-            date.setMonth(month -1);
+            date.setMonth(month - 1);
             date.setDate(day);
             date.setHours(0);
             date.setMinutes(0);
             date.setSeconds(0);
             date.setMilliseconds(0);
 
-            return date.getTime();
+            return Math.floor(date.getTime() / 1000);
         },
 
         parseDateTime: function(strDate, strTime) {
             var timestamp = this.parseDate(strDate);
-            var date = new Date(timestamp);
+            var date = new Date(timestamp * 1000);
 
             var parts = strTime.split(':');
             var hours = parseInt(parts[0]);
@@ -275,7 +275,7 @@
             date.setSeconds(seconds);
             date.setMilliseconds(0);
 
-            return new Date().getTime();
+            return Math.floor(date.getTime() / 1000);
         },
 
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
