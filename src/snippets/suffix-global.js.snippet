@@ -130,6 +130,7 @@
             isDevMode: function() { return false; },
             cbCollector: function(collection) { return collection; },
             runExternaljQuery: function(plugin, func) { return false; },
+            token: function(apiToken, payload, cb, timeout) { cb(new Error('Breinify not available.')) }
         },
         select: function() { return null; },
         texts: function() { return []; },

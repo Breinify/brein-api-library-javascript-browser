@@ -554,6 +554,42 @@
                 }
             },
 
+            token: function (apiToken, payload, cb, timeout) {
+
+                var _self = this;
+                $.ajax({
+                    'url': 'https://api.breinify.com/res/' + apiToken,
+                    'type': 'GET',
+                    'crossDomain': true,
+                    'data': payload,
+                    'success': function (data) {
+
+                        if (!$.isPlainObject(data)) {
+                            cb(new Error('Unexpected data response.'));
+                            return;
+                        } else if (typeof data.responseCode !== 'number' || data.responseCode !== 200) {
+                            cb(new Error('Failed response (code: ' + data.responseCode + '): ' + JSON.stringify(data)));
+                            return;
+                        } else if (!$.isPlainObject(data.payload)) {
+                            cb(new Error('Unexpected payload.'));
+                            return;
+                        } else if (typeof data.payload.group !== 'string' || data.payload.group.trim() === '') {
+                            cb(new Error('Unexpected group information.'));
+                            return;
+                        }
+
+                        cb(null, {
+                            group: data.payload.group,
+                            attachedData: $.isPlainObject(data.payload.attachedData) ? data.payload.attachedData : {}
+                        });
+                    },
+                    'error': function (jqXHR, text, exception) {
+                        cb(new Error(text));
+                    },
+                    'timeout': typeof timeout === 'number' ? timeout : 15000
+                });
+            },
+
             cbCollector: function (collection) {
                 return $.extend({
                     _expectedCounter: null,
