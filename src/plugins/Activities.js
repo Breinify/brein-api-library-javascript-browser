@@ -37,11 +37,12 @@
         instance: null,
         mapper: null,
 
-        init: function (gaSettings) {
+        init: function (gaSettings, callback) {
             var _self = this;
 
             if (this.initialized === true) {
-                return true;
+                callback(true);
+                return;
             }
 
             // search for the ga instance
@@ -53,6 +54,8 @@
                         _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
                         _self.mapper = $.isFunction(gaSettings.mapper) ? gaSettings.mapper : gaDefaultMapper;
                         _self.initialized = true;
+
+                        callback(_self.initialized);
                     });
                     break;
                 case 'gtag':
@@ -60,25 +63,25 @@
                 default:
                     throw new Error('Using currently unavailable type: ' + gaType);
             }
-
-            return this.initialized;
         },
 
         handle: function (gaSettings, activity) {
+            var _self = this;
 
-            // make sure we have it initialized
-            if (!this.init(gaSettings)) {
-                return;
-            }
+            this.init(gaSettings, function(status) {
+                if (status === false) {
+                    return;
+                }
 
-            var mappedActivity = this.mapper(this, activity);
-            switch (this.type) {
-                case 'ga':
-                    this.instance.send(mappedActivity);
-                    break;
-                default:
-                    throw new Error('Using currently unavailable type: ' + gaType);
-            }
+                var mappedActivity = _self.mapper(_self, activity);
+                switch (_self.type) {
+                    case 'ga':
+                        _self.instance.send(mappedActivity);
+                        break;
+                    default:
+                        throw new Error('Using currently unavailable type: ' + gaType);
+                }
+            });
         },
 
         _determineGaInstance: function (all, trackerId) {
