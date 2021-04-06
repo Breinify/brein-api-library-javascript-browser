@@ -16,7 +16,7 @@
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
     var gaDefaultMapper = function (handler, activity) {
-        switch (gaType) {
+        switch (handler.type) {
             case 'ga':
                 return {
                     hitType: 'event',
