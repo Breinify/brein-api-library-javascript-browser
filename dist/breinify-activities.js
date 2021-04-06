@@ -49,6 +49,10 @@
             var gaType = this._determineType(gaSettings.type);
             switch (gaType) {
                 case 'ga':
+                    if (typeof ga !== 'function') {
+                        return;
+                    }
+
                     ga(function () {
                         _self.type = gaType;
                         _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
@@ -68,7 +72,7 @@
         handle: function (gaSettings, activity) {
             var _self = this;
 
-            this.init(gaSettings, function(status) {
+            this.init(gaSettings, function (status) {
                 if (status === false) {
                     return;
                 }
