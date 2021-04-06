@@ -15,6 +15,119 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
+    var gaDefaultMapper = function (handler, activity) {
+        switch (gaType) {
+            case 'ga':
+                return {
+                    hitType: 'event',
+                    eventCategory: 'breinify',
+                    eventAction: activity.type,
+                    eventLabel: activity.tags.id,
+                    eventValue: 1
+                };
+            case 'gtag':
+            default:
+                throw new Error('Using currently unavailable type: ' + handler.type);
+        }
+    };
+
+    var gaHandler = {
+        initialized: false,
+        type: null,
+        instance: null,
+        mapper: null,
+
+        init: function (gaSettings) {
+            var _self = this;
+
+            if (this.initialized === true) {
+                return true;
+            }
+
+            // search for the ga instance
+            var gaType = this._determineType(gaSettings.type);
+            switch (gaType) {
+                case 'ga':
+                    ga(function () {
+                        _self.type = gaType;
+                        _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
+                        _self.mapper = $.isFunction(gaSettings.mapper) ? gaSettings.mapper : gaDefaultMapper;
+                        _self.initialized = true;
+                    });
+                    break;
+                case 'gtag':
+                    _self.type = gaType;
+                default:
+                    throw new Error('Using currently unavailable type: ' + gaType);
+            }
+
+            return this.initialized;
+        },
+
+        handle: function (gaSettings, activity) {
+
+            // make sure we have it initialized
+            if (!this.init(gaSettings)) {
+                return;
+            }
+
+            var mappedActivity = this.mapper(this, activity);
+            switch (this.type) {
+                case 'ga':
+                    this.instance.send(mappedActivity);
+                    break;
+                default:
+                    throw new Error('Using currently unavailable type: ' + gaType);
+            }
+        },
+
+        _determineGaInstance: function (all, trackerId) {
+
+            var normalizedTrackerId = typeof trackerId === 'string' ? trackerId : null;
+
+            if (!$.isArray(all) || all.length < 0) {
+                throw new Error('Unable to determine instance.');
+            } else if (all.length === 1 && normalizedTrackerId === null) {
+                return all[0];
+            } else {
+
+                // find the instance with the identifier
+                for (var i = 0; i < all.length; i++) {
+                    if (all[i].get('trackingId') === normalizedTrackerId) {
+                        return all[i];
+                    }
+                }
+
+                // if we didn't find it we are done
+                if (normalizedTrackerId === null) {
+                    throw new Error('Please specify trackingId of trackers to be used, found: ' + all.length);
+                } else {
+                    throw new Error('Unable to determine instance with trackingId: ' + normalizedTrackerId);
+                }
+            }
+        },
+
+        _determineType: function (type) {
+            var normalizedType = typeof type === 'string' ? type.toLowerCase() : null;
+            if (normalizedType === 'ga' ||
+                normalizedType === 'gtag') {
+                return normalizedType;
+            }
+
+            if (typeof ga === 'function') {
+                return 'ga';
+            } else if (typeof gtag === 'function') {
+                return 'gtag';
+            } else {
+                throw new Error('Unable to determine type, please specify.');
+            }
+        },
+
+        _applyDefaultMapping: function (activity) {
+            return gaDefaultMapper(this, activity);
+        }
+    };
+
     var Activities = {
 
         generic: function () {
@@ -630,6 +743,10 @@
             user = Breinify.UTL.user.create(user);
             tags = $.isPlainObject(tags) ? tags : {};
 
+            // make sure the tags have an identifier set
+            tags.id = typeof tags.id === 'string' ? tags.id : Breinify.UTL.uuid();
+
+            // send the activity to Breinify
             Breinify.activity(user, type, null, null, tags, function (data, error) {
 
                 if (typeof callback !== 'function') {
@@ -643,6 +760,16 @@
                     });
                 }
             });
+
+            // check if ga is activated
+            var gaSettings = this.getConfig('googleAnalytics', {enabled: false});
+            if ($.isPlainObject(gaSettings) && gaSettings.enabled === true) {
+                gaHandler.handle(gaSettings, {
+                    user: user,
+                    type: type,
+                    tags: tags
+                });
+            }
         }
     };
 
