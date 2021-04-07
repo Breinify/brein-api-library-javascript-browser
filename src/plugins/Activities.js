@@ -95,7 +95,7 @@
             if (available) {
                 callback(instance);
             } else if (waitTime >= 5000) {
-                console.error(name + ' not available (waited ' + waitTime + ' [ms]).');
+                console.error(name + ' enabled but not available (waited ' + waitTime + ' [ms]).');
             } else {
                 var _self = this;
                 setTimeout(function () {
