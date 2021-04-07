@@ -49,8 +49,9 @@
             var gaType = this._determineType(gaSettings.type);
             switch (gaType) {
                 case 'ga':
-                    this._waitForInstance('ga', function(ga) {
+                    this._waitForInstance('ga', function(ignoreGa) {
 
+                        // don't use the parameter, since ga can change
                         ga(function () {
                             _self.type = gaType;
                             _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
