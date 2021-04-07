@@ -49,17 +49,16 @@
             var gaType = this._determineType(gaSettings.type);
             switch (gaType) {
                 case 'ga':
-                    if (typeof ga !== 'function') {
-                        return;
-                    }
+                    this._waitForInstance('ga', function(ga) {
 
-                    ga(function () {
-                        _self.type = gaType;
-                        _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
-                        _self.mapper = $.isFunction(gaSettings.mapper) ? gaSettings.mapper : gaDefaultMapper;
-                        _self.initialized = true;
+                        ga(function () {
+                            _self.type = gaType;
+                            _self.instance = _self._determineGaInstance(ga.getAll(), gaSettings.trackerId);
+                            _self.mapper = $.isFunction(gaSettings.mapper) ? gaSettings.mapper : gaDefaultMapper;
+                            _self.initialized = true;
 
-                        callback(_self.initialized);
+                            callback(_self.initialized);
+                        });
                     });
                     break;
                 case 'gtag':
@@ -86,6 +85,23 @@
                         throw new Error('Using currently unavailable type: ' + gaType);
                 }
             });
+        },
+
+        _waitForInstance: function (name, callback, waitTime) {
+
+            var instance = window[name];
+            var available = typeof instance !== 'undefined' && instance !== null;
+
+            if (available) {
+                callback(instance);
+            } else if (waitTime >= 5000) {
+                console.error(name + ' not available (waited ' + waitTime + ' [ms]).');
+            } else {
+                var _self = this;
+                setTimeout(function () {
+                    _self._waitForInstance(callback, (typeof waitTime === 'number' ? waitTime : 0) + 50)
+                }, 50);
+            }
         },
 
         _determineGaInstance: function (all, trackerId) {
