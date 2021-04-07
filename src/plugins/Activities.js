@@ -99,7 +99,7 @@
             } else {
                 var _self = this;
                 setTimeout(function () {
-                    _self._waitForInstance(callback, (typeof waitTime === 'number' ? waitTime : 0) + 50)
+                    _self._waitForInstance(name, callback, (typeof waitTime === 'number' ? waitTime : 0) + 50)
                 }, 50);
             }
         },
