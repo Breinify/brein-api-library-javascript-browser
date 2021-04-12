@@ -78,6 +78,10 @@
                 }
 
                 var mappedActivity = _self.mapper(_self, activity);
+                if (mappedActivity === null) {
+                    return;
+                }
+
                 switch (_self.type) {
                     case 'ga':
                         _self.instance.send(mappedActivity);
