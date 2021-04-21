@@ -801,11 +801,11 @@
         }
     };
 
-    // bind a check when breinify is ready
-    Breinify.onReady(function () {
-        Activities.checkDelayedActivityData();
-    });
-
     // bind the module
-    Breinify.plugins._add('activities', Activities);
+    var BoundActivities = Breinify.plugins._add('activities', Activities);
+
+    // finally use the bound activities (since getConfig is available) to retrieve activities
+    Breinify.onReady(function () {
+        BoundActivities.checkDelayedActivityData();
+    });
 })();
