@@ -1172,6 +1172,27 @@
             window.jQuery = wndjQuery;
         },
 
+        capitalize: function (str) {
+            return this.firstLetter(str, false);
+        },
+
+        lowerize: function (str) {
+            return this.firstLetter(str, true);
+        },
+
+        firstLetter: function (str, toLowerCase) {
+            if (typeof str !== 'string') {
+                return str;
+            } else if (str.length === 0) {
+                return '';
+            } else if (str.length === 1) {
+                return toLowerCase === true ? str.toLowerCase() : str.toUpperCase();
+            } else {
+                var firstLetter = str.charAt(0);
+                return (toLowerCase === true ? firstLetter.toLowerCase() : firstLetter.toUpperCase()) + str.substring(1, str.length);
+            }
+        },
+
         storage: {
             instance: null,
 
