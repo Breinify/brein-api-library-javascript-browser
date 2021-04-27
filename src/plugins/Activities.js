@@ -542,6 +542,7 @@
             // make sure we have a function and execute it
             if (typeof instance !== 'object' || typeof funcName !== 'string' || instance === null) {
                 this._send(activityData.type, activityData.user, activityData.tags);
+                this.removeDelayedActivityData(id);
             } else if ($.isFunction(instance[funcName])) {
                 var _self = this;
                 instance[funcName].apply(instance, [id, activityData, function (id, activityData, sendAndRemoveActivity, removeActivity) {
