@@ -25,8 +25,9 @@
             }
 
             // set the listener
+            var _self = this;
             window[this.listenerName] = function (event) {
-                this.youTubeEventHandler(event);
+                _self.youTubeEventHandler(event);
             };
 
             this.initialized = true;
