@@ -175,7 +175,7 @@
             if (typeof firstStart === 'boolean') {
                 // we know the result nothing to do
             } else if (event.data === YT.PlayerState.PLAYING) {
-                this.startedVideoIds[videoId] = true;
+                this.startedVideoIds[videoId] = false;
                 firstStart = true;
             } else {
                 firstStart = false;
