@@ -40,21 +40,27 @@
 
         activateTimelineRecording: function (videoId) {
             var _self = this;
+            var videoIds = $.isArray(videoId) ? videoId : [videoId];
 
-            if ($.isPlainObject(this.playTimelines[videoId])) {
-                return false;
+            var activatedVideoIds = [];
+            for (var i = 0; i < videoIds.length; i++) {
+                if ($.isPlainObject(this.playTimelines[videoId])) {
+                    continue;
+                }
+
+                this.playTimelines[videoId] = {
+                    timeline: []
+                };
+
+                this.checkVideoStatus(videoId);
+                this.playObserver[videoId] = setInterval(function () {
+                    _self.checkVideoStatus(videoId);
+                }, this.frequencyInMs);
+
+                activatedVideoIds.push(videoId);
             }
 
-            this.playTimelines[videoId] = {
-                timeline: []
-            };
-
-            this.checkVideoStatus(videoId);
-            this.playObserver[videoId] = setInterval(function () {
-                _self.checkVideoStatus(videoId);
-            }, this.frequencyInMs);
-
-            return true;
+            return activatedVideoIds;
         },
 
         getTimelineRecording: function (videoId) {
