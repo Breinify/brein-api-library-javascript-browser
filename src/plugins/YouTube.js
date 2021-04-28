@@ -38,7 +38,7 @@
             return true;
         },
 
-        stopTimelineRecording: function(arg, triggerCheck) {
+        stopTimelineRecording: function (arg, triggerCheck) {
             var _self = this;
             var videoIds = $.isArray(arg) ? arg : [arg];
 
@@ -266,6 +266,21 @@
 
         init: function () {
             internal.init();
+        },
+
+        isPlaying: function (event) {
+            return event.data === YT.PlayerState.PLAYING;
+        },
+
+        isHalted: function (event) {
+            return event.data === YT.PlayerState.BUFFERING ||
+                event.data === YT.PlayerState.CUED ||
+                event.data === YT.PlayerState.PAUSED ||
+                event.data === YT.PlayerState.UNSTARTED;
+        },
+
+        isEnded: function (event) {
+            return event.data === YT.PlayerState.ENDED;
         },
 
         isInitialized: function () {

@@ -38,7 +38,7 @@
             return true;
         },
 
-        stopTimelineRecording: function(arg) {
+        stopTimelineRecording: function (arg, triggerCheck) {
             var _self = this;
             var videoIds = $.isArray(arg) ? arg : [arg];
 
@@ -49,6 +49,11 @@
                 // clear the handler
                 var handler = this.playObserver[videoId];
                 window.clearInterval(handler);
+
+                // trigger check once if asked too
+                if (triggerCheck === true) {
+                    this.checkVideoStatus(videoId);
+                }
 
                 // get the last result
                 var recording = this.getTimelineRecording(videoId);
@@ -263,6 +268,21 @@
             internal.init();
         },
 
+        isPlaying: function (event) {
+            return event.data === YT.PlayerState.PLAYING;
+        },
+
+        isHalted: function (event) {
+            return event.data === YT.PlayerState.BUFFERING ||
+                event.data === YT.PlayerState.CUED ||
+                event.data === YT.PlayerState.PAUSED ||
+                event.data === YT.PlayerState.UNSTARTED;
+        },
+
+        isEnded: function (event) {
+            return event.data === YT.PlayerState.ENDED;
+        },
+
         isInitialized: function () {
             return internal.initialized;
         },
@@ -271,8 +291,8 @@
             return internal.startTimelineRecording(videoId);
         },
 
-        stopTimelineRecording: function (videoId) {
-            return internal.stopTimelineRecording(videoId);
+        stopTimelineRecording: function (videoId, triggerCheck) {
+            return internal.stopTimelineRecording(videoId, triggerCheck);
         },
 
         getTimelineRecording: function (videoId) {
