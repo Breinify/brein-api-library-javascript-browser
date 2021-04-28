@@ -13,11 +13,15 @@
     var overload = Breinify.plugins._overload();
 
     var internal = {
+        frequencyInMs: 1000,
         initialized: false,
         type: null,
         listenerName: 'YT_VIDEO_STARTED_BRE_LISTENER',
         videoIdToElementIdMapper: {},
         videoIdHandler: {},
+        startedVideoIds: {},
+        playTimelines: {},
+        playObserver: {},
 
         init: function () {
             if (this.initialized === true) {
@@ -32,6 +36,69 @@
 
             this.initialized = true;
             return true;
+        },
+
+        activateTimelineRecording: function (videoId) {
+            var _self = this;
+
+            if ($.isPlainObject(this.playTimelines[videoId])) {
+                return false;
+            }
+
+            this.playTimelines[videoId] = {
+                timeline: []
+            };
+
+            this.checkVideoStatus(videoId);
+            this.playObserver[videoId] = setInterval(function () {
+                _self.checkVideoStatus(videoId);
+            }, this.frequencyInMs);
+
+            return true;
+        },
+
+        getTimelineRecording: function (videoId) {
+            var recording = this.playTimelines[videoId];
+            return $.isPlainObject(recording) ? recording : null;
+        },
+
+        checkVideoStatus: function (videoId) {
+            var player = this.getPlayerByVideoId(videoId);
+
+            // if we have an invalid player, wait until it gets valid
+            if (!$.isFunction(player.getPlayerState)) {
+                return;
+            }
+
+            var now = new Date().getTime();
+            var last = this.playTimelines[videoId].video;
+            last = $.isPlainObject(last) ? last : {
+                start: now,
+                currentState: YT.PlayerState.UNSTARTED
+            };
+
+            // make sure the video is not stopped right now
+            var state = player.getPlayerState();
+            if (state === YT.PlayerState.ENDED && last.currentState === YT.PlayerState.ENDED) {
+                return;
+            }
+
+            // get some player and playtime specific information
+            var currentDuration = player.getCurrentTime();
+            var totalDuration = player.getDuration();
+
+            totalDuration = typeof totalDuration === 'number' ? totalDuration.toFixed(2) : 0;
+            currentDuration = typeof currentDuration === 'number' ? currentDuration.toFixed(2) : 0;
+
+            this.playTimelines[videoId].timeline.push(totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4)));
+            this.playTimelines[videoId].video = {
+                start: last.start,
+                currentState: state,
+                videoId: videoId,
+                lastUpdate: now,
+                totalDuration: totalDuration,
+                frequencyInMs: this.frequencyInMs
+            };
         },
 
         youTubeEventHandler: function (event) {
@@ -51,8 +118,22 @@
                 return;
             }
 
+            // let's detect some helpful information from the event
+            var firstStart = this.startedVideoIds[videoId];
+            if (typeof firstStart === boolean) {
+                // we know the result nothing to do
+            } else if (event.data === YT.PlayerState.PLAYING) {
+                this.startedVideoIds[videoId] = true;
+                firstStart = true;
+            } else {
+                firstStart = false;
+            }
+
+            // trigger each handler
             for (var i = 0; i < handlers.length; i++) {
-                handlers[i](videoId, $el, event);
+                handlers[i](videoId, $el, event, {
+                    firstStart: firstStart
+                });
             }
         },
 
@@ -99,6 +180,22 @@
             return $el.length === 1 ? $el : null;
         },
 
+        getPlayerByVideoId: function (videoId) {
+            var $el = this.getElementByVideoId(videoId);
+
+            var id = $el.attr('id');
+            if (typeof id !== 'string' && id === '') {
+                return null;
+            }
+
+            var player = YT.get(id);
+            if (typeof player === 'object') {
+                return player;
+            } else {
+                return null;
+            }
+        },
+
         getVideoId: function (player) {
             if (typeof player !== 'object' || !$.isFunction(player.getVideoData)) {
                 return null;
@@ -123,6 +220,10 @@
 
         isInitialized: function () {
             return internal.initialized;
+        },
+
+        activateTimelineRecording: function (videoId) {
+            return internal.activateTimelineRecording(videoId);
         },
 
         observeElements: function ($iFrames, handler) {
