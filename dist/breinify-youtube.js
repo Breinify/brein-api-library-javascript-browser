@@ -26,7 +26,7 @@
         init: function () {
             if (this.initialized === true) {
                 return true;
-            } else if (typeof YT !== 'object' || typeof typeof YT.Player !== 'function') {
+            } else if (typeof YT !== 'object' || typeof YT.Player !== 'function') {
                 return false;
             }
 
