@@ -78,6 +78,12 @@
                 return;
             }
 
+            // make sure the video is actually started
+            var state = player.getPlayerState();
+            if (state === YT.PlayerState.UNSTARTED) {
+                return;
+            }
+
             var now = new Date().getTime();
             var last = this.playTimelines[videoId].video;
             last = $.isPlainObject(last) ? last : {
@@ -85,8 +91,7 @@
                 currentState: YT.PlayerState.UNSTARTED
             };
 
-            // make sure the video is not stopped right now
-            var state = player.getPlayerState();
+            // if the video was already ended we do not have to record anything further
             if (state === YT.PlayerState.ENDED && last.currentState === YT.PlayerState.ENDED) {
                 return;
             }
@@ -128,7 +133,7 @@
 
             // let's detect some helpful information from the event
             var firstStart = this.startedVideoIds[videoId];
-            if (typeof firstStart === boolean) {
+            if (typeof firstStart === 'boolean') {
                 // we know the result nothing to do
             } else if (event.data === YT.PlayerState.PLAYING) {
                 this.startedVideoIds[videoId] = true;
