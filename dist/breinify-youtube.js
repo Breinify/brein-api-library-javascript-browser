@@ -20,9 +20,7 @@
         videoIdHandler: {},
 
         init: function () {
-
-            // if we have the function attached already just ignore
-            if ($.isFunction(window[this.listenerName])) {
+            if (this.initialized === true) {
                 return false;
             }
 
@@ -129,9 +127,7 @@
         observeElements: function ($iFrames, handler) {
 
             // make sure we are initialized
-            if (!this.isInitialized()) {
-                this.init();
-            }
+            this.init();
 
             var videoIds = [];
             $iFrames.each(function (idx) {
