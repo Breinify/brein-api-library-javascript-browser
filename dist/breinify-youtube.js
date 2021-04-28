@@ -140,6 +140,18 @@
             }
 
             // get some player and playtime specific information
+            var data = this.getVideoStats(event.target);
+
+            // create the instance to store
+            this.playTimelines[videoId].timeline.push(data.percentage);
+            this.playTimelines[videoId].video = $.extend(this.getVideoStats(event.target), {
+                start: last.start,
+                lastUpdate: now
+            });
+        },
+
+        getVideoStats: function (player) {
+            var state = player.getPlayerState();
             var currentDuration = player.getCurrentTime();
             var totalDuration = player.getDuration();
 
@@ -148,14 +160,13 @@
 
             var percentage = totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4));
 
-            this.playTimelines[videoId].timeline.push(percentage);
-            this.playTimelines[videoId].video = {
-                start: last.start,
+            return {
+                videoId: this.getVideoIdByPlayer(player),
                 currentState: state,
-                videoId: videoId,
-                lastUpdate: now,
+                currentDuration: currentDuration,
                 totalDuration: totalDuration,
                 frequencyInMs: this.frequencyInMs,
+                percentage: percentage,
                 finished: percentage === 1.0
             };
         },
@@ -188,11 +199,14 @@
                 firstStart = false;
             }
 
+            // generate the data
+            var data = $.extend(this.getVideoStats(event.target), {
+                firstStart: firstStart
+            });
+
             // trigger each handler
             for (var i = 0; i < handlers.length; i++) {
-                handlers[i](videoId, $el, event, {
-                    firstStart: firstStart
-                });
+                handlers[i](videoId, $el, event, data);
             }
         },
 
