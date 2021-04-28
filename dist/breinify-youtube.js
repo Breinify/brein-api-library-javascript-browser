@@ -38,27 +38,59 @@
             return true;
         },
 
-        activateTimelineRecording: function (arg) {
+        stopTimelineRecording: function(arg) {
+            var _self = this;
+            var videoIds = $.isArray(arg) ? arg : [arg];
+
+            var results = {};
+            for (var i = 0; i < videoIds.length; i++) {
+                var videoId = videoIds[i];
+
+                // clear the handler
+                var handler = this.playObserver[videoId];
+                window.clearInterval(handler);
+
+                // get the last result
+                var recording = this.getTimelineRecording(videoId);
+
+                // cleanup the data
+                delete this.playTimelines[videoId];
+                delete this.playObserver[videoId];
+
+                // if we don't have any object we are done with this id
+                if (!$.isPlainObject(recording)) {
+                    continue;
+                }
+
+                results[videoId] = recording;
+            }
+
+            return results;
+        },
+
+        startTimelineRecording: function (arg) {
             var _self = this;
             var videoIds = $.isArray(arg) ? arg : [arg];
 
             var activatedVideoIds = [];
             for (var i = 0; i < videoIds.length; i++) {
                 var videoId = videoIds[i];
-
                 if ($.isPlainObject(this.playTimelines[videoId])) {
                     continue;
                 }
 
+                // set the default
                 this.playTimelines[videoId] = {
                     timeline: []
                 };
 
+                // setup the interval checker
                 this.checkVideoStatus(videoId);
                 this.playObserver[videoId] = setInterval(function () {
                     _self.checkVideoStatus(videoId);
                 }, this.frequencyInMs);
 
+                // collect for return value
                 activatedVideoIds.push(videoId);
             }
 
@@ -235,8 +267,12 @@
             return internal.initialized;
         },
 
-        activateTimelineRecording: function (videoId) {
-            return internal.activateTimelineRecording(videoId);
+        startTimelineRecording: function (videoId) {
+            return internal.startTimelineRecording(videoId);
+        },
+
+        stopTimelineRecording: function (videoId) {
+            return internal.stopTimelineRecording(videoId);
         },
 
         getTimelineRecording: function (videoId) {
