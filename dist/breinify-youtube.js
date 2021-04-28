@@ -75,7 +75,7 @@
             return results;
         },
 
-        isTimelineRecorded: function(videoId) {
+        isTimelineRecorded: function (videoId) {
             return $.isPlainObject(this.playTimelines[videoId]);
         },
 
@@ -146,14 +146,17 @@
             totalDuration = typeof totalDuration === 'number' ? totalDuration.toFixed(2) : 0;
             currentDuration = typeof currentDuration === 'number' ? currentDuration.toFixed(2) : 0;
 
-            this.playTimelines[videoId].timeline.push(totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4)));
+            var percentage = totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4));
+
+            this.playTimelines[videoId].timeline.push(percentage);
             this.playTimelines[videoId].video = {
                 start: last.start,
                 currentState: state,
                 videoId: videoId,
                 lastUpdate: now,
                 totalDuration: totalDuration,
-                frequencyInMs: this.frequencyInMs
+                frequencyInMs: this.frequencyInMs,
+                finished: percentage === 1.0
             };
         },
 
@@ -288,7 +291,7 @@
             return internal.init();
         },
 
-        isTimelineRecorded: function(videoId) {
+        isTimelineRecorded: function (videoId) {
             return internal.isTimelineRecorded(videoId);
         },
 
@@ -323,7 +326,7 @@
             return internal.getTimelineRecording(videoId);
         },
 
-        getVideoIdByElement: function($el) {
+        getVideoIdByElement: function ($el) {
             return internal.getVideoIdByElement($el);
         },
 
