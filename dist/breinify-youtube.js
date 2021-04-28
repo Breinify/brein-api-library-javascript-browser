@@ -38,12 +38,14 @@
             return true;
         },
 
-        activateTimelineRecording: function (videoId) {
+        activateTimelineRecording: function (arg) {
             var _self = this;
-            var videoIds = $.isArray(videoId) ? videoId : [videoId];
+            var videoIds = $.isArray(arg) ? arg : [arg];
 
             var activatedVideoIds = [];
             for (var i = 0; i < videoIds.length; i++) {
+                var videoId = videoIds[i];
+
                 if ($.isPlainObject(this.playTimelines[videoId])) {
                     continue;
                 }
