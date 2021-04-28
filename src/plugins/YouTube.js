@@ -239,6 +239,10 @@
             return internal.activateTimelineRecording(videoId);
         },
 
+        getTimelineRecording: function (videoId) {
+            return internal.getTimelineRecording(videoId);
+        },
+
         observeElements: function ($iFrames, handler) {
 
             // make sure we are initialized
