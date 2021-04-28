@@ -140,7 +140,7 @@
             }
 
             // get some player and playtime specific information
-            var data = this.getVideoStats(event.target);
+            var data = this.getVideoStats(player);
 
             // create the instance to store
             this.playTimelines[videoId].timeline.push(data.percentage);
