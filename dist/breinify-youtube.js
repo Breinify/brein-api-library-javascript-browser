@@ -75,6 +75,10 @@
             return results;
         },
 
+        isTimelineRecorded: function(videoId) {
+            return $.isPlainObject(this.playTimelines[videoId]);
+        },
+
         startTimelineRecording: function (arg) {
             var _self = this;
             var videoIds = $.isArray(arg) ? arg : [arg];
@@ -282,6 +286,10 @@
 
         init: function () {
             return internal.init();
+        },
+
+        isTimelineRecorded: function(videoId) {
+            return internal.isTimelineRecorded(videoId);
         },
 
         isPlaying: function (event) {
