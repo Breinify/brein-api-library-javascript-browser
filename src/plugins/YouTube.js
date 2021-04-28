@@ -38,7 +38,7 @@
             return true;
         },
 
-        stopTimelineRecording: function(arg) {
+        stopTimelineRecording: function(arg, triggerCheck) {
             var _self = this;
             var videoIds = $.isArray(arg) ? arg : [arg];
 
@@ -49,6 +49,11 @@
                 // clear the handler
                 var handler = this.playObserver[videoId];
                 window.clearInterval(handler);
+
+                // trigger check once if asked too
+                if (triggerCheck === true) {
+                    this.checkVideoStatus(videoId);
+                }
 
                 // get the last result
                 var recording = this.getTimelineRecording(videoId);
@@ -271,8 +276,8 @@
             return internal.startTimelineRecording(videoId);
         },
 
-        stopTimelineRecording: function (videoId) {
-            return internal.stopTimelineRecording(videoId);
+        stopTimelineRecording: function (videoId, triggerCheck) {
+            return internal.stopTimelineRecording(videoId, triggerCheck);
         },
 
         getTimelineRecording: function (videoId) {
