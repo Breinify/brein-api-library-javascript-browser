@@ -51,7 +51,7 @@
                 return;
             }
 
-            for (i = 0; i < handlers.length; i++) {
+            for (var i = 0; i < handlers.length; i++) {
                 handlers[i](videoId, $el, event);
             }
         },
