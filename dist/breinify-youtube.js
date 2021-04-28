@@ -13,10 +13,27 @@
     var overload = Breinify.plugins._overload();
 
     var internal = {
+        initialized: false,
         type: null,
         listenerName: 'YT_VIDEO_STARTED_BRE_LISTENER',
         videoIdToElementIdMapper: {},
         videoIdHandler: {},
+
+        init: function () {
+
+            // if we have the function attached already just ignore
+            if ($.isFunction(window[this.listenerName])) {
+                return false;
+            }
+
+            // set the listener
+            window[this.listenerName] = function (event) {
+                this.youTubeEventHandler(event);
+            };
+
+            this.initialized = true;
+            return true;
+        },
 
         youTubeEventHandler: function (event) {
 
@@ -102,21 +119,19 @@
     var YouTube = {
 
         init: function () {
+            internal.init();
+        },
 
-            // if we have the function attached already just ignore
-            if ($.isFunction(window[internal.listenerName])) {
-                return false;
-            }
-
-            // set the listener
-            window[internal.listenerName] = function (event) {
-                internal.youTubeEventHandler(event);
-            };
-
-            return true;
+        isInitialized: function () {
+            return internal.initialized;
         },
 
         observeElements: function ($iFrames, handler) {
+
+            // make sure we are initialized
+            if (!this.isInitialized()) {
+                this.init();
+            }
 
             var videoIds = [];
             $iFrames.each(function (idx) {
