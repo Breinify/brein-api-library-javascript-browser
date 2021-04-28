@@ -140,11 +140,11 @@
             }
 
             // get some player and playtime specific information
-            var data = this.getVideoStats(event.target);
+            var data = this.getVideoStats(player);
 
             // create the instance to store
             this.playTimelines[videoId].timeline.push(data.percentage);
-            this.playTimelines[videoId].video = $.extend(this.getVideoStats(event.target), {
+            this.playTimelines[videoId].video = $.extend(data, {
                 start: last.start,
                 lastUpdate: now
             });
