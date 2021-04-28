@@ -304,7 +304,8 @@ module.exports = function (grunt) {
                     'dist/breinify-pickup.min.js': 'src/plugins/PickUp.js',
                     'dist/breinify-sms.min.js': 'src/plugins/Sms.js',
                     'dist/breinify-ui-popup.min.js': 'src/plugins/UiPopup.js',
-                    'dist/breinify-ui-validator.min.js': 'src/plugins/UiValidator.js'
+                    'dist/breinify-ui-validator.min.js': 'src/plugins/UiValidator.js',
+                    'dist/breinify-youtube.min.js': 'src/plugins/YouTube.js'
                 }
             }
         },
@@ -334,7 +335,8 @@ module.exports = function (grunt) {
                     {expand: true, cwd: 'src/plugins', src: 'PickUp.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-pickup.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Sms.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-sms.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'UiPopup.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-popup.js' } },
-                    {expand: true, cwd: 'src/plugins', src: 'UiValidator.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-validator.js' } }
+                    {expand: true, cwd: 'src/plugins', src: 'UiValidator.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-validator.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'YouTube.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-youtube.js' } }
                 ]
             }
         },
