@@ -25,6 +25,8 @@
 
         init: function () {
             if (this.initialized === true) {
+                return true;
+            } else if (typeof YT !== 'object' || typeof typeof YT.Player !== 'function') {
                 return false;
             }
 
@@ -153,7 +155,7 @@
 
         youTubeEventHandler: function (event) {
 
-            var videoId = this.getVideoId(event.target);
+            var videoId = this.getVideoIdByPlayer(event.target);
             if (videoId === null) {
                 return;
             }
@@ -168,7 +170,7 @@
                 return;
             }
 
-            // let's detect some helpful information from the event
+            // let's see if the video is started the first time
             var firstStart = this.startedVideoIds[videoId];
             if (typeof firstStart === 'boolean') {
                 // we know the result nothing to do
@@ -198,7 +200,7 @@
             }
 
             var player = YT.get(id);
-            var videoId = this.getVideoId(player);
+            var videoId = this.getVideoIdByPlayer(player);
 
             // if there is no videoId available, we do not have a valid element
             if (videoId === null) {
@@ -246,7 +248,21 @@
             }
         },
 
-        getVideoId: function (player) {
+        getVideoIdByElement: function ($el) {
+            var id = $el.attr('id');
+            if (typeof id !== 'string' && id === '') {
+                return null;
+            }
+
+            var player = YT.get(id);
+            if (typeof player === 'object') {
+                return this.getVideoIdByPlayer(player);
+            } else {
+                return null;
+            }
+        },
+
+        getVideoIdByPlayer: function (player) {
             if (typeof player !== 'object' || !$.isFunction(player.getVideoData)) {
                 return null;
             }
@@ -265,7 +281,7 @@
     var YouTube = {
 
         init: function () {
-            internal.init();
+            return internal.init();
         },
 
         isPlaying: function (event) {
@@ -299,18 +315,22 @@
             return internal.getTimelineRecording(videoId);
         },
 
+        getVideoIdByElement: function($el) {
+            return internal.getVideoIdByElement($el);
+        },
+
         observeElements: function ($iFrames, handler) {
-
-            // make sure we are initialized
-            this.init();
-
             var videoIds = [];
-            $iFrames.each(function (idx) {
-                var videoId = internal.bindYouTubeObserver($(this), handler);
-                if (videoId !== null) {
-                    videoIds.push(videoId);
-                }
-            });
+
+            // make sure we are initialized and activate the observation
+            if (this.init()) {
+                $iFrames.each(function (idx) {
+                    var videoId = internal.bindYouTubeObserver($(this), handler);
+                    if (videoId !== null) {
+                        videoIds.push(videoId);
+                    }
+                });
+            }
 
             return videoIds;
         }
