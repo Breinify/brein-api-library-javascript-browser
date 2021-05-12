@@ -554,6 +554,22 @@
                 }
             },
 
+            segment: function (apiToken, payload, cb, timeout) {
+
+                this.token(apiToken, payload, function (error, data) {
+                    if (error != null) {
+                        cb(error);
+                    } else if (typeof data.payload.group !== 'string' || data.payload.group.trim() === '') {
+                        cb(new Error('Unexpected group information.'));
+                    } else {
+                        cb(null, {
+                            group: data.payload.group,
+                            attachedData: $.isPlainObject(data.payload.attachedData) ? data.payload.attachedData : {}
+                        });
+                    }
+                }, timeout);
+            },
+
             token: function (apiToken, payload, cb, timeout) {
 
                 var _self = this;
@@ -566,22 +582,13 @@
 
                         if (!$.isPlainObject(data)) {
                             cb(new Error('Unexpected data response.'));
-                            return;
                         } else if (typeof data.responseCode !== 'number' || data.responseCode !== 200) {
                             cb(new Error('Failed response (code: ' + data.responseCode + '): ' + JSON.stringify(data)));
-                            return;
                         } else if (!$.isPlainObject(data.payload)) {
                             cb(new Error('Unexpected payload.'));
-                            return;
-                        } else if (typeof data.payload.group !== 'string' || data.payload.group.trim() === '') {
-                            cb(new Error('Unexpected group information.'));
-                            return;
+                        } else {
+                            cb(null, data.payload);
                         }
-
-                        cb(null, {
-                            group: data.payload.group,
-                            attachedData: $.isPlainObject(data.payload.attachedData) ? data.payload.attachedData : {}
-                        });
                     },
                     'error': function (jqXHR, text, exception) {
                         cb(new Error(text));
