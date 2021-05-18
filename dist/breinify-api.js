@@ -13579,7 +13579,7 @@ dependencyScope.jQuery = $;;
 
                         var err;
                         try {
-                            err = new Error(text + ' (status: ' + jqXHR.status + ', error: ' + error + ', details:' + jqXHR.responseText + ')');
+                            err = new Error(text + ' (status: ' + jqXHR.status + ', error: ' + error + ', details: ' + jqXHR.responseText + ')');
                         } catch (e) {
                             err = e;
                         }
