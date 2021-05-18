@@ -590,8 +590,8 @@
                             cb(null, data.payload);
                         }
                     },
-                    'error': function (jqXHR, text, exception) {
-                        cb(new Error(text));
+                    'error': function (jqXHR, status, error) {
+                        cb(new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')'));
                     },
                     'timeout': typeof timeout === 'number' ? timeout : 15000
                 });
