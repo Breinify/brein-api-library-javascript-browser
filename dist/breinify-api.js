@@ -13576,7 +13576,16 @@ dependencyScope.jQuery = $;;
                         }
                     },
                     'error': function (jqXHR, status, error) {
-                        cb(new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')'));
+
+
+                        var err;
+                        try {
+                            err = new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')');
+                        } catch (e) {
+                            err = e;
+                        }
+
+                        cb(err);
                     },
                     'timeout': typeof timeout === 'number' ? timeout : 15000
                 });
