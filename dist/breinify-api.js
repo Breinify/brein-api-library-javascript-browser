@@ -13576,16 +13576,11 @@ dependencyScope.jQuery = $;;
                         }
                     },
                     'error': function (jqXHR, status, error) {
-
-
-                        var err;
                         try {
-                            err = new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')');
+                            cb(new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')'));
                         } catch (e) {
-                            err = e;
+                            cb(e);
                         }
-
-                        cb(err);
                     },
                     'timeout': typeof timeout === 'number' ? timeout : 15000
                 });
