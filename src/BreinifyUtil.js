@@ -591,11 +591,15 @@
                         }
                     },
                     'error': function (jqXHR, status, error) {
+
+                        var err;
                         try {
-                            cb(new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')'));
+                            err = new Error(jqXHR.responseText + ' (status: ' + status + ', error: ' + error + ')');
                         } catch (e) {
-                            cb(e);
+                            err = e;
                         }
+
+                        cb(err);
                     },
                     'timeout': typeof timeout === 'number' ? timeout : 15000
                 });
