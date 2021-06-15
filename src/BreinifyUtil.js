@@ -1210,7 +1210,7 @@
 
         toNumber: function(value) {
             if (typeof value === 'string') {
-                _private.parseNumber(value);
+                return _private.parseNumber(value);
             } else if (typeof value === 'number') {
                 return value;
             } else {
