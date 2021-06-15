@@ -31,6 +31,10 @@ This documentation is organized as following:
     * Breinify.UTL.getNested() [since version 1.0.18]
     * Breinify.UTL.deleteNullProperties() [since version 1.0.19]
     * Breinify.UTL.uuid() [since version 1.0.13]
+    * Breinify.UTL.capitalize() [since version 1.0.23]
+    * Breinify.UTL.lowerize() [since version 1.0.23]
+    * Breinify.UTL.firstLetter() [since version 1.0.23]
+    * Breinify.UTL.toNumber() [since version 1.0.23]
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
     * Breinify.UTL.events.pageloaded(func) [since version 1.0.1]

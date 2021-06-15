@@ -13575,7 +13575,7 @@ dependencyScope.jQuery = $;;
                             cb(null, data.payload);
                         }
                     },
-                    'error': function (jqXHR, text, error) {
+                    'error': function (jqXHR, text, type) {
 
                         var err;
                         try {
@@ -14190,6 +14190,16 @@ dependencyScope.jQuery = $;;
             } else {
                 var firstLetter = str.charAt(0);
                 return (toLowerCase === true ? firstLetter.toLowerCase() : firstLetter.toUpperCase()) + str.substring(1, str.length);
+            }
+        },
+
+        toNumber: function(value) {
+            if (typeof value === 'string') {
+                _private.parseNumber(value);
+            } else if (typeof value === 'number') {
+                return value;
+            } else {
+                return NaN;
             }
         },
 
@@ -16018,6 +16028,7 @@ dependencyScope.jQuery = $;;
         capitalize: function(str) {return str; },
         lowerize: function(str) { return str; },
         firstLetter: function(str, lowerCase) { return str; },
+        toNumber: function(str) { return NaN; },
         _jquery: function() { return null; }
     };
 
