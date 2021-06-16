@@ -242,8 +242,9 @@
         extractDataTagsSettings: function (group, item, data, callback) {
             data = $.isPlainObject(data) ? data : {};
             var dataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
-            var dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
 
+            // determine the group, if there is a separator we have to split and determine by sub-groups
+            var dataGroup;
             if (group.indexOf('.') > 0) {
                 dataGroup = dataTags;
 
