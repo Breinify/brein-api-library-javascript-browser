@@ -13204,8 +13204,9 @@ dependencyScope.jQuery = $;;
                     new MutationObserver(function (mutations, observer) {
 
                         for (var i = 0; i < mutations.length; i++) {
-                            var newClasses = _self.parseClasses(mutations.target.className);
-                            var oldClasses = _self.parseClasses(mutations.oldValue);
+                            var mutation = mutations[i];
+                            var newClasses = _self.parseClasses(mutation.target.className);
+                            var oldClasses = _self.parseClasses(mutation.oldValue);
 
                             var addedClasses = _self.diffClasses(newClasses, oldClasses);
                             var removedClasses = _self.diffClasses(oldClasses, newClasses);
