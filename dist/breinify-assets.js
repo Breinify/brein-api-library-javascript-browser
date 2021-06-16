@@ -155,6 +155,41 @@
             });
         },
 
+        areDataTagsEnabled: function (data, group, item) {
+
+            var dataTags = this.extractDataTagsSettings(data, group, item);
+
+            for (var i = 0; i < dataTags.length; i++) {
+                var dataTag = dataTags[i];
+
+                // make sure we have a valid dataTag
+                if (!$.isPlainObject(dataTag)) {
+                    continue;
+                }
+
+                // check if we are on the right journey
+                var journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
+                if (journey !== null && !Journey.is(journey)) {
+                    continue;
+                }
+
+                if (this.isDataTagEnabled(dataTag, ['enabled']) === false) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
+        isDataTagEnabled: function (dataTag, modifications) {
+
+            if ($.inArray('enabled', modifications) === -1) {
+                return true;
+            } else {
+                return typeof dataTag['enabled'] === 'boolean' ? dataTag['enabled'] : false;
+            }
+        },
+
         applyDataTagsModifications: function ($el, dataTags, modifications) {
 
             if (!$.isArray(modifications) || modifications.length === 0) {
@@ -163,7 +198,6 @@
                 return;
             }
 
-            var checkEnabled = $.inArray('enabled', modifications) !== -1;
             for (var i = 0; i < dataTags.length; i++) {
                 var dataTag = dataTags[i];
                 if (!$.isPlainObject(dataTag)) {
@@ -177,11 +211,8 @@
                 }
 
                 // check if we have an enabled set
-                if (checkEnabled === true) {
-                    var enabled = typeof dataTag['enabled'] === 'boolean' ? dataTag['enabled'] : false;
-                    if (enabled === false) {
-                        continue;
-                    }
+                if (this.isDataTagEnabled(dataTag, modifcations) === false) {
+                    continue;
                 }
 
                 // apply the defined modifications
@@ -280,15 +311,18 @@
                 dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
             }
 
-            var dataItem;
+            var dataTags;
             if ($.isArray(dataGroup[item])) {
-                dataItem = dataGroup[item];
+                dataTags = dataGroup[item];
             } else if ($.isPlainObject(dataGroup[item])) {
-                dataItem = [dataGroup[item]];
+                dataTags = [dataGroup[item]];
             } else {
-                dataItem = [];
+                dataTags = [];
             }
-            callback(null, dataItem);
+            callback(null, dataTags);
+
+            // we also return the item since this can be used synchronized as well
+            return dataTags;
         },
 
         parseDate: function (strDate) {
@@ -426,14 +460,14 @@
             }
         },
 
-        dataTagsResource: function() {
+        areDataTagsEnabled: function () {
             var _self = this;
             overload.overload({
-                'Object,Function': function (res, cb) {
-                    _private.determineDataTagsResourceValue(res.frameId, res.group, res.item, cb);
+                'Object,Object': function (data, res) {
+                    return _private.areDataTagsEnabled(data, res.group, res.item, cb);
                 },
-                'String,String,String,Function': function (frameId, group, item, cb) {
-                    _private.determineDataTagsResourceValue(frameId, group, item, cb);
+                'Object,String,String': function (data, group, item) {
+                    return _private.areDataTagsEnabled(data, group, item);
                 }
             }, arguments, this);
         },
