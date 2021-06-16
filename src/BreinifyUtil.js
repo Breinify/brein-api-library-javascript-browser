@@ -216,6 +216,7 @@
                 var _self = this;
 
                 $el.each(function () {
+
                     new MutationObserver(function (mutations, observer) {
 
                         for (var i = 0; i < mutations.length; i++) {
@@ -227,6 +228,8 @@
                             var removedClasses = _self.diffClasses(oldClasses, newClasses);
 
                             callback(null, {
+                                el: $(mutation.target),
+                                modified: true,
                                 addedClasses: addedClasses,
                                 removedClasses: removedClasses
                             });
@@ -235,6 +238,14 @@
                         attributes: true,
                         attributeOldValue: true,
                         attributeFilter: ['class']
+                    });
+
+                    // we extract the info once all as added classes
+                    callback(null, {
+                        el: $(this),
+                        modified: false,
+                        addedClasses: _self.parseClasses(this.className),
+                        removedClasses: []
                     });
                 });
             }
