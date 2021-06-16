@@ -157,7 +157,7 @@
 
         areDataTagsEnabled: function (data, group, item) {
 
-            var dataTags = this.extractDataTagsSettings(data, group, item);
+            var dataTags = this.extractDataTagsSettings(group, item, data);
 
             for (var i = 0; i < dataTags.length; i++) {
                 var dataTag = dataTags[i];
