@@ -211,7 +211,7 @@
                 }
 
                 // check if we have an enabled set
-                if (this.isDataTagEnabled(dataTag, modifcations) === false) {
+                if (this.isDataTagEnabled(dataTag, modifications) === false) {
                     continue;
                 }
 
