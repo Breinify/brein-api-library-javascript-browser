@@ -464,8 +464,7 @@
         },
 
         areDataTagsEnabled: function () {
-            var _self = this;
-            overload.overload({
+            return overload.overload({
                 'Object,Object': function (data, res) {
                     return _private.areDataTagsEnabled(data, res.group, res.item, cb);
                 },
@@ -476,8 +475,6 @@
         },
 
         textResource: function () {
-
-            var _self = this;
             overload.overload({
                 'Object,Function': function (res, cb) {
                     _private.textResource(res.frameId, cb);
