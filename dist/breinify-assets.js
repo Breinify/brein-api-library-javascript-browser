@@ -198,7 +198,7 @@
             } else if ('style' === modification) {
                 $el.attr('style', modificationValue);
             } else if ('image' === modification) {
-                $el.attr('image', modificationValue);
+                $el.attr('src', modificationValue);
             } else if ('alt' === modification) {
                 $el.attr('alt', modificationValue);
             } else if ('title' === modification) {
