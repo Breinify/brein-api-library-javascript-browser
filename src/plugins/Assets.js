@@ -197,9 +197,9 @@
                 $el.css('background-color', modificationValue);
             } else if ('style' === modification) {
                 $el.attr('style', modificationValue);
-            } else if ('link' === modification) {
+            } else if ('link' === modification || 'href' === modification) {
                 $el.attr('href', modificationValue);
-            } else if ('image' === modification) {
+            } else if ('image' === modification || 'src' === modification) {
                 $el.attr('src', modificationValue);
             } else if ('alt' === modification) {
                 $el.attr('alt', modificationValue);
