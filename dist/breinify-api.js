@@ -13163,6 +13163,64 @@ dependencyScope.jQuery = $;;
                     appliedModifier.push(name);
                     $el.attr('data-applied-modifier', JSON.stringify(appliedModifier));
                 }
+            },
+
+            parseClasses: function (classes) {
+                var classList = classes.split(/\s+/);
+
+                var normalizedClasses = [];
+                for (var i = 0; i < classList.length; i++) {
+                    var classEntry = classList[i].trim();
+                    if (classEntry === '') {
+                        continue;
+                    } else if ($.inArray(classEntry, normalizedClasses) > -1) {
+                        continue;
+                    }
+
+                    normalizedClasses.push(classEntry);
+                }
+
+                return normalizedClasses;
+            },
+
+            diffClasses: function (cl1, cl2) {
+
+                var diff = [];
+                for (var i = 0; i < cl1.length; i++) {
+                    if ($.inArray(cl1[i], cl2) > -1) {
+                        continue;
+                    }
+
+                    diff.push(cl1[i]);
+                }
+
+                return diff;
+            },
+
+            addClassChangeObserver: function ($el, callback) {
+                var _self = this;
+
+                $el.each(function () {
+                    new MutationObserver(function (mutations, observer) {
+
+                        for (var i = 0; i < mutations.length; i++) {
+                            var newClasses = _self.parseClasses(mutations.target.className);
+                            var oldClasses = _self.parseClasses(mutations.oldValue);
+
+                            var addedClasses = _self.diffClasses(newClasses, oldClasses);
+                            var removedClasses = _self.diffClasses(oldClasses, newClasses);
+
+                            callback(null, {
+                                addedClasses: addedClasses,
+                                removedClasses: removedClasses
+                            });
+                        }
+                    }).observe(this, {
+                        attributes: true,
+                        attributeOldValue: true,
+                        attributeFilter: ['class']
+                    });
+                });
             }
         }
     };
@@ -13658,6 +13716,10 @@ dependencyScope.jQuery = $;;
 
             removeModification: function (modificationId) {
                 delete _private.domObserver.modifications[modificationId];
+            },
+
+            addClassChangeObserver: function ($el, callback) {
+                _private.domObserver.addClassChangeObserver($el, callback);
             }
         },
 
@@ -14193,7 +14255,7 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        toNumber: function(value) {
+        toNumber: function (value) {
             if (typeof value === 'string') {
                 return _private.parseNumber(value);
             } else if (typeof value === 'number') {
@@ -15948,7 +16010,8 @@ dependencyScope.jQuery = $;;
         },
         dom: {
             addModification: function() {},
-            removeModification: function() {}
+            removeModification: function() {},
+            addClassChangeObserver: function() {}
         },
         loc: {
             createGetParameter: function() { return null; },
