@@ -319,7 +319,10 @@
             } else {
                 dataTags = [];
             }
-            callback(null, dataTags);
+
+            if ($.isFunction(callback)) {
+                callback(null, dataTags);
+            }
 
             // we also return the item since this can be used synchronized as well
             return dataTags;
