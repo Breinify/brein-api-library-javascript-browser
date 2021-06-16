@@ -141,11 +141,14 @@
                         _self.determineDataTagsResourceValue(frameId, group, item, function (error, dataTags) {
                             if (error === null) {
                                 _self.applyDataTagsModifications($el, dataTags, modifications);
+
+                                if ($el.attr('data-personalize-show') === 'true') {
+                                    $el.show();
+                                }
                             }
+
+                            // mark it as loaded (even with an error, why would it go away)
                             $el.attr('data-personalize-loaded', 'true');
-                            if ($el.attr('data-personalize-show') === 'true') {
-                                $el.show();
-                            }
                         });
                     });
                 }
@@ -160,6 +163,7 @@
                 return;
             }
 
+            var checkEnabled = $.inArray('enabled', modifications) !== -1;
             for (var i = 0; i < dataTags.length; i++) {
                 var dataTag = dataTags[i];
                 if (!$.isPlainObject(dataTag)) {
@@ -170,6 +174,14 @@
                 var journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
                 if (journey !== null && !Journey.is(journey)) {
                     continue;
+                }
+
+                // check if we have an enabled set
+                if (checkEnabled === true) {
+                    var enabled = typeof dataTag['enabled'] === 'boolean' ? dataTag['enabled'] : false;
+                    if (enabled === false) {
+                        continue;
+                    }
                 }
 
                 // apply the defined modifications
@@ -207,6 +219,8 @@
                 $el.attr('title', modificationValue);
             } else if ('source' === modification) {
                 $el.attr('src', modificationValue);
+            } else if ('enabled' === modification) {
+                // already checked
             } else {
                 console.log('Unknown modification: ' + modification);
             }
