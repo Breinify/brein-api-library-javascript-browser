@@ -19,7 +19,7 @@
     var _private = {
         resultCache: {},
 
-        textResource: function (frameId, callback) {
+        _textResource: function (frameId, callback) {
             $.getJSON('https://assets.breinify.com/frame/' + frameId, function (data) {
                 callback(null, data);
             }).fail(function (jqXHR, textStatus, errorThrown) {
@@ -31,22 +31,18 @@
             });
         },
 
-        determineDataTagsResourceValue: function (frameId, group, item, callback) {
-
+        textResource: function (frameId, callback) {
             var _self = this;
 
-            if (typeof group !== 'string' || group.trim() === '' ||
-                typeof item !== 'string' || item.trim() === '') {
-                callback(null, null);
-            } else if ($.isPlainObject(this.resultCache[frameId])) {
-                this.extractDataTagsSettings(group, item, this.resultCache[frameId], callback);
+            if ($.isPlainObject(this.resultCache[frameId])) {
+                callback(null, this.resultCache[frameId]);
             } else if (typeof this.resultCache[frameId] === 'boolean') {
 
                 if (this.resultCache[frameId] === true) {
 
                     // push it again in the execution loop
                     setTimeout(function () {
-                        _self.determineDataTagsResourceValue(frameId, group, item, callback);
+                        _self.textResource(frameId, callback);
                     }, 10);
                 } else {
 
@@ -59,14 +55,35 @@
                 this.resultCache[frameId] = true;
 
                 // fire the query
-                this.textResource(frameId, function (error, data) {
+                this._textResource(frameId, function (error, data) {
 
                     // if we have an error just return the fallback
                     if (error === null) {
                         _self.resultCache[frameId] = data;
-                        _self.extractDataTagsSettings(group, item, data, callback);
+                        callback(null, data);
                     } else {
                         _self.resultCache[frameId] = false;
+                        callback(null, null);
+                    }
+                });
+            }
+        },
+
+        determineDataTagsResourceValue: function (frameId, group, item, callback) {
+
+            var _self = this;
+
+            if (typeof group !== 'string' || group.trim() === '' ||
+                typeof item !== 'string' || item.trim() === '') {
+                callback(null, null);
+            } else {
+
+                this.textResource(frameId, function (error, data) {
+
+                    // if we have an error just return the fallback
+                    if (error === null) {
+                        _self.extractDataTagsSettings(group, item, data, callback);
+                    } else {
                         callback(null, null);
                     }
                 });
@@ -87,35 +104,14 @@
 
             if (typeof resourceId !== 'string' || resourceId.trim() === '') {
                 callback(null, null);
-            } else if ($.isPlainObject(this.resultCache[frameId])) {
-                this.extractResource(timestampInMs, resourceType, resourceId, this.resultCache[frameId], callback);
-            } else if (typeof this.resultCache[frameId] === 'boolean') {
-
-                if (this.resultCache[frameId] === true) {
-
-                    // push it again in the execution loop
-                    setTimeout(function () {
-                        _self.determineTextResourceValue(frameId, resourceType, resourceId, callback, timestampInMs);
-                    }, 10);
-                } else {
-
-                    // we had an error as result, so let's keep it
-                    callback(null, null);
-                }
             } else {
 
-                // mark the resource to be in progress (to be loaded)
-                this.resultCache[frameId] = true;
-
-                // fire the query
                 this.textResource(frameId, function (error, data) {
 
                     // if we have an error just return the fallback
                     if (error === null) {
-                        _self.resultCache[frameId] = data;
                         _self.extractResource(timestampInMs, resourceType, resourceId, data, callback);
                     } else {
-                        _self.resultCache[frameId] = false;
                         callback(null, null);
                     }
                 });
@@ -290,12 +286,12 @@
 
         extractDataTagsSettings: function (group, item, data, callback) {
             data = $.isPlainObject(data) ? data : {};
-            var dataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
+            var allDataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
 
             // determine the group, if there is a separator we have to split and determine by sub-groups
             var dataGroup;
             if (group.indexOf('.') > 0) {
-                dataGroup = dataTags;
+                dataGroup = allDataTags;
 
                 var subGroups = group.split('\.');
                 for (var i = 0; i < subGroups.length; i++) {
@@ -308,7 +304,7 @@
                     }
                 }
             } else {
-                dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
+                dataGroup = $.isPlainObject(allDataTags[group]) ? allDataTags[group] : {};
             }
 
             var dataTags;
