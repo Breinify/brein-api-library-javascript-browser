@@ -197,6 +197,12 @@
                 $el.css('background-color', modificationValue);
             } else if ('style' === modification) {
                 $el.attr('style', modificationValue);
+            } else if ('href' === modification) {
+                $el.attr('href', modificationValue);
+            } else if ('alt' === modification) {
+                $el.attr('alt', modificationValue);
+            } else if ('source' === modification) {
+                $el.attr('src', modificationValue);
             } else {
                 console.log('Unknown modification: ' + modification);
             }
@@ -237,12 +243,29 @@
             data = $.isPlainObject(data) ? data : {};
             var dataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
             var dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
-            var dataItem = $.isArray(dataGroup[item]) ? dataGroup[item] : [];
 
+            if (group.indexOf('.') > 0) {
+                dataGroup = dataTags;
+
+                var subGroups = group.split('\.');
+                for (var i = 0; i < subGroups.length; i++) {
+                    var subGroup = subGroups[i];
+                    if ($.isPlainObject(dataGroup[subGroup])) {
+                        dataGroup = dataGroup[subGroup];
+                    } else {
+                        dataGroup = {};
+                        break;
+                    }
+                }
+            } else {
+                dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
+            }
+
+            var dataItem = $.isArray(dataGroup[item]) ? dataGroup[item] : [];
             callback(null, dataItem);
         },
 
-        parseDate: function(strDate) {
+        parseDate: function (strDate) {
             var parts = strDate.split('\/');
 
             var year = parseInt(parts[0]);
@@ -261,7 +284,7 @@
             return Math.floor(date.getTime() / 1000);
         },
 
-        parseDateTime: function(strDate, strTime) {
+        parseDateTime: function (strDate, strTime) {
             var timestamp = this.parseDate(strDate);
             var date = new Date(timestamp * 1000);
 
