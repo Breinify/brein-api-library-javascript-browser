@@ -263,6 +263,13 @@
             }
 
             var dataItem = $.isArray(dataGroup[item]) ? dataGroup[item] : [];
+            if ($.isArray(dataGroup[item])) {
+                dataItem = dataGroup[item];
+            } else if ($.isPlainObject(dataGroup[item])) {
+                dataItem = [dataGroup[item]];
+            } else {
+                dataItem = [];
+            }
             callback(null, dataItem);
         },
 
