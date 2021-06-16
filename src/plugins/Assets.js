@@ -197,10 +197,12 @@
                 $el.css('background-color', modificationValue);
             } else if ('style' === modification) {
                 $el.attr('style', modificationValue);
-            } else if ('href' === modification) {
-                $el.attr('href', modificationValue);
+            } else if ('image' === modification) {
+                $el.attr('image', modificationValue);
             } else if ('alt' === modification) {
                 $el.attr('alt', modificationValue);
+            } else if ('title' === modification) {
+                $el.attr('title', modificationValue);
             } else if ('source' === modification) {
                 $el.attr('src', modificationValue);
             } else {
@@ -262,7 +264,7 @@
                 dataGroup = $.isPlainObject(dataTags[group]) ? dataTags[group] : {};
             }
 
-            var dataItem = $.isArray(dataGroup[item]) ? dataGroup[item] : [];
+            var dataItem;
             if ($.isArray(dataGroup[item])) {
                 dataItem = dataGroup[item];
             } else if ($.isPlainObject(dataGroup[item])) {
