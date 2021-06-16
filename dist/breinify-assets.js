@@ -426,10 +426,25 @@
             }
         },
 
+        dataTagsResource: function() {
+            var _self = this;
+            overload.overload({
+                'Object,Function': function (res, cb) {
+                    _private.determineDataTagsResourceValue(res.frameId, res.group, res.item, cb);
+                },
+                'String,String,String,Function': function (frameId, group, item, cb) {
+                    _private.determineDataTagsResourceValue(frameId, group, item, cb);
+                }
+            }, arguments, this);
+        },
+
         textResource: function () {
 
             var _self = this;
             overload.overload({
+                'Object,Function': function (res, cb) {
+                    _private.textResource(res.frameId, cb);
+                },
                 'String,Function': function (frameId, cb) {
                     _private.textResource(frameId, cb);
                 },
