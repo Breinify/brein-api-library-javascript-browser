@@ -629,12 +629,12 @@
                 this.token(apiToken, payload, function (error, data) {
                     if (error != null) {
                         cb(error);
-                    } else if (typeof data.payload.group !== 'string' || data.payload.group.trim() === '') {
+                    } else if (typeof data.group !== 'string' || data.group.trim() === '') {
                         cb(new Error('Unexpected group information.'));
                     } else {
                         cb(null, {
-                            group: data.payload.group,
-                            attachedData: $.isPlainObject(data.payload.attachedData) ? data.payload.attachedData : {}
+                            group: data.group,
+                            attachedData: $.isPlainObject(data.attachedData) ? data.attachedData : {}
                         });
                     }
                 }, timeout);
