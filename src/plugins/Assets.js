@@ -97,7 +97,7 @@
             var errors = {};
             var errorCounter = 0, valueCounter = 0, counter = 0;
             for (var i = 0; i < resourceIds.length; i++) {
-                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], timestampInMs, function (error, resourceId, value) {
+                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (error, resourceId, value) {
                     if (error === null) {
                         values[resourceId] = value;
                         valueCounter++;
@@ -109,7 +109,7 @@
                     if (++counter === resourceIds.length) {
                         callback(errorCounter > 0 ? new Error('Failed to retrieve values for: ' + JSON.stringify(errors)) : null, values);
                     }
-                });
+                }, timestampInMs);
             }
         },
 
