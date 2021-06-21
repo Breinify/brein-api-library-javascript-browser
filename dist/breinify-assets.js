@@ -456,7 +456,8 @@
                 }
 
                 var possibleResult = possibleResource[resourceId];
-                if (typeof possibleResult !== 'undefined' && possibleResult !== null) {
+                if (typeof possibleResult !== 'undefined' && possibleResult !== null &&
+                    (typeof possibleResult !== 'string' || possibleResult.trim() !== '')) {
                     callback(possibleResult, possibleThemeId);
                     return;
                 }
