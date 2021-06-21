@@ -93,29 +93,25 @@
         determineTextResourceValues: function (frameId, resourceType, resourceIds, callback, timestampInMs) {
             var _self = this;
 
-            var values = {};
-            var errors = {};
-            var errorCounter = 0, valueCounter = 0, counter = 0;
+            var results = {};
+            var counter = 0;
             for (var i = 0; i < resourceIds.length; i++) {
-                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (error, resourceId, value) {
-                    if (error === null) {
-                        values[resourceId] = value;
-                        valueCounter++;
-                    } else {
-                        errors[resourceId] = error;
-                        errorCounter++;
-                    }
+                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (error, resourceId, result, themeId) {
+                    results[resourceId] = {
+                        value: result,
+                        themeId: themeId
+                    };
 
                     if (++counter === resourceIds.length) {
-                        callback(errorCounter > 0 ? new Error('Failed to retrieve values for: ' + JSON.stringify(errors)) : null, values);
+                        callback(results);
                     }
                 }, timestampInMs);
             }
         },
 
         _bindTextResourceValue: function (frameId, resourceType, resourceId, callback, timestampInMs) {
-            this.determineTextResourceValue(frameId, resourceType, resourceId, function (error, value) {
-                callback(error, resourceId, value);
+            this.determineTextResourceValue(frameId, resourceType, resourceId, function (possibleResult, possibleThemeId) {
+                callback(error, resourceId, possibleResult, possibleThemeId);
             }, timestampInMs);
         },
 
