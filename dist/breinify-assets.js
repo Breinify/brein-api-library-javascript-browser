@@ -96,7 +96,7 @@
             var results = {};
             var counter = 0;
             for (var i = 0; i < resourceIds.length; i++) {
-                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (error, resourceId, result, themeId) {
+                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (resourceId, result, themeId) {
                     results[resourceId] = {
                         value: result,
                         themeId: themeId
@@ -110,8 +110,8 @@
         },
 
         _bindTextResourceValue: function (frameId, resourceType, resourceId, callback, timestampInMs) {
-            this.determineTextResourceValue(frameId, resourceType, resourceId, function (possibleResult, possibleThemeId) {
-                callback(error, resourceId, possibleResult, possibleThemeId);
+            this.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
+                callback(resourceId, result, themeId);
             }, timestampInMs);
         },
 
