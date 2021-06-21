@@ -90,6 +90,35 @@
             }
         },
 
+        determineTextResourceValues: function (frameId, resourceType, resourceIds, callback, timestampInMs) {
+            var _self = this;
+
+            var values = {};
+            var errors = {};
+            var errorCounter = 0, valueCounter = 0, counter = 0;
+            for (var i = 0; i < resourceIds.length; i++) {
+                _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], timestampInMs, function (error, resourceId, value) {
+                    if (error === null) {
+                        values[resourceId] = value;
+                        valueCounter++;
+                    } else {
+                        errors[resourceId] = error;
+                        errorCounter++;
+                    }
+
+                    if (++counter === resourceIds.length) {
+                        callback(errorCounter > 0 ? new Error('Failed to retrieve values for: ' + JSON.stringify(errors)) : null, values);
+                    }
+                });
+            }
+        },
+
+        _bindTextResourceValue: function (frameId, resourceType, resourceId, callback, timestampInMs) {
+            this.determineTextResourceValue(frameId, resourceType, resourceId, function (error, value) {
+                callback(error, resourceId, value);
+            }, timestampInMs);
+        },
+
         /**
          * Determines the value behind a text-resource (<resourceType>.<resourceId>). Supports the usage of themes,
          * which allows that a theme is active at a specific time.
@@ -480,6 +509,9 @@
                 },
                 'String,String,String,Function,Number': function (frameId, resourceType, resourceId, cb, timestampInMs) {
                     _private.determineTextResourceValue(frameId, resourceType, resourceId, cb, timestampInMs);
+                },
+                'String,String,Array,Function,Number': function (frameId, resourceType, resourceId, cb, timestampInMs) {
+                    _private.determineTextResourceValues(frameId, resourceType, resourceId, cb, timestampInMs);
                 }
             }, arguments, this);
         }
