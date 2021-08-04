@@ -749,19 +749,6 @@
                 _private.domObserver.addClassChangeObserver($el, callback);
             }
         },
-        
-        tags: {
-            create: function(tags) {
-                var tagsExtenderPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_TAGS_EXTENDER);
-
-                var tagsExtenderResult;
-                if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn.get)) {
-                    return $.isPlainObject(tags) ? tags : {};
-                } else {
-                    return $.extend({}, tagsExtenderPlugIn.get(), tags);
-                }
-            }
-        },
 
         user: {
             assignedGroup: {},

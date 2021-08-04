@@ -49,7 +49,7 @@
             var gaType = this._determineType(gaSettings.type);
             switch (gaType) {
                 case 'ga':
-                    this._waitForInstance('ga', function(ignoreGa) {
+                    this._waitForInstance('ga', function (ignoreGa) {
 
                         // don't use the parameter, since ga can change
                         ga(function () {
@@ -768,9 +768,22 @@
             }
         },
 
+        _extendTags: function (tags) {
+            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function(t) {
+                return $.isPlainObject(t) ? t : {};
+            });
+
+            var tagsExtenderResult;
+            if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
+                return $.isPlainObject(tags) ? tags : {};
+            } else {
+                return $.extend({}, tagsExtenderPlugIn(), tags);
+            }
+        },
+
         _send: function (type, user, tags, callback) {
             user = Breinify.UTL.user.create(user);
-            tags = Breinify.UTL.tags.create(tags);
+            tags = this._extendTags(tags);
 
             // make sure the tags have an identifier set
             tags.id = typeof tags.id === 'string' ? tags.id : Breinify.UTL.uuid();

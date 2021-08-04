@@ -13734,19 +13734,6 @@ dependencyScope.jQuery = $;;
                 _private.domObserver.addClassChangeObserver($el, callback);
             }
         },
-        
-        tags: {
-            create: function(tags) {
-                var tagsExtenderPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_TAGS_EXTENDER);
-
-                var tagsExtenderResult;
-                if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn.get)) {
-                    return $.isPlainObject(tags) ? tags : {};
-                } else {
-                    return $.extend({}, tagsExtenderPlugIn.get(), tags);
-                }
-            }
-        },
 
         user: {
             assignedGroup: {},
@@ -14646,7 +14633,6 @@ dependencyScope.jQuery = $;;
     BreinifyConfig.CONSTANTS = {
         CUSTOMER_PLUGIN: 'customization',
         CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp',
-        CUSTOMER_PLUGIN_TAGS_EXTENDER: 'tagsExtender',
         CUSTOMER_PLUGIN_UTM_MAPPER: 'utmMapper',
         CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper'
     };
@@ -16068,9 +16054,6 @@ dependencyScope.jQuery = $;;
             sessionId: 'x-breinify-uuid',
             browserId: 'x-breinify-bid',
             delayedActivities: 'x-breinify-delayed'
-        },
-        tags: {
-            create: function() { return {}; },
         },
         user: {
             assignedGroup: null,
