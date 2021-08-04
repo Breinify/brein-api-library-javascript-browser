@@ -777,7 +777,7 @@
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
                 return $.isPlainObject(tags) ? tags : {};
             } else {
-                return $.extend({}, tagsExtenderPlugIn(activityType), tags);
+                return $.extend({}, tagsExtenderPlugIn(type), tags);
             }
         },
 
