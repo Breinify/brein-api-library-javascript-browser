@@ -769,8 +769,8 @@
         },
 
         _extendTags: function (tags) {
-            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function(t) {
-                return $.isPlainObject(t) ? t : {};
+            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function() {
+                return {};
             });
 
             var tagsExtenderResult;
