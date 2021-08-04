@@ -770,7 +770,7 @@
 
         _send: function (type, user, tags, callback) {
             user = Breinify.UTL.user.create(user);
-            tags = $.isPlainObject(tags) ? tags : {};
+            tags = Breinify.UTL.tags.create(tags);
 
             // make sure the tags have an identifier set
             tags.id = typeof tags.id === 'string' ? tags.id : Breinify.UTL.uuid();

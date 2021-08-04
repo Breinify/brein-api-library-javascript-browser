@@ -203,6 +203,7 @@
     BreinifyConfig.CONSTANTS = {
         CUSTOMER_PLUGIN: 'customization',
         CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp',
+        CUSTOMER_PLUGIN_TAGS_EXTENDER: 'tagsExtender',
         CUSTOMER_PLUGIN_UTM_MAPPER: 'utmMapper',
         CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper'
     };
