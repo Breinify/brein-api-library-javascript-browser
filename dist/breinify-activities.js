@@ -768,8 +768,8 @@
             }
         },
 
-        _extendTags: function (tags) {
-            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function() {
+        _extendTags: function (type, tags) {
+            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function(activityType) {
                 return {};
             });
 
@@ -777,13 +777,13 @@
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
                 return $.isPlainObject(tags) ? tags : {};
             } else {
-                return $.extend({}, tagsExtenderPlugIn(), tags);
+                return $.extend({}, tagsExtenderPlugIn(activityType), tags);
             }
         },
 
         _send: function (type, user, tags, callback) {
             user = Breinify.UTL.user.create(user);
-            tags = this._extendTags(tags);
+            tags = this._extendTags(type, tags);
 
             // make sure the tags have an identifier set
             tags.id = typeof tags.id === 'string' ? tags.id : Breinify.UTL.uuid();
