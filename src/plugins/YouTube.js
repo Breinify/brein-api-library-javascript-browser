@@ -346,7 +346,7 @@
 
         isObservable: function($iFrames, callback) {
             $iFrames.each(function (idx) {
-                var $iFrame = $($el);
+                var $iFrame = $(this);
                 var videoId = $iFrame.attr('data-yt-id');
                 if (typeof videoId === 'string' && videoId.trim() !== '') {
                     callback($iFrame);
