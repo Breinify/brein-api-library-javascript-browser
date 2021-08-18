@@ -345,10 +345,17 @@
         },
 
         isObservable: function($iFrames, callback) {
+            var _self = this;
+
             $iFrames.each(function (idx) {
                 var $iFrame = $(this);
-                var videoId = $iFrame.attr('data-yt-id');
-                if (typeof videoId === 'string' && videoId.trim() !== '') {
+
+                var videoId = _self.getVideoIdByElement($iFrame);
+                if (videoId === null) {
+                    setTimeout(function() {
+                        _self.isObservable($iFrame, callback);
+                    }, 50);
+                } else {
                     callback($iFrame);
                 }
             });
