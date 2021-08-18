@@ -344,6 +344,16 @@
             return internal.getVideoIdByElement($el);
         },
 
+        isObservable: function($iFrames, callback) {
+            $iFrames.each(function (idx) {
+                var $iFrame = $($el);
+                var videoId = $iFrame.attr('data-yt-id');
+                if (typeof videoId === 'string' && videoId.trim() !== '') {
+                    callback($iFrame);
+                }
+            });
+        },
+
         observeElements: function ($iFrames, handler) {
             var videoIds = [];
 
