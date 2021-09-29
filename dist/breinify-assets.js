@@ -471,10 +471,14 @@
     var Assets = {
 
         applyDataTagsModifications: function ($el, dataTags) {
+
+            var group = $el.attr('data-personalize-group');
+            var item = $el.attr('data-personalize-item');
             var value = $el.attr('data-personalize-value');
             var modifications = value.split(/\s*,\s*/);
 
-            _private.applyDataTagsModifications($el, dataTags, modifications);
+            var extractedDataTags = _private.extractDataTagsSettings(group, item, dataTags);
+            _private.applyDataTagsModifications($el, extractedDataTags, modifications);
 
             // show it if marked
             if ($el.attr('data-personalize-show') === 'true') {
