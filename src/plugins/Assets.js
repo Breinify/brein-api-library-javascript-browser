@@ -470,6 +470,21 @@
 
     var Assets = {
 
+        applyDataTagsModifications: function ($el, dataTags) {
+            var value = $el.attr('data-personalize-value');
+            var modifications = value.split(/\s*,\s*/);
+
+            _private.applyDataTagsModifications($el, dataTags, modifications);
+
+            // show it if marked
+            if ($el.attr('data-personalize-show') === 'true') {
+                $el.show();
+            }
+
+            // mark it as loaded
+            $el.attr('data-personalize-loaded', 'true');
+        },
+
         observeNamedResourceDomElements: function (options) {
             options = $.extend({
                 imgObserver: this.getConfig('observeImages', false),
