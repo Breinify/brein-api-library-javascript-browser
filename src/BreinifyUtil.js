@@ -1292,6 +1292,24 @@
             }
         },
 
+        extend: function() {
+            for(var i = 1; i < arguments.length; i++) {
+                for(var key in arguments[i]) {
+                    if(arguments[i].hasOwnProperty(key)) {
+                        var val = arguments[i][key];
+                        if (val === null || typeof val === 'undefined') {
+                            // do nothing
+                        } else if ($.isPlainObject(val)) {
+                            arguments[0][key] = this.extend({}, arguments[0][key], val);
+                        } else {
+                            arguments[0][key] = val;
+                        }
+                    }
+                }
+            }
+            return arguments[0];
+        },
+
         storage: {
             instance: null,
 
