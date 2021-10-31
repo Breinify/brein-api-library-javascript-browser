@@ -278,29 +278,30 @@
             }
         },
 
-        registerNamedResourcesImgObserver: function () {
+        registerNamedResourcesResourceObserver: function () {
             var _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
-                selector: 'img[data-frameId][data-resourceType][data-resourceId][data-resourceLoaded!="true"]',
+                selector: '[data-frameId][data-resourceType][data-resourceId][data-resourceLoaded!="true"]',
                 modifier: function ($els) {
                     $els.each(function () {
                         var $el = $(this);
                         var frameId = $el.attr('data-frameId');
                         var resourceType = $el.attr('data-resourceType');
                         var resourceId = $el.attr('data-resourceId');
-                        var fallbackSrc = $el.attr('data-fallbackSrc');
 
                         _self.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
-                            if (typeof result === 'string' && result.trim() !== '') {
-                                $el.attr('src', result);
-                            } else if (typeof fallbackSrc === 'string' && fallbackSrc.trim() !== '') {
-                                $el.attr('src', fallbackSrc);
-                            } else {
-                                $el.attr('src', '');
+                            var value = typeof result === 'string' && result.trim() !== '' ? result : null;
+
+                            if ($el.is('img')) {
+                                value = value === null ? $el.attr('data-fallbackSrc') : value;
+                                _self.applyDataTagsModification($el, 'src', value);
+                            } else if ($el.is('a')) {
+                                value = value === null ? $el.attr('data-fallbackHref') : value;
+                                _self.applyDataTagsModification($el, 'link', value);
                             }
 
-                            if ($el.attr('src').trim() !== '') {
+                            if (value !== null && value !== '') {
                                 $el.attr('data-resourceLoaded', 'true').show();
                             }
                         });
@@ -491,12 +492,12 @@
 
         observeNamedResourceDomElements: function (options) {
             options = $.extend({
-                imgObserver: this.getConfig('observeImages', false),
+                resourceObserver: this.getConfig('observeResources', false) || this.getConfig('observeImages', false),
                 dataTagsObserver: this.getConfig('observeDataTags', false)
             }, options);
 
-            if (options.imgObserver === true) {
-                _private.registerNamedResourcesImgObserver();
+            if (options.resourceObserver === true) {
+                _private.registerNamedResourcesResourceObserver();
             }
 
             if (options.dataTagsObserver === true) {
