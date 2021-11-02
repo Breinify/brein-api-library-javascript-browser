@@ -281,7 +281,7 @@
         registerNamedResourcesResourceObserver: function () {
             var _self = this;
 
-            Breinify.UTL.dom.addModification('assets::namedResourcesImgObserver', {
+            Breinify.UTL.dom.addModification('assets::namedResourcesResourceObserver', {
                 selector: '[data-frameId][data-resourceType][data-resourceId][data-resourceLoaded!="true"]',
                 modifier: function ($els) {
                     $els.each(function () {
