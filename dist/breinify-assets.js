@@ -291,23 +291,27 @@
                         var resourceId = $el.attr('data-resourceId');
 
                         _self.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
-                            var value = typeof result === 'string' && result.trim() !== '' ? result : null;
-
-                            if ($el.is('img')) {
-                                value = value === null ? $el.attr('data-fallbackSrc') : value;
-                                _self.applyDataTagsModification($el, 'src', value);
-                            } else if ($el.is('a')) {
-                                value = value === null ? $el.attr('data-fallbackHref') : value;
-                                _self.applyDataTagsModification($el, 'link', value);
-                            }
-
-                            if (value !== null && value !== '') {
-                                $el.attr('data-resourceLoaded', 'true').show();
-                            }
+                            _self.applyResourceModification($el, result);
                         });
                     });
                 }
             })
+        },
+
+        applyResourceModification: function($el, result) {
+            var value = typeof result === 'string' && result.trim() !== '' ? result : null;
+
+            if ($el.is('img')) {
+                value = value === null ? $el.attr('data-fallbackSrc') : value;
+                this.applyDataTagsModification($el, 'src', value);
+            } else if ($el.is('a')) {
+                value = value === null ? $el.attr('data-fallbackHref') : value;
+                this.applyDataTagsModification($el, 'link', value);
+            }
+
+            if (value !== null && value !== '') {
+                $el.attr('data-resourceLoaded', 'true').show();
+            }
         },
 
         extractDataTagsSettings: function (group, item, data, callback) {
@@ -470,6 +474,16 @@
     };
 
     var Assets = {
+
+        applyResourceModification: function($el) {
+            var frameId = $el.attr('data-frameId');
+            var resourceType = $el.attr('data-resourceType');
+            var resourceId = $el.attr('data-resourceId');
+
+            _private.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
+                _private.applyResourceModification($el, result);
+            });
+        },
 
         applyDataTagsModifications: function ($el, dataTags) {
 
