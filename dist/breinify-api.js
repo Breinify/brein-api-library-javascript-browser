@@ -14391,12 +14391,12 @@ dependencyScope.jQuery = $;;
                 if ($.isFunction(loader)) {
                     loader(function (error, data) {
                         if (error === null) {
-                            _self.instance.setItem('breinify-' + name, _self.createStorabledata(expiresInSec, data));
+                            _self.update(expiresInSec, data);
                         }
                         callback(error, name);
                     });
                 } else if (typeof entry.values !== 'undefined') {
-                    _self.instance.setItem('breinify-' + name, _self.createStorabledata(expiresInSec, entry.values));
+                    _self.update(expiresInSec, entry.values);
                     callback(null, name);
                 } else {
                     callback(new Error('No values or loader specified.'));
@@ -14425,6 +14425,10 @@ dependencyScope.jQuery = $;;
                 } else {
                     return true;
                 }
+            },
+
+            update: function(name, expiresInSec, data) {
+                this.instance.setItem('breinify-' + name, this.createStorabledata(expiresInSec, data));
             },
 
             get: function (name) {
