@@ -1385,8 +1385,8 @@
 
                 if (loadingStatus.length === 0) {
                     callback(null, {
-                        loaded: 0,
-                        failed: 0
+                        loaded: [],
+                        failed: []
                     });
                 }
             },
