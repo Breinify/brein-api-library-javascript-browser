@@ -18,7 +18,7 @@
   "private": false,
   "homepage": "https://github.com/Breinify/brein-api-library-javascript-browser",
   "devDependencies": {
-    "jquery": "^3.4.1",
+    "jquery": "^3.6.0",
     "cryptojslib": "^3.1.2",
     "brein-util": "git+https://github.com/breinify/brein-javascript.git",
     "jstz": "*"
