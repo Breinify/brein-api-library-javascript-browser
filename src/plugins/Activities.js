@@ -735,6 +735,7 @@
 
             var len = promotions.length;
             var hasIds = len > 0;
+            var hasPromotions = len > 0;
             var promotionAmounts = [];
             var promotionIds = [];
 
@@ -753,6 +754,7 @@
                 }
 
                 hasIds = hasIds && !Breinify.UTL.isEmpty(promotionId);
+                hasPromotions = hasPromotions && !Breinify.UTL.isEmpty(promotionAmount);
 
                 promotionIds.push(promotionId);
                 promotionAmounts.push(promotionAmount);
@@ -761,7 +763,7 @@
             if (hasIds) {
                 return $.extend(true, {}, tags, {
                     'promotionIds': hasIds ? promotionIds : null,
-                    'promotionAmounts': hasIds ? promotionAmounts : null
+                    'promotionAmounts': hasPromotions ? promotionAmounts : null
                 });
             } else {
                 throw new Error('Promotions must have an identifier: ' + JSON.stringify(promotions));
