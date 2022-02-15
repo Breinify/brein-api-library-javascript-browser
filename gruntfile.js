@@ -2,19 +2,6 @@
  * This gruntfile is based on the project-gruntfile found at:
  *  https://github.com/Breinify/brein-javascript/tree/master/grunt/project-gruntfile.js
  *
- * The following dependencies have to be added:
- *  "grunt": "^0.4.5",
- *  "grunt-bower-install-simple": "^1.2.1",
- *  "grunt-contrib-clean": "^1.0.0",
- *  "grunt-contrib-concat": "^1.0.0",
- *  "grunt-contrib-connect": "^1.0.1",
- *  "grunt-contrib-copy": "^1.0.0",
- *  "grunt-contrib-jasmine": "^1.0.0",
- *  "grunt-contrib-uglify": "^1.0.1",
- *  "grunt-contrib-watch": "^1.0.0",
- *  "grunt-string-replace": "^1.2.1",
- *  "main-bower-files": "^2.11.1"
- *
  * Template Version: 1.0.2
  *
  * Change Log:
@@ -70,6 +57,8 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-jasmine');
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-sync-json');
+
+    var uglifySaveLicense = require('uglify-save-license');
 
     //noinspection JSUnresolvedFunction
     grunt.initConfig({
@@ -288,7 +277,10 @@ module.exports = function (grunt) {
         uglify: {
             combine: {
                 options: {
-                    banner: banner
+                    output: {
+                        comments: uglifySaveLicense
+                    },
+                    banner: '' // no banner needed it's in the library
                 },
                 files: {
                     'target/combined/<%= pkg.name %>.min.js': 'target/combined/<%= pkg.name %>.js'
