@@ -7,7 +7,7 @@ describe('Breinify ExternaljQuery', function () {
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof $).toBe('function');
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect($.fn.jquery).toBe('2.2.2');
+        expect($.fn.jquery).toBe('3.6.0');
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
         expect(typeof Breinify.jQueryVersion).toBe('string');
