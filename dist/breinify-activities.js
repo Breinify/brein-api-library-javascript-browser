@@ -733,6 +733,11 @@
                 throw new Error(prefixValidation + 'The defined `promotions` are invalid: ' + JSON.stringify(promotions));
             }
 
+            // check if we do not have any promotions, in that case we just return the tags
+            if (promotions.length === 0) {
+                return tags;
+            }
+
             var len = promotions.length;
             var hasIds = len > 0;
             var hasPromotions = len > 0;
