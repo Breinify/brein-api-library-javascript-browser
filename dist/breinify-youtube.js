@@ -216,7 +216,7 @@
             }
 
             var id = $el.attr('id');
-            if (typeof id !== 'string' && id === '') {
+            if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
@@ -257,7 +257,7 @@
             var $el = this.getElementByVideoId(videoId);
 
             var id = $el.attr('id');
-            if (typeof id !== 'string' && id === '') {
+            if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
@@ -271,7 +271,7 @@
 
         getVideoIdByElement: function ($el) {
             var id = $el.attr('id');
-            if (typeof id !== 'string' && id === '') {
+            if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
