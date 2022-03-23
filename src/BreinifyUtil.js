@@ -293,7 +293,7 @@
             parseGetParameter: function (name, value) {
 
                 var base64;
-                if (typeof value !== 'string' || value === null) {
+                if (typeof value !== 'string') {
                     return null;
                 } else if (value.charAt(0) === '.') {
                     base64 = value.substr(1)
