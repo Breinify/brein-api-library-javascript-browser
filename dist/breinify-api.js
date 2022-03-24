@@ -13855,7 +13855,7 @@ dependencyScope.jQuery = $;;
                         this.cookieDomain = '.' + domParts[0];
                     }
                 }
-                // even if this is the most common case it gets tricky (because of all the co.uk)
+                    // even if this is the most common case it gets tricky (because of all the co.uk)
                 // we have two or more parts (so keep the last two), i.e., .[toplevel].[ending]
                 else {
                     var possibleEnding = domParts[domPartsLen - 2] + '.' + domParts[domPartsLen - 1];
@@ -14560,10 +14560,10 @@ dependencyScope.jQuery = $;;
             }
         },
 
-        extend: function() {
-            for(var i = 1; i < arguments.length; i++) {
-                for(var key in arguments[i]) {
-                    if(arguments[i].hasOwnProperty(key)) {
+        extend: function () {
+            for (var i = 1; i < arguments.length; i++) {
+                for (var key in arguments[i]) {
+                    if (arguments[i].hasOwnProperty(key)) {
                         var val = arguments[i][key];
                         if (val === null || typeof val === 'undefined') {
                             // do nothing
@@ -14686,7 +14686,7 @@ dependencyScope.jQuery = $;;
                 }
             },
 
-            createStorabledata: function (expiresInSec, data) {
+            createStorableData: function (expiresInSec, data) {
                 var now = new Date().getTime();
                 return JSON.stringify({
                     'expires': expiresInSec <= 0 ? -1 : now + (expiresInSec * 1000),
@@ -14710,8 +14710,24 @@ dependencyScope.jQuery = $;;
                 }
             },
 
-            update: function(name, expiresInSec, data) {
-                this.instance.setItem('breinify-' + name, this.createStorabledata(expiresInSec, data));
+            update: function (name, expiresInSec, data) {
+                this.instance.setItem('breinify-' + name, this.createStorableData(expiresInSec, data));
+            },
+
+            getOrWait: function (name, callback, timeout, waitedFor) {
+                var _self = this;
+                var res = this.get(name);
+
+                if (res !== null) {
+                    callback(null, res);
+                } else if (waitedFor > timeout) {
+                    callback(new Error('Timed Out'), null);
+                } else {
+                    setTimeout(function () {
+                        var newWaitedFor = (typeof waitedFor === 'number' ? waitedFor : 0) + 50;
+                        _self.getOrWait(name, callback, timeout, newWaitedFor);
+                    }, 50);
+                }
             },
 
             get: function (name) {
