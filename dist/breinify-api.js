@@ -16169,7 +16169,7 @@ dependencyScope.jQuery = $;;
         });
     };
 
-    Breinify.handleError = function(e, scriptRegEx) {
+    Breinify.handleError = function (e, scriptRegEx) {
 
         // make sure we have an error originated within the script
         if (typeof e.filename !== 'string' || e.filename.match(scriptRegEx) === null) {
@@ -16178,7 +16178,7 @@ dependencyScope.jQuery = $;;
 
         // get the error properties from the error event object
         var error = typeof e.error === 'undefined' ? null : e.error;
-        var tags = {
+        Breinify.activity({}, 'scriptError', {
             message: e.message,
             type: error === null ? null : error.name,
             error: error === null ? null : error.toString(),
@@ -16186,9 +16186,7 @@ dependencyScope.jQuery = $;;
             source: e.filename,
             line: e.lineno,
             column: e.colno
-        }
-
-        console.log(tag);
+        });
     };
 
     // bind the utilities to be available through Breinify
@@ -16237,7 +16235,7 @@ dependencyScope.jQuery = $;;
             return plugIn;
         },
 
-        _isAdded: function(name) {
+        _isAdded: function (name) {
             return $.isPlainObject(this[name]);
         },
 
