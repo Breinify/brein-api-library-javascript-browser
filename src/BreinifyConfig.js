@@ -101,7 +101,7 @@
             return parametersData;
         },
         validate: function (value) {
-            return value === null || typeof(value) === 'function';
+            return value === null || typeof (value) === 'function';
         }
     });
     attributes.add('HANDLE_UTM', {
@@ -120,7 +120,7 @@
             };
         },
         validate: function (value) {
-            return value === null || typeof(value) === 'function';
+            return value === null || typeof (value) === 'function';
         }
     });
     attributes.add('ERROR_TAGS_MAPPER', {
@@ -132,19 +132,35 @@
                 return null;
             }
 
-            var error = typeof e.error === 'undefined' ? null : e.error;
-            return {
-                'message': e.message,
-                'type': error === null ? null : error.name,
-                'error': error === null ? null : error.toString(),
-                'stack': error === null ? null : e.error.stack,
-                'source': e.filename,
-                'line': e.lineno,
-                'column': e.colno
-            };
+            var handle = true;
+
+            /*
+             * Check if we have a script error being handled,
+             * we normally don't want to send these since we somehow are blocked
+             * but for some percentage we still send it to learn about a "why".
+             */
+            var msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+            if (msg.indexOf('script error') > -1) {
+                handle = Math.random() > 0.99;
+            }
+
+            if (handle === true) {
+                var error = typeof e.error === 'undefined' ? null : e.error;
+                return {
+                    'message': e.message,
+                    'type': error === null ? null : error.name,
+                    'error': error === null ? null : error.toString(),
+                    'stack': error === null ? null : e.error.stack,
+                    'source': e.filename,
+                    'line': e.lineno,
+                    'column': e.colno
+                };
+            } else {
+                return null;
+            }
         },
         validate: function (value) {
-            return value === null || typeof(value) === 'function';
+            return value === null || typeof (value) === 'function';
         }
     });
     attributes.add('CREATE_USER', {
@@ -153,7 +169,7 @@
             return {};
         },
         validate: function (value) {
-            return value === null || typeof(value) === 'function';
+            return value === null || typeof (value) === 'function';
         }
     });
     attributes.add('AJAX_TIMEOUT', {
@@ -174,21 +190,21 @@
         name: 'cookieDomain',
         defaultValue: null,
         validate: function (value) {
-            return value === null || typeof(value) === 'string';
+            return value === null || typeof (value) === 'string';
         }
     });
     attributes.add('COOKIE_HTTPS_ONLY', {
         name: 'cookieHttpsOnly',
         defaultValue: true,
         validate: function (value) {
-            return value === null || typeof(value) === 'boolean';
+            return value === null || typeof (value) === 'boolean';
         }
     });
     attributes.add('COOKIE_SAME_SITE', {
         name: 'cookieSameSite',
         defaultValue: 'none',
         validate: function (value) {
-            return value === null || typeof(value) === 'string';
+            return value === null || typeof (value) === 'string';
         }
     });
 
