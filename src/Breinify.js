@@ -845,6 +845,28 @@
         });
     };
 
+    Breinify.handleError = function(e, scriptRegEx) {
+
+        // make sure we have an error originated within the script
+        if (typeof e.filename !== 'string' || e.filename.match(scriptRegEx) === null) {
+            return;
+        }
+
+        // get the error properties from the error event object
+        var error = typeof e.error === 'undefined' ? null : e.error;
+        var tags = {
+            message: e.message,
+            type: error === null ? null : error.name,
+            error: error === null ? null : error.toString(),
+            stack: error === null ? null : e.error.stack,
+            source: e.filename,
+            line: e.lineno,
+            column: e.colno
+        }
+
+        console.log(tag);
+    };
+
     // bind the utilities to be available through Breinify
     Breinify.UTL = BreinifyUtil;
 
