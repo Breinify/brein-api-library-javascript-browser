@@ -14874,6 +14874,30 @@ dependencyScope.jQuery = $;;
             return value === null || typeof(value) === 'function';
         }
     });
+    attributes.add('ERROR_TAGS_MAPPER', {
+        name: 'errorTagsMapper',
+        defaultValue: function (e, scriptSourceRegEx) {
+
+            // make sure we have an error originated within the script
+            if (typeof e.filename !== 'string' || e.filename.match(scriptSourceRegEx) === null) {
+                return null;
+            }
+
+            var error = typeof e.error === 'undefined' ? null : e.error;
+            return {
+                'message': e.message,
+                'type': error === null ? null : error.name,
+                'error': error === null ? null : error.toString(),
+                'stack': error === null ? null : e.error.stack,
+                'source': e.filename,
+                'line': e.lineno,
+                'column': e.colno
+            };
+        },
+        validate: function (value) {
+            return value === null || typeof(value) === 'function';
+        }
+    });
     attributes.add('CREATE_USER', {
         name: 'createUser',
         defaultValue: function () {
@@ -14955,6 +14979,7 @@ dependencyScope.jQuery = $;;
         CUSTOMER_PLUGIN: 'customization',
         CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp',
         CUSTOMER_PLUGIN_UTM_MAPPER: 'utmMapper',
+        CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER: 'errorTagsMapper',
         CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper'
     };
 
@@ -16169,24 +16194,31 @@ dependencyScope.jQuery = $;;
         });
     };
 
-    Breinify.handleError = function (e, scriptRegEx) {
+    Breinify.handleError = function(e, scriptSourceRegEx) {
 
-        // make sure we have an error originated within the script
-        if (typeof e.filename !== 'string' || e.filename.match(scriptRegEx) === null) {
+        // make sure we can match, otherwise the handling will fail
+        if (!(scriptSourceRegEx instanceof RegExp)) {
             return;
         }
 
-        // get the error properties from the error event object
-        var error = typeof e.error === 'undefined' ? null : e.error;
-        Breinify.activity({}, 'scriptError', {
-            message: e.message,
-            type: error === null ? null : error.name,
-            error: error === null ? null : error.toString(),
-            stack: error === null ? null : e.error.stack,
-            source: e.filename,
-            line: e.lineno,
-            column: e.colno
-        });
+        var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
+        if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
+            mapper = mapper.map;
+        } else {
+            mapper = _config.get(ATTR_CONFIG.ERROR_TAGS_MAPPER);
+        }
+
+        if (!$.isFunction(mapper)) {
+            return;
+        }
+
+        var tags = mapper(e, scriptSourceRegEx);
+        if (!$.isPlainObject(tags)) {
+            return;
+        }
+
+        // send the activity with the error details
+        Breinify.activity({}, 'scriptError', tags);
     };
 
     // bind the utilities to be available through Breinify
@@ -16235,7 +16267,7 @@ dependencyScope.jQuery = $;;
             return plugIn;
         },
 
-        _isAdded: function (name) {
+        _isAdded: function(name) {
             return $.isPlainObject(this[name]);
         },
 
@@ -16352,6 +16384,7 @@ dependencyScope.jQuery = $;;
             onReady();
         }
     };
+    Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
         constants: {
             errors: {
