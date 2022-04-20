@@ -845,24 +845,26 @@
         });
     };
 
-    Breinify.handleError = function (e, scriptRegEx) {
+    Breinify.handleError = function(e, scriptSourceRegEx) {
 
-        // make sure we have an error originated within the script
-        if (typeof e.filename !== 'string' || e.filename.match(scriptRegEx) === null) {
+        var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
+        if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
+            mapper = mapper.map;
+        } else {
+            mapper = _config.get(ATTR_CONFIG.ERROR_TAGS_MAPPER);
+        }
+
+        if (!$.isFunction(mapper)) {
             return;
         }
 
-        // get the error properties from the error event object
-        var error = typeof e.error === 'undefined' ? null : e.error;
-        Breinify.activity({}, 'scriptError', {
-            message: e.message,
-            type: error === null ? null : error.name,
-            error: error === null ? null : error.toString(),
-            stack: error === null ? null : e.error.stack,
-            source: e.filename,
-            line: e.lineno,
-            column: e.colno
-        });
+        var tags = mapper(e, scriptSourceRegEx);
+        if (!$.isPlainObject(tags)) {
+            return;
+        }
+
+        // try sending the activity
+        Breinify.activity({}, 'scriptError', tags);
     };
 
     // bind the utilities to be available through Breinify
@@ -911,7 +913,7 @@
             return plugIn;
         },
 
-        _isAdded: function (name) {
+        _isAdded: function(name) {
             return $.isPlainObject(this[name]);
         },
 
