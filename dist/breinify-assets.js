@@ -178,6 +178,11 @@
 
         areDataTagsEnabled: function (data, group, item) {
 
+            // check if data is even present
+            if (!$.isPlainObject(data)) {
+                return false;
+            }
+
             var dataTags = this.extractDataTagsSettings(group, item, data);
 
             for (var i = 0; i < dataTags.length; i++) {
