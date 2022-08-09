@@ -894,7 +894,7 @@
                 if (replayExisting === true) {
                     for (var i = 0; i < window.dataLayer.length; i++) {
                         var oldEvent = window.dataLayer[i];
-                        listener.call(oldEvent, name, oldEvent);
+                        _self._handleEvent(name, instance, oldEvent);
                     }
                 }
 
@@ -920,15 +920,20 @@
 
                         // trigger the listening
                         var instance = _self.dataLayerEventListener[name];
-                        if ($.isFunction(instance)) {
-                            instance.call(event, name, event);
-                        } else if ($.isPlainObject(instance) && $.isFunction(instance.handle)) {
-                            if (!$.isFunction(instance.filter) || instance.filter.call(event, name, event) === true) {
-                                instance.handle.call(event, name, event);
-                            }
-                        }
+                        _self._handleEvent(name, instance, event);
                     }
                 };
+            },
+
+            _handleEvent: function(name, instance, event) {
+
+                if ($.isFunction(instance)) {
+                    instance.call(event, name, event);
+                } else if ($.isPlainObject(instance) && $.isFunction(instance.handle)) {
+                    if (!$.isFunction(instance.filter) || instance.filter.call(event, name, event) === true) {
+                        instance.handle.call(event, name, event);
+                    }
+                }
             }
         },
 
