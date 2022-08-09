@@ -888,15 +888,15 @@
                 }
 
                 // override the existing listener (next event will be sent to this name)
-                this.dataLayerEventListener[name] = listener;
+                _self.dataLayerEventListener[name] = listener;
 
                 // if we already are initialized we can stop, the listener will be handled in the loop
-                if (this._initialPush !== null) {
+                if (_self._initialPush !== null) {
                     return;
                 }
 
                 // keep the original push function
-                this._initialPush = window.dataLayer.push;
+                _self._initialPush = window.dataLayer.push;
 
                 // set a proxy push method
                 window.dataLayer.push = function(event) {
