@@ -894,7 +894,7 @@
                 if (replayExisting === true) {
                     for (var i = 0; i < window.dataLayer.length; i++) {
                         var oldEvent = window.dataLayer[i];
-                        _self._handleEvent(name, instance, oldEvent);
+                        _self._handleEvent(name, listener, oldEvent);
                     }
                 }
 
