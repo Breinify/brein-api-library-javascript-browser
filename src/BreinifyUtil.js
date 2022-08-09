@@ -913,7 +913,7 @@
                         // trigger the listening
                         var func = _self.dataLayerEventListener[name];
                         if ($.isFunction(func)) {
-                            func[name](name, event);
+                            func.call(event, name, event);
                         }
                     }
                 };
