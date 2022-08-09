@@ -867,7 +867,7 @@
             _initialPush: null,
             dataLayerEventListener: {},
 
-            addDataLayerEventListener: function(name, listener, checkTime) {
+            addDataLayerEventListener: function (name, listener, replayExisting, checkTime) {
                 var _self = this;
 
                 // check if we have a dataLayer available
@@ -880,8 +880,8 @@
                     }
 
                     // if we do not have it yet, we
-                    setTimeout(function() {
-                        _self.addDataLayerEventListener(name, listener, checkTime + _self.checkAgainDurationInMs);
+                    setTimeout(function () {
+                        _self.addDataLayerEventListener(name, listener, replayExisting, checkTime + _self.checkAgainDurationInMs);
                     }, _self.checkAgainDurationInMs);
 
                     return;
@@ -889,6 +889,14 @@
 
                 // override the existing listener (next event will be sent to this name)
                 _self.dataLayerEventListener[name] = listener;
+
+                // we added the listener but existing events are not pushed, so let's do it, if requested
+                if (replayExisting === true) {
+                    for (var i = 0; i < window.dataLayer.length; i++) {
+                        var oldEvent = window.dataLayer[i];
+                        listener.call(oldEvent, name, oldEvent);
+                    }
+                }
 
                 // if we already are initialized we can stop, the listener will be handled in the loop
                 if (_self._initialPush !== null) {
@@ -899,7 +907,7 @@
                 _self._initialPush = window.dataLayer.push;
 
                 // set a proxy push method
-                window.dataLayer.push = function(event) {
+                window.dataLayer.push = function (event) {
 
                     // trigger the current implementation
                     _self._initialPush.call(window.dataLayer, event);
