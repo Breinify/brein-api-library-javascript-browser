@@ -861,6 +861,65 @@
             }
         },
 
+        google: {
+            checkAgainDurationInMs: 100,
+            checkMaxDurationInMs: 10000,
+            _initialPush: null,
+            dataLayerEventListener: {},
+
+            addDataLayerEventListener: function(name, listener, checkTime) {
+                var _self = this;
+
+                // check if we have a dataLayer available
+                if (!$.isArray(window.dataLayer) || !$.isFunction(window.dataLayer.push)) {
+                    checkTime = typeof checkTime === 'number' ? checkTime : 0;
+
+                    // we are done and give up
+                    if (checkTime > _self.checkMaxDurationInMs) {
+                        return;
+                    }
+
+                    // if we do not have it yet, we
+                    setTimeout(function() {
+                        _self.addDataLayerEventListener(name, listener, checkTime + _self.checkAgainDurationInMs);
+                    }, _self.checkAgainDurationInMs);
+
+                    return;
+                }
+
+                // override the existing listener (next event will be sent to this name)
+                this.dataLayerEventListener[name] = listener;
+
+                // if we already are initialized we can stop, the listener will be handled in the loop
+                if (this._initialPush !== null) {
+                    return;
+                }
+
+                // keep the original push function
+                this._initialPush = window.dataLayer.push;
+
+                // set a proxy push method
+                window.dataLayer.push = function(event) {
+
+                    // trigger the current implementation
+                    _self._initialPush.call(window.dataLayer, event);
+
+                    // trigger the event listeners
+                    for (var name in _self.dataLayerEventListener) {
+                        if (!_self.dataLayerEventListener.hasOwnProperty(name)) {
+                            continue;
+                        }
+
+                        // trigger the listening
+                        var func = _self.dataLayerEventListener[name];
+                        if ($.isFunction(func)) {
+                            func[name](name, event);
+                        }
+                    }
+                };
+            }
+        },
+
         events: {
             observerInterval: null,
             observables: {},
