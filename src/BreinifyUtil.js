@@ -762,8 +762,7 @@
                     sessionId: this.getSessionId(),
                     'additional': {
                         identifiers: {
-                            browserId: this.getBrowserId(),
-                            assignedGroup: this.getAssignedGroup()
+                            browserId: this.getBrowserId()
                         }
                     }
                 };
