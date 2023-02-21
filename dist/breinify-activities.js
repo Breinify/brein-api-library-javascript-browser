@@ -15,6 +15,9 @@
     var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
     var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
+    // identifier used within the activities to identify same "script" origin
+    var originId = Breinify.UTL.uuid();
+
     var gaDefaultMapper = function (handler, activity) {
         switch (handler.type) {
             case 'ga':
@@ -780,7 +783,7 @@
         },
 
         _extendTags: function (type, tags) {
-            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function(activityType) {
+            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function (activityType) {
                 return {};
             });
 
@@ -809,6 +812,12 @@
 
             // make sure the tags have an identifier set
             tags.id = typeof tags.id === 'string' ? tags.id : Breinify.UTL.uuid();
+
+            /*
+             * We also assign an id to all the activities sent by the same "script-loaded"
+             * this ensures that activities can be bundles of having the same origin
+             */
+            tags.originId = originId;
 
             // send the activity to Breinify
             Breinify.activity(user, type, null, null, tags, function (data, error) {
