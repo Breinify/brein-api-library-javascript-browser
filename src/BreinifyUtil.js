@@ -478,7 +478,15 @@
             setJson: function (name, json, expiresInDays, global, specDomain, httpsOnly) {
                 if ($.isPlainObject(json)) {
                     try {
-                        var encJson = btoa(JSON.stringify(json));
+                        var strJson = JSON.stringify(json);
+
+                        // the stringified JSON may contain invalid characters, so lets replace these
+                        var replacedJson = strJson.replace(/[\u00A0-\u2666]/g, function (c) {
+                            return '&#' + c.charCodeAt(0) + ';';
+                        });
+
+                        // finally let's encode it to a base64 encoded string
+                        var encJson = btoa(replacedJson);
                         this.set(name, encJson, expiresInDays, global, specDomain, httpsOnly);
                     } catch (e) {
                         this.reset(name, specDomain);
@@ -924,7 +932,7 @@
                 };
             },
 
-            _handleEvent: function(name, instance, event) {
+            _handleEvent: function (name, instance, event) {
 
                 if ($.isFunction(instance)) {
                     instance.call(event, name, event);
