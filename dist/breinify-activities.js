@@ -784,11 +784,22 @@
                 return {};
             });
 
+            // make sure we have valid tags
+            if (!$.isPlainObject(tags)) {
+                tags = {};
+            }
+
             var tagsExtenderResult;
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
-                return $.isPlainObject(tags) ? tags : {};
+                return $.extend({
+                    'pageId': window.location.pathname,
+                    'title': document.title
+                }, tags);
             } else {
-                return $.extend({}, tagsExtenderPlugIn(type), tags);
+                return $.extend({
+                    'pageId': window.location.pathname,
+                    'title': document.title
+                }, tagsExtenderPlugIn(type), tags);
             }
         },
 
