@@ -794,15 +794,9 @@
 
             var tagsExtenderResult;
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
-                return $.extend({
-                    'pageId': window.location.pathname,
-                    'title': document.title
-                }, tags);
+                return $.extend({}, tags);
             } else {
-                return $.extend({
-                    'pageId': window.location.pathname,
-                    'title': document.title
-                }, tagsExtenderPlugIn(type), tags);
+                return $.extend({}, tagsExtenderPlugIn(type), tags);
             }
         },
 
