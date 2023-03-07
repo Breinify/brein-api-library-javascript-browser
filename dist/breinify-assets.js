@@ -19,8 +19,14 @@
     var _private = {
         resultCache: {},
 
-        _textResource: function (frameId, callback) {
-            $.getJSON('https://assets.breinify.com/frame/' + frameId, function (data) {
+        _textResource: function (frameId, timestamp, callback) {
+            var url = 'https://assets.breinify.com/frame/' + frameId;
+
+            if (typeof timestamp === 'number' && /^\d{10}$/.test(timestamp.toString())) {
+                url += '/' + timestamp;
+            }
+
+            $.getJSON(url, function (data) {
                 callback(null, data);
             }).fail(function (jqXHR, textStatus, errorThrown) {
                 callback({
@@ -31,18 +37,24 @@
             });
         },
 
-        textResource: function (frameId, callback) {
+        textResource: function (frameId, timestamp, callback) {
             var _self = this;
 
-            if ($.isPlainObject(this.resultCache[frameId])) {
-                callback(null, this.resultCache[frameId]);
-            } else if (typeof this.resultCache[frameId] === 'boolean') {
+            // make sure the timestamp is valid
+            if (typeof timestamp !== 'number' || timestamp.toString().length !== 10) {
+                timestamp = null;
+            }
 
-                if (this.resultCache[frameId] === true) {
+            var cacheKey = frameId + (timestamp === null ? '' : '/' + timestamp);
+            if ($.isPlainObject(this.resultCache[cacheKey])) {
+                callback(null, this.resultCache[cacheKey]);
+            } else if (typeof this.resultCache[cacheKey] === 'boolean') {
+
+                if (this.resultCache[cacheKey] === true) {
 
                     // push it again in the execution loop
                     setTimeout(function () {
-                        _self.textResource(frameId, callback);
+                        _self.textResource(frameId, timestamp, callback);
                     }, 10);
                 } else {
 
@@ -52,17 +64,17 @@
             } else {
 
                 // mark the resource to be in progress (to be loaded)
-                this.resultCache[frameId] = true;
+                this.resultCache[cacheKey] = true;
 
                 // fire the query
-                this._textResource(frameId, function (error, data) {
+                this._textResource(frameId, timestamp, function (error, data) {
 
                     // if we have an error just return the fallback
                     if (error === null) {
-                        _self.resultCache[frameId] = data;
+                        _self.resultCache[cacheKey] = data;
                         callback(null, data);
                     } else {
-                        _self.resultCache[frameId] = false;
+                        _self.resultCache[cacheKey] = false;
                         callback(null, null);
                     }
                 });
@@ -78,7 +90,7 @@
                 callback(null, null);
             } else {
 
-                this.textResource(frameId, function (error, data) {
+                this.textResource(frameId, null, function (error, data) {
 
                     // if we have an error just return the fallback
                     if (error === null) {
@@ -131,7 +143,7 @@
                 callback(null, null);
             } else {
 
-                this.textResource(frameId, function (error, data) {
+                this.textResource(frameId, null, function (error, data) {
 
                     // if we have an error just return the fallback
                     if (error === null) {
@@ -303,7 +315,7 @@
             })
         },
 
-        applyResourceModification: function($el, result) {
+        applyResourceModification: function ($el, result) {
             var value = typeof result === 'string' && result.trim() !== '' ? result : null;
 
             if ($el.is('img')) {
@@ -480,7 +492,7 @@
 
     var Assets = {
 
-        applyResourceModification: function($el) {
+        applyResourceModification: function ($el) {
             var frameId = $el.attr('data-frameId');
             var resourceType = $el.attr('data-resourceType');
             var resourceId = $el.attr('data-resourceId');
@@ -538,10 +550,16 @@
         textResource: function () {
             overload.overload({
                 'Object,Function': function (res, cb) {
-                    _private.textResource(res.frameId, cb);
+                    _private.textResource(res.frameId, null, cb);
                 },
                 'String,Function': function (frameId, cb) {
-                    _private.textResource(frameId, cb);
+                    _private.textResource(frameId, null, cb);
+                },
+                'Object,Number,Function': function (res, timestamp, cb) {
+                    _private.textResource(res.frameId, timestamp, cb);
+                },
+                'String,Number,Function': function (frameId, timestamp, cb) {
+                    _private.textResource(frameId, timestamp, cb);
                 },
                 'String,String,String,Function,Number': function (frameId, resourceType, resourceId, cb, timestampInMs) {
                     _private.determineTextResourceValue(frameId, resourceType, resourceId, cb, timestampInMs);

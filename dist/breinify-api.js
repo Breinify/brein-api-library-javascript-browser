@@ -13283,7 +13283,7 @@ dependencyScope.jQuery = $;;
 
     var _private = {
         parseNumber: function (value) {
-            if (/^(\-|\+)?([0-9]+(\.[0-9]+)?|Infinity)$/.test(value)) {
+            if (/^[-+]?(?:\d+(?:\.\d+)?|Infinity)$/.test(value)) {
                 return Number(value);
             } else {
                 return NaN;
