@@ -10,10 +10,6 @@
     }
 
     var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
-
-    var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
-    var prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
     var prefixCssPopup = 'breinify-popup';
     var prefixCssLoadPage = prefixCssPopup + '-page-load';

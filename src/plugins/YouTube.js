@@ -10,7 +10,6 @@
     }
 
     var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
 
     var internal = {
         frequencyInMs: 1000,

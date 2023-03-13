@@ -297,6 +297,7 @@ module.exports = function (grunt) {
                     'dist/breinify-sms.min.js': 'src/plugins/Sms.js',
                     'dist/breinify-ui-popup.min.js': 'src/plugins/UiPopup.js',
                     'dist/breinify-ui-validator.min.js': 'src/plugins/UiValidator.js',
+                    'dist/breinify-opt-status.min.js': 'src/plugins/OptStatus.js',
                     'dist/breinify-youtube.min.js': 'src/plugins/YouTube.js'
                 }
             }
@@ -328,6 +329,7 @@ module.exports = function (grunt) {
                     {expand: true, cwd: 'src/plugins', src: 'Sms.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-sms.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'UiPopup.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-popup.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'UiValidator.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-ui-validator.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'OptStatus.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-opt-status.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'YouTube.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-youtube.js' } }
                 ]
             }
@@ -338,13 +340,13 @@ module.exports = function (grunt) {
          */
         jasmine: {
             test: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-ui-validator.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
                 options: {
                     specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
                 }
             },
             testWithJQuery: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-ui-validator.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
                 options: {
                     vendor: ['node_modules/jquery/dist/jquery.js', 'node_modules/jasmine-jquery/lib/jasmine-jquery.js'],
                     specs: 'specs/**/*.jquery.js'
