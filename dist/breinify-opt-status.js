@@ -20,7 +20,9 @@
 
         validateToken: function (token, cb) {
             if (typeof token !== 'string' || token.trim() !== token || token === '') {
-                cb(new Error('Invalid token specified: ' + token));
+                if ($.isFunction(cb)) {
+                    cb(new Error('Invalid token specified: ' + token));
+                }
                 return false;
             } else {
                 return true;
@@ -43,6 +45,18 @@
                 validateOptCode: this.getConfig('tokenValidateOptCode', null),
                 optViaCode: this.getConfig('tokenOptViaCode', null)
             };
+        },
+
+        hasTokens: function () {
+            var validateOptCodeToken = this.tokens().validateOptCode;
+            var optViaCodeToken = this.tokens().optViaCode;
+
+            return _private.validateToken(validateOptCodeToken) &&
+                _private.validateToken(optViaCodeToken);
+        },
+
+        isValidCode: function (code) {
+            return typeof code === 'string' && code === code.trim() && code !== '';
         },
 
         validateOptCode: function (code, cb) {
