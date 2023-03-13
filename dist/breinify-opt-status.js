@@ -31,10 +31,18 @@
 
         handleOptCodeValidation: function (response, cb) {
             console.log(response);
+
+            if ($.isFunction(cb)) {
+                cb(response);
+            }
         },
 
         handleOptStatusChange: function (response, cb) {
             console.log(response);
+
+            if ($.isFunction(cb)) {
+                cb(response);
+            }
         }
     };
 
@@ -47,7 +55,7 @@
             };
         },
 
-        hasTokens: function () {
+        hasValidTokens: function () {
             var validateOptCodeToken = this.tokens().validateOptCode;
             var optViaCodeToken = this.tokens().optViaCode;
 
