@@ -15,8 +15,6 @@
 
     var _private = {
         handleError: function (error, cb) {
-            console.log(error);
-
             if ($.isFunction(cb)) {
                 cb(error);
             }
@@ -34,16 +32,12 @@
         },
 
         handleOptCodeValidation: function (response, cb) {
-            console.log(response);
-
             if ($.isFunction(cb)) {
                 cb(null, response);
             }
         },
 
         handleOptStatusChange: function (response, cb) {
-            console.log(response);
-
             if ($.isFunction(cb)) {
                 cb(null, response);
             }
