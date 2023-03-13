@@ -79,7 +79,7 @@
 
             Breinify.UTL.internal.token(token, {code: code}, function (error, response) {
                 if (error == null) {
-                    _private.handleOptCodeValidation(data, cb);
+                    _private.handleOptCodeValidation(response, cb);
                 } else {
                     _private.handleError(error, cb);
                 }
@@ -94,7 +94,7 @@
 
             Breinify.UTL.internal.token(token, {code: code}, function (error, response) {
                 if (error == null) {
-                    _private.handleOptStatusChange(data, cb);
+                    _private.handleOptStatusChange(response, cb);
                 } else {
                     _private.handleError(error, cb);
                 }
