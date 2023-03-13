@@ -16,6 +16,10 @@
     var _private = {
         handleError: function (error, cb) {
             console.log(error);
+
+            if ($.isFunction(cb)) {
+                cb(error);
+            }
         },
 
         validateToken: function (token, cb) {
@@ -33,7 +37,7 @@
             console.log(response);
 
             if ($.isFunction(cb)) {
-                cb(response);
+                cb(null, response);
             }
         },
 
@@ -41,7 +45,7 @@
             console.log(response);
 
             if ($.isFunction(cb)) {
-                cb(response);
+                cb(null, response);
             }
         }
     };
@@ -73,7 +77,7 @@
                 return;
             }
 
-            Breinify.UTL.token(token, {code: code}, function (error, response) {
+            Breinify.UTL.internal.token(token, {code: code}, function (error, response) {
                 if (error == null) {
                     _private.handleOptCodeValidation(data, cb);
                 } else {
@@ -88,7 +92,7 @@
                 return;
             }
 
-            Breinify.UTL.token(token, {code: code}, function (error, response) {
+            Breinify.UTL.internal.token(token, {code: code}, function (error, response) {
                 if (error == null) {
                     _private.handleOptStatusChange(data, cb);
                 } else {
