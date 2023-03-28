@@ -856,7 +856,7 @@
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
             mapper = mapper.map;
         } else if (_config === null) {
-            mapper = null;
+            return;
         } else {
             mapper = _config.get(ATTR_CONFIG.ERROR_TAGS_MAPPER);
         }
