@@ -845,7 +845,7 @@
         });
     };
 
-    Breinify.handleError = function(e, scriptSourceRegEx) {
+    Breinify.handleError = function (e, scriptSourceRegEx) {
 
         // make sure we can match, otherwise the handling will fail
         if (!(scriptSourceRegEx instanceof RegExp)) {
@@ -855,6 +855,8 @@
         var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
             mapper = mapper.map;
+        } else if (_config === null) {
+            mapper = null;
         } else {
             mapper = _config.get(ATTR_CONFIG.ERROR_TAGS_MAPPER);
         }
@@ -918,7 +920,7 @@
             return plugIn;
         },
 
-        _isAdded: function(name) {
+        _isAdded: function (name) {
             return $.isPlainObject(this[name]);
         },
 
