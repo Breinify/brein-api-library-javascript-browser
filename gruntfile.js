@@ -56,7 +56,7 @@ module.exports = function (grunt) {
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-contrib-jasmine');
     //noinspection JSUnresolvedFunction
-    grunt.loadNpmTasks('grunt-sync-json');
+    //grunt.loadNpmTasks('grunt-sync-json');
 
     var uglifySaveLicense = require('uglify-save-license');
 
@@ -382,7 +382,7 @@ module.exports = function (grunt) {
             tasks.push('clean:dep');
             tasks.push('createBowerDir');
         }
-        tasks.push('sync-json:bower');
+        //tasks.push('sync-json:bower');
         tasks.push('bower-install-simple:dep');
         tasks.push('bower:dep');
 
