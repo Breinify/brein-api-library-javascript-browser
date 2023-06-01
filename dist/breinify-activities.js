@@ -208,7 +208,45 @@
                 Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
             }
         },
-        localStorage: {}
+        localStorage: {
+            prefix: 'br-scheduled-activity-',
+
+            store: function (id, activityData) {
+                window.localStorage.setItem(this.prefix + id, JSON.stringify(activityData))
+            },
+
+            getAll: function () {
+                var activitiesData = null;
+
+                for (var i = 0, len = window.localStorage.length; i < len; ++i) {
+                    var key = window.localStorage.key(i);
+                    if (!key.indexOf(this.prefix) === 0) {
+                        continue;
+                    }
+
+                    var id = key.substring(this.prefix.length);
+                    var entry = this.get(id);
+                    if (entry === null) {
+                        continue;
+                    } else if (activitiesData === null) {
+                        activitiesData = {};
+                    }
+
+                    activitiesData[id] = entry;
+                }
+
+                return activitiesData;
+            },
+
+            get: function (id) {
+                var json = window.localStorage.getItem(this.prefix + id);
+                return typeof json === 'string' ? JSON.parse(json) : null;
+            },
+
+            remove: function (id) {
+                window.localStorage.removeItem(this.prefix + id);
+            }
+        }
     };
 
     var usedDelayedActivitiesStorage;
@@ -216,9 +254,6 @@
         window.localStorage.setItem('br-local-storage-test', 'true');
         window.localStorage.removeItem('br-local-storage-test');
         usedDelayedActivitiesStorage = delayedActivitiesStorage.localStorage;
-
-        // we only have cookie so always use it
-        usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     } catch (e) {
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
