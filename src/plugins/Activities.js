@@ -159,6 +159,70 @@
         }
     };
 
+    var delayedActivitiesStorage = {
+        cookieStorage: {
+            store: function (id, activityData) {
+                var cookieName = Breinify.UTL.cookies.delayedActivities;
+
+                // store the activity in a cookie that will be evaluated each run
+                var activitiesData = {};
+                if (Breinify.UTL.cookie.check(cookieName)) {
+                    activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+                }
+
+                // add the new activityData to the list
+                var activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
+                activitiesData[activityDataId] = activityData;
+
+                // reset the cookie (just session is fine)
+                var domain = Breinify.UTL.cookie.domain();
+                Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
+
+                return activityDataId;
+            },
+
+            getAll: function () {
+                var cookieName = Breinify.UTL.cookies.delayedActivities;
+                return Breinify.UTL.cookie.getJson(cookieName);
+            },
+
+            get: function (id) {
+                var activitiesData = this.getAll();
+
+                if (!$.isPlainObject(activitiesData)) {
+                    return null;
+                } else if ($.isPlainObject(activitiesData[id])) {
+                    return activitiesData[id];
+                } else {
+                    return null;
+                }
+            },
+
+            remove: function (id) {
+                var domain = Breinify.UTL.cookie.domain();
+                var cookieName = Breinify.UTL.cookies.delayedActivities;
+
+                var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+                delete activitiesData[id];
+
+                Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
+            }
+        },
+        localStorage: {}
+    };
+
+    var usedDelayedActivitiesStorage;
+    try {
+        window.localStorage.setItem('br-local-storage-test', 'true');
+        window.localStorage.removeItem('br-local-storage-test');
+        usedDelayedActivitiesStorage = delayedActivitiesStorage.localStorage;
+
+        // we only have cookie so always use it
+        usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
+    } catch (e) {
+        usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
+    }
+
     var Activities = {
 
         generic: function () {
@@ -424,36 +488,12 @@
                 timestamp: new Date().getTime()
             };
 
-            var cookieName = Breinify.UTL.cookies.delayedActivities;
-
-            // store the activity in a cookie that will be evaluated each run
-            var activitiesData = {};
-            if (Breinify.UTL.cookie.check(cookieName)) {
-                activitiesData = Breinify.UTL.cookie.getJson(cookieName);
-            }
-
-            // add the new activityData to the list
-            var activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
-            activitiesData[activityDataId] = activityData;
-
-            // reset the cookie (just session is fine)
-            var domain = Breinify.UTL.cookie.domain();
-            Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
-
             // return the identifier
-            return activityDataId;
+            return usedDelayedActivitiesStorage.store(id, activityData);
         },
 
         readDelayedActivityData: function (id) {
-            var cookieName = Breinify.UTL.cookies.delayedActivities;
-            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
-            if (!$.isPlainObject(activitiesData)) {
-                return null;
-            } else if ($.isPlainObject(activitiesData[id])) {
-                return activitiesData[id];
-            } else {
-                return null;
-            }
+            return usedDelayedActivitiesStorage.get(id);
         },
 
         hasDelayedActivityData: function (input) {
@@ -474,8 +514,7 @@
                 };
             }
 
-            var cookieName = Breinify.UTL.cookies.delayedActivities;
-            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            var activitiesData = usedDelayedActivitiesStorage.getAll();
             if (activitiesData === null || !$.isPlainObject(activitiesData)) {
                 return false;
             } else {
@@ -484,18 +523,11 @@
         },
 
         removeDelayedActivityData: function (id) {
-            var domain = Breinify.UTL.cookie.domain();
-            var cookieName = Breinify.UTL.cookies.delayedActivities;
-
-            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
-            delete activitiesData[id];
-
-            Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
+            usedDelayedActivitiesStorage.remove(id);
         },
 
         checkDelayedActivityData: function () {
-            var cookieName = Breinify.UTL.cookies.delayedActivities;
-            var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+            var activitiesData = usedDelayedActivitiesStorage.getAll();
 
             // check each activity after ready
             var _self = this;
