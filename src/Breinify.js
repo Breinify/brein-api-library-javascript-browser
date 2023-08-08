@@ -10,7 +10,7 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(scope, 'Breinify')) {
+    if (misc.check(scope, 'Breinify', true)) {
         return;
     }
 

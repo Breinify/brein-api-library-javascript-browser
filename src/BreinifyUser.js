@@ -8,7 +8,7 @@
     "use strict";
 
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'BreinifyUser')) {
+    if (misc.check(window, 'BreinifyUser', true)) {
         return;
     }
 

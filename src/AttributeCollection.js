@@ -4,7 +4,7 @@
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'AttributeCollection')) {
+    if (misc.check(window, 'AttributeCollection', true)) {
         return;
     }
 

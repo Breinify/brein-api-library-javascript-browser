@@ -13196,7 +13196,7 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'AttributeCollection')) {
+    if (misc.check(window, 'AttributeCollection', true)) {
         return;
     }
 
@@ -13361,7 +13361,7 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'BreinifyUtil')) {
+    if (misc.check(window, 'BreinifyUtil', true)) {
         return;
     }
 
@@ -14927,7 +14927,7 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'BreinifyConfig')) {
+    if (misc.check(window, 'BreinifyConfig', true)) {
         return;
     }
 
@@ -15211,7 +15211,7 @@ dependencyScope.jQuery = $;;
     "use strict";
 
     var misc = dependencyScope.misc;
-    if (misc.check(window, 'BreinifyUser')) {
+    if (misc.check(window, 'BreinifyUser', true)) {
         return;
     }
 
@@ -15542,7 +15542,7 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSUnresolvedVariable
     var misc = dependencyScope.misc;
-    if (misc.check(scope, 'Breinify')) {
+    if (misc.check(scope, 'Breinify', true)) {
         return;
     }
 
