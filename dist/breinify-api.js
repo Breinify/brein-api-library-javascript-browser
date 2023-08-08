@@ -12667,7 +12667,7 @@ dependencyScope.jQuery = $;;
 /*
  * brein-util-common
  * v1.0.0-snapshot
- * 2016-06-01
+ * 2023-08-08
  **/
 !function (scope) {
     var misc = {
@@ -12678,7 +12678,7 @@ dependencyScope.jQuery = $;;
 
     /**
      * Method used to export an object with a specific name. The method
-     * checks for differnet types of possibilities to export an object, i.e.
+     * checks for different types of possibilities to export an object, i.e.
      * first AMD, second module.exports, and last but not least binding it
      * to the scope.
      *
@@ -12706,13 +12706,16 @@ dependencyScope.jQuery = $;;
      *
      * @param scope {object} the scope to check for the instance in
      * @param name {string} the instance to check for
+     * @param skipRequire {boolean} default false, set to true to skip require checks
      * @returns {boolean} if the check was successful
      */
-    misc.check = function (scope, name) {
+    misc.check = function (scope, name, skipRequire) {
         var obj = null;
 
         //noinspection JSUnresolvedVariable
-        if (typeof require === 'function' && typeof define === 'function' && define.amd) {
+        if (skipRequire === true) {
+            obj = scope[name];
+        } else if (typeof require === 'function' && typeof define === 'function' && define.amd) {
             obj = require(name);
         } else if (typeof require === 'function' && module.exports) {
             obj = require(name);
