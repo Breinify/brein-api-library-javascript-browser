@@ -454,6 +454,10 @@
                     var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
+                'String,Array,Object,Array,Object,Object,Function': function (transactionId, products, receipt, promotions, user, tags, cb) {
+                    tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, tags);
+                    _self._send(type, user, tags, cb);
+                },
                 'String,Object,Object,Object,String,Function': function (transactionId, products, receipt, promotions, user, cb) {
                     var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
