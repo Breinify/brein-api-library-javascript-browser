@@ -765,20 +765,21 @@
 
             create: function (user) {
 
-                // check for any markers
-                var markerSessionId = BreinifyUtil.loc.param('br-msid');
-                var sessionIds = typeof markerSessionId === 'string' && markerSessionId.trim() !== '' ? [markerSessionId] : [];
-
                 // get the default user
                 var defaultUser = {
                     sessionId: this.getSessionId(),
-                    sessionIds: sessionIds,
                     'additional': {
                         identifiers: {
                             browserId: this.getBrowserId()
                         }
                     }
                 };
+
+                // check for any markers
+                var markerSessionId = BreinifyUtil.loc.param('br-msid');
+                if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
+                    defaultUser.sessionIds = [markerSessionId];
+                }
 
                 // get the create user from the configuration
                 var createUser = scope.Breinify.config()['createUser'];
