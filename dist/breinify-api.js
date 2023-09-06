@@ -15286,24 +15286,29 @@ dependencyScope.jQuery = $;;
         group: 6,
         optional: false
     });
+    attributes.add('SESSIONIDS', {
+        name: 'sessionIds',
+        group: 7,
+        optional: false
+    });
     attributes.add('PHONE', {
         name: 'phone',
-        group: 7,
+        group: 8,
         optional: false
     });
     attributes.add('USERID', {
         name: 'userId',
-        group: 8,
+        group: 9,
         optional: false
     });
     attributes.add('USERIDS', {
         name: 'userIds',
-        group: 9,
+        group: 10,
         optional: false
     });
     attributes.add('TWITTERID', {
         name: 'twitterId',
-        group: 10,
+        group: 11,
         optional: false
     });
     attributes.add('additional', {
