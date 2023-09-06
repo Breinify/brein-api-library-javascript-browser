@@ -776,8 +776,8 @@
                 };
 
                 // check for any markers
-                var markerSessionId = BreinifyUtil.loc.param('br-msid');
-                if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
+                var markerSessionId = this.getMarkerSessionId();
+                if (markerSessionId !== null) {
                     defaultUser.sessionIds = [markerSessionId];
                 }
 
@@ -830,6 +830,15 @@
                 }
 
                 return this.sessionId;
+            },
+
+            getMarkerSessionId: function() {
+                var markerSessionId = BreinifyUtil.loc.param('br-msid');
+                if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
+                    return markerSessionId;
+                } else {
+                    return null;
+                }
             },
 
             resetSessionId: function (reset) {

@@ -14131,8 +14131,8 @@ dependencyScope.jQuery = $;;
                 };
 
                 // check for any markers
-                var markerSessionId = BreinifyUtil.loc.param('br-msid');
-                if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
+                var markerSessionId = this.getMarkerSessionId();
+                if (markerSessionId !== null) {
                     defaultUser.sessionIds = [markerSessionId];
                 }
 
@@ -14185,6 +14185,15 @@ dependencyScope.jQuery = $;;
                 }
 
                 return this.sessionId;
+            },
+
+            getMarkerSessionId: function() {
+                var markerSessionId = BreinifyUtil.loc.param('br-msid');
+                if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
+                    return markerSessionId;
+                } else {
+                    return null;
+                }
             },
 
             resetSessionId: function (reset) {
@@ -16635,6 +16644,7 @@ dependencyScope.jQuery = $;;
             create: function() { return {}; },
             getBrowserId: function() { return null; },
             getSessionId: function() { return null; },
+            getMarkerSessionId: function() { return null; },
             resetSessionId: function() { return null; },
             getAssignedGroup: function() { return null; }
         },
