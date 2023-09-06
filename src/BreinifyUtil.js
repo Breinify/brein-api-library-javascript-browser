@@ -765,9 +765,14 @@
 
             create: function (user) {
 
+                // check for any markers
+                var markerSessionId = BreinifyUtil.loc.param('br-msid');
+                var sessionIds = typeof markerSessionId === 'string' && markerSessionId.trim() !== '' ? [markerSessionId] : [];
+
                 // get the default user
                 var defaultUser = {
                     sessionId: this.getSessionId(),
+                    sessionIds: sessionIds,
                     'additional': {
                         identifiers: {
                             browserId: this.getBrowserId()
@@ -780,6 +785,7 @@
                 var createdUser;
                 if ($.isFunction(createUser)) {
                     createdUser = createUser();
+                    createdUser = $.isPlainObject(createdUser) ? createdUser : {};
                 } else {
                     createdUser = {};
                 }
