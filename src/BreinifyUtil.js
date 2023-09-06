@@ -798,6 +798,7 @@
                     userLookupResult = {};
                 } else {
                     userLookupResult = userLookUpPlugIn.get();
+                    userLookupResult = $.isPlainObject(userLookupResult) ? userLookupResult : {};
                 }
 
                 return $.extend(true, {}, createdUser, defaultUser, userLookupResult, user);
