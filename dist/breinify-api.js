@@ -12685,7 +12685,7 @@ dependencyScope.jQuery = $;;
      * @returns {boolean} the result stating if the "require" initialization should be skipped
      */
     misc.skipRequire = function (skipRequire) {
-        return scope.skipRequire === true;
+        return typeof scope === 'object' && scope.skipRequire === true;
     };
 
     /**
