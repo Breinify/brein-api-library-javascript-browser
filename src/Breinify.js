@@ -969,5 +969,5 @@
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(scope, 'Breinify', Breinify);
+    misc.export(scope, 'Breinify', Breinify, true);
 }(window, dependencyScope);

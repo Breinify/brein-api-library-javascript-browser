@@ -8,7 +8,9 @@
  * register any global variables.
  */
 ;(function(window){
-  var dependencyScope = {};
+  var dependencyScope = {
+    skipRequire: true
+  };
 
   try {;
 /*!
@@ -13351,7 +13353,7 @@ dependencyScope.jQuery = $;;
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'AttributeCollection', AttributeCollection);
+    misc.export(dependencyScope, 'AttributeCollection', AttributeCollection, true);
 }(window, dependencyScope);;
 //noinspection JSUnresolvedVariable
 /**
@@ -14934,7 +14936,7 @@ dependencyScope.jQuery = $;;
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
+    misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil, true);
 }(window, dependencyScope);;
 "use strict";
 
@@ -15219,7 +15221,7 @@ dependencyScope.jQuery = $;;
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyConfig', BreinifyConfig);
+    misc.export(dependencyScope, 'BreinifyConfig', BreinifyConfig, true);
 }(window, dependencyScope);;
 //noinspection JSUnresolvedVariable
 /**
@@ -15553,7 +15555,7 @@ dependencyScope.jQuery = $;;
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyUser', BreinifyUser);
+    misc.export(dependencyScope, 'BreinifyUser', BreinifyUser, true);
 }(window, dependencyScope);;
 //noinspection JSUnresolvedVariable
 /**
@@ -16526,7 +16528,7 @@ dependencyScope.jQuery = $;;
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(scope, 'Breinify', Breinify);
+    misc.export(scope, 'Breinify', Breinify, true);
 }(window, dependencyScope);;
 
 } catch (e) {

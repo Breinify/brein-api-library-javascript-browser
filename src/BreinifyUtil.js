@@ -1579,5 +1579,5 @@
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil);
+    misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil, true);
 }(window, dependencyScope);

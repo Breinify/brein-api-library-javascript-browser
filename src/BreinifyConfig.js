@@ -281,5 +281,5 @@
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyConfig', BreinifyConfig);
+    misc.export(dependencyScope, 'BreinifyConfig', BreinifyConfig, true);
 }(window, dependencyScope);

@@ -330,5 +330,5 @@
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'BreinifyUser', BreinifyUser);
+    misc.export(dependencyScope, 'BreinifyUser', BreinifyUser, true);
 }(window, dependencyScope);

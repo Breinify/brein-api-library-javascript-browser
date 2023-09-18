@@ -156,5 +156,5 @@
     };
 
     //noinspection JSUnresolvedFunction
-    misc.export(dependencyScope, 'AttributeCollection', AttributeCollection);
+    misc.export(dependencyScope, 'AttributeCollection', AttributeCollection, true);
 }(window, dependencyScope);
