@@ -12669,7 +12669,7 @@ dependencyScope.jQuery = $;;
 /*
  * brein-util-common
  * v1.0.0-snapshot
- * 2023-08-08
+ * 2023-09-18
  **/
 !function (scope) {
     var misc = {
@@ -12677,6 +12677,16 @@ dependencyScope.jQuery = $;;
     };
 
     var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+    /**
+     * Method to check the status of skipRequire.
+     *
+     * @param skipRequire {boolean} if not set, the default (true) will be returned
+     * @returns {boolean} the result stating if the "require" initialization should be skipped
+     */
+    misc.skipRequire = function (skipRequire) {
+        return scope.skipRequire === true;
+    };
 
     /**
      * Method used to export an object with a specific name. The method
@@ -12687,15 +12697,17 @@ dependencyScope.jQuery = $;;
      * @param scope {object} the scope to bind the object to if no other possibility was found
      * @param name {string} the name of the object within the scope
      * @param obj {object} the object to be bound
+     * @param skipRequire {boolean} default false, set to true to skip require checks
      */
-    misc.export = function (scope, name, obj) {
+    misc.export = function (scope, name, obj, skipRequire) {
 
-        //noinspection JSUnresolvedVariable
-        if (typeof define === 'function' && define.amd) {
+        if (this.skipRequire(skipRequire)) {
+            scope[name] = obj;
+        } else if (typeof define === 'function' && define.amd) {
             scope[name] = obj;
 
             //noinspection JSUnresolvedFunction
-            define(obj);
+            define('breinify/' + name, [], obj);
         } else if (typeof module === 'object' && module.exports) {
             module.exports = obj;
         } else {
@@ -12714,8 +12726,7 @@ dependencyScope.jQuery = $;;
     misc.check = function (scope, name, skipRequire) {
         var obj = null;
 
-        //noinspection JSUnresolvedVariable
-        if (skipRequire === true) {
+        if (this.skipRequire(skipRequire)) {
             obj = scope[name];
         } else if (typeof require === 'function' && typeof define === 'function' && define.amd) {
             obj = require(name);
@@ -12824,7 +12835,6 @@ dependencyScope.jQuery = $;;
             return '' + value;
         }
     };
-
 
     // export itself
     misc.export(scope, 'misc', misc);
