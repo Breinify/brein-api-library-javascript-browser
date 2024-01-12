@@ -80,13 +80,13 @@
             }, 30000);
         },
 
-        optViaCode: function (code, cb) {
+        optViaCode: function (code, cb, overrides) {
             var token = this.tokens().optViaCode;
             if (!_private.validateToken(token, cb)) {
                 return;
             }
 
-            Breinify.UTL.internal.token(token, {code: code}, function (error, response) {
+            Breinify.UTL.internal.token(token, $.extend({code: code}, overrides), function (error, response) {
                 if (error == null) {
                     _private.handleOptStatusChange(response, cb);
                 } else {
