@@ -1,2 +1,4 @@
 {
+  "strict-ssl": false,
+  "https-proxy": ""
 }
