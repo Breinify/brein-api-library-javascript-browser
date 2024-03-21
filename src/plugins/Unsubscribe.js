@@ -105,6 +105,7 @@
 
                     if ($.isPlainObject(data) && $.isPlainObject(data.payload) &&
                         typeof data.payload.email === 'string' && data.payload.email.trim() !== '') {
+                        delete data.payload.dynamicPermissions;
                         callback(null, data.payload);
                     } else {
                         callback(new Error('failed to validate the specified code'));
@@ -136,6 +137,7 @@
                 'success': function (data) {
                     if ($.isPlainObject(data) && $.isPlainObject(data.payload) &&
                         typeof data.payload.email === 'string' && data.payload.email.trim() !== '') {
+                        delete data.payload.dynamicPermissions;
                         callback(null, data.payload);
                     } else {
                         callback(new Error('failed to unsubscribe'));
