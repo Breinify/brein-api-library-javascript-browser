@@ -17,6 +17,18 @@
         tokenCodeValidation: null,
         tokenCodeUnsubscribe: null,
 
+        check: function(token, code, callback) {
+            if (typeof token !== 'string') {
+                callback(new Error('token not configured'));
+                return false;
+            } else if (typeof code !== 'string') {
+                callback(new Error('unsubscribe code not specified or found'));
+                return false;
+            } else {
+                return true;
+            }
+        },
+
         getValidationToken: function () {
             if (this.tokenCodeValidation === null) {
                 this.tokenCodeValidation = this._determineValidationToken();
@@ -78,6 +90,10 @@
             var token = _private.getValidationToken();
             code = _private.getCode(code);
 
+            if (!_private.check(token, code, callback)) {
+                return;
+            }
+
             $.ajax({
                 'url': 'https://api.breinify.com/res/' + token,
                 'type': 'GET',
@@ -105,11 +121,7 @@
             var token = _private.getUnsubscribeToken();
             code = _private.getCode(code);
 
-            if (typeof token !== 'string') {
-                callback(new Error('unsubscribe token not configured'));
-                return;
-            } else if (typeof code !== 'string') {
-                callback(new Error('unsubscribe code not specified or found'));
+            if (!_private.check(token, code, callback)) {
                 return;
             }
 
