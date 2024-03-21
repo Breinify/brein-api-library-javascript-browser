@@ -118,7 +118,7 @@
             });
         },
 
-        unsubscribe: function (status, callback, code) {
+        change: function (status, callback, code) {
             var token = _private.getUnsubscribeToken(this);
             code = _private.getCode(code);
 
