@@ -70,6 +70,10 @@
 
     var Unsubscribe = {
 
+        code: function() {
+            return _private.getCode();
+        },
+
         validate: function (callback, code) {
             var token = _private.getValidationToken();
             code = _private.getCode(code);
