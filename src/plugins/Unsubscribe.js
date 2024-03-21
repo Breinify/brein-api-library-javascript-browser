@@ -29,17 +29,17 @@
             }
         },
 
-        getValidationToken: function () {
+        getValidationToken: function (plugin) {
             if (this.tokenCodeValidation === null) {
-                this.tokenCodeValidation = this._determineValidationToken();
+                this.tokenCodeValidation = this._determineValidationToken(plugin);
             }
 
             return this.tokenCodeValidation;
         },
 
-        getUnsubscribeToken: function () {
+        getUnsubscribeToken: function (plugin) {
             if (this.tokenCodeUnsubscribe === null) {
-                this.tokenCodeUnsubscribe = this._determineUnsubscribeToken();
+                this.tokenCodeUnsubscribe = this._determineUnsubscribeToken(plugin);
             }
 
             return this.tokenCodeUnsubscribe;
@@ -58,22 +58,22 @@
             }
         },
 
-        _determineValidationToken: function () {
-            return this._determineToken('tokenCodeValidation', 'testTokenCodeValidation');
+        _determineValidationToken: function (plugin) {
+            return this._determineToken('tokenCodeValidation', 'testTokenCodeValidation', plugin);
         },
 
-        _determineUnsubscribeToken: function () {
-            return this._determineToken('tokenCodeUnsubscribe', 'testTokenCodeUnsubscribe');
+        _determineUnsubscribeToken: function (plugin) {
+            return this._determineToken('tokenCodeUnsubscribe', 'testTokenCodeUnsubscribe', plugin);
         },
 
-        _determineToken: function (cfgName, cfgTestName) {
+        _determineToken: function (cfgName, cfgTestName, plugin) {
             var token = null;
             if (Breinify.plugins._isAdded('api') && Breinify.plugins.api.determineMode() !== 'prod') {
-                token = this.getConfig(cfgTestName, null);
+                token = plugin.getConfig(cfgTestName, null);
             }
 
             if (token === null) {
-                token = this.getConfig(cfgName, null);
+                token = plugin.getConfig(cfgName, null);
             }
 
             return token;
@@ -87,7 +87,7 @@
         },
 
         validate: function (callback, code) {
-            var token = _private.getValidationToken();
+            var token = _private.getValidationToken(this);
             code = _private.getCode(code);
 
             if (!_private.check(token, code, callback)) {
@@ -118,7 +118,7 @@
         },
 
         unsubscribe: function (status, callback, code) {
-            var token = _private.getUnsubscribeToken();
+            var token = _private.getUnsubscribeToken(this);
             code = _private.getCode(code);
 
             if (!_private.check(token, code, callback)) {
