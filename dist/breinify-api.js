@@ -15330,13 +15330,13 @@ dependencyScope.jQuery = $;;
     });
 
     var _privates = {
-        foundGeoLocation: false,
+        resolvedGeoLocation: false,
         geoLocation: null,
 
         resolveGeoLocation: function (callback) {
             var _self = this;
 
-            if (_self.foundGeoLocation) {
+            if (_self.resolvedGeoLocation) {
                 return _self.geoLocation;
             }
 
@@ -15346,12 +15346,12 @@ dependencyScope.jQuery = $;;
 
             // make sure we have a geolocation implementation
             if (typeof geo !== 'object') {
-                _self.foundGeoLocation = true;
+                _self.resolvedGeoLocation = true;
                 callback(null);
 
                 return;
             } else if (typeof permissions !== 'object') {
-                _self.foundGeoLocation = true;
+                _self.resolvedGeoLocation = true;
                 callback(null);
 
                 return;
@@ -15362,35 +15362,35 @@ dependencyScope.jQuery = $;;
 
                 // check if the permission is already granted
                 permissions.query({name: 'geolocation'}).then(function (permission) {
-                    if (permission.state === 'granted') {
-
-                        geo.getCurrentPosition(
-                            function (position) {
-                                _self.foundGeoLocation = true;
-                                _self.geoLocation = {
-                                    'accuracy': position.coords.accuracy,
-                                    'latitude': position.coords.latitude,
-                                    'longitude': position.coords.longitude,
-                                    'speed': position.coords.speed
-                                };
-
-                                callback(_self.geoLocation);
-                            }, function () {
-                                _self.foundGeoLocation = true;
-                                callback(null)
-                            }, {
-                                'timeout': 150
-                            });
-                    } else {
-                        _self.foundGeoLocation = true;
+                    if (permission.state !== 'granted') {
+                        _self.resolvedGeoLocation = true;
                         callback(null);
+
+                        return;
                     }
+
+                    geo.getCurrentPosition(function (position) {
+                        _self.resolvedGeoLocation = true;
+                        _self.geoLocation = {
+                            'accuracy': position.coords.accuracy,
+                            'latitude': position.coords.latitude,
+                            'longitude': position.coords.longitude,
+                            'speed': position.coords.speed
+                        };
+
+                        callback(_self.geoLocation);
+                    }, function () {
+                        _self.resolvedGeoLocation = true;
+                        callback(null)
+                    }, {
+                        'timeout': 150
+                    });
                 }).catch(e => {
-                    _self.foundGeoLocation = true;
+                    _self.resolvedGeoLocation = true;
                     callback(null);
                 });
             } catch (e) {
-                _self.foundGeoLocation = true;
+                _self.resolvedGeoLocation = true;
                 callback(null);
             }
         }
