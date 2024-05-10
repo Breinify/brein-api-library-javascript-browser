@@ -113,43 +113,50 @@
             if (typeof geo !== 'object') {
                 _self.foundGeoLocation = true;
                 callback(null);
+
+                return;
             } else if (typeof permissions !== 'object') {
                 _self.foundGeoLocation = true;
                 callback(null);
-            } else {
 
-                // any error should be caught here
-                try {
+                return;
+            }
 
-                    // check if the permission is already granted
-                    permissions.query({name: 'geolocation'}).then(function (permission) {
-                        if (permission.state === 'granted') {
-                            geo.getCurrentPosition(
-                                function (position) {
-                                    _self.foundGeoLocation = true;
-                                    _self.geoLocation = {
-                                        'accuracy': position.coords.accuracy,
-                                        'latitude': position.coords.latitude,
-                                        'longitude': position.coords.longitude,
-                                        'speed': position.coords.speed
-                                    };
+            // any error should be caught here
+            try {
 
-                                    callback(_self.geoLocation);
-                                }, function () {
-                                    _self.foundGeoLocation = true;
-                                    callback(null)
-                                }, {
-                                    'timeout': 150
-                                });
-                        } else {
-                            _self.foundGeoLocation = true;
-                            callback(null);
-                        }
-                    });
-                } catch (e) {
+                // check if the permission is already granted
+                permissions.query({name: 'geolocation'}).then(function (permission) {
+                    if (permission.state === 'granted') {
+
+                        geo.getCurrentPosition(
+                            function (position) {
+                                _self.foundGeoLocation = true;
+                                _self.geoLocation = {
+                                    'accuracy': position.coords.accuracy,
+                                    'latitude': position.coords.latitude,
+                                    'longitude': position.coords.longitude,
+                                    'speed': position.coords.speed
+                                };
+
+                                callback(_self.geoLocation);
+                            }, function () {
+                                _self.foundGeoLocation = true;
+                                callback(null)
+                            }, {
+                                'timeout': 150
+                            });
+                    } else {
+                        _self.foundGeoLocation = true;
+                        callback(null);
+                    }
+                }).catch(e => {
                     _self.foundGeoLocation = true;
                     callback(null);
-                }
+                });
+            } catch (e) {
+                _self.foundGeoLocation = true;
+                callback(null);
             }
         }
     };
