@@ -15337,7 +15337,8 @@ dependencyScope.jQuery = $;;
             var _self = this;
 
             if (_self.resolvedGeoLocation) {
-                return _self.geoLocation;
+                callback(_self.geoLocation);
+                return;
             }
 
             var geo = navigator.geolocation;
