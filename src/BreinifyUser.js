@@ -95,8 +95,15 @@
     });
 
     var _privates = {
+        foundGeoLocation: false,
+        geoLocation: null,
 
         resolveGeoLocation: function (callback) {
+            var _self = this;
+
+            if (_self.foundGeoLocation) {
+                return _self.geoLocation;
+            }
 
             var geo = navigator.geolocation;
             //noinspection JSUnresolvedVariable
@@ -104,31 +111,45 @@
 
             // make sure we have a geolocation implementation
             if (typeof geo !== 'object') {
+                _self.foundGeoLocation = true;
                 callback(null);
             } else if (typeof permissions !== 'object') {
+                _self.foundGeoLocation = true;
                 callback(null);
             } else {
 
-                // check if the permission is already granted
-                permissions.query({name: 'geolocation'}).then(function (permission) {
-                    if (permission.state === 'granted') {
-                        geo.getCurrentPosition(
-                            function (position) {
-                                callback({
-                                    'accuracy': position.coords.accuracy,
-                                    'latitude': position.coords.latitude,
-                                    'longitude': position.coords.longitude,
-                                    'speed': position.coords.speed
+                // any error should be caught here
+                try {
+
+                    // check if the permission is already granted
+                    permissions.query({name: 'geolocation'}).then(function (permission) {
+                        if (permission.state === 'granted') {
+                            geo.getCurrentPosition(
+                                function (position) {
+                                    _self.foundGeoLocation = true;
+                                    _self.geoLocation = {
+                                        'accuracy': position.coords.accuracy,
+                                        'latitude': position.coords.latitude,
+                                        'longitude': position.coords.longitude,
+                                        'speed': position.coords.speed
+                                    };
+
+                                    callback(_self.geoLocation);
+                                }, function () {
+                                    _self.foundGeoLocation = true;
+                                    callback(null)
+                                }, {
+                                    'timeout': 150
                                 });
-                            }, function () {
-                                callback(null)
-                            }, {
-                                'timeout': 150
-                            });
-                    } else {
-                        callback(null);
-                    }
-                });
+                        } else {
+                            _self.foundGeoLocation = true;
+                            callback(null);
+                        }
+                    });
+                } catch (e) {
+                    _self.foundGeoLocation = true;
+                    callback(null);
+                }
             }
         }
     };
@@ -186,7 +207,9 @@
         }
 
         // try to set the location if there isn't one yet
-        if (instance.read('location') === null && $.isFunction(onReady)) {
+        var location = instance.read('location');
+        var hasLocation = $.isPlainObject(location) && typeof location.latitude === 'number' && typeof location.longitude === 'number';
+        if (!hasLocation && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
         } else if ($.isFunction(onReady)) {
             onReady(instance);
