@@ -151,7 +151,7 @@
                     }, {
                         'timeout': 150
                     });
-                }).catch(e => {
+                }).catch(function(e) {
                     _self.resolvedGeoLocation = true;
                     callback(null);
                 });
