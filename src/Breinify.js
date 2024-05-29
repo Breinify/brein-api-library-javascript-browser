@@ -121,7 +121,7 @@
     var _privates = {
         ready: false,
 
-        storeSplitTest: function(data) {
+        storeAdditionalData: function(data) {
             var additionalData;
             if (!$.isPlainObject(data)) {
                 return;
@@ -139,17 +139,28 @@
                 return;
             }
 
-            // iterate over the additionalData
+            // iterate over the additionalData instances
             for (var k = 0; k < additionalData.length; k++) {
-                // console.log(additionalData);
+                this.storeSplitTest(additionalData[k]);
             }
+        },
+
+        storeSplitTest: function(additionalData) {
+            if (!$.isPlainObject(additionalData)) {
+                return;
+            } else if (!$.isPlainObject(additionalData.splitTestData)) {
+                return;
+            }
+
+            var splitTestData = additionalData.splitTestData;
+            // console.log(splitTestData);
         },
 
         handleRecommendationResponse: function(data, errorText, callback) {
 
             // we check for split-tests and store the results in the localStorage
             try {
-                this.storeSplitTest(data);
+                this.storeAdditionalData(data);
             } catch (e) {
                 // ignore the exception, we still want to handle the response
             }
