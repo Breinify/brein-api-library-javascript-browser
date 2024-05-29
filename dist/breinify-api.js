@@ -15721,6 +15721,10 @@ dependencyScope.jQuery = $;;
     var _privates = {
         ready: false,
 
+        handleRecommendationResponse: function(data, errorText, callback) {
+            callback(data, errorText);
+        },
+
         ajax: function (url, data, success, error) {
 
             $.ajax({
@@ -16031,19 +16035,29 @@ dependencyScope.jQuery = $;;
     Breinify.recommendation = function () {
         var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
 
+        var recHandler = function(url, data, callback) {
+
+            // we utilize an internal callback to do some internal data-handling with the response
+            var internalCallback = function(data, errorText) {
+                _privates.handleRecommendationResponse(data, errorText, callback);
+            };
+
+            _privates.ajax(url, data, internalCallback, internalCallback);
+        };
+
         overload.overload({
             'Object,Function': function (user, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': 3
                 }, false, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Number,Function': function (user, nrOfRecommendations, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations
                 }, false, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Number,String,Function': function (user, nrOfRecommendations, category, callback) {
@@ -16051,14 +16065,14 @@ dependencyScope.jQuery = $;;
                     'numRecommendations': nrOfRecommendations,
                     'recommendationCategories': [category]
                 }, false, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Number,Boolean,Function': function (user, nrOfRecommendations, sign, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations
                 }, sign, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Number,String,Boolean,Function': function (user, nrOfRecommendations, category, sign, callback) {
@@ -16066,27 +16080,27 @@ dependencyScope.jQuery = $;;
                     'numRecommendations': nrOfRecommendations,
                     'recommendationCategories': [category]
                 }, sign, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Object,Function': function (user, recommendation, callback) {
                 Breinify.recommendationUser(user, recommendation, false, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Array,Function': function (user, recommendation, callback) {
                 Breinify.recommendationUser(user, recommendation, false, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Object,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             },
             'Object,Array,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
-                    _privates.ajax(url, data, callback, callback);
+                    recHandler(url, data, callback);
                 });
             }
         }, arguments, this);
@@ -16627,7 +16641,7 @@ dependencyScope.jQuery = $;;
             onReady();
          }
     };
-    Breinify.recommendation = function (uuser, nr, sign, onReady) {
+    Breinify.recommendation = function (user, nr, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();
         }
