@@ -138,14 +138,14 @@
             }
 
             // clean-up old split-test information (older than 7 days)
-            var testExpiration = new Date().getTime() - (7 * 24 * 60 * 1000);
+            var testExpiration = new Date().getTime() - 60 * 1000;// (7 * 24 * 60 * 1000);
             for (var key in this.splitTestData) {
                 if (!this.splitTestData.hasOwnProperty(key)) {
                     continue;
                 }
 
                 var lastUpdated = this.splitTestData[key].lastUpdated;
-                if (typeof lastUpdated !== number || lastUpdated < testExpiration) {
+                if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
                     delete this.splitTestData[key];
                 }
             }
