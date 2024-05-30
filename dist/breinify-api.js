@@ -1,6 +1,6 @@
 /*
  * breinify-api
- * v1.0.22
+ * v1.0.23
  **/
 /*
  * We inject a dependencyScope variable, which will be used
@@ -15204,7 +15204,7 @@ dependencyScope.jQuery = $;;
     });
 
     var BreinifyConfig = function (config) {
-        this.version = '1.0.22';
+        this.version = '1.0.23';
 
         /*
          * Validate the passed config-parameters.
@@ -15444,7 +15444,7 @@ dependencyScope.jQuery = $;;
 
     var BreinifyUser = function (user, onReady) {
         var instance = this;
-        instance.version = '1.0.22';
+        instance.version = '1.0.23';
 
         // set the values provided
         instance.setAll(user);
@@ -16061,7 +16061,7 @@ dependencyScope.jQuery = $;;
      * The one and only instance of the library.
      */
     var Breinify = {
-        version: '1.0.22',
+        version: '1.0.23',
         jQueryVersion: $.fn.jquery
     };
 
