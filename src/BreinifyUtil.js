@@ -764,7 +764,7 @@
             sessionId: null,
             splitTestData: null,
 
-            getSplitTestData: function () {
+            getSplitTestData: function (updateChanges) {
                 if ($.isPlainObject(this.splitTestData)) {
                     return this.splitTestData;
                 }
@@ -781,7 +781,8 @@
                 }
 
                 // clean-up old split-test information (older than 7 days)
-                var testExpiration = new Date().getTime() - 5 * 60 * 1000;// (24 * 60 * 60 * 1000);
+                var testExpiration = new Date().getTime() - (24 * 60 * 60 * 1000);
+                var deletedInformation = false;
                 for (var key in this.splitTestData) {
                     if (!this.splitTestData.hasOwnProperty(key)) {
                         continue;
@@ -790,16 +791,26 @@
                     var lastUpdated = this.splitTestData[key].lastUpdated;
                     if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
                         delete this.splitTestData[key];
+                        deletedInformation = true;
                     }
+                }
+
+                if (updateChanges === true && deletedInformation === true) {
+                    this.updateSplitTestData(this.splitTestData);
                 }
 
                 return this.splitTestData;
             },
 
+            updateSplitTestData: function(splitTestData) {
+                BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
+                this.splitTestData = splitTestData;
+            },
+
             create: function (user) {
                 var splitTestData;
                 try {
-                    splitTestData = this.getSplitTestData();
+                    splitTestData = this.getSplitTestData(true);
                 } catch (e) {
                     splitTestData = null;
                 }

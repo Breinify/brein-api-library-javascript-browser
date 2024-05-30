@@ -140,7 +140,7 @@
             }
 
             // iterate over the additionalData instances and collect the split-test information
-            var splitTestData = Breinify.UTL.user.getSplitTestData();
+            var splitTestData = Breinify.UTL.user.getSplitTestData(false);
             if (!$.isPlainObject(splitTestData)) {
                 splitTestData = {};
             }
@@ -165,8 +165,7 @@
              * Store the updated information and set it, it can only be modified here -
              * must be initialized we called `getSplitTestData` previously.
              */
-            Breinify.UTL.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
-            Breinify.UTL.user.splitTestData = splitTestData;
+            Breinify.UTL.user.updateSplitTestData(splitTestData);
         },
 
         handleRecommendationResponse: function (data, errorText, callback) {
@@ -175,7 +174,6 @@
             try {
                 this.storeAdditionalData(data);
             } catch (e) {
-                console.log(e);
                 // ignore the exception, we still want to handle the response
             }
 
