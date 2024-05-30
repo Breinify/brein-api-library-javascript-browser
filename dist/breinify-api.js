@@ -15718,6 +15718,10 @@ dependencyScope.jQuery = $;;
                 return this.splitTestData;
             }
 
+            // make sure the instance is initialized
+            Breinify.UTL.storage.init({});
+
+            // get the information from it
             this.splitTestData = Breinify.UTL.storage.get('splitTestData');
             if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
                 this.splitTestData = {};
@@ -15778,7 +15782,10 @@ dependencyScope.jQuery = $;;
                 });
             }
 
-            // store the updated information and set it, it can only be modified here
+            /*
+             * Store the updated information and set it, it can only be modified here -
+             * must be initialized we called `getSplitTestData` previously.
+             */
             Breinify.UTL.storage.update('splitTestData', 30 * 24 * 60, splitTestData);
             this.splitTestData = splitTestData;
         },
