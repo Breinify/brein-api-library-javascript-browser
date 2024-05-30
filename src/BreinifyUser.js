@@ -352,7 +352,7 @@
                 } else {
                     instance.set(attribute, value);
                 }
-            })
+            });
         },
 
         validate: function () {

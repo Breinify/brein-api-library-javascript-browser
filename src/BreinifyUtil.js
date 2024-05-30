@@ -1413,14 +1413,9 @@
         storage: {
             instance: null,
 
-            init: function (entries, reset, callback) {
+            init: function (entries, callback) {
                 if (!$.isPlainObject(entries)) {
                     return;
-                }
-                // we allow also to not specify reset
-                else if ($.isFunction(reset) && typeof callback === 'undefined') {
-                    callback = reset;
-                    reset = false;
                 }
 
                 // check if we already have an instance (init may be called multiple times)
@@ -1447,10 +1442,6 @@
                             }
                         }
                     }
-                }
-
-                if (reset) {
-                    this.instance.clear();
                 }
 
                 var _self = this;

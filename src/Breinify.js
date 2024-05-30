@@ -120,8 +120,34 @@
 
     var _privates = {
         ready: false,
+        splitTestData: null,
 
-        storeAdditionalData: function(data) {
+        getSplitTestData: function () {
+            if (this.splitTestData !== null) {
+                return this.splitTestData;
+            }
+
+            this.splitTestData = Breinify.UTL.storage.get('splitTestData');
+            if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
+                this.splitTestData = {};
+                return this.splitTestData;
+            }
+
+            // clean-up old split-test information
+            for (var key in this.splitTestData) {
+                if (!this.splitTestData.hasOwnProperty(key)) {
+                    continue;
+                }
+
+                var lastUpdated = this.splitTestData[key].lastUpdated;
+                if (typeof lastUpdated !== number || lastUpdated < -1) {
+                    delete this.splitTestData[key];
+                }
+            }
+            return this.splitTestData;
+        },
+
+        storeAdditionalData: function (data) {
             var additionalData;
             if (!$.isPlainObject(data)) {
                 return;
@@ -134,29 +160,39 @@
                     }
                 }
             } else if ($.isPlainObject(data.additionalData)) {
-                additionalData = [ data.additionalData ];
+                additionalData = [data.additionalData];
             } else {
                 return;
             }
 
-            // iterate over the additionalData instances
+            // iterate over the additionalData instances and collect the split-test information
+            var splitTestData = this.getSplitTestData();
+            if (!$.isPlainObject(splitTestData)) {
+                splitTestData = {};
+            }
+
+            // add the new split-test information
             for (var k = 0; k < additionalData.length; k++) {
-                this.storeSplitTest(additionalData[k]);
+                var ad = additionalData[k];
+                if (!$.isPlainObject(ad) || !$.isPlainObject(ad.splitTestData) ||
+                    Breinify.UTL.isEmpty(ad.splitTestData.groupDecision) ||
+                    Breinify.UTL.isEmpty(ad.splitTestData.testName)) {
+                    continue;
+                } else if (!$.isPlainObject(ad.splitTestData)) {
+                    continue;
+                }
+
+                splitTestData[ad.splitTestData.testName] = $.extend({}, ad.splitTestData, {
+                    'lastUpdated': new Date().getTime()
+                });
             }
+
+            // store the updated information and set it, it can only be modified here
+            Breinify.UTL.storage.update('splitTestData', 30 * 24 * 60, splitTestData);
+            this.splitTestData = splitTestData;
         },
 
-        storeSplitTest: function(additionalData) {
-            if (!$.isPlainObject(additionalData)) {
-                return;
-            } else if (!$.isPlainObject(additionalData.splitTestData)) {
-                return;
-            }
-
-            var splitTestData = additionalData.splitTestData;
-            // console.log(splitTestData);
-        },
-
-        handleRecommendationResponse: function(data, errorText, callback) {
+        handleRecommendationResponse: function (data, errorText, callback) {
 
             // we check for split-tests and store the results in the localStorage
             try {
@@ -478,10 +514,10 @@
     Breinify.recommendation = function () {
         var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
 
-        var recHandler = function(url, data, callback) {
+        var recHandler = function (url, data, callback) {
 
             // we utilize an internal callback to do some internal data-handling with the response
-            var internalCallback = function(data, errorText) {
+            var internalCallback = function (data, errorText) {
                 _privates.handleRecommendationResponse(data, errorText, callback);
             };
 
