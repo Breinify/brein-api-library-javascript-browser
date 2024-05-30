@@ -15808,6 +15808,7 @@ dependencyScope.jQuery = $;;
             try {
                 this.storeAdditionalData(data);
             } catch (e) {
+                console.log(e);
                 // ignore the exception, we still want to handle the response
             }
 
