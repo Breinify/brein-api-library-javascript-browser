@@ -14137,10 +14137,10 @@ dependencyScope.jQuery = $;;
                 }
 
                 // make sure the instance is initialized
-                Breinify.UTL.storage.init({});
+                BreinifyUtil.storage.init({});
 
                 // get the information from it
-                this.splitTestData = Breinify.UTL.storage.get('split-test-data');
+                this.splitTestData = BreinifyUtil.storage.get('split-test-data');
                 if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
                     this.splitTestData = {};
 
