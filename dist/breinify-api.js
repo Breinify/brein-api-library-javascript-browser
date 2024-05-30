@@ -14148,7 +14148,7 @@ dependencyScope.jQuery = $;;
                 }
 
                 // clean-up old split-test information (older than 7 days)
-                var testExpiration = new Date().getTime() - 60 * 1000;// (7 * 24 * 60 * 1000);
+                var testExpiration = new Date().getTime() - 5 * 60 * 1000;// (7 * 24 * 60 * 1000);
                 for (var key in this.splitTestData) {
                     if (!this.splitTestData.hasOwnProperty(key)) {
                         continue;
