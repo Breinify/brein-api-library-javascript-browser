@@ -120,37 +120,6 @@
 
     var _privates = {
         ready: false,
-        splitTestData: null,
-
-        getSplitTestData: function () {
-            if (this.splitTestData !== null) {
-                return this.splitTestData;
-            }
-
-            // make sure the instance is initialized
-            Breinify.UTL.storage.init({});
-
-            // get the information from it
-            this.splitTestData = Breinify.UTL.storage.get('splitTestData');
-            if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
-                this.splitTestData = {};
-                return this.splitTestData;
-            }
-
-            // clean-up old split-test information (older than 7 days)
-            var testExpiration = new Date().getTime() - 60 * 1000;// (7 * 24 * 60 * 1000);
-            for (var key in this.splitTestData) {
-                if (!this.splitTestData.hasOwnProperty(key)) {
-                    continue;
-                }
-
-                var lastUpdated = this.splitTestData[key].lastUpdated;
-                if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
-                    delete this.splitTestData[key];
-                }
-            }
-            return this.splitTestData;
-        },
 
         storeAdditionalData: function (data) {
             var additionalData;
@@ -171,7 +140,7 @@
             }
 
             // iterate over the additionalData instances and collect the split-test information
-            var splitTestData = this.getSplitTestData();
+            var splitTestData = Breinify.UTL.user.getSplitTestData();
             if (!$.isPlainObject(splitTestData)) {
                 splitTestData = {};
             }
@@ -197,7 +166,7 @@
              * must be initialized we called `getSplitTestData` previously.
              */
             Breinify.UTL.storage.update('splitTestData', 30 * 24 * 60, splitTestData);
-            this.splitTestData = splitTestData;
+            Breinify.UTL.user.splitTestData = splitTestData;
         },
 
         handleRecommendationResponse: function (data, errorText, callback) {

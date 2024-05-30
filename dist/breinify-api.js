@@ -14129,15 +14129,56 @@ dependencyScope.jQuery = $;;
             assignedGroup: {},
             browserId: null,
             sessionId: null,
+            splitTestData: null,
+
+            getSplitTestData: function () {
+                if ($.isPlainObject(this.splitTestData)) {
+                    return this.splitTestData;
+                }
+
+                // make sure the instance is initialized
+                Breinify.UTL.storage.init({});
+
+                // get the information from it
+                this.splitTestData = Breinify.UTL.storage.get('split-test-data');
+                if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
+                    this.splitTestData = {};
+
+                    return this.splitTestData;
+                }
+
+                // clean-up old split-test information (older than 7 days)
+                var testExpiration = new Date().getTime() - 60 * 1000;// (7 * 24 * 60 * 1000);
+                for (var key in this.splitTestData) {
+                    if (!this.splitTestData.hasOwnProperty(key)) {
+                        continue;
+                    }
+
+                    var lastUpdated = this.splitTestData[key].lastUpdated;
+                    if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
+                        delete this.splitTestData[key];
+                    }
+                }
+
+                return this.splitTestData;
+            },
 
             create: function (user) {
+                var splitTestData;
+                try {
+                    splitTestData = this.getSplitTestData();
+                } catch (e) {
+                    splitTestData = null;
+                }
+                splitTestData = $.isEmptyObject(splitTestData) ? null : splitTestData;
 
                 // get the default user
                 var defaultUser = {
-                    sessionId: this.getSessionId(),
+                    'sessionId': this.getSessionId(),
                     'additional': {
-                        identifiers: {
-                            browserId: this.getBrowserId()
+                        'splitTests': splitTestData,
+                        'identifiers': {
+                            'browserId': this.getBrowserId()
                         }
                     }
                 };
@@ -14199,7 +14240,7 @@ dependencyScope.jQuery = $;;
                 return this.sessionId;
             },
 
-            getMarkerSessionId: function() {
+            getMarkerSessionId: function () {
                 var markerSessionId = BreinifyUtil.loc.param('br-msid');
                 if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
                     return markerSessionId;
@@ -15712,37 +15753,6 @@ dependencyScope.jQuery = $;;
 
     var _privates = {
         ready: false,
-        splitTestData: null,
-
-        getSplitTestData: function () {
-            if (this.splitTestData !== null) {
-                return this.splitTestData;
-            }
-
-            // make sure the instance is initialized
-            Breinify.UTL.storage.init({});
-
-            // get the information from it
-            this.splitTestData = Breinify.UTL.storage.get('splitTestData');
-            if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
-                this.splitTestData = {};
-                return this.splitTestData;
-            }
-
-            // clean-up old split-test information (older than 7 days)
-            var testExpiration = new Date().getTime() - 60 * 1000;// (7 * 24 * 60 * 1000);
-            for (var key in this.splitTestData) {
-                if (!this.splitTestData.hasOwnProperty(key)) {
-                    continue;
-                }
-
-                var lastUpdated = this.splitTestData[key].lastUpdated;
-                if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
-                    delete this.splitTestData[key];
-                }
-            }
-            return this.splitTestData;
-        },
 
         storeAdditionalData: function (data) {
             var additionalData;
@@ -15763,7 +15773,7 @@ dependencyScope.jQuery = $;;
             }
 
             // iterate over the additionalData instances and collect the split-test information
-            var splitTestData = this.getSplitTestData();
+            var splitTestData = Breinify.UTL.user.getSplitTestData();
             if (!$.isPlainObject(splitTestData)) {
                 splitTestData = {};
             }
@@ -15789,7 +15799,7 @@ dependencyScope.jQuery = $;;
              * must be initialized we called `getSplitTestData` previously.
              */
             Breinify.UTL.storage.update('splitTestData', 30 * 24 * 60, splitTestData);
-            this.splitTestData = splitTestData;
+            Breinify.UTL.user.splitTestData = splitTestData;
         },
 
         handleRecommendationResponse: function (data, errorText, callback) {
