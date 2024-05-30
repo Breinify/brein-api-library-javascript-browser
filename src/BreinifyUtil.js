@@ -773,7 +773,7 @@
                 BreinifyUtil.storage.init({});
 
                 // get the information from it
-                this.splitTestData = BreinifyUtil.storage.get('split-test-data');
+                this.splitTestData = BreinifyUtil.storage.get(BreinifyUtil.storage.splitTestDataInstanceName);
                 if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
                     this.splitTestData = {};
 
@@ -1452,6 +1452,7 @@
         },
 
         storage: {
+            splitTestDataInstanceName: 'split-test-data',
             instance: null,
 
             init: function (entries, callback) {

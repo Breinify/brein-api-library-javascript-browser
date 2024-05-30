@@ -165,7 +165,7 @@
              * Store the updated information and set it, it can only be modified here -
              * must be initialized we called `getSplitTestData` previously.
              */
-            Breinify.UTL.storage.update('splitTestData', 30 * 24 * 60, splitTestData);
+            Breinify.UTL.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
             Breinify.UTL.user.splitTestData = splitTestData;
         },
 
