@@ -329,11 +329,14 @@ describe('BreinifyUtil', function () {
                 'values': []
             }
         }, function (error, result) {
+
             expect(result).toEqual({
                 'loaded': ['products', 'awards'],
                 'failed': []
             });
 
+            // clear the storage to make sure the test did not keep any data
+            Breinify.UTL.storage.instance.clear();
             done();
         });
     });
