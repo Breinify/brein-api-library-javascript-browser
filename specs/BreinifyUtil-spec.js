@@ -328,7 +328,7 @@ describe('BreinifyUtil', function () {
             'awards': {
                 'values': []
             }
-        }, true, function (error, result) {
+        }, function (error, result) {
             expect(result).toEqual({
                 'loaded': ['products', 'awards'],
                 'failed': []
