@@ -14832,7 +14832,8 @@ dependencyScope.jQuery = $;;
                         } else {
                             failed.push(name);
                         }
-                        if (loadingStatus.length === 0) {
+
+                        if (loadingStatus.length === 0 && $.isFunction(callback)) {
                             callback(null, {
                                 loaded: loaded,
                                 failed: failed
@@ -14841,7 +14842,7 @@ dependencyScope.jQuery = $;;
                     });
                 });
 
-                if (loadingStatus.length === 0) {
+                if (loadingStatus.length === 0 && $.isFunction(callback)) {
                     callback(null, {
                         loaded: [],
                         failed: []
