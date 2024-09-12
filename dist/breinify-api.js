@@ -13476,10 +13476,10 @@ dependencyScope.jQuery = $;;
                     subtree: true
                 });
 
-                // if we have the body already, let's check the modifications
-                var $body = $('body');
-                if ($body.length > 0) {
-                    this.checkModifications($body);
+                // if we have the html already, let's check the modifications
+                var $html = $('html');
+                if ($html.length > 0) {
+                    this.checkModifications($html);
                 }
 
                 this.isInitialized = true;
