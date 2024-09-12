@@ -282,7 +282,7 @@
 
             log: function (logLevel, message) {
 
-                if (!Breinify.UTL.internal.isDevMode()) {
+                if (!BreinifyUtil.internal.isDevMode()) {
                     // do nothing, we are not in dev mode
                     return;
                 }
@@ -294,6 +294,8 @@
                 } else {
                     params = message;
                 }
+
+                params[0] = '[Breinify] ' + params[0];
 
                 if (!this.supportsLogging) {
                     // do nothing, we cannot do anything
