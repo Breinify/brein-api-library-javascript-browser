@@ -100,7 +100,7 @@
                 this.mutationObserver = new MutationObserver(function (mutations, observer) {
                     for (var i = 0; i < mutations.length; i++) {
                         for (var k = 0; k < mutations[i].addedNodes.length; k++) {
-                            _self.checkModifications($(mutations[i].addedNodes[k]));
+                            _self.checkModifications($(mutations[i].addedNodes[k]), ['added']);
                         }
                     }
                 });
@@ -112,7 +112,7 @@
                 // if we have the body already, let's check the modifications
                 var $body = $('body');
                 if ($body.length > 0) {
-                    this.checkModifications($body);
+                    this.checkModifications($body, ['added', 'modified']);
                 }
 
                 this.isInitialized = true;
@@ -137,29 +137,40 @@
                  */
                 if (typeof name === 'string' && name.trim() !== '' &&
                     $.isPlainObject(modification) && typeof modification.selector === 'string' && modification.selector.trim() !== '') {
+
+                    // make sure we have the modTypes, if none are defined we assume only added
+                    if (!$.isArray(modification.modTypes)) {
+                        modification.modTypes = ['added'];
+                    }
                     this.modifications[name] = modification;
 
                     // if the system is already initialized we trigger a check for this modification
                     if (this.isInitialized === true) {
-                        this.checkModification($('body'), name, modification);
+                        this.checkModification($('body'), name, modification, ['added', 'modified']);
                     }
                 }
             },
 
-            checkModifications: function ($modifiedNode) {
+            checkModifications: function ($modifiedNode, modTypes) {
                 var _self = this;
                 $.each(this.modifications, function (name, modification) {
-                    _self.checkModification($modifiedNode, name, modification);
+                    _self.checkModification($modifiedNode, name, modification, modTypes);
                 });
             },
 
-            checkModification: function ($modifiedNode, name, modification) {
+            checkModification: function ($modifiedNode, name, modification, modTypes) {
 
                 var $el = $modifiedNode
                     .find(modification.selector)
                     .addBack(modification.selector);
 
                 if ($el.length === 0) {
+                    return;
+                } else if (!$.isArray(modTypes) ||
+                    !$.isArray(modification.modTypes) ||
+                    $.grep(modTypes, function (el) {
+                        return $.inArray(el, modification.modTypes) !== -1;
+                    }, true).length > 0) {
                     return;
                 } else if ($.isFunction(modification.preCondition) && !modification.preCondition($el)) {
                     return;
