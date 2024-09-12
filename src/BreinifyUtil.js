@@ -275,6 +275,78 @@
             }
         },
 
+        out: {
+            console: window.console,
+            supportsLogging: typeof window.console === 'object' && typeof window.console.log === 'function',
+            supportsGroup: typeof window.console === 'object' && typeof window.console.log === 'function',
+
+            log: function (logLevel, message) {
+
+                if (!Breinify.UTL.internal.isDevMode()) {
+                    // do nothing, we are not in dev mode
+                    return;
+                }
+
+                // determine if we have passed parameters with the message, or we should check the unknowns
+                var params;
+                if (typeof message === 'string') {
+                    params = [].slice.call(arguments, 1);
+                } else {
+                    params = message;
+                }
+
+                if (!this.supportsLogging) {
+                    // do nothing, we cannot do anything
+                } else if (logLevel === 'error') {
+                    if (typeof this.console.error === 'function') {
+                        this.console.error.apply(this.console, params);
+                    } else {
+                        this.log('trace', '[' + logLevel + '] ' + message, params);
+                    }
+                } else if (logLevel === 'warn') {
+                    if (typeof this.console.warn === 'function') {
+                        this.console.warn.apply(this.console, params);
+                    } else {
+                        this.log('trace', '[' + logLevel + '] ' + message, params);
+                    }
+                } else if (logLevel === 'info') {
+                    if (typeof this.console.info === 'function') {
+                        this.console.info.apply(this.console, params);
+                    } else {
+                        this.log('trace', '[' + logLevel + '] ' + message, params);
+                    }
+                } else if (logLevel === 'debug') {
+                    if (typeof this.console.debug === 'function') {
+                        this.console.debug.apply(this.console, params);
+                    } else {
+                        this.log('trace', '[' + logLevel + '] ' + message, params);
+                    }
+                } else if (logLevel === 'trace') {
+                    this.console.log.apply(this.console, params);
+                }
+            },
+
+            error: function (message) {
+                this.log('error', arguments);
+            },
+
+            warn: function (message) {
+                this.log('warn', arguments);
+            },
+
+            info: function (message) {
+                this.log('info', arguments);
+            },
+
+            debug: function (message) {
+                this.log('debug', arguments);
+            },
+
+            trace: function (message) {
+                this.log('trace', arguments);
+            }
+        },
+
         loc: {
 
             createGetParameter: function (value) {
@@ -802,7 +874,7 @@
                 return this.splitTestData;
             },
 
-            updateSplitTestData: function(splitTestData) {
+            updateSplitTestData: function (splitTestData) {
                 BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
                 this.splitTestData = splitTestData;
             },
