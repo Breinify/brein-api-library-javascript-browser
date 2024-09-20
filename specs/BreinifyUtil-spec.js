@@ -110,6 +110,39 @@ describe('BreinifyUtil', function () {
         expect(Breinify.UTL.isEmpty(null)).toBe(true);
     });
 
+    it('ensure simple object works', function () {
+        var obj;
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(null)).toEqual({});
+
+        obj = {};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        obj = {'array': ['string1']};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        obj = {'array': ['string1', 'string2']};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        obj = {'array': [1, 2]};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        obj = {'array': [1, 2, null, 3]};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        obj = {'val1': 1, 'val2': 2, 'val3': []};
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject(obj)).toEqual(obj);
+
+        //noinspection JSUnresolvedFunction
+        expect(Breinify.UTL.ensureSimpleObject({'array': [1, 2, null, '3']})).toEqual({'array': [1, 2, null, null]});
+    });
 
     //noinspection JSUnresolvedFunction
     it('simple object works', function () {
@@ -188,7 +221,8 @@ describe('BreinifyUtil', function () {
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.endsWith('dabs', null)).toBe(false);
 
-        var a;
+        var a = undefined;
+        //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.endsWith(a, 'dabc')).toBe(false);
         //noinspection JSUnresolvedFunction
         expect(Breinify.UTL.endsWith('dabs', a)).toBe(false);

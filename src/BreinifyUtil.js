@@ -484,7 +484,7 @@
             },
 
             extract: function (url) {
-                var urlRegEx = /^(?:(?:(http[s]?):\/)?\/?)(?:([\-\w]+):([\-\w]+)@)?([^:\/\s]+)(?::(\d+))?((?:(?:\/[\-\w]+)*\/)(?:[\w\(\)\-\.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
+                var urlRegEx = /^(?:(https?):\/)?\/?(?:([\-\w]+):([\-\w]+)@)?([^:\/\s]+)(?::(\d+))?((?:\/[\-\w]+)*\/(?:[\w()\-.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
                 var match = urlRegEx.exec(url);
 
                 if (match === null) {
@@ -1273,10 +1273,8 @@
                 return true;
             } else if ('object' === type && $.isEmptyObject(val)) {
                 return true;
-            } else if ('string' === type && '' === val.trim()) {
-                return true;
             } else {
-                return false;
+                return 'string' === type && '' === val.trim();
             }
         },
 
@@ -1294,6 +1292,56 @@
             var quotes = inclSingle === true ? '["\']' : '["]';
             var regEx = '^' + quotes + '(.*)' + quotes + '$';
             return str.replace(new RegExp(regEx), '$1');
+        },
+
+        ensureSimpleObject: function (obj) {
+            if (obj == null) {
+                return {};
+            } else if (!$.isPlainObject(obj)) {
+                return {};
+            }
+
+            var cleanedObj = {};
+            $.each(obj, function (key, value) {
+                var type = typeof value;
+
+                if (value === null || type === 'boolean' || type === 'string' || type === 'number') {
+                    cleanedObj[key] = value;
+                } else if ($.isArray(value)) {
+
+                    var globalArrType = null;
+                    var cleanedArr = [];
+                    for (var i = 0; i < value.length; i++) {
+                        var arrValue = value[i];
+                        var arrType = typeof arrValue;
+
+                        if (
+                            // we have a null value
+                            arrValue === null ||
+                            // or we have an invalid value
+                            (arrType !== 'boolean' && arrType !== 'string' && arrType !== 'number') ||
+                            // or we have a type that does not match
+                            (globalArrType !== null && globalArrType !== arrType)
+                        ) {
+
+                            // replace or use the existing null
+                            cleanedArr.push(null);
+                        } else {
+
+                            // otherwise we have a valid value
+                            globalArrType = arrType;
+                            cleanedArr.push(arrValue);
+                        }
+                    }
+
+                    cleanedObj[key] = cleanedArr;
+                    console.log(cleanedArr);
+                } else {
+                    cleanedObj[key] = null;
+                }
+            });
+
+            return cleanedObj;
         },
 
         isSimpleObject: function (obj) {

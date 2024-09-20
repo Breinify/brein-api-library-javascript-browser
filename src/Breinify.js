@@ -709,7 +709,7 @@
             type = typeof type === 'undefined' || type === null ? null : type;
             category = typeof category === 'undefined' || category === null ? _config.get(ATTR_CONFIG.CATEGORY) : category;
             description = typeof description === 'undefined' || description === null ? null : description;
-            tags = BreinifyUtil.isSimpleObject(tags) ? tags : null;
+            tags = BreinifyUtil.ensureSimpleObject(tags);
             sign = typeof sign === 'boolean' ? sign : (sign === null ? !BreinifyUtil.isEmpty(_config.get(ATTR_CONFIG.SECRET)) : false);
 
             // get the other values needed
