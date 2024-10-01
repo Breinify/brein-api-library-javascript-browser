@@ -1335,7 +1335,6 @@
                     }
 
                     cleanedObj[key] = cleanedArr;
-                    console.log(cleanedArr);
                 } else {
                     cleanedObj[key] = null;
                 }
