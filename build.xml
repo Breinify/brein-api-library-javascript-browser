@@ -10,14 +10,14 @@
     <property name="app" value="brein-api-library-javascript-browser"/>
 
     <target name="01-resolve-dependencies">
-        <exec-npm module="install"/>
-        <exec-grunt module="dep"/>
+        <exec-npm module="install" nodeVersion="${node}"/>
+        <exec-grunt module="dep" nodeVersion="${node}"/>
     </target>
 
     <target name="04-publish-results" depends="01-resolve-dependencies">
         <publish-js-app>
             <cf>
-                <exec-grunt module="dist"/>
+                <exec-grunt module="dist" nodeVersion="${node}"/>
                 <copy todir="tmp" includeEmptyDirs="true">
                     <fileset dir="dist" />
                 </copy>
@@ -26,10 +26,10 @@
     </target>
 
     <target name="05-deploy-to-npm" depends="04-publish-results">
-        <exec-grunt module="publish"/>
+        <exec-grunt module="publish" nodeVersion="${node}"/>
     </target>
 
     <target name="06-run-test-suite" depends="01-resolve-dependencies">
-        <exec-grunt module="test"/>
+        <exec-grunt module="test" nodeVersion="${node}"/>
     </target>
 </project>
