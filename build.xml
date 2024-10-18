@@ -7,17 +7,18 @@
     <include file="../../brein-workspace/brein-intellij-workspace/common-libs/ant-util/util-ant.xml"/>
 
     <property name="node" value="v8.6.0-linux-x64"/>
+    <property name="grunt" value="1.4.1"/>
     <property name="app" value="brein-api-library-javascript-browser"/>
 
     <target name="01-resolve-dependencies">
         <exec-npm module="install" nodeVersion="${node}"/>
-        <exec-grunt module="dep" nodeVersion="${node}"/>
+        <exec-grunt module="dep" nodeVersion="${node}" gruntVersion="${grunt}" />
     </target>
 
     <target name="04-publish-results" depends="01-resolve-dependencies">
         <publish-js-app>
             <cf>
-                <exec-grunt module="dist" nodeVersion="${node}"/>
+                <exec-grunt module="dist" nodeVersion="${node}" gruntVersion="${grunt}" />
                 <copy todir="tmp" includeEmptyDirs="true">
                     <fileset dir="dist" />
                 </copy>
@@ -26,10 +27,10 @@
     </target>
 
     <target name="05-deploy-to-npm" depends="04-publish-results">
-        <exec-grunt module="publish" nodeVersion="${node}"/>
+        <exec-grunt module="publish" nodeVersion="${node}" gruntVersion="${grunt}" />
     </target>
 
     <target name="06-run-test-suite" depends="01-resolve-dependencies">
-        <exec-grunt module="test" nodeVersion="${node}"/>
+        <exec-grunt module="test" nodeVersion="${node}" gruntVersion="${grunt}" />
     </target>
 </project>
