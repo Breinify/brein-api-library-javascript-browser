@@ -14,10 +14,6 @@
     "url": "git+https://github.com/breinify/brein-api-library-javascript-browser.git"
   },
   "main": "dist/breinify-api.js",
-  "scripts": {
-    "updateDependencies": "npm install",
-    "test": "grunt test"
-  },
   "dependencies": {},
   "devDependencies": {
     "cdnjs-importer": "2.0.0-beta",
