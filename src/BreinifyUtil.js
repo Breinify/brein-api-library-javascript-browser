@@ -1029,7 +1029,7 @@
                         return;
                     }
 
-                    // if we do not have it yet, we
+                    // if we do not have it yet, we try again in a bit
                     setTimeout(function () {
                         _self.addDataLayerEventListener(name, listener, replayExisting, checkTime + _self.checkAgainDurationInMs);
                     }, _self.checkAgainDurationInMs);
