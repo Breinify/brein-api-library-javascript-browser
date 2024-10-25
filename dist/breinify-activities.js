@@ -753,10 +753,12 @@
             var hasPrices = len > 0;
             var hasIds = len > 0;
             var hasCategories = len > 0;
+            var hasNames = len > 0;
             var productQuantities = [];
             var productPrices = [];
             var productIds = [];
             var productCategories = [];
+            var productNames = [];
 
             // iterate over the defined products
             for (var i = 0; i < len; i++) {
@@ -766,6 +768,7 @@
                 var productQuantity = null;
                 var productPrice = null;
                 var productCategory = null;
+                var productName = null;
 
                 if (typeof product === 'string') {
                     productId = product;
@@ -774,26 +777,31 @@
                     productQuantity = typeof product.quantity === 'number' ? product.quantity : null;
                     productPrice = typeof product.price === 'number' ? product.price : null;
                     productCategory = typeof product.category === 'string' ? product.category.trim() : null;
+                    productName = typeof product.name === 'string' ? product.name.trim() : null;
                 }
 
                 hasIds = hasIds && !Breinify.UTL.isEmpty(productId);
                 hasQuantities = hasQuantities && !Breinify.UTL.isEmpty(productQuantity);
                 hasPrices = hasPrices && !Breinify.UTL.isEmpty(productPrice);
                 hasCategories = hasCategories && !Breinify.UTL.isEmpty(productCategory);
+                hasNames = hasNames && !Breinify.UTL.isEmpty(productName);
 
                 productIds.push(productId);
                 productPrices.push(productPrice);
                 productQuantities.push(productQuantity);
                 productCategories.push(productCategory);
+                productNames.push(productName);
             }
 
             if (hasIds) {
-                return $.extend(true, {}, tags, {
-                    'productQuantities': hasQuantities ? productQuantities : null,
-                    'productPrices': hasPrices ? productPrices : null,
-                    'productIds': hasIds ? productIds : null,
-                    'productCategories': hasCategories ? productCategories : null
-                });
+                var productTags = {};
+                if (hasQuantities) productTags.productQuantities = productQuantities;
+                if (hasPrices) productTags.productPrices = productPrices;
+                if (hasIds) productTags.productIds = productIds;
+                if (hasNames) productTags.productNames = productNames;
+                if (hasCategories) productTags.productCategories = productCategories;
+
+                return $.extend(true, {}, tags, productTags);
             } else {
                 throw new Error('Products must have an identifier: ' + JSON.stringify(products));
             }
