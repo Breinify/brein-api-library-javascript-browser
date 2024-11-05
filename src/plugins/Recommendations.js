@@ -70,6 +70,9 @@
                     this._determineRecommendationData(result, recommendationResult);
                 }
 
+                this._determineAdditionalData(result, recommendationResult);
+                this._determineMetaData(result, recommendationResult);
+
                 // determine the name
                 var name;
                 if ($.isArray(payload.namedRecommendations) && payload.namedRecommendations.length === 1) {
@@ -78,7 +81,18 @@
                     name = 'response[' + i + ']';
                 }
 
-                this._determineMetaData(result, recommendationResult);
+                var numRecommendations;
+                if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
+                    numRecommendations = payload.numRecommendations;
+                } else {
+                    numRecommendations = null;
+                }
+
+                // add some general information
+                recommendationResult.payload = {
+                    name: name,
+                    expectedNumberOfRecommendations: numRecommendations
+                };
                 allRecommendationResults[name] = recommendationResult;
             }
 
@@ -87,23 +101,25 @@
 
         _determineErrorResponse: function (recommendationResponse, result) {
 
-            if (!$.isPlainObject(result)) {
+            if (!$.isPlainObject(recommendationResponse)) {
                 result.status = {
                     error: true,
                     code: 500,
-                    description: 'invalid result type received'
+                    message: 'invalid result type received'
                 };
 
                 return true;
-            } else if (result.statusCode === 200 || result.statusCode === 7120) {
+            } else if (recommendationResponse.statusCode === 200 || recommendationResponse.statusCode === 7120) {
                 result.status = {
-                    code: result.statusCode,
+                    code: recommendationResponse.statusCode,
+                    message: recommendationResponse.message,
                     error: false
                 };
             } else {
                 result.status = {
                     error: true,
-                    code: result.statusCode
+                    code: recommendationResponse.statusCode,
+                    message: recommendationResponse.message
                 };
             }
 
@@ -112,10 +128,29 @@
 
         _determineRecommendationData: function (recommendationResponse, result) {
 
+            var type = 'com.brein.common.dto.CustomerProductDto';
+            if ($.isPlainObject(recommendationResponse) &&
+                $.isPlainObject(recommendationResponse._breinMetaData) &&
+                typeof recommendationResponse._breinMetaData.dataType === 'string' && recommendationResponse._breinMetaData.dataType.trim() !== '') {
+                type = recommendationResponse._breinMetaData.dataType.trim();
+            }
+
+            if (type === 'com.brein.common.dto.CustomerProductDto') {
+                result.recommendations = this._mapProducts(recommendationResponse);
+            } else {
+                result.recommendations = this._mapAny(recommendationResponse);
+            }
+        },
+
+        _determineAdditionalData: function (recommendationResponse, result) {
+
         },
 
         _determineMetaData: function (recommendationResponse, result) {
-
+            /*
+             * Data may be provided under recommendationResponse.additionalData._breinMetaData
+             * currently we do not care about this data, other than to decide the mapper.
+             */
         },
 
         _determineSplitTestData: function (recommendationResponse, result) {
@@ -150,28 +185,70 @@
             return result.active;
         },
 
-        _mapProduct: function (product, payloadId, additionalData) {
+        _mapProducts: function (recommendationResponse) {
+            if (!$.isArray(recommendationResponse.result)) {
+                return [];
+            }
+
+            var mappedProducts = [];
+            for (var i = 0; i < recommendationResponse.result.length; i++) {
+                var product = recommendationResponse.result[i];
+                var mappedProduct = this._mapProduct(product);
+
+                mappedProducts.push(mappedProduct);
+            }
+
+            return mappedProducts;
+        },
+
+        _mapProduct: function (product) {
             if (!$.isPlainObject(product) || typeof product.dataIdExternal !== 'string') {
                 return null;
             } else if (!$.isPlainObject(product.additionalData)) {
                 return null;
             }
 
-            var mapProduct = this.getConfig('mapProduct', function (product, additionalData) {
-                return {
-                    'dataIdExternal': product.dataIdExternal,
-                    'sku': product.dataIdExternal,
-                    'inventory': product.additionalData['inventory::inventoryQuantity'],
-                    'price': product.additionalData['inventory::productPrice'],
-                    'name': product.additionalData['product::productName'],
-                    'url': product.additionalData['product::productUrl'],
-                    'image': product.additionalData['product::productImageUrl'],
-                    'description': product.additionalData['product::productDescription'],
-                    'additionalData': additionalData
-                };
-            });
+            // price can be in inventory or product
+            var price = this._getValue(product, 'inventory::productPrice');
+            price = price === null ? this._getValue(product, 'product::productPrice') : price;
 
-            return mapProduct(product, payloadId, additionalData);
+            return {
+                '_recommenderWeight': product.weight,
+                'id': product.dataIdExternal,
+                'inventory': this._getValue(product, 'inventory::inventoryQuantity'),
+                'name': this._getValue(product, 'product::productName'),
+                'url': this._getValue(product, 'product::productUrl'),
+                'image': this._getValue(product, 'product::productImageUrl'),
+                'categories': this._getValue(product, 'product::productCategories'),
+                'description': this._getValue(product, 'product::productDescription'),
+                'price': price,
+                'additionalData': product.additionalData
+            };
+        },
+
+        _mapAny: function (recommendationResponse) {
+            if (!$.isArray(recommendationResponse.result)) {
+                return [];
+            }
+
+            var mappedResults = [];
+            for (var i = 0; i < recommendationResponse.result.length; i++) {
+                var result = recommendationResponse.result[i];
+                var mappedResult = {
+                    '_recommenderWeight': result.weight,
+                    'id': result.dataIdExternal,
+                    'additionalData': result.additionalData
+                };
+
+                mappedResults.push(mappedResult);
+            }
+
+            return mappedResults;
+        },
+
+        _getValue: function (product, name) {
+            var value = product.additionalData[name];
+            return typeof value === 'undefined' || value === null ? null : value;
         }
     };
 
