@@ -12,7 +12,7 @@
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
 
-    const notSet = {};
+    const notSet = {notSet:true};
     const defaultRenderOptions = {
         splitTests: {
             control: {
@@ -194,8 +194,7 @@
             return options;
         },
 
-        _renderRecommendations: function (renderOptions, error, data) {
-            let options = $.extend({}, defaultRenderOptions, renderOptions);
+        _renderRecommendations: function (options, error, data) {
 
             // first check if we had any errors and if so, run the process and finalize
             if (error !== null) {
