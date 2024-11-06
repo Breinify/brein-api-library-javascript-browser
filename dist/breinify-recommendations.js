@@ -126,6 +126,8 @@
 
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = $item.clone();
+
+
                 $container.append($recItem);
             });
         }
@@ -249,7 +251,7 @@
 
         _renderRecommendation: function (option, data) {
 
-            Renderer._process(option.process.pre, data);
+            Renderer._process(option.process.pre, data, option);
 
             // append the container element
             let $container = Renderer._appendContainer(option);
@@ -257,9 +259,9 @@
             // and append the children for each result
             Renderer._appendItems($container, data, option);
 
-            Renderer._process(option.process.attached, data);
+            Renderer._process(option.process.attached, $container, data, option);
 
-            Renderer._process(option.process.post, data);
+            Renderer._process(option.process.post, $container, data, option);
         },
 
         _retrieveRecommendations: function (payloads, callback) {
