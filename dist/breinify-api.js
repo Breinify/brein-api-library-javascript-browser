@@ -14053,11 +14053,11 @@ dependencyScope.jQuery = $;;
                 let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
-                } else if (BreinifyUtil.cookie.check(cookie)) {
-                    this.browserId = BreinifyUtil.cookie.get(cookie);
+                } else if (storage.anonymousIdStorage.check(cookie)) {
+                    this.browserId = storage.anonymousIdStorage.get(cookie);
                 } else {
                     this.browserId = BreinifyUtil.uuid();
-                    BreinifyUtil.cookie.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
+                    storage.anonymousIdStorage.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
                 }
 
                 return this.browserId;
@@ -14068,8 +14068,8 @@ dependencyScope.jQuery = $;;
 
                 if (this.sessionId !== null) {
                     // nothing to do
-                } else if (BreinifyUtil.cookie.check(cookie)) {
-                    this.sessionId = BreinifyUtil.cookie.get(cookie);
+                } else if (storage.anonymousIdStorage.check(cookie)) {
+                    this.sessionId = storage.anonymousIdStorage.get(cookie);
                 } else {
                     this.resetSessionId(false);
                 }
@@ -14092,7 +14092,7 @@ dependencyScope.jQuery = $;;
                 }
 
                 let cookie = BreinifyUtil.cookies.sessionId;
-                BreinifyUtil.cookie.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
+                storage.anonymousIdStorage.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
 
                 return this.sessionId;
             }
