@@ -136,28 +136,88 @@
             });
         },
 
-        _replacePlaceholders: function ($recItem, recommendation, option) {
+        _replacePlaceholders: function ($entry, recommendation, option) {
             const _self = this;
 
             // check the text
-            $recItem.contents().filter(function() {
+            $entry.contents().filter(function () {
                 return this.nodeType === 3; // Node.TEXT_NODE
-            }).each(function() {
-                console.log('text' + $(this).text());
+            }).each(function () {
+                var $el = $(this);
+
+                let replaced = _self._replace($el.text(), recommendation, option);
+                if (replaced !== null) {
+                    $el.text(replaced);
+                }
             });
 
             // check the attributes
-            let attributes = $recItem.get(0).attributes;
+            let attributes = $entry.get(0).attributes;
             $.each(attributes, function (idx, attribute) {
-                console.log('attribute ' + attribute.name + ': ' + attribute.value);
+                let replaced = _self._replace(attribute.value, recommendation, option);
+                if (replaced !== null) {
+                    $entry.attr(attribute.name, replaced);
+                }
             });
 
             // check also each child
-            $recItem.children().each(function () {
+            $entry.children().each(function () {
                 _self._replacePlaceholders($(this), recommendation, option);
             });
 
-            return $recItem;
+            return $entry;
+        },
+
+        /**
+         * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
+         * the modified text, will return {@code null} if no replacement took place.
+         * @param value the value to replace
+         * @param recommendation the values from the recommendation to replace with
+         * @param option options to modify the behavior
+         * @returns {string|null} the replaced value or {@code null} if no replacement took place
+         * @private
+         */
+        _replace: function (value, recommendation, option) {
+            if (typeof value !== 'string') {
+                return null;
+            }
+
+            const replacements = {
+                _counter: 0
+            };
+            const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*)%%/;
+            const result = value.replace(regex, function (match, name) {
+                let placeholderOption = option.placeholders[name];
+                let hasPlaceholderOption = $.isPlainObject(placeholderOption) || typeof placeholderOption === 'string';
+                let recValue = recommendation[name];
+                let hasRecValue = typeof recValue !== 'undefined';
+
+                // if we do not have any value
+                let replacement;
+                if (hasPlaceholderOption) {
+                    if (placeholderOption === 'string') {
+                        replacement = placeholderOption;
+                    } else if ($.isFunction(placeholderOption.apply)) {
+                        replacement = placeholderOption.apply(name, recommendation, hasRecValue ? recValue : null);
+                    } else if (typeof placeholderOption.replacement === 'string') {
+                        replacement = placeholderOption.replacement;
+                    }
+                } else if (hasRecValue) {
+                    replacement = recValue;
+                } else {
+                    replacement = null;
+                }
+
+                // resolve the placeholders value for the name
+                if (replacement === null) {
+                    return match;
+                } else {
+                    replacements._counter++;
+                    return replacement;
+                }
+            });
+
+            return replacements._counter > 0 ? result : null;
         }
     };
 
