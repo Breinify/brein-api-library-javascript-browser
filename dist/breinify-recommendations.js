@@ -12,7 +12,7 @@
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
 
-    const defaultRenderOptions = {
+    const defaultRenderOption = {
         splitTests: {
             control: {
                 itemSelector: null,
@@ -119,10 +119,13 @@
 
         _appendItems: function ($container, result, options) {
 
-            let item = this._determineSelector(options.templates.item);
-            if (item === null) {
+            let $item = this._determineSelector(options.templates.item);
+            if ($item === null) {
                 return null;
             }
+
+
+            $item.clone();
         }
     };
 
@@ -138,7 +141,7 @@
                         _self._renderRecommendations(renderOptions, error, data);
                     });
                 },
-                'Array,Array': function (payloads, renderOptions) {
+                'Array,Object': function (payloads, renderOptions) {
                     renderOptions = this._preRenderRecommendations(renderOptions);
                     this._retrieveRecommendations(null, payloads, function (error, data) {
                         _self._renderRecommendations(renderOptions, error, data);
@@ -185,31 +188,51 @@
         },
 
         _preRenderRecommendations: function (renderOptions) {
-            let options = $.extend(true, {}, defaultRenderOptions, renderOptions);
+            const options = {};
+            $.each(renderOptions, function (name, renderOption) {
+                let option = $.extend(true, {}, defaultRenderOption, renderOption);
+                Renderer._process(option.process.init);
 
-            Renderer._process(options.process.init);
+                options[name] = option;
+            });
 
             return options;
         },
 
         _renderRecommendations: function (options, error, data) {
+            const _self = this;
 
             // first check if we had any errors and if so, run the process and finalize
             if (error !== null) {
-                return Renderer._process(options.process.error, error);
+
+                // we fire each error method
+                $.each(options, function (name, option) {
+                    Renderer._process(option.process.error, error);
+                });
+
+                return;
             }
 
-            Renderer._process(options.process.pre, data);
+            // fire each named recommendation, with the option
+            $.each(options, function (name, option) {
+                let result = data[name];
+                _self._renderRecommendation(option, result);
+            });
+        },
+
+        _renderRecommendation: function (option, data) {
+
+            Renderer._process(option.process.pre, data);
 
             // append the container element
-            let $container = Renderer._appendContainer(options);
+            let $container = Renderer._appendContainer(option);
 
             // and append the children for each result
-            Renderer._appendItems($container, data, options);
+            Renderer._appendItems($container, data, option);
 
-            Renderer._process(options.process.attached, data);
+            Renderer._process(option.process.attached, data);
 
-            Renderer._process(options.process.post, data);
+            Renderer._process(option.process.post, data);
         },
 
         _retrieveRecommendations: function (payloads, callback) {
