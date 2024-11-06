@@ -9,16 +9,16 @@
         return;
     }
 
-    var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
+    const $ = Breinify.UTL._jquery();
+    const overload = Breinify.plugins._overload();
 
-    var prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
-    var prefixApi = Breinify.UTL.constants.errors.prefix.api;
+    const prefixValidation = Breinify.UTL.constants.errors.prefix.validation;
+    const prefixApi = Breinify.UTL.constants.errors.prefix.api;
 
     // identifier used within the activities to identify same "script" origin
-    var originId = Breinify.UTL.uuid();
+    const originId = Breinify.UTL.uuid();
 
-    var gaDefaultMapper = function (handler, activity) {
+    const gaDefaultMapper = function (handler, activity) {
         switch (handler.type) {
             case 'ga':
                 return {
@@ -34,14 +34,14 @@
         }
     };
 
-    var gaHandler = {
+    const gaHandler = {
         initialized: false,
         type: null,
         instance: null,
         mapper: null,
 
         init: function (gaSettings, callback) {
-            var _self = this;
+            const _self = this;
 
             if (this.initialized === true) {
                 callback(true);
@@ -49,7 +49,7 @@
             }
 
             // search for the ga instance
-            var gaType = this._determineType(gaSettings.type);
+            let gaType = this._determineType(gaSettings.type);
             switch (gaType) {
                 case 'ga':
                     this._waitForInstance('ga', function (ignoreGa) {
@@ -73,14 +73,14 @@
         },
 
         handle: function (gaSettings, activity) {
-            var _self = this;
+            const _self = this;
 
             this.init(gaSettings, function (status) {
                 if (status === false) {
                     return;
                 }
 
-                var mappedActivity = _self.mapper(_self, activity);
+                let mappedActivity = _self.mapper(_self, activity);
                 if (mappedActivity === null) {
                     return;
                 }
@@ -97,15 +97,15 @@
 
         _waitForInstance: function (name, callback, waitTime) {
 
-            var instance = window[name];
-            var available = typeof instance !== 'undefined' && instance !== null;
+            let instance = window[name];
+            let available = typeof instance !== 'undefined' && instance !== null;
 
             if (available) {
                 callback(instance);
             } else if (waitTime >= 5000) {
                 console.error(name + ' enabled but not available (waited ' + waitTime + ' [ms]).');
             } else {
-                var _self = this;
+                const _self = this;
                 setTimeout(function () {
                     _self._waitForInstance(name, callback, (typeof waitTime === 'number' ? waitTime : 0) + 50)
                 }, 50);
@@ -114,7 +114,7 @@
 
         _determineGaInstance: function (all, trackerId) {
 
-            var normalizedTrackerId = typeof trackerId === 'string' ? trackerId : null;
+            let normalizedTrackerId = typeof trackerId === 'string' ? trackerId : null;
 
             if (!$.isArray(all) || all.length < 0) {
                 throw new Error('Unable to determine instance.');
@@ -139,7 +139,7 @@
         },
 
         _determineType: function (type) {
-            var normalizedType = typeof type === 'string' ? type.toLowerCase() : null;
+            let normalizedType = typeof type === 'string' ? type.toLowerCase() : null;
             if (normalizedType === 'ga' ||
                 normalizedType === 'gtag') {
                 return normalizedType;
@@ -159,35 +159,35 @@
         }
     };
 
-    var delayedActivitiesStorage = {
+    const delayedActivitiesStorage = {
         cookieStorage: {
             store: function (id, activityData) {
-                var cookieName = Breinify.UTL.cookies.delayedActivities;
+                let cookieName = Breinify.UTL.cookies.delayedActivities;
 
                 // store the activity in a cookie that will be evaluated each run
-                var activitiesData = {};
+                let activitiesData = {};
                 if (Breinify.UTL.cookie.check(cookieName)) {
                     activitiesData = Breinify.UTL.cookie.getJson(cookieName);
                 }
 
                 // add the new activityData to the list
-                var activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
+                let activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
                 activitiesData[activityDataId] = activityData;
 
                 // reset the cookie (just session is fine)
-                var domain = Breinify.UTL.cookie.domain();
+                let domain = Breinify.UTL.cookie.domain();
                 Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
 
                 return activityDataId;
             },
 
             getAll: function () {
-                var cookieName = Breinify.UTL.cookies.delayedActivities;
+                let cookieName = Breinify.UTL.cookies.delayedActivities;
                 return Breinify.UTL.cookie.getJson(cookieName);
             },
 
             get: function (id) {
-                var activitiesData = this.getAll();
+                let activitiesData = this.getAll();
 
                 if (!$.isPlainObject(activitiesData)) {
                     return null;
@@ -199,10 +199,10 @@
             },
 
             remove: function (id) {
-                var domain = Breinify.UTL.cookie.domain();
-                var cookieName = Breinify.UTL.cookies.delayedActivities;
+                let domain = Breinify.UTL.cookie.domain();
+                let cookieName = Breinify.UTL.cookies.delayedActivities;
 
-                var activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+                let activitiesData = Breinify.UTL.cookie.getJson(cookieName);
                 delete activitiesData[id];
 
                 Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
@@ -216,16 +216,16 @@
             },
 
             getAll: function () {
-                var activitiesData = null;
+                let activitiesData = null;
 
                 for (var i = 0, len = window.localStorage.length; i < len; ++i) {
-                    var key = window.localStorage.key(i);
+                    let key = window.localStorage.key(i);
                     if (!key.indexOf(this.prefix) === 0) {
                         continue;
                     }
 
-                    var id = key.substring(this.prefix.length);
-                    var entry = this.get(id);
+                    let id = key.substring(this.prefix.length);
+                    let entry = this.get(id);
                     if (entry === null) {
                         continue;
                     } else if (activitiesData === null) {
@@ -239,7 +239,7 @@
             },
 
             get: function (id) {
-                var json = window.localStorage.getItem(this.prefix + id);
+                let json = window.localStorage.getItem(this.prefix + id);
                 return typeof json === 'string' ? JSON.parse(json) : null;
             },
 
@@ -249,19 +249,21 @@
         }
     };
 
-    var usedDelayedActivitiesStorage;
+    let usedDelayedActivitiesStorage;
     try {
         window.localStorage.setItem('br-local-storage-test', 'true');
         window.localStorage.removeItem('br-local-storage-test');
+        
         usedDelayedActivitiesStorage = delayedActivitiesStorage.localStorage;
     } catch (e) {
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
 
-    var Activities = {
+    const Activities = {
 
         generic: function () {
-            var _self = this;
+            const _self = this;
+            
             overload.overload({
                 'String,Object': function (type, user) {
                     _self._send(type, user, {}, null);
@@ -276,9 +278,9 @@
         },
 
         pageVisit: function () {
-            var type = 'pageVisit';
+            const type = 'pageVisit';
+            const _self = this;
 
-            var _self = this;
             overload.overload({
                 '': function () {
                     _self._send(type, {}, {pageId: window.location.pathname}, null);
@@ -314,9 +316,9 @@
         },
 
         identify: function () {
-            var type = 'identify';
+            const type = 'identify';
+            const _self = this;
 
-            var _self = this;
             overload.overload({
                 'Object,Function': function (user, cb) {
                     _self._send(type, user, {}, cb);
@@ -346,9 +348,9 @@
         },
 
         checkOut: function () {
-            var type = 'checkOut';
+            const type = 'checkOut';
+            const _self = this;
 
-            var _self = this;
             overload.overload({
                 'String,Array,Object,Object,Array,Object,Function': function (transactionId, products, receipt, promotions, user, tags, cb) {
                     tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, tags);
@@ -423,35 +425,35 @@
                     _self._send(type, user, tags);
                 },
                 'String,Array,Object,Object,Array,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Object,Object,Object,Array,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,String,Object,Object,Array,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Array,Object,Object,Object,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Object,Object,Object,Object,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,String,Object,Object,Object,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Array,Object,Object,String,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Array,Object,Array,Object,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Array,Object,Array,Object,Object,Function': function (transactionId, products, receipt, promotions, user, tags, cb) {
@@ -459,47 +461,47 @@
                     _self._send(type, user, tags, cb);
                 },
                 'String,Object,Object,Object,String,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,String,Object,Object,String,Function': function (transactionId, products, receipt, promotions, user, cb) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags, cb);
                 },
                 'String,Array,Object,Array,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,Object,Object,Array,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,String,Object,Array,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,Array,Object,Object,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,Object,Object,Object,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,String,Object,Object,Object': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,Array,Object,Object,String': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,Object,Object,Object,String': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 },
                 'String,String,Object,Object,String': function (transactionId, products, receipt, promotions, user) {
-                    var tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
+                    let tags = _self._mapCheckOutToTags(transactionId, products, receipt, promotions, {});
                     _self._send(type, user, tags);
                 }
             }, arguments, this);
@@ -518,7 +520,7 @@
         scheduleDelayedActivity: function (user, type, tags, maxAgeInMs, filter, id) {
 
             // get the activity data
-            var activityData = {
+            const activityData = {
                 user: user,
                 tags: tags,
                 type: type,
@@ -536,7 +538,7 @@
         },
 
         hasDelayedActivityData: function (input) {
-            var filter;
+            let filter;
             if (typeof input === 'string') {
                 filter = function (id) {
                     return id === input;
@@ -553,7 +555,7 @@
                 };
             }
 
-            var activitiesData = usedDelayedActivitiesStorage.getAll();
+            let activitiesData = usedDelayedActivitiesStorage.getAll();
             if (activitiesData === null || !$.isPlainObject(activitiesData)) {
                 return false;
             } else {
@@ -566,10 +568,10 @@
         },
 
         checkDelayedActivityData: function () {
-            var activitiesData = usedDelayedActivitiesStorage.getAll();
+            const _self = this;
 
             // check each activity after ready
-            var _self = this;
+            let activitiesData = usedDelayedActivitiesStorage.getAll();
             $.each(activitiesData, function (id, activityData) {
                 _self._checkDelayedActivityData(id, activityData);
             });
@@ -584,8 +586,8 @@
             }
 
             // get the expiration
-            var now = new Date().getTime();
-            var expires = typeof activityData.maxAgeInMs === 'number' && activityData.maxAgeInMs > 0 ?
+            let now = new Date().getTime();
+            let expires = typeof activityData.maxAgeInMs === 'number' && activityData.maxAgeInMs > 0 ?
                 activityData.timestamp + activityData.maxAgeInMs : now;
 
             // if expired remove directly
@@ -595,10 +597,10 @@
             }
 
             // otherwise let's see if we can handle the activity and find the function
-            var filter = activityData.filter;
-            var filterParts = typeof filter === 'string' ? filter.split('::') : [];
+            let filter = activityData.filter;
+            let filterParts = typeof filter === 'string' ? filter.split('::') : [];
 
-            var funcName = null, instance = null;
+            let funcName = null, instance = null;
             if (filterParts.length >= 2) {
 
                 // find the instance
@@ -622,7 +624,7 @@
                 this._send(activityData.type, activityData.user, activityData.tags);
                 this.removeDelayedActivityData(id);
             } else if ($.isFunction(instance[funcName])) {
-                var _self = this;
+                const _self = this;
                 instance[funcName].apply(instance, [id, activityData, function (id, activityData, sendAndRemoveActivity, removeActivity) {
                     if (sendAndRemoveActivity === true) {
                         _self._send(activityData.type, activityData.user, activityData.tags);
@@ -635,54 +637,55 @@
         },
 
         _productMethods: function (type) {
-            var _self = this;
+            const _self = this;
+
             return {
                 'Array,Function': function (products, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, cb);
                 },
                 'Object,Function': function (products, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, cb);
                 },
                 'String,Function': function (products, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, cb);
                 },
                 'String': function (products) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, null);
                 },
                 'Array': function (products) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, null);
                 },
                 'Object': function (products) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, {}, tags, null);
                 },
                 'String,Object,Function': function (products, user, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, cb);
                 },
                 'Array,Object,Function': function (products, user, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, cb);
                 },
                 'Object,Object,Function': function (products, user, cb) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, cb);
                 },
                 'String,Object': function (products, user) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, null);
                 },
                 'Array,Object': function (products, user) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, null);
                 },
                 'Object,Object': function (products, user) {
-                    var tags = _self._mapProductsToTags(products);
+                    let tags = _self._mapProductsToTags(products);
                     _self._send(type, user, tags, null);
                 },
                 'String,Object,Object,Function': function (products, user, tags, cb) {
@@ -748,27 +751,27 @@
                 throw new Error(prefixValidation + 'The defined `products` are invalid: ' + JSON.stringify(products));
             }
 
-            var len = products.length;
-            var hasQuantities = len > 0;
-            var hasPrices = len > 0;
-            var hasIds = len > 0;
-            var hasCategories = len > 0;
-            var hasNames = len > 0;
-            var productQuantities = [];
-            var productPrices = [];
-            var productIds = [];
-            var productCategories = [];
-            var productNames = [];
+            let len = products.length;
+            let hasQuantities = len > 0;
+            let hasPrices = len > 0;
+            let hasIds = len > 0;
+            let hasCategories = len > 0;
+            let hasNames = len > 0;
+            let productQuantities = [];
+            let productPrices = [];
+            let productIds = [];
+            let productCategories = [];
+            let productNames = [];
 
             // iterate over the defined products
             for (var i = 0; i < len; i++) {
-                var product = products[i];
+                let product = products[i];
 
-                var productId = null;
-                var productQuantity = null;
-                var productPrice = null;
-                var productCategory = null;
-                var productName = null;
+                let productId = null;
+                let productQuantity = null;
+                let productPrice = null;
+                let productCategory = null;
+                let productName = null;
 
                 if (typeof product === 'string') {
                     productId = product;
@@ -794,7 +797,7 @@
             }
 
             if (hasIds) {
-                var productTags = {};
+                let productTags = {};
                 if (hasQuantities) productTags.productQuantities = productQuantities;
                 if (hasPrices) productTags.productPrices = productPrices;
                 if (hasIds) productTags.productIds = productIds;
@@ -824,18 +827,18 @@
                 return tags;
             }
 
-            var len = promotions.length;
-            var hasIds = len > 0;
-            var hasPromotions = len > 0;
-            var promotionAmounts = [];
-            var promotionIds = [];
+            let len = promotions.length;
+            let hasIds = len > 0;
+            let hasPromotions = len > 0;
+            let promotionAmounts = [];
+            let promotionIds = [];
 
             // iterate over the defined promotions
             for (var i = 0; i < len; i++) {
-                var promotion = promotions[i];
+                let promotion = promotions[i];
 
-                var promotionId = null;
-                var promotionAmount = null;
+                let promotionId = null;
+                let promotionAmount = null;
 
                 if (typeof promotion === 'string') {
                     promotionId = promotion;
@@ -862,7 +865,7 @@
         },
 
         _extendTags: function (type, tags) {
-            var tagsExtenderPlugIn = this.getConfig('tagsExtender', function (activityType) {
+            let tagsExtenderPlugIn = this.getConfig('tagsExtender', function (activityType) {
                 return {};
             });
 
@@ -871,7 +874,7 @@
                 tags = {};
             }
 
-            var tagsExtenderResult;
+            let tagsExtenderResult;
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
                 return $.extend({}, tags);
             } else {
@@ -908,7 +911,7 @@
             });
 
             // check if ga is activated
-            var gaSettings = this.getConfig('googleAnalytics', {enabled: false});
+            let gaSettings = this.getConfig('googleAnalytics', {enabled: false});
             if ($.isPlainObject(gaSettings) && gaSettings.enabled === true) {
                 gaHandler.handle(gaSettings, {
                     user: user,
@@ -920,7 +923,7 @@
     };
 
     // bind the module
-    var BoundActivities = Breinify.plugins._add('activities', Activities);
+    let BoundActivities = Breinify.plugins._add('activities', Activities);
 
     // finally use the bound activities (since getConfig is available) to retrieve activities
     Breinify.onReady(function () {

@@ -9,10 +9,160 @@
         return;
     }
 
-    var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
+    const $ = Breinify.UTL._jquery();
+    const overload = Breinify.plugins._overload();
 
-    var Recommendations = {
+    const defaultRenderOptions = {
+        splitTests: {
+            control: {
+                itemSelector: null,
+                containerSelector: null
+            }
+        },
+        position: {
+            before: null,
+            after: null,
+            prepend: null,
+            append: null,
+            replace: null
+        },
+        defaults: {},
+        templates: {
+            container: null,
+            item: null
+        },
+        process: {
+            error: function (error) {
+                // ignore
+            },
+            init: function (payload) {
+                // nothing to initialize
+            },
+            pre: function (data) {
+                // nothing to execute on pre
+            },
+            attached: function (data, $container) {
+                // nothing to execute after attachment
+            },
+            post: function (data) {
+                // nothing to execute after rendering is complete
+            }
+        }
+    };
+
+    const Renderer = {
+        _process: function (func, ...args) {
+            if ($.isFunction(func)) {
+                func(args);
+                return true;
+            } else {
+                return false;
+            }
+        },
+
+        _determineSelector: function (value) {
+            if ($.isFunction(value)) {
+                value = value();
+            }
+
+            if (typeof value === 'string') {
+                return $(value);
+            } else if (value instanceof $) {
+                return value;
+            } else {
+                return null;
+            }
+        },
+
+        _appendContainer: function (options) {
+
+            // no position defined to append
+            if (!$.isPlainObject(options) || !$.isPlainObject(options.position)) {
+                return null;
+            }
+
+            let method = null;
+            let selector = null;
+            if (options.position.before !== null) {
+                selector = options.position.before;
+                method = 'before';
+            } else if (options.position.after !== null) {
+                selector = options.position.after;
+                method = 'after';
+            } else if (options.position.append !== null) {
+                selector = options.position.append;
+                method = 'append';
+            } else if (options.position.prepend !== null) {
+                selector = options.position.prepend;
+                method = 'prepend';
+            } else if (options.position.replace !== null) {
+                selector = options.position.replace;
+                method = 'replace';
+            }
+
+            selector = this._determineSelector(selector);
+            if (selector === null) {
+                return null;
+            }
+
+            let container = this._determineSelector(options.templates.container);
+            if (container === null) {
+                return null;
+            }
+
+            method = selector[method];
+            if ($.isFunction(method)) {
+                method(container);
+            }
+
+            return container;
+        },
+
+        _appendItems: function ($container, result, options) {
+
+            let item = this._determineSelector(options.templates.item);
+            if (item === null) {
+                return null;
+            }
+        }
+    };
+
+    const Recommendations = {
+
+        render: function () {
+            const _self = this;
+
+            overload.overload({
+                'Object,Object': function (payload, renderOptions) {
+                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    this._retrieveRecommendations([payload], function (error, data) {
+                        _self._renderRecommendations(renderOptions, error, data);
+                    });
+                },
+                'Array,Array': function (payloads, renderOptions) {
+                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    this._retrieveRecommendations(null, payloads, function (error, data) {
+                        _self._renderRecommendations(renderOptions, error, data);
+                    });
+                },
+                'String,Object': function (recommendationId, renderOptions) {
+                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    this._retrieveRecommendations([{
+                        namedRecommendations: [recommendationId]
+                    }], function (error, data) {
+                        _self._renderRecommendations(renderOptions, error, data);
+                    });
+                },
+                'String,Object,Object': function (recommendationId, payload, renderOptions) {
+                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    this._retrieveRecommendations([$.extend({
+                        namedRecommendations: [recommendationId]
+                    }, payload)], function (error, data) {
+                        _self._renderRecommendations(renderOptions, error, data);
+                    });
+                }
+            }, arguments, this);
+        },
 
         get: function () {
             overload.overload({
@@ -35,33 +185,60 @@
             }, arguments, this);
         },
 
+        _preRenderRecommendations: function (renderOptions) {
+            let options = $.extend({}, defaultRenderOptions, renderOptions);
+
+            Renderer._process(options.process.init);
+
+            return options;
+        },
+
+        _renderRecommendations: function (renderOptions, error, data) {
+            let options = $.extend({}, defaultRenderOptions, renderOptions);
+
+            // first check if we had any errors and if so, run the process and finalize
+            if (error !== null) {
+                return Renderer._process(options.process.error, error);
+            }
+
+            Renderer._process(options.process.pre, data);
+
+            // append the container element
+            let $container = Renderer._appendContainer(options);
+
+            // and append the children for each result
+            Renderer._appendItems($container, data, options);
+
+            Renderer._process(options.process.attached, data);
+
+            Renderer._process(options.process.post, data);
+        },
+
         _retrieveRecommendations: function (payloads, callback) {
-            var _self = this;
+            const _self = this;
 
             // use the default endpoint
             Breinify.recommendation({}, payloads, function (data, errorText) {
-                console.log(data);
-
                 if (typeof errorText === 'string') {
                     callback(new Error(errorText));
                 } else if (!$.isArray(data.results)) {
                     callback(new Error('Invalid response received.'));
                 } else {
-                    var result = _self._mapResults(payloads, data.results);
+                    let result = _self._mapResults(payloads, data.results);
                     callback(null, result);
                 }
             });
         },
 
         _mapResults: function (payloads, results) {
-            var allRecommendationResults = {};
+            let allRecommendationResults = {};
 
             // let's map the responses to a more readable way
             for (var i = 0; i < results.length; i++) {
-                var payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
-                var result = results[i];
+                let payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
+                let result = results[i];
 
-                var recommendationResult = {};
+                let recommendationResult = {};
                 if (this._determineErrorResponse(result, recommendationResult)) {
                     // nothing to do, the error-data was written
                 } else if (this._determineSplitTestData(result, recommendationResult)) {
@@ -74,14 +251,14 @@
                 this._determineMetaData(result, recommendationResult);
 
                 // determine the name
-                var name;
+                let name;
                 if ($.isArray(payload.namedRecommendations) && payload.namedRecommendations.length === 1) {
                     name = payload.namedRecommendations[0];
                 } else {
                     name = 'response[' + i + ']';
                 }
 
-                var numRecommendations;
+                let numRecommendations;
                 if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
                     numRecommendations = payload.numRecommendations;
                 } else {
@@ -128,7 +305,7 @@
 
         _determineRecommendationData: function (recommendationResponse, result) {
 
-            var type = 'com.brein.common.dto.CustomerProductDto';
+            let type = 'com.brein.common.dto.CustomerProductDto';
             if ($.isPlainObject(recommendationResponse) &&
                 $.isPlainObject(recommendationResponse._breinMetaData) &&
                 typeof recommendationResponse._breinMetaData.dataType === 'string' && recommendationResponse._breinMetaData.dataType.trim() !== '') {
@@ -190,10 +367,10 @@
                 return [];
             }
 
-            var mappedProducts = [];
+            let mappedProducts = [];
             for (var i = 0; i < recommendationResponse.result.length; i++) {
-                var product = recommendationResponse.result[i];
-                var mappedProduct = this._mapProduct(product);
+                let product = recommendationResponse.result[i];
+                let mappedProduct = this._mapProduct(product);
 
                 mappedProducts.push(mappedProduct);
             }
@@ -209,7 +386,7 @@
             }
 
             // price can be in inventory or product
-            var price = this._getValue(product, 'inventory::productPrice');
+            let price = this._getValue(product, 'inventory::productPrice');
             price = price === null ? this._getValue(product, 'product::productPrice') : price;
 
             return {
@@ -231,10 +408,10 @@
                 return [];
             }
 
-            var mappedResults = [];
+            let mappedResults = [];
             for (var i = 0; i < recommendationResponse.result.length; i++) {
-                var result = recommendationResponse.result[i];
-                var mappedResult = {
+                let result = recommendationResponse.result[i];
+                let mappedResult = {
                     '_recommenderWeight': result.weight,
                     'id': result.dataIdExternal,
                     'additionalData': result.additionalData
@@ -247,7 +424,7 @@
         },
 
         _getValue: function (product, name) {
-            var value = product.additionalData[name];
+            let value = product.additionalData[name];
             return typeof value === 'undefined' || value === null ? null : value;
         }
     };

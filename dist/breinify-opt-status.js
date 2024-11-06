@@ -10,10 +10,9 @@
     }
 
     // bind the jQuery default object $
-    var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
+    const $ = Breinify.UTL._jquery();
 
-    var _private = {
+    const _private = {
         handleError: function (error, cb) {
             if ($.isFunction(cb)) {
                 cb(error);
@@ -44,7 +43,7 @@
         }
     };
 
-    var OptStatus = {
+    const OptStatus = {
 
         tokens: function () {
             return {
@@ -54,8 +53,8 @@
         },
 
         hasValidTokens: function () {
-            var validateOptCodeToken = this.tokens().validateOptCode;
-            var optViaCodeToken = this.tokens().optViaCode;
+            let validateOptCodeToken = this.tokens().validateOptCode;
+            let optViaCodeToken = this.tokens().optViaCode;
 
             return _private.validateToken(validateOptCodeToken) &&
                 _private.validateToken(optViaCodeToken);
@@ -66,7 +65,7 @@
         },
 
         validateOptCode: function (code, cb) {
-            var token = this.tokens().validateOptCode;
+            let token = this.tokens().validateOptCode;
             if (!_private.validateToken(token, cb)) {
                 return;
             }
@@ -81,7 +80,7 @@
         },
 
         optViaCode: function (code, cb, overrides) {
-            var token = this.tokens().optViaCode;
+            let token = this.tokens().optViaCode;
             if (!_private.validateToken(token, cb)) {
                 return;
             }

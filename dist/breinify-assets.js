@@ -10,17 +10,17 @@
     }
 
     // bind the jQuery default object $
-    var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
-    var Journey = Breinify.plugins.journey;
+    const $ = Breinify.UTL._jquery();
+    const overload = Breinify.plugins._overload();
+    const Journey = Breinify.plugins.journey;
 
-    var prefixAssets = Breinify.UTL.constants.errors.prefix.assets;
+    const prefixAssets = Breinify.UTL.constants.errors.prefix.assets;
 
-    var _private = {
+    const _private = {
         resultCache: {},
 
         _textResource: function (frameId, timestamp, callback) {
-            var url = 'https://assets.breinify.com/frame/' + frameId;
+            let url = 'https://assets.breinify.com/frame/' + frameId;
 
             if (typeof timestamp === 'number' && /^\d{10}$/.test(timestamp.toString())) {
                 url += '/' + timestamp;
@@ -38,14 +38,14 @@
         },
 
         textResource: function (frameId, timestamp, callback) {
-            var _self = this;
+            const _self = this;
 
             // make sure the timestamp is valid
             if (typeof timestamp !== 'number' || timestamp.toString().length !== 10) {
                 timestamp = null;
             }
 
-            var cacheKey = frameId + (timestamp === null ? '' : '/' + timestamp);
+            let cacheKey = frameId + (timestamp === null ? '' : '/' + timestamp);
             if ($.isPlainObject(this.resultCache[cacheKey])) {
                 callback(null, this.resultCache[cacheKey]);
             } else if (typeof this.resultCache[cacheKey] === 'boolean') {
@@ -83,7 +83,7 @@
 
         determineDataTagsResourceValue: function (frameId, group, item, callback) {
 
-            var _self = this;
+            const _self = this;
 
             if (typeof group !== 'string' || group.trim() === '' ||
                 typeof item !== 'string' || item.trim() === '') {
@@ -103,10 +103,10 @@
         },
 
         determineTextResourceValues: function (frameId, resourceType, resourceIds, callback, timestampInMs) {
-            var _self = this;
+            const _self = this;
 
-            var results = {};
-            var counter = 0;
+            let results = {};
+            let counter = 0;
             for (var i = 0; i < resourceIds.length; i++) {
                 _self._bindTextResourceValue(frameId, resourceType, resourceIds[i], function (resourceId, result, themeId) {
                     results[resourceId] = {
@@ -137,7 +137,7 @@
          * @param {number|optional} timestampInMs optional parameter which is used if themes are available (default: now)
          */
         determineTextResourceValue: function (frameId, resourceType, resourceId, callback, timestampInMs) {
-            var _self = this;
+            const _self = this;
 
             if (typeof resourceId !== 'string' || resourceId.trim() === '') {
                 callback(null, null);
@@ -156,7 +156,7 @@
         },
 
         registerNamedResourcesDataTagsObserver: function () {
-            var _self = this;
+            const _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesDataTagsObserver', {
                 selector: '[data-frameId][data-personalize-group][data-personalize-item][data-personalize-value][data-personalize-loaded!="true"]',
@@ -164,12 +164,12 @@
                     $els.each(function () {
 
                         // get the values from the element
-                        var $el = $(this);
-                        var frameId = $el.attr('data-frameId');
-                        var group = $el.attr('data-personalize-group');
-                        var item = $el.attr('data-personalize-item');
-                        var value = $el.attr('data-personalize-value');
-                        var modifications = value.split(/\s*,\s*/);
+                        let $el = $(this);
+                        let frameId = $el.attr('data-frameId');
+                        let group = $el.attr('data-personalize-group');
+                        let item = $el.attr('data-personalize-item');
+                        let value = $el.attr('data-personalize-value');
+                        let modifications = value.split(/\s*,\s*/);
 
                         _self.determineDataTagsResourceValue(frameId, group, item, function (error, dataTags) {
                             if (error === null) {
@@ -195,10 +195,10 @@
                 return false;
             }
 
-            var dataTags = this.extractDataTagsSettings(group, item, data);
+            let dataTags = this.extractDataTagsSettings(group, item, data);
 
             for (var i = 0; i < dataTags.length; i++) {
-                var dataTag = dataTags[i];
+                let dataTag = dataTags[i];
 
                 // make sure we have a valid dataTag
                 if (!$.isPlainObject(dataTag)) {
@@ -206,7 +206,7 @@
                 }
 
                 // check if we are on the right journey
-                var journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
+                let journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
                 if (journey !== null && !Journey.is(journey)) {
                     continue;
                 }
@@ -237,13 +237,13 @@
             }
 
             for (var i = 0; i < dataTags.length; i++) {
-                var dataTag = dataTags[i];
+                let dataTag = dataTags[i];
                 if (!$.isPlainObject(dataTag)) {
                     continue;
                 }
 
                 // check if we are on the right journey
-                var journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
+                let journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
                 if (journey !== null && !Journey.is(journey)) {
                     continue;
                 }
@@ -255,8 +255,8 @@
 
                 // apply the defined modifications
                 for (var k = 0; k < modifications.length; k++) {
-                    var modification = modifications[k];
-                    var modificationValue = typeof dataTag[modification] === 'undefined' ? null : dataTag[modification];
+                    let modification = modifications[k];
+                    let modificationValue = typeof dataTag[modification] === 'undefined' ? null : dataTag[modification];
 
                     this.applyDataTagsModification($el, modification, modificationValue);
                 }
@@ -296,16 +296,16 @@
         },
 
         registerNamedResourcesResourceObserver: function () {
-            var _self = this;
+            const _self = this;
 
             Breinify.UTL.dom.addModification('assets::namedResourcesResourceObserver', {
                 selector: '[data-frameId][data-resourceType][data-resourceId][data-resourceLoaded!="true"]',
                 modifier: function ($els) {
                     $els.each(function () {
-                        var $el = $(this);
-                        var frameId = $el.attr('data-frameId');
-                        var resourceType = $el.attr('data-resourceType');
-                        var resourceId = $el.attr('data-resourceId');
+                        let $el = $(this);
+                        let frameId = $el.attr('data-frameId');
+                        let resourceType = $el.attr('data-resourceType');
+                        let resourceId = $el.attr('data-resourceId');
 
                         _self.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
                             _self.applyResourceModification($el, result);
@@ -316,7 +316,7 @@
         },
 
         applyResourceModification: function ($el, result) {
-            var value = typeof result === 'string' && result.trim() !== '' ? result : null;
+            let value = typeof result === 'string' && result.trim() !== '' ? result : null;
 
             if ($el.is('img')) {
                 value = value === null ? $el.attr('data-fallbackSrc') : value;
@@ -333,16 +333,16 @@
 
         extractDataTagsSettings: function (group, item, data, callback) {
             data = $.isPlainObject(data) ? data : {};
-            var allDataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
+            let allDataTags = $.isPlainObject(data['data-tags']) ? data['data-tags'] : {};
 
             // determine the group, if there is a separator we have to split and determine by sub-groups
-            var dataGroup;
+            let dataGroup;
             if (group.indexOf('.') > 0) {
                 dataGroup = allDataTags;
 
-                var subGroups = group.split('\.');
+                let subGroups = group.split('\.');
                 for (var i = 0; i < subGroups.length; i++) {
-                    var subGroup = subGroups[i];
+                    let subGroup = subGroups[i];
                     if ($.isPlainObject(dataGroup[subGroup])) {
                         dataGroup = dataGroup[subGroup];
                     } else {
@@ -354,7 +354,7 @@
                 dataGroup = $.isPlainObject(allDataTags[group]) ? allDataTags[group] : {};
             }
 
-            var dataTags;
+            let dataTags;
             if ($.isArray(dataGroup[item])) {
                 dataTags = dataGroup[item];
             } else if ($.isPlainObject(dataGroup[item])) {
@@ -372,13 +372,13 @@
         },
 
         parseDate: function (strDate) {
-            var parts = strDate.split('\/');
+            let parts = strDate.split('\/');
 
-            var year = parseInt(parts[0]);
-            var month = parseInt(parts[1]);
-            var day = parseInt(parts[2]);
+            let year = parseInt(parts[0]);
+            let month = parseInt(parts[1]);
+            let day = parseInt(parts[2]);
 
-            var date = new Date();
+            let date = new Date();
             date.setFullYear(year);
             date.setMonth(month - 1);
             date.setDate(day);
@@ -391,13 +391,13 @@
         },
 
         parseDateTime: function (strDate, strTime) {
-            var timestamp = this.parseDate(strDate);
-            var date = new Date(timestamp * 1000);
+            let timestamp = this.parseDate(strDate);
+            let date = new Date(timestamp * 1000);
 
-            var parts = strTime.split(':');
-            var hours = parseInt(parts[0]);
-            var minutes = parseInt(parts[1]);
-            var seconds = parseInt(parts[2]);
+            let parts = strTime.split(':');
+            let hours = parseInt(parts[0]);
+            let minutes = parseInt(parts[1]);
+            let seconds = parseInt(parts[2]);
 
             date.setHours(hours);
             date.setMinutes(minutes);
@@ -409,18 +409,18 @@
 
         extractResource: function (timestampInMs, resourceType, resourceId, data, callback) {
 
-            var timestamp;
+            let timestamp;
             if (typeof timestampInMs === 'number') {
                 timestamp = Math.floor(timestampInMs / 1000);
             } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
                 try {
-                    var assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
+                    let assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
                     if (/^[0-9]+$/.test(assetTimestamp)) {
                         timestamp = parseInt(assetTimestamp);
                     } else if (/^[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}$/.test(assetTimestamp)) {
                         timestamp = this.parseDate(assetTimestamp);
                     } else if (/^[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}[_\- ][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$/.test(assetTimestamp)) {
-                        var parts = assetTimestamp.split(/[_\- ]/);
+                        let parts = assetTimestamp.split(/[_\- ]/);
                         timestamp = this.parseDateTime(parts[0], parts[1]);
                     }
                 } catch (e) {
@@ -432,14 +432,14 @@
 
             // determine which theme to use:
             //  - a theme is a higher level object which has a [start, end) defined in which it's valid
-            var themeIds;
+            let themeIds;
             if ($.isPlainObject(data.themes)) {
-                var themeId = null;
-                var themes = Object.keys(data.themes);
+                let themeId = null;
+                let themes = Object.keys(data.themes);
                 for (var i = 0, lenThemes = themes.length; i < lenThemes; i++) {
-                    var theme = data.themes[themes[i]];
-                    var start = typeof theme.start === 'number' ? theme.start : null;
-                    var end = typeof theme.end === 'number' ? theme.end : null;
+                    let theme = data.themes[themes[i]];
+                    let start = typeof theme.start === 'number' ? theme.start : null;
+                    let end = typeof theme.end === 'number' ? theme.end : null;
 
                     if (start === null) {
                         // nothing to do
@@ -466,18 +466,18 @@
             }
 
             for (var k = 0, lenThemeIds = themeIds.length; k < lenThemeIds; k++) {
-                var possibleThemeId = themeIds[k];
-                var possibleTheme = possibleThemeId === null ? data : data.themes[possibleThemeId];
+                let possibleThemeId = themeIds[k];
+                let possibleTheme = possibleThemeId === null ? data : data.themes[possibleThemeId];
                 if (!$.isPlainObject(possibleTheme)) {
                     continue;
                 }
 
-                var possibleResource = possibleTheme[resourceType];
+                let possibleResource = possibleTheme[resourceType];
                 if (!$.isPlainObject(possibleResource)) {
                     continue;
                 }
 
-                var possibleResult = possibleResource[resourceId];
+                let possibleResult = possibleResource[resourceId];
                 if (typeof possibleResult !== 'undefined' && possibleResult !== null &&
                     (typeof possibleResult !== 'string' || possibleResult.trim() !== '')) {
                     callback(possibleResult, possibleThemeId);
@@ -490,12 +490,12 @@
         }
     };
 
-    var Assets = {
+    const Assets = {
 
         applyResourceModification: function ($el) {
-            var frameId = $el.attr('data-frameId');
-            var resourceType = $el.attr('data-resourceType');
-            var resourceId = $el.attr('data-resourceId');
+            let frameId = $el.attr('data-frameId');
+            let resourceType = $el.attr('data-resourceType');
+            let resourceId = $el.attr('data-resourceId');
 
             _private.determineTextResourceValue(frameId, resourceType, resourceId, function (result, themeId) {
                 _private.applyResourceModification($el, result);
@@ -504,12 +504,12 @@
 
         applyDataTagsModifications: function ($el, dataTags) {
 
-            var group = $el.attr('data-personalize-group');
-            var item = $el.attr('data-personalize-item');
-            var value = $el.attr('data-personalize-value');
-            var modifications = value.split(/\s*,\s*/);
+            let group = $el.attr('data-personalize-group');
+            let item = $el.attr('data-personalize-item');
+            let value = $el.attr('data-personalize-value');
+            let modifications = value.split(/\s*,\s*/);
 
-            var extractedDataTags = _private.extractDataTagsSettings(group, item, dataTags);
+            let extractedDataTags = _private.extractDataTagsSettings(group, item, dataTags);
             _private.applyDataTagsModifications($el, extractedDataTags, modifications);
 
             // show it if marked
@@ -572,7 +572,7 @@
     };
 
     // bind the module
-    var BoundAssets = Breinify.plugins._add('assets', Assets);
+    const BoundAssets = Breinify.plugins._add('assets', Assets);
 
     // bind the observation if configured and Breinify is ready
     Breinify.onReady(function () {

@@ -10,16 +10,15 @@
     }
 
     // bind the jQuery default object $
-    var $ = Breinify.UTL._jquery();
-    var overload = Breinify.plugins._overload();
+    const $ = Breinify.UTL._jquery();
 
-    var storageKey = 'br::journey';
-    var maxSize = 20;
-    var _private = {
+    const storageKey = 'br::journey';
+    const maxSize = 20;
+    const _private = {
         currentJourney: [],
 
         init: function () {
-            var storedValue = window.sessionStorage.getItem(storageKey);
+            let storedValue = window.sessionStorage.getItem(storageKey);
             if (typeof storedValue === 'string') {
                 try {
                     this.currentJourney = JSON.parse(storedValue);
@@ -43,10 +42,10 @@
 
         handleClick: function ($el, utilizeDataTags) {
 
-            var group = utilizeDataTags ? $el.attr('data-journey-group') : undefined;
-            var item = utilizeDataTags ? $el.attr('data-journey-item') : undefined;
+            let group = utilizeDataTags ? $el.attr('data-journey-group') : undefined;
+            let item = utilizeDataTags ? $el.attr('data-journey-item') : undefined;
 
-            var entry = {
+            let entry = {
                 path: window.location.pathname,
                 group: typeof group === 'string' && group.trim() !== '' ? group : undefined,
                 item: typeof item === 'string' && item.trim() !== '' ? item : undefined
@@ -56,7 +55,7 @@
         },
 
         registerTracker: function (trackJourney, trackAnchors) {
-            var _self = this;
+            const _self = this;
 
             if (trackJourney === true) {
                 Breinify.UTL.dom.addModification('journey::dataTagTracker', {
@@ -65,7 +64,7 @@
                         $els.each(function () {
 
                             // get the values from the element
-                            var $el = $(this);
+                            let $el = $(this);
                             $el.attr('data-journey-set', 'true').click(function () {
                                 _self.handleClick($(this), true);
                             });
@@ -81,7 +80,7 @@
                         $els.each(function () {
 
                             // get the values from the element
-                            var $el = $(this);
+                            let $el = $(this);
                             $el.attr('data-journey-set', 'true').click(function () {
                                 _self.handleClick($(this), false);
                             });
@@ -92,7 +91,7 @@
         },
 
         is: function (entry, matchByPath, matchByDataTag) {
-            var length = this.currentJourney.length;
+            let length = this.currentJourney.length;
 
             if (length === 0) {
                 return false;
@@ -108,7 +107,7 @@
                 return false
             }
 
-            var lastEntry = this.currentJourney[length - 1];
+            let lastEntry = this.currentJourney[length - 1];
             return (matchByPath && $.inArray(lastEntry.path, entry) > -1) ||
                 (matchByDataTag && $.inArray(lastEntry.group + '::' + lastEntry.item, entry) > -1);
         }
@@ -117,7 +116,7 @@
     // initialize the journey
     _private.init();
 
-    var Journey = {
+    const Journey = {
 
         observeJourneyElements: function (options) {
             options = $.extend({
@@ -140,7 +139,7 @@
     };
 
     // bind the module
-    var BoundJourney = Breinify.plugins._add('journey', Journey);
+    const BoundJourney = Breinify.plugins._add('journey', Journey);
 
     // bind the observation if configured and Breinify is ready
     Breinify.onReady(function () {
