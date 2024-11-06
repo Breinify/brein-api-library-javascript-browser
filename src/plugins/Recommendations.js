@@ -74,29 +74,29 @@
             }
         },
 
-        _appendContainer: function (options) {
+        _appendContainer: function (option) {
 
             // no position defined to append
-            if (!$.isPlainObject(options) || !$.isPlainObject(options.position)) {
+            if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
                 return null;
             }
 
             let method = null;
             let selector = null;
-            if (options.position.before !== null) {
-                selector = options.position.before;
+            if (option.position.before !== null) {
+                selector = option.position.before;
                 method = 'before';
-            } else if (options.position.after !== null) {
+            } else if (option.position.after !== null) {
                 selector = options.position.after;
                 method = 'after';
-            } else if (options.position.append !== null) {
-                selector = options.position.append;
+            } else if (option.position.append !== null) {
+                selector = option.position.append;
                 method = 'append';
-            } else if (options.position.prepend !== null) {
-                selector = options.position.prepend;
+            } else if (option.position.prepend !== null) {
+                selector = option.position.prepend;
                 method = 'prepend';
-            } else if (options.position.replace !== null) {
-                selector = options.position.replace;
+            } else if (option.position.replace !== null) {
+                selector = option.position.replace;
                 method = 'replace';
             }
 
@@ -105,7 +105,7 @@
                 return null;
             }
 
-            let container = this._determineSelector(options.templates.container);
+            let container = this._determineSelector(option.templates.container);
             if (container === null) {
                 return null;
             }
@@ -117,15 +117,17 @@
             return container;
         },
 
-        _appendItems: function ($container, result, options) {
+        _appendItems: function ($container, result, option) {
 
-            let $item = this._determineSelector(options.templates.item);
+            let $item = this._determineSelector(option.templates.item);
             if ($item === null) {
                 return null;
             }
 
-
-            $item.clone();
+            $.each(result.recommendations, function (idx, recommendation) {
+                let $recItem = $item.clone();
+                $container.append($recItem);
+            });
         }
     };
 
@@ -207,6 +209,8 @@
 
                 // we fire each error method
                 $.each(options, function (name, option) {
+
+                    // TODO: maybe better error handling and into object
                     Renderer._process(option.process.error, error);
                 });
 
@@ -216,8 +220,31 @@
             // fire each named recommendation, with the option
             $.each(options, function (name, option) {
                 let result = data[name];
-                _self._renderRecommendation(option, result);
+
+                if (!$.isPlainObject(result)) {
+                    Renderer._process(option.process.error, {
+                        code: -1,
+                        error: true,
+                        message: 'unexpected result-type received',
+                        name: name,
+                        result: result
+                    });
+                } else if (result.error === true) {
+                    Renderer._process(option.process.error, $.extend({
+                        name: name,
+                        result: result
+                    }, result.status));
+                } else if (result.splitTestData.isControl === true) {
+                    _self._applyBindings(option, result);
+                } else {
+                    _self._renderRecommendation(option, result);
+                    _self._applyBindings(option, result);
+                }
             });
+        },
+
+        _applyBindings: function (option, data) {
+            // TODO: implement
         },
 
         _renderRecommendation: function (option, data) {
