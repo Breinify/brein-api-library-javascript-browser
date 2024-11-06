@@ -53,7 +53,7 @@
     const Renderer = {
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
-                func(args);
+                func(...args);
                 return true;
             } else {
                 return false;
