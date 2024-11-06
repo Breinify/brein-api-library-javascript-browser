@@ -148,6 +148,8 @@
             $recItem.children().each(function () {
                 _self._replacePlaceholders($(this), recommendation, option);
             });
+
+            return $recItem;
         }
     };
 
