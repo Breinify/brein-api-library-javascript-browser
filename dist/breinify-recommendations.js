@@ -110,9 +110,8 @@
                 return null;
             }
 
-            method = selector[method];
-            if ($.isFunction(method)) {
-                method(container);
+            if ($.isFunction(selector[method])) {
+                selector[method](container);
             }
 
             return container;
