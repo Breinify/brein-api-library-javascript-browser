@@ -143,9 +143,10 @@
             $entry.contents().filter(function () {
                 return this.nodeType === 3; // Node.TEXT_NODE
             }).each(function () {
-                var $el = $(this);
+                const $el = $(this);
+                const replaced = _self._replace($el.text(), recommendation, option);
 
-                let replaced = _self._replace($el.text(), recommendation, option);
+                console.log('found: ', $el.text(), replaced);
                 if (replaced !== null) {
                     $el.text(replaced);
                 }
@@ -154,7 +155,7 @@
             // check the attributes
             let attributes = $entry.get(0).attributes;
             $.each(attributes, function (idx, attribute) {
-                let replaced = _self._replace(attribute.value, recommendation, option);
+                const replaced = _self._replace(attribute.value, recommendation, option);
                 if (replaced !== null) {
                     $entry.attr(attribute.name, replaced);
                 }
@@ -178,7 +179,7 @@
          * @private
          */
         _replace: function (value, recommendation, option) {
-            if (typeof value !== 'string') {
+            if (typeof value !== 'string' || value.trim() === '') {
                 return null;
             }
 
