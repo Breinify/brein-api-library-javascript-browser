@@ -146,9 +146,8 @@
                 const $el = $(this);
                 const replaced = _self._replace($el.text(), recommendation, option);
 
-                console.log('found: ', $el.text(), replaced);
                 if (replaced !== null) {
-                    $el.text(replaced);
+                    $el.replaceWith(replaced);
                 }
             });
 

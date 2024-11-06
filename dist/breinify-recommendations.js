@@ -148,7 +148,7 @@
 
                 console.log('found: ', $el.text(), replaced);
                 if (replaced !== null) {
-                    $el.text(replaced);
+                    $el.replaceWith(replaced);
                 }
             });
 
