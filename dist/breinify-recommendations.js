@@ -26,7 +26,7 @@
             append: null,
             replace: null
         },
-        defaults: {},
+        placeholders: {},
         templates: {
             container: null,
             item: null
@@ -35,16 +35,19 @@
             error: function (error) {
                 // ignore
             },
-            init: function (payload) {
+            init: function (option) {
                 // nothing to initialize
             },
-            pre: function (data) {
+            pre: function (data, option) {
                 // nothing to execute on pre
             },
-            attached: function (data, $container) {
+            attachedItem: function ($itemContainer, $item, data, option) {
                 // nothing to execute after attachment
             },
-            post: function (data) {
+            attached: function ($container, $itemContainer, data, option) {
+                // nothing to execute after attachment
+            },
+            post: function ($container, $itemContainer, data, option) {
                 // nothing to execute after rendering is complete
             }
         }
@@ -118,6 +121,7 @@
         },
 
         _appendItems: function ($container, result, option) {
+            const _self = this;
 
             let $item = this._determineSelector(option.templates.item);
             if ($item === null) {
@@ -125,10 +129,24 @@
             }
 
             $.each(result.recommendations, function (idx, recommendation) {
-                let $recItem = $item.clone();
-
+                let $recItem = _self._replacePlaceholders($item.clone(), recommendation, option);
 
                 $container.append($recItem);
+                Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
+            });
+        },
+
+        _replacePlaceholders: function ($recItem, recommendation, option) {
+            const _self = this;
+
+            console.log($recItem);
+            let attributes = $recItem.attributes();
+            for (let attribute in attributes) {
+                console.log(attribute);
+            }
+
+            $recItem.children().each(function () {
+                _self._replacePlaceholders($(this), recommendation, option);
             });
         }
     };
@@ -195,7 +213,7 @@
             const options = {};
             $.each(renderOptions, function (name, renderOption) {
                 let option = $.extend(true, {}, defaultRenderOption, renderOption);
-                Renderer._process(option.process.init);
+                Renderer._process(option.process.init, option);
 
                 options[name] = option;
             });
@@ -255,13 +273,17 @@
 
             // append the container element
             let $container = Renderer._appendContainer(option);
+            let $itemContainer = $container.find('.br-rec-item-container');
+            if ($itemContainer.length === 0) {
+                $itemContainer = $container;
+            }
 
             // and append the children for each result
-            Renderer._appendItems($container, data, option);
+            Renderer._appendItems($itemContainer, data, option);
 
-            Renderer._process(option.process.attached, $container, data, option);
+            Renderer._process(option.process.attached, $container, $itemContainer, data, option);
 
-            Renderer._process(option.process.post, $container, data, option);
+            Renderer._process(option.process.post, $container, $itemContainer, data, option);
         },
 
         _retrieveRecommendations: function (payloads, callback) {
@@ -284,7 +306,7 @@
             let allRecommendationResults = {};
 
             // let's map the responses to a more readable way
-            for (var i = 0; i < results.length; i++) {
+            for (let i = 0; i < results.length; i++) {
                 let payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
                 let result = results[i];
 
