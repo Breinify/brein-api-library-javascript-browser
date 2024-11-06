@@ -14053,8 +14053,8 @@ dependencyScope.jQuery = $;;
                 let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie)) {
-                    this.browserId = storage.anonymousIdStorage.get(cookie);
+                } else if (storage.anonymousIdStorage.check(cookie, false)) {
+                    this.browserId = storage.anonymousIdStorage.get(cookie, false);
                 } else {
                     this.browserId = BreinifyUtil.uuid();
                     storage.anonymousIdStorage.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
@@ -14068,8 +14068,8 @@ dependencyScope.jQuery = $;;
 
                 if (this.sessionId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie)) {
-                    this.sessionId = storage.anonymousIdStorage.get(cookie);
+                } else if (storage.anonymousIdStorage.check(cookie, true)) {
+                    this.sessionId = storage.anonymousIdStorage.get(cookie, true);
                 } else {
                     this.resetSessionId(false);
                 }
@@ -14844,39 +14844,48 @@ dependencyScope.jQuery = $;;
                 BreinifyUtil.cookie.set(cookie, value, expiration, secure, domain);
             }
         },
-        localStorage: {
-            check: function (name) {
-                return this._extractValue(name) !== null;
+        browserStorage: {
+            check: function (name, session) {
+                return this._extractValue(name, session) !== null;
             },
-            get: function (name) {
-                return this._extractValue(name);
+            get: function (name, session) {
+                return this._extractValue(name, session);
             },
             set: function (name, value, expiration) {
-                if (value === null || typeof value === 'undefined' || typeof expiration !== 'number' || expiration <= 0) {
+                if (value === null || typeof value === 'undefined') {
                     window.localStorage.removeItem(name);
-                } else {
+                } else if (expiration === null) {
+                    window.sessionStorage.setItem(name, value);
+                } else if (typeof expiration === 'number' && expiration > 0) {
+
                     const json = JSON.stringify({
                         v: value,
                         exp: new Date().getTime() + (expiration * 24 * 60 * 60 * 1000)
                     });
 
                     window.localStorage.setItem(name, json);
+                } else {
+                    window.localStorage.removeItem(name);
                 }
             },
-            _extractValue: function (name) {
-                const json = window.localStorage.getItem(name);
+            _extractValue: function (name, session) {
+                if (session === true) {
+                    return window.sessionStorage.getItem(name);
+                } else {
 
-                try {
-                    const obj = JSON.parse(json);
+                    const json = window.localStorage.getItem(name);
+                    try {
+                        const obj = JSON.parse(json);
 
-                    if (obj.exp < new Date().getTime() || typeof obj.v === 'undefined' || obj.v === null) {
-                        window.localStorage.removeItem(name);
+                        if (obj.exp < new Date().getTime() || typeof obj.v === 'undefined' || obj.v === null) {
+                            window.localStorage.removeItem(name);
+                            return null;
+                        } else {
+                            return obj.v;
+                        }
+                    } catch (e) {
                         return null;
-                    } else {
-                        return obj.v;
                     }
-                } catch (e) {
-                    return null;
                 }
             }
         }
@@ -14885,8 +14894,10 @@ dependencyScope.jQuery = $;;
     try {
         window.localStorage.setItem('br-local-storage-test', 'true');
         window.localStorage.removeItem('br-local-storage-test');
+        window.sessionStorage.setItem('br-session-storage-test', 'true');
+        window.sessionStorage.removeItem('br-session-storage-test');
 
-        storage.anonymousIdStorage = anonymousIdStorage.localStorage;
+        storage.anonymousIdStorage = anonymousIdStorage.browserStorage;
     } catch (e) {
         storage.anonymousIdStorage = anonymousIdStorage.cookieStorage;
     }
