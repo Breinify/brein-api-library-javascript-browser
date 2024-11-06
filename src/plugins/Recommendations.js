@@ -139,12 +139,20 @@
         _replacePlaceholders: function ($recItem, recommendation, option) {
             const _self = this;
 
-            console.log($recItem);
-            let attributes = $recItem.get(0).attributes;
-            for (let attribute in attributes) {
-                console.log(attribute);
-            }
+            // check the text
+            $recItem.contents().filter(function() {
+                return this.nodeType === 3; // Node.TEXT_NODE
+            }).each(function() {
+                console.log('text' + $(this).text());
+            });
 
+            // check the attributes
+            let attributes = $recItem.get(0).attributes;
+            $.each(attributes, function (idx, attribute) {
+                console.log('attribute ' + attribute.name + ': ' + attribute.value);
+            });
+
+            // check also each child
             $recItem.children().each(function () {
                 _self._replacePlaceholders($(this), recommendation, option);
             });
