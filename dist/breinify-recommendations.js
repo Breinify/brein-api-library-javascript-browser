@@ -12,25 +12,24 @@
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
 
-    const notSet = {notSet:true};
     const defaultRenderOptions = {
         splitTests: {
             control: {
-                itemSelector: notSet,
-                containerSelector: notSet
+                itemSelector: null,
+                containerSelector: null
             }
         },
         position: {
-            before: notSet,
-            after: notSet,
-            prepend: notSet,
-            append: notSet,
-            replace: notSet
+            before: null,
+            after: null,
+            prepend: null,
+            append: null,
+            replace: null
         },
         defaults: {},
         templates: {
-            container: notSet,
-            item: notSet
+            container: null,
+            item: null
         },
         process: {
             error: function (error) {
@@ -84,19 +83,19 @@
 
             let method = null;
             let selector = null;
-            if (options.position.before !== notSet) {
+            if (options.position.before !== null) {
                 selector = options.position.before;
                 method = 'before';
-            } else if (options.position.after !== notSet) {
+            } else if (options.position.after !== null) {
                 selector = options.position.after;
                 method = 'after';
-            } else if (options.position.append !== notSet) {
+            } else if (options.position.append !== null) {
                 selector = options.position.append;
                 method = 'append';
-            } else if (options.position.prepend !== notSet) {
+            } else if (options.position.prepend !== null) {
                 selector = options.position.prepend;
                 method = 'prepend';
-            } else if (options.position.replace !== notSet) {
+            } else if (options.position.replace !== null) {
                 selector = options.position.replace;
                 method = 'replace';
             }
