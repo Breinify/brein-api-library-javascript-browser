@@ -107,21 +107,18 @@
             domain: function () { return null; }
         },
         cookies: {
-            assignedGroup: 'x-breinify-ag',
             sessionId: 'x-breinify-uuid',
             browserId: 'x-breinify-bid',
             delayedActivities: 'x-breinify-delayed'
         },
         user: {
-            assignedGroup: null,
             sessionId: null,
             browserId: null,
             create: function() { return {}; },
             getBrowserId: function() { return null; },
             getSessionId: function() { return null; },
             getMarkerSessionId: function() { return null; },
-            resetSessionId: function() { return null; },
-            getAssignedGroup: function() { return null; }
+            resetSessionId: function() { return null; }
         },
         events: {
             observerInterval: null,

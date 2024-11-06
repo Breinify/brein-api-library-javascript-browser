@@ -13116,7 +13116,8 @@ dependencyScope.jQuery = $;;
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'AttributeCollection', AttributeCollection, true);
 }(window, dependencyScope);;
-//noinspection JSUnresolvedVariable
+// noinspection JSUnusedGlobalSymbols,JSUnresolvedReference
+
 /**
  * The method has two scopes, the global scope (typically window),
  * and the dependency scope. Within the dependency scope all the
@@ -13126,12 +13127,16 @@ dependencyScope.jQuery = $;;
     "use strict";
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'BreinifyUtil', true)) {
         return;
     }
 
-    var _private = {
+    const storage = {
+        anonymousIdStorage: null
+    };
+
+    const _private = {
         parseNumber: function (value) {
             if (/^[-+]?(?:\d+(?:\.\d+)?|Infinity)$/.test(value)) {
                 return Number(value);
@@ -13161,15 +13166,15 @@ dependencyScope.jQuery = $;;
         determineText: function (el, onlyInline) {
             onlyInline = typeof onlyInline === 'boolean' ? onlyInline : false;
 
-            var content = null;
+            let content = null;
             if (el.nodeType === 1) {
-                var $el = $(el);
-                var display = $el.css('display');
+                let $el = $(el);
+                let display = $el.css('display');
 
                 if ($el.is('br')) {
                     content = this.append(content, '\n');
                 } else if ($el.is('input')) {
-                    var type = $el.attr('type');
+                    let type = $el.attr('type');
                     type = typeof type === 'string' ? type.toLowerCase() : null;
 
                     if ('radio' === type) {
@@ -13213,11 +13218,11 @@ dependencyScope.jQuery = $;;
             modifications: {},
 
             init: function () {
-                var _self = this;
+                const _self = this;
 
-                this.mutationObserver = new MutationObserver(function (mutations, observer) {
-                    for (var i = 0; i < mutations.length; i++) {
-                        for (var k = 0; k < mutations[i].addedNodes.length; k++) {
+                this.mutationObserver = new MutationObserver(function (mutations) {
+                    for (let i = 0; i < mutations.length; i++) {
+                        for (let k = 0; k < mutations[i].addedNodes.length; k++) {
                             _self.checkModifications($(mutations[i].addedNodes[k]));
                         }
                     }
@@ -13228,7 +13233,7 @@ dependencyScope.jQuery = $;;
                 });
 
                 // if we have the html already, let's check the modifications
-                var $html = $('html');
+                let $html = $('html');
                 if ($html.length > 0) {
                     this.checkModifications($html);
                 }
@@ -13265,7 +13270,7 @@ dependencyScope.jQuery = $;;
             },
 
             checkModifications: function ($modifiedNode) {
-                var _self = this;
+                const _self = this;
                 $.each(this.modifications, function (name, modification) {
                     _self.checkModification($modifiedNode, name, modification);
                 });
@@ -13273,7 +13278,7 @@ dependencyScope.jQuery = $;;
 
             checkModification: function ($modifiedNode, name, modification) {
 
-                var $el = $modifiedNode
+                let $el = $modifiedNode
                     .find(modification.selector)
                     .addBack(modification.selector);
 
@@ -13286,7 +13291,7 @@ dependencyScope.jQuery = $;;
                 }
 
                 // get the current applied modifiers
-                var appliedModifier = $el.attr('data-applied-modifier');
+                let appliedModifier = $el.attr('data-applied-modifier');
                 appliedModifier = typeof appliedModifier === 'string' ? JSON.parse(appliedModifier) : [];
                 if ($.inArray(name, appliedModifier) !== -1) {
                     return;
@@ -13299,11 +13304,11 @@ dependencyScope.jQuery = $;;
             },
 
             parseClasses: function (classes) {
-                var classList = classes.split(/\s+/);
+                let classList = classes.split(/\s+/);
 
-                var normalizedClasses = [];
-                for (var i = 0; i < classList.length; i++) {
-                    var classEntry = classList[i].trim();
+                let normalizedClasses = [];
+                for (let i = 0; i < classList.length; i++) {
+                    let classEntry = classList[i].trim();
                     if (classEntry === '') {
                         continue;
                     } else if ($.inArray(classEntry, normalizedClasses) > -1) {
@@ -13318,8 +13323,8 @@ dependencyScope.jQuery = $;;
 
             diffClasses: function (cl1, cl2) {
 
-                var diff = [];
-                for (var i = 0; i < cl1.length; i++) {
+                let diff = [];
+                for (let i = 0; i < cl1.length; i++) {
                     if ($.inArray(cl1[i], cl2) > -1) {
                         continue;
                     }
@@ -13331,19 +13336,19 @@ dependencyScope.jQuery = $;;
             },
 
             addClassChangeObserver: function ($el, callback) {
-                var _self = this;
+                const _self = this;
 
                 $el.each(function () {
 
-                    new MutationObserver(function (mutations, observer) {
+                    new MutationObserver(function (mutations) {
 
-                        for (var i = 0; i < mutations.length; i++) {
-                            var mutation = mutations[i];
-                            var newClasses = _self.parseClasses(mutation.target.className);
-                            var oldClasses = _self.parseClasses(mutation.oldValue);
+                        for (let i = 0; i < mutations.length; i++) {
+                            let mutation = mutations[i];
+                            let newClasses = _self.parseClasses(mutation.target.className);
+                            let oldClasses = _self.parseClasses(mutation.oldValue);
 
-                            var addedClasses = _self.diffClasses(newClasses, oldClasses);
-                            var removedClasses = _self.diffClasses(oldClasses, newClasses);
+                            let addedClasses = _self.diffClasses(newClasses, oldClasses);
+                            let removedClasses = _self.diffClasses(oldClasses, newClasses);
 
                             callback(null, {
                                 el: $(mutation.target),
@@ -13370,14 +13375,13 @@ dependencyScope.jQuery = $;;
         }
     };
 
-    var BreinifyUtil = {
+    const BreinifyUtil = {
 
         _init: function () {
             _private.domObserver.init();
         },
 
         cookies: {
-            assignedGroup: 'x-breinify-ag',
             sessionId: 'x-breinify-uuid',
             browserId: 'x-breinify-bid',
             delayedActivities: 'x-breinify-delayed'
@@ -13406,7 +13410,7 @@ dependencyScope.jQuery = $;;
                 }
 
                 // determine if we have passed parameters with the message, or we should check the unknowns
-                var params;
+                let params;
                 if (typeof message === 'string') {
                     params = [].slice.call(arguments, 1);
                 } else {
@@ -13484,7 +13488,7 @@ dependencyScope.jQuery = $;;
 
             parseGetParameter: function (name, value) {
 
-                var base64;
+                let base64;
                 if (typeof value !== 'string') {
                     return null;
                 } else if (value.charAt(0) === '.') {
@@ -13508,7 +13512,7 @@ dependencyScope.jQuery = $;;
                 // if the url is not passed in we use a special decoding for HTML entities
                 // to avoid this, just pass in the url
                 if (typeof url !== 'string') {
-                    var decoder = document.createElement('textarea');
+                    let decoder = document.createElement('textarea');
                     decoder.innerHTML = this.url();
                     url = decoder.value;
                 }
@@ -13517,23 +13521,23 @@ dependencyScope.jQuery = $;;
                 paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
                 paramSplit = typeof paramSplit === 'string' ? paramSplit : '=';
 
-                var paramListSeparatorPos = url.indexOf(paramListSeparator);
+                let paramListSeparatorPos = url.indexOf(paramListSeparator);
                 if (paramListSeparatorPos < 0) {
                     return {};
                 }
 
-                var paramsUrl = url.substring(paramListSeparatorPos + 1);
-                var paramStrs = paramsUrl.split(paramSeparator);
+                let paramsUrl = url.substring(paramListSeparatorPos + 1);
+                let paramStrs = paramsUrl.split(paramSeparator);
                 if (paramStrs.length === 0) {
                     return {};
                 }
 
-                var result = {};
-                for (var i = 0; i < paramStrs.length; i++) {
-                    var paramStr = paramStrs[i];
-                    var paramVals = paramStr.split(paramSplit);
+                let result = {};
+                for (let i = 0; i < paramStrs.length; i++) {
+                    let paramStr = paramStrs[i];
+                    let paramVals = paramStr.split(paramSplit);
 
-                    var paramName = decodeURIComponent(paramVals[0]);
+                    let paramName = decodeURIComponent(paramVals[0]);
 
                     if (paramVals.length === 2) {
                         result[paramName] = decodeURIComponent(paramVals[1]);
@@ -13546,7 +13550,7 @@ dependencyScope.jQuery = $;;
             },
 
             hasParam: function (param, paramListSeparator, paramSeparator, paramSplit, url) {
-                var params = this.params(paramListSeparator, paramSeparator, paramSplit, url);
+                let params = this.params(paramListSeparator, paramSeparator, paramSplit, url);
 
                 return this.isParam(param, params);
             },
@@ -13556,17 +13560,17 @@ dependencyScope.jQuery = $;;
             },
 
             paramIs: function (expected, param, paramListSeparator, paramSeparator, paramSplit, url) {
-                var parsedParam = this.parsedParam(typeof expected, param, paramListSeparator, paramSeparator, paramSplit, url);
+                let parsedParam = this.parsedParam(typeof expected, param, paramListSeparator, paramSeparator, paramSplit, url);
                 return parsedParam === expected;
             },
 
             parsedParam: function (expectedType, param, paramListSeparator, paramSeparator, paramSplit, url) {
-                var value = this.param(param, paramListSeparator, paramSeparator, paramSplit, url);
+                let value = this.param(param, paramListSeparator, paramSeparator, paramSplit, url);
 
                 if (value === null) {
                     return null;
                 } else {
-                    var parsed;
+                    let parsed;
                     if (expectedType === 'string') {
                         parsed = value;
                     } else if (expectedType === 'number') {
@@ -13588,7 +13592,7 @@ dependencyScope.jQuery = $;;
             },
 
             param: function (param, paramListSeparator, paramSeparator, paramSplit, url) {
-                var params = this.params(paramListSeparator, paramSeparator, paramSplit, url);
+                let params = this.params(paramListSeparator, paramSeparator, paramSplit, url);
 
                 if (this.isParam(param, params)) {
                     return params[param];
@@ -13602,8 +13606,8 @@ dependencyScope.jQuery = $;;
             },
 
             extract: function (url) {
-                var urlRegEx = /^(?:(https?):\/)?\/?(?:([\-\w]+):([\-\w]+)@)?([^:\/\s]+)(?::(\d+))?((?:\/[\-\w]+)*\/(?:[\w()\-.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
-                var match = urlRegEx.exec(url);
+                let urlRegEx = /^(?:(https?):\/)?\/?(?:([\-\w]+):([\-\w]+)@)?([^:\/\s]+)(?::(\d+))?((?:\/[\-\w]+)*\/(?:[\w()\-.]+[^#?\s]?)?)?((?:.*)?(?:#[\w\-]+)?)$/g;
+                let match = urlRegEx.exec(url);
 
                 if (match === null) {
                     return null;
@@ -13636,24 +13640,24 @@ dependencyScope.jQuery = $;;
              * @returns {object} the found cookies
              */
             all: function () {
-                var strCookie = document.cookie;
+                let strCookie = document.cookie;
 
-                var result = {};
+                let result = {};
                 if ('' !== strCookie.trim()) {
-                    var cookies = strCookie.split(';');
+                    let cookies = strCookie.split(';');
 
-                    for (var i = 0; i < cookies.length; i++) {
-                        var cookie = cookies[i];
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i];
 
                         while (cookie.charAt(0) === ' ') {
                             cookie = cookie.substring(1);
                         }
 
-                        var sepPosition = cookie.indexOf('=');
+                        let sepPosition = cookie.indexOf('=');
                         if (sepPosition < 0) {
                             result[cookie] = null;
                         } else {
-                            var name = cookie.substring(0, sepPosition);
+                            let name = cookie.substring(0, sepPosition);
                             result[name] = cookie.substring(sepPosition + 1, cookie.length);
                         }
                     }
@@ -13670,15 +13674,15 @@ dependencyScope.jQuery = $;;
             setJson: function (name, json, expiresInDays, global, specDomain, httpsOnly) {
                 if ($.isPlainObject(json)) {
                     try {
-                        var strJson = JSON.stringify(json);
+                        let strJson = JSON.stringify(json);
 
                         // the stringified JSON may contain invalid characters, so lets replace these
-                        var replacedJson = strJson.replace(/[\u00A0-\u2666]/g, function (c) {
+                        let replacedJson = strJson.replace(/[\u00A0-\u2666]/g, function (c) {
                             return '&#' + c.charCodeAt(0) + ';';
                         });
 
                         // finally let's encode it to a base64 encoded string
-                        var encJson = btoa(replacedJson);
+                        let encJson = btoa(replacedJson);
                         this.set(name, encJson, expiresInDays, global, specDomain, httpsOnly);
                     } catch (e) {
                         this.reset(name, specDomain);
@@ -13702,23 +13706,23 @@ dependencyScope.jQuery = $;;
 
             set: function (name, value, expiresInDays, global, specDomain, httpsOnly, specSamesite) {
 
-                var expires;
+                let expires;
                 if (typeof expiresInDays === 'number') {
-                    var d = new Date();
+                    let d = new Date();
                     d.setTime(d.getTime() + (expiresInDays * 24 * 60 * 60 * 1000));
                     expires = '; expires=' + d.toUTCString();
                 } else {
                     expires = '';
                 }
 
-                var domain;
+                let domain;
                 if (typeof specDomain === 'string') {
                     domain = '; domain=' + specDomain;
                 } else {
                     domain = '';
                 }
 
-                var secure;
+                let secure;
                 if (httpsOnly === false) {
                     secure = '';
                 } else if (httpsOnly === true || scope.Breinify.config()['cookieHttpsOnly'] === true) {
@@ -13727,7 +13731,7 @@ dependencyScope.jQuery = $;;
                     secure = '';
                 }
 
-                var samesite;
+                let samesite;
                 if (typeof specSamesite === 'string' && specSamesite.trim() !== '') {
                     samesite = specSamesite;
                 } else {
@@ -13739,12 +13743,12 @@ dependencyScope.jQuery = $;;
                     samesite = '';
                 }
 
-                var path = global === true ? '; path=/' : '';
+                let path = global === true ? '; path=/' : '';
                 document.cookie = name + '=' + value + expires + domain + path + secure + samesite;
             },
 
             get: function (name) {
-                var cookies = this.all();
+                let cookies = this.all();
 
                 if (cookies.hasOwnProperty(name)) {
                     return cookies[name];
@@ -13764,16 +13768,16 @@ dependencyScope.jQuery = $;;
                 }
 
                 // check if one is configured
-                var configuredDomain = scope.Breinify.config()['cookieDomain'];
+                let configuredDomain = scope.Breinify.config()['cookieDomain'];
                 if (typeof configuredDomain === 'string' && configuredDomain.trim() !== '') {
                     this.cookieDomain = '.' + configuredDomain;
                     return this.cookieDomain;
                 }
 
-                var url = BreinifyUtil.loc.extract(BreinifyUtil.loc.url());
+                let url = BreinifyUtil.loc.extract(BreinifyUtil.loc.url());
 
-                var domParts = url !== null && typeof url.domain === 'string' ? url.domain.split('.') : [];
-                var domPartsLen = domParts.length;
+                let domParts = url !== null && typeof url.domain === 'string' ? url.domain.split('.') : [];
+                let domPartsLen = domParts.length;
 
                 // local domain
                 if (domPartsLen === 0) {
@@ -13790,7 +13794,7 @@ dependencyScope.jQuery = $;;
                     // even if this is the most common case it gets tricky (because of all the co.uk)
                 // we have two or more parts (so keep the last two), i.e., .[toplevel].[ending]
                 else {
-                    var possibleEnding = domParts[domPartsLen - 2] + '.' + domParts[domPartsLen - 1];
+                    let possibleEnding = domParts[domPartsLen - 2] + '.' + domParts[domPartsLen - 1];
 
                     // there are possible domain-endings with larger 6, but honestly when this is the case
                     // use the configuration (cookieDomain)
@@ -13841,8 +13845,6 @@ dependencyScope.jQuery = $;;
             },
 
             token: function (apiToken, payload, cb, timeout) {
-
-                var _self = this;
                 $.ajax({
                     'url': 'https://api.breinify.com/res/' + apiToken,
                     'type': 'GET',
@@ -13860,9 +13862,9 @@ dependencyScope.jQuery = $;;
                             cb(null, data.payload);
                         }
                     },
-                    'error': function (jqXHR, text, type) {
+                    'error': function (jqXHR, text) {
 
-                        var err;
+                        let err;
                         try {
                             err = new Error(text + ' (status: ' + jqXHR.status + ', error: ' + jqXHR.statusText + ', details: ' + jqXHR.responseText + ')');
                         } catch (e) {
@@ -13887,7 +13889,7 @@ dependencyScope.jQuery = $;;
                     _check: function () {
                         if (this._expectedCounter === null) {
                             this._expectedCounter = 0;
-                            for (var key in this) {
+                            for (let key in this) {
                                 if (key.indexOf('_') !== 0 && this.hasOwnProperty(key)) {
                                     this._expectedCounter++;
                                 }
@@ -13914,9 +13916,9 @@ dependencyScope.jQuery = $;;
             },
 
             runExternaljQuery: function (plugin, func) {
-                var _self = this;
+                const _self = this;
 
-                var executed = false;
+                let executed = false;
                 if ($.isFunction(window.$)) {
                     if (plugin === 'jquery') {
                         func();
@@ -13951,7 +13953,6 @@ dependencyScope.jQuery = $;;
         },
 
         user: {
-            assignedGroup: {},
             browserId: null,
             sessionId: null,
             splitTestData: null,
@@ -13973,14 +13974,14 @@ dependencyScope.jQuery = $;;
                 }
 
                 // clean-up old split-test information (older than 7 days)
-                var testExpiration = new Date().getTime() - (24 * 60 * 60 * 1000);
-                var deletedInformation = false;
-                for (var key in this.splitTestData) {
+                let testExpiration = new Date().getTime() - (24 * 60 * 60 * 1000);
+                let deletedInformation = false;
+                for (let key in this.splitTestData) {
                     if (!this.splitTestData.hasOwnProperty(key)) {
                         continue;
                     }
 
-                    var lastUpdated = this.splitTestData[key].lastUpdated;
+                    let lastUpdated = this.splitTestData[key].lastUpdated;
                     if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
                         delete this.splitTestData[key];
                         deletedInformation = true;
@@ -14000,7 +14001,7 @@ dependencyScope.jQuery = $;;
             },
 
             create: function (user) {
-                var splitTestData;
+                let splitTestData;
                 try {
                     splitTestData = this.getSplitTestData(true);
                 } catch (e) {
@@ -14009,7 +14010,7 @@ dependencyScope.jQuery = $;;
                 splitTestData = $.isEmptyObject(splitTestData) ? null : splitTestData;
 
                 // get the default user
-                var defaultUser = {
+                let defaultUser = {
                     'sessionId': this.getSessionId(),
                     'additional': {
                         'splitTests': splitTestData,
@@ -14020,14 +14021,14 @@ dependencyScope.jQuery = $;;
                 };
 
                 // check for any markers
-                var markerSessionId = this.getMarkerSessionId();
+                let markerSessionId = this.getMarkerSessionId();
                 if (markerSessionId !== null) {
                     defaultUser.sessionIds = [markerSessionId];
                 }
 
                 // get the create user from the configuration
-                var createUser = scope.Breinify.config()['createUser'];
-                var createdUser;
+                let createUser = scope.Breinify.config()['createUser'];
+                let createdUser;
                 if ($.isFunction(createUser)) {
                     createdUser = createUser();
                     createdUser = $.isPlainObject(createdUser) ? createdUser : {};
@@ -14036,8 +14037,8 @@ dependencyScope.jQuery = $;;
                 }
 
                 // check if we have a Breinify userLookup module
-                var userLookUpPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP);
-                var userLookupResult;
+                let userLookUpPlugIn = scope.Breinify.plugins._getCustomization(dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP);
+                let userLookupResult;
                 if (userLookUpPlugIn === null || !$.isFunction(userLookUpPlugIn.get)) {
                     userLookupResult = {};
                 } else {
@@ -14049,7 +14050,7 @@ dependencyScope.jQuery = $;;
             },
 
             getBrowserId: function () {
-                var cookie = BreinifyUtil.cookies.browserId;
+                let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
                 } else if (BreinifyUtil.cookie.check(cookie)) {
@@ -14063,7 +14064,7 @@ dependencyScope.jQuery = $;;
             },
 
             getSessionId: function () {
-                var cookie = BreinifyUtil.cookies.sessionId;
+                let cookie = BreinifyUtil.cookies.sessionId;
 
                 if (this.sessionId !== null) {
                     // nothing to do
@@ -14077,7 +14078,7 @@ dependencyScope.jQuery = $;;
             },
 
             getMarkerSessionId: function () {
-                var markerSessionId = BreinifyUtil.loc.param('br-msid');
+                let markerSessionId = BreinifyUtil.loc.param('br-msid');
                 if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
                     return markerSessionId;
                 } else {
@@ -14090,42 +14091,10 @@ dependencyScope.jQuery = $;;
                     this.sessionId = BreinifyUtil.uuid();
                 }
 
-                var cookie = BreinifyUtil.cookies.sessionId;
+                let cookie = BreinifyUtil.cookies.sessionId;
                 BreinifyUtil.cookie.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
 
                 return this.sessionId;
-            },
-
-            getAssignedGroup: function (cookie, split) {
-                if (typeof cookie !== 'string' || cookie.trim() === '') {
-                    cookie = BreinifyUtil.cookies.assignedGroup;
-                }
-
-                if (typeof split !== 'number') {
-                    split = 75;
-                } else if (split < 0) {
-                    split = 0;
-                } else if (split > 100) {
-                    split = 100;
-                }
-
-                // create the groupName
-                var groupName = cookie + '::' + split;
-
-                if (typeof this.assignedGroup[groupName] === 'string') {
-                    // nothing to do
-                } else if (BreinifyUtil.internal.isDevMode()) {
-                    this.assignedGroup[groupName] = 'DEV';
-                } else if (navigator.cookieEnabled === false) {
-                    this.assignedGroup[groupName] = 'DISABLED';
-                } else if (BreinifyUtil.cookie.check(groupName)) {
-                    this.assignedGroup[groupName] = BreinifyUtil.cookie.get(groupName);
-                } else {
-                    this.assignedGroup[groupName] = (Math.floor(Math.random() * 100)) < split ? 'TEST' : 'CONTROL';
-                    BreinifyUtil.cookie.set(groupName, this.assignedGroup[groupName], 10 * 365, true, BreinifyUtil.cookie.domain());
-                }
-
-                return this.assignedGroup[groupName];
             }
         },
 
@@ -14136,7 +14105,7 @@ dependencyScope.jQuery = $;;
             dataLayerEventListener: {},
 
             addDataLayerEventListener: function (name, listener, replayExisting, checkTime) {
-                var _self = this;
+                const _self = this;
 
                 // check if we have a dataLayer available
                 if (!$.isArray(window.dataLayer) || !$.isFunction(window.dataLayer.push)) {
@@ -14160,8 +14129,8 @@ dependencyScope.jQuery = $;;
 
                 // we added the listener but existing events are not pushed, so let's do it, if requested
                 if (replayExisting === true) {
-                    for (var i = 0; i < window.dataLayer.length; i++) {
-                        var oldEvent = window.dataLayer[i];
+                    for (let i = 0; i < window.dataLayer.length; i++) {
+                        let oldEvent = window.dataLayer[i];
                         _self._handleEvent(name, listener, oldEvent);
                     }
                 }
@@ -14181,13 +14150,13 @@ dependencyScope.jQuery = $;;
                     _self._initialPush.call(window.dataLayer, event);
 
                     // trigger the event listeners
-                    for (var name in _self.dataLayerEventListener) {
+                    for (let name in _self.dataLayerEventListener) {
                         if (!_self.dataLayerEventListener.hasOwnProperty(name)) {
                             continue;
                         }
 
                         // trigger the listening
-                        var instance = _self.dataLayerEventListener[name];
+                        let instance = _self.dataLayerEventListener[name];
                         _self._handleEvent(name, instance, event);
                     }
                 };
@@ -14228,9 +14197,9 @@ dependencyScope.jQuery = $;;
             },
 
             observeDomChange: function (selector, callback) {
-                var _self = this;
+                const _self = this;
 
-                var id = BreinifyUtil.uuid();
+                let id = BreinifyUtil.uuid();
                 this.observables[id] = {
                     selector: selector,
                     callback: typeof callback === 'function' ? callback : null
@@ -14239,11 +14208,11 @@ dependencyScope.jQuery = $;;
                 if (this.observerInterval === null) {
                     this.observerInterval = setInterval(function () {
                         $.each(_self.observables, function (elId, elParams) {
-                            var elSelector = elParams.selector;
-                            var elCallback = elParams.callback;
+                            let elSelector = elParams.selector;
+                            let elCallback = elParams.callback;
 
                             $(elSelector).each(function () {
-                                var $el = $(this);
+                                let $el = $(this);
 
                                 if ($el.attr('data-brnfy-observation-triggered') !== 'true') {
                                     $el.attr('data-brnfy-observation-triggered', 'true');
@@ -14260,7 +14229,7 @@ dependencyScope.jQuery = $;;
                 return id;
             },
 
-            removeAllDomObserver: function (id) {
+            removeAllDomObserver: function () {
                 this.observables = {};
                 clearInterval(this.observerInterval);
                 this.observerInterval = null;
@@ -14278,7 +14247,7 @@ dependencyScope.jQuery = $;;
         },
 
         select: function (cssSelector, childSelector, directChild) {
-            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
+            let $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             directChild = typeof directChild === 'boolean' ? directChild : false;
 
             if (directChild) {
@@ -14289,20 +14258,20 @@ dependencyScope.jQuery = $;;
         },
 
         texts: function (cssSelector, excludeChildren) {
-            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
+            let $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
             excludeChildren = typeof excludeChildren === 'boolean' ? excludeChildren : true;
 
-            var result = [];
+            let result = [];
             if ($el.length !== 0) {
 
-                $el.each(function (idx) {
-                    var content = null;
-                    var contentEls = $(this).contents();
+                $el.each(function () {
+                    let content = null;
+                    let contentEls = $(this).contents();
 
                     if (contentEls.length === 0) {
                         content = _private.append(content, _private.determineText(this, excludeChildren));
                     } else {
-                        contentEls.each(function (idx) {
+                        contentEls.each(function () {
                             content = _private.append(content, _private.determineText(this, excludeChildren));
                         });
                     }
@@ -14327,7 +14296,7 @@ dependencyScope.jQuery = $;;
         },
 
         text: function (cssSelector, excludeChildren) {
-            var texts = this.texts(cssSelector, excludeChildren);
+            let texts = this.texts(cssSelector, excludeChildren);
             if (texts.length === 0) {
                 return '';
             } else {
@@ -14336,7 +14305,7 @@ dependencyScope.jQuery = $;;
         },
 
         setText: function (cssSelector, text) {
-            var $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
+            let $el = cssSelector instanceof $ ? cssSelector : $(cssSelector);
 
             if ($el.is('input')) {
                 $el.val(text);
@@ -14371,7 +14340,7 @@ dependencyScope.jQuery = $;;
          */
         uuid: function () {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                let r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
         },
@@ -14386,7 +14355,7 @@ dependencyScope.jQuery = $;;
                 return true;
             }
 
-            var type = typeof val;
+            let type = typeof val;
             if ('undefined' === type) {
                 return true;
             } else if ('object' === type && $.isEmptyObject(val)) {
@@ -14407,8 +14376,8 @@ dependencyScope.jQuery = $;;
                 return str;
             }
 
-            var quotes = inclSingle === true ? '["\']' : '["]';
-            var regEx = '^' + quotes + '(.*)' + quotes + '$';
+            let quotes = inclSingle === true ? '["\']' : '["]';
+            let regEx = '^' + quotes + '(.*)' + quotes + '$';
             return str.replace(new RegExp(regEx), '$1');
         },
 
@@ -14419,19 +14388,19 @@ dependencyScope.jQuery = $;;
                 return {};
             }
 
-            var cleanedObj = {};
+            let cleanedObj = {};
             $.each(obj, function (key, value) {
-                var type = typeof value;
+                let type = typeof value;
 
                 if (value === null || type === 'boolean' || type === 'string' || type === 'number') {
                     cleanedObj[key] = value;
                 } else if ($.isArray(value)) {
 
-                    var globalArrType = null;
-                    var cleanedArr = [];
-                    for (var i = 0; i < value.length; i++) {
-                        var arrValue = value[i];
-                        var arrType = typeof arrValue;
+                    let globalArrType = null;
+                    let cleanedArr = [];
+                    for (let i = 0; i < value.length; i++) {
+                        let arrValue = value[i];
+                        let arrType = typeof arrValue;
 
                         if (
                             // we have a null value
@@ -14469,16 +14438,16 @@ dependencyScope.jQuery = $;;
             }
 
             // check the values of the object
-            var result = true;
+            let result = true;
             $.each(obj, function (key, value) {
-                var type = typeof value;
+                let type = typeof value;
                 if (value === null || type === 'boolean' || type === 'string' || type === 'number') {
                     return true;
                 } else if ($.isArray(value)) {
 
-                    var globalArrayType = null;
+                    let globalArrayType = null;
                     $.each(value, function (idx, arrayValue) {
-                        var arrayType = typeof arrayValue;
+                        let arrayType = typeof arrayValue;
 
                         if (arrayValue === null) {
                             return true;
@@ -14535,7 +14504,7 @@ dependencyScope.jQuery = $;;
          * additional parameters
          */
         localString: function (date, additional) {
-            var defaultPayload = {
+            let defaultPayload = {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -14556,7 +14525,7 @@ dependencyScope.jQuery = $;;
                 return input;
             }
 
-            for (var property in input) {
+            for (let property in input) {
                 if (input.hasOwnProperty(property)) {
                     if (input[property] === null) {
                         delete input[property];
@@ -14573,13 +14542,13 @@ dependencyScope.jQuery = $;;
         },
 
         getNestedByPath: function (obj, path) {
-            var paths = typeof path === 'string' ? path.split('.') : [];
-            for (var pos = 0; pos < paths.length; pos++) {
+            let paths = typeof path === 'string' ? path.split('.') : [];
+            for (let pos = 0; pos < paths.length; pos++) {
                 if (!$.isPlainObject(obj) || obj === null || typeof obj === 'undefined') {
                     return null;
                 }
 
-                var property = paths[pos];
+                let property = paths[pos];
                 if (!obj.hasOwnProperty(property)) {
                     return null;
                 } else {
@@ -14595,12 +14564,12 @@ dependencyScope.jQuery = $;;
         },
 
         getNested: function (obj /*, level1, level2, ... levelN*/) {
-            for (var pos = 1; pos < arguments.length; pos++) {
+            for (let pos = 1; pos < arguments.length; pos++) {
                 if (!$.isPlainObject(obj) || obj === null || typeof obj === 'undefined') {
                     return null;
                 }
 
-                var property = arguments[pos];
+                let property = arguments[pos];
                 if (!obj.hasOwnProperty(property)) {
                     return null;
                 } else {
@@ -14635,7 +14604,7 @@ dependencyScope.jQuery = $;;
             }
 
             // first we take the windows jQuery
-            var wndjQuery = window.jQuery;
+            let wndjQuery = window.jQuery;
             window.jQuery = jQuery;
 
             $.each(plugins, function (key, plugin) {
@@ -14668,7 +14637,7 @@ dependencyScope.jQuery = $;;
             } else if (str.length === 1) {
                 return toLowerCase === true ? str.toLowerCase() : str.toUpperCase();
             } else {
-                var firstLetter = str.charAt(0);
+                let firstLetter = str.charAt(0);
                 return (toLowerCase === true ? firstLetter.toLowerCase() : firstLetter.toUpperCase()) + str.substring(1, str.length);
             }
         },
@@ -14684,10 +14653,10 @@ dependencyScope.jQuery = $;;
         },
 
         extend: function () {
-            for (var i = 1; i < arguments.length; i++) {
-                for (var key in arguments[i]) {
+            for (let i = 1; i < arguments.length; i++) {
+                for (let key in arguments[i]) {
                     if (arguments[i].hasOwnProperty(key)) {
-                        var val = arguments[i][key];
+                        let val = arguments[i][key];
                         if (val === null || typeof val === 'undefined') {
                             // do nothing
                         } else if ($.isPlainObject(val)) {
@@ -14723,7 +14692,7 @@ dependencyScope.jQuery = $;;
                                 this.store[key] = value;
                             },
                             getItem: function (key) {
-                                var result = this.store[key];
+                                let result = this.store[key];
                                 return typeof result === 'undefined' ? null : result;
                             },
                             removeItem: function (key) {
@@ -14736,9 +14705,9 @@ dependencyScope.jQuery = $;;
                     }
                 }
 
-                var _self = this;
-                var toBeLoaded = {};
-                var loadingStatus = [];
+                const _self = this;
+                let toBeLoaded = {};
+                let loadingStatus = [];
                 $.each(entries, function (key, entry) {
                     if (_self.get(key) === null || _self.isExpired(key)) {
                         toBeLoaded[key] = entry;
@@ -14746,8 +14715,8 @@ dependencyScope.jQuery = $;;
                     }
                 });
 
-                var loaded = [];
-                var failed = [];
+                let loaded = [];
+                let failed = [];
                 $.each(toBeLoaded, function (key, entry) {
                     _self.load(key, entry, function (error, name) {
                         loadingStatus.splice($.inArray(name, loadingStatus), 1);
@@ -14784,9 +14753,9 @@ dependencyScope.jQuery = $;;
                     return;
                 }
 
-                var _self = this;
-                var loader = entry.loader;
-                var expiresInSec = $.isNumeric(entry.expiresInSec) ? entry.expiresInSec : -1;
+                const _self = this;
+                let loader = entry.loader;
+                let expiresInSec = $.isNumeric(entry.expiresInSec) ? entry.expiresInSec : -1;
                 if ($.isFunction(loader)) {
                     loader(function (error, data) {
                         if (error === null) {
@@ -14803,7 +14772,7 @@ dependencyScope.jQuery = $;;
             },
 
             createStorableData: function (expiresInSec, data) {
-                var now = new Date().getTime();
+                let now = new Date().getTime();
                 return JSON.stringify({
                     'expires': expiresInSec <= 0 ? -1 : now + (expiresInSec * 1000),
                     'created': now,
@@ -14812,10 +14781,10 @@ dependencyScope.jQuery = $;;
             },
 
             isExpired: function (name) {
-                var json = this.instance.getItem('breinify-' + name);
+                let json = this.instance.getItem('breinify-' + name);
 
                 if (typeof json === 'string') {
-                    var storableData = JSON.parse(json);
+                    let storableData = JSON.parse(json);
                     if ($.isPlainObject(storableData)) {
                         return new Date().getTime() > storableData.expires;
                     } else {
@@ -14831,8 +14800,8 @@ dependencyScope.jQuery = $;;
             },
 
             getOrWait: function (name, callback, timeout, waitedFor) {
-                var _self = this;
-                var res = this.get(name);
+                const _self = this;
+                let res = this.get(name);
 
                 if (res !== null) {
                     callback(null, res);
@@ -14840,16 +14809,16 @@ dependencyScope.jQuery = $;;
                     callback(new Error('Timed Out'), null);
                 } else {
                     setTimeout(function () {
-                        var newWaitedFor = (typeof waitedFor === 'number' ? waitedFor : 0) + 50;
+                        let newWaitedFor = (typeof waitedFor === 'number' ? waitedFor : 0) + 50;
                         _self.getOrWait(name, callback, timeout, newWaitedFor);
                     }, 50);
                 }
             },
 
             get: function (name) {
-                var json = this.instance.getItem('breinify-' + name);
+                let json = this.instance.getItem('breinify-' + name);
                 if (typeof json === 'string') {
-                    var storableData = JSON.parse(json);
+                    let storableData = JSON.parse(json);
                     return $.isPlainObject(storableData) ? storableData.data : null;
                 } else {
                     return null;
@@ -14861,6 +14830,66 @@ dependencyScope.jQuery = $;;
             return $;
         }
     };
+
+    // create the different storages and bind the one to be used
+    const anonymousIdStorage = {
+        cookieStorage: {
+            check: function (cookie) {
+                return BreinifyUtil.cookie.check(cookie);
+            },
+            get: function (cookie) {
+                return BreinifyUtil.cookie.get(cookie);
+            },
+            set: function (cookie, value, expiration, secure, domain) {
+                BreinifyUtil.cookie.set(cookie, value, expiration, secure, domain);
+            }
+        },
+        localStorage: {
+            check: function (name) {
+                return this._extractValue(name) !== null;
+            },
+            get: function (name) {
+                return this._extractValue(name);
+            },
+            set: function (name, value, expiration) {
+                if (value === null || typeof value === 'undefined' || typeof expiration !== 'number' || expiration <= 0) {
+                    window.localStorage.removeItem(name);
+                } else {
+                    const json = JSON.stringify({
+                        v: value,
+                        exp: new Date().getTime() + (expiration * 24 * 60 * 60 * 1000)
+                    });
+
+                    window.localStorage.setItem(name, json);
+                }
+            },
+            _extractValue: function (name) {
+                const json = window.localStorage.getItem(name);
+
+                try {
+                    const obj = JSON.parse(json);
+
+                    if (obj.exp < new Date().getTime() || typeof obj.v === 'undefined' || obj.v === null) {
+                        window.localStorage.removeItem(name);
+                        return null;
+                    } else {
+                        return obj.v;
+                    }
+                } catch (e) {
+                    return null;
+                }
+            }
+        }
+    };
+
+    try {
+        window.localStorage.setItem('br-local-storage-test', 'true');
+        window.localStorage.removeItem('br-local-storage-test');
+
+        storage.anonymousIdStorage = anonymousIdStorage.localStorage;
+    } catch (e) {
+        storage.anonymousIdStorage = anonymousIdStorage.cookieStorage;
+    }
 
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil, true);
@@ -16666,21 +16695,18 @@ dependencyScope.jQuery = $;;
             domain: function () { return null; }
         },
         cookies: {
-            assignedGroup: 'x-breinify-ag',
             sessionId: 'x-breinify-uuid',
             browserId: 'x-breinify-bid',
             delayedActivities: 'x-breinify-delayed'
         },
         user: {
-            assignedGroup: null,
             sessionId: null,
             browserId: null,
             create: function() { return {}; },
             getBrowserId: function() { return null; },
             getSessionId: function() { return null; },
             getMarkerSessionId: function() { return null; },
-            resetSessionId: function() { return null; },
-            getAssignedGroup: function() { return null; }
+            resetSessionId: function() { return null; }
         },
         events: {
             observerInterval: null,
