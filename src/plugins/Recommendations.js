@@ -187,7 +187,7 @@
         },
 
         _preRenderRecommendations: function (renderOptions) {
-            let options = $.extend({}, defaultRenderOptions, renderOptions);
+            let options = $.extend(true, {}, defaultRenderOptions, renderOptions);
 
             Renderer._process(options.process.init);
 
