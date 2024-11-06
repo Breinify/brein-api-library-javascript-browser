@@ -140,7 +140,7 @@
             const _self = this;
 
             console.log($recItem);
-            let attributes = $recItem.get(0).attributes();
+            let attributes = $recItem.get(0).attributes;
             for (let attribute in attributes) {
                 console.log(attribute);
             }
