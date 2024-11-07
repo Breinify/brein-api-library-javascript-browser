@@ -13236,13 +13236,15 @@ dependencyScope.jQuery = $;;
                 existingClickObserver.callbacks[name] = callback;
                 existingClickObserver.handler = function (event) {
                     let clickObserver = _self.clickObservers[event.data.selector];
-                    if (!$.isPlainObject(clickObserver) || !$.isArray(clickObserver.callbacks)) {
+                    if (!$.isPlainObject(clickObserver) || !$.isPlainObject(clickObserver.callbacks)) {
                         return;
                     }
 
                     const _selfEvent = this;
                     $.each(clickObserver.callbacks, function(name, callback) {
-                        callback.call(_selfEvent, event);
+                        if ($.isFunction(callback)) {
+                            callback.call(_selfEvent, event);
+                        }
                     });
                 };
 
