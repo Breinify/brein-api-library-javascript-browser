@@ -460,6 +460,9 @@
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event, data) {
 
+                // search for any element that would identify a recommendation click
+
+
                 // Code to execute when any element is clicked
                 console.log("Clicked element:", event.data, event.target, data);
             });

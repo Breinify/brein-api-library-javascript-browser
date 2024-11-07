@@ -13253,6 +13253,7 @@ dependencyScope.jQuery = $;;
                         return;
                     }
 
+                    const el = this;
                     $.each(clickObserver.callbacks, function (name, callback) {
                         if (!$.isFunction(callback)) {
                             return;
@@ -13275,7 +13276,7 @@ dependencyScope.jQuery = $;;
                             event.brDataTriggered[name].push(new Date().getTime());
                         }
 
-                        callback(event, {
+                        callback.call(el, event, {
                             triggered: event.brDataTriggered[name],
                             selector: selector,
                             name: name
