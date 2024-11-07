@@ -13256,7 +13256,7 @@ dependencyScope.jQuery = $;;
                     $.each(clickObserver.callbacks, function (name, callback) {
                         if (!$.isFunction(callback)) {
                             return;
-                        } else if (!$.isPlainObject(event.data) || !$.isPlainObject(event.data.triggered)) {
+                        } else if (!$.isPlainObject(event.data)) {
                             return;
                         }
 
