@@ -202,7 +202,7 @@
                     if (placeholderOption === 'string') {
                         replacement = placeholderOption;
                     } else if ($.isFunction(placeholderOption)) {
-                        replacement = placeholderOption(recommendation, hasRecValue ? recValue : null);
+                        replacement = placeholderOption.call(option.placeholders, recommendation, hasRecValue ? recValue : null);
                     } else {
                         replacement = null;
                     }
