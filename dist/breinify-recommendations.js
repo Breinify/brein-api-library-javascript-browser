@@ -26,7 +26,11 @@
             append: null,
             replace: null
         },
-        placeholders: {},
+        placeholders: {
+            'random::uuid': function() {
+                return Breinify.UTL.uuid();
+            }
+        },
         templates: {
             container: null,
             item: null
