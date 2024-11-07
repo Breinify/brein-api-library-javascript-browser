@@ -21,6 +21,9 @@
 
     const defaultRenderOption = {
         recommender: null,
+        bindings: {
+            selector: 'a'
+        },
         splitTests: {
             control: {
                 itemSelector: null,
@@ -60,6 +63,9 @@
                 // nothing to execute after attachment
             },
             post: function ($container, $itemContainer, data, option) {
+                // nothing to execute after rendering is complete
+            },
+            clickedItem: function() {
                 // nothing to execute after rendering is complete
             }
         }

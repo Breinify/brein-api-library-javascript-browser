@@ -13214,9 +13214,22 @@ dependencyScope.jQuery = $;;
 
         clickObserver: {
             clickObservers: {},
+            defaultSettings: {
+                allowMultiFire: false
+            },
 
-            add: function (selector, name, callback) {
+            add: function (selector, name, settings, callback) {
                 const _self = this;
+
+                // we allow only three parameters, so adapt with default settings
+                if ($.isFunction(settings)) {
+                    callback = settings;
+                    settings = this.defaultSettings;
+                } else if (!$.isPlainObject(settings)) {
+                    settings = this.defaultSettings;
+                } else if (typeof settings.allowMultiFire !== 'boolean') {
+                    settings.allowMultiFire = false;
+                }
 
                 let existingClickObserver = this.clickObservers[selector];
                 if ($.isPlainObject(existingClickObserver)) {
@@ -13241,17 +13254,30 @@ dependencyScope.jQuery = $;;
                     }
 
                     $.each(clickObserver.callbacks, function (name, callback) {
-                        if ($.isFunction(callback)) {
-                            callback(event, {
-                                selector: selector,
-                                name: name
-                            });
+                        if (!$.isFunction(callback)) {
+                            return;
+                        } else if (!$.isPlainObject(event.data) || !$.isPlainObject(event.data.triggered)) {
+                            return;
                         }
+
+                        if (!$.isArray(event.data.triggered[name])) {
+                            event.data.triggered[name] = [new Date().getTime()];
+                        } else if (settings.allowMultiFire === false) {
+                            // it was already fired, so return
+                            return;
+                        } else {
+                            event.data.triggered[name].push(new Date().getTime());
+                        }
+
+                        callback(event, {
+                            selector: selector,
+                            name: name
+                        });
                     });
                 };
 
                 // and bind it
-                $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
+                $(document).on('click', selector, {selector: selector, triggered: {}}, existingClickObserver.handler);
             }
         },
 
