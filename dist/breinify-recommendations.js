@@ -74,6 +74,11 @@
     };
 
     const Renderer = {
+        marker: {
+            container: 'brrc-cont',
+            item: 'brrc-item'
+        },
+
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
                 func(...args);
@@ -137,7 +142,7 @@
             // replace values within the container before appending it
             _self._replacePlaceholders($container, data, option);
             $container
-                .attr('data-brrc-cont', 'true')
+                .attr('data-' + this.marker.container, 'true')
                 .data('recommendation', data);
 
             /*
@@ -162,7 +167,8 @@
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
                 $recItem
-                    .attr('data-brrc-item', 'true')
+                    .addClass(this.marker.item)
+                    .attr('data-' + this.marker.item, 'true')
                     .data('recommendation', recommendation);
 
                 $container.append($recItem);
@@ -476,9 +482,10 @@
 
             // append the container element
             let $container = Renderer._appendContainer(option, data);
-            let $itemContainer = $container.find('.br-rec-item-container');
+            let $itemContainer = $container.find('.' + this.marker.container);
             if ($itemContainer.length === 0) {
                 $itemContainer = $container;
+                $itemContainer.addClass(this.marker.container);
             }
 
             // and append the children for each result
