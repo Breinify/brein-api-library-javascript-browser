@@ -24,7 +24,8 @@
     const Renderer = {
         marker: {
             container: 'brrc-cont',
-            item: 'brrc-item'
+            item: 'brrc-item',
+            data: 'recommendation'
         },
 
         _process: function (func, ...args) {
@@ -91,7 +92,7 @@
             _self._replacePlaceholders($container, data, option);
             $container
                 .attr('data-' + this.marker.container, 'true')
-                .data('recommendation', data);
+                .data(this.marker.data, data);
 
             /*
              * Execute the method on the $anchor, for some reason the assignment to a variable of
@@ -117,7 +118,7 @@
                 $recItem
                     .addClass(_self.marker.item)
                     .attr('data-' + _self.marker.item, 'true')
-                    .data('recommendation', recommendation);
+                    .data(_self.marker.data, recommendation);
 
                 $container.append($recItem);
                 Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
@@ -462,12 +463,24 @@
              * the needed information.
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event, data) {
+                const $el = $(this);
 
                 // search for any element that would identify a recommendation click
+                const $recItem = $el.closest('.brrc-item');
+                if ($recItem.length !== 1) {
+                    return;
+                }
 
+                const recommendation = $recItem.data(Renderer.marker.data);
+                if (!$.isPlainObject(recommendation)) {
+                    return;
+                }
 
                 // Code to execute when any element is clicked
-                console.log("Clicked element:", event.data, event.target, data);
+                Renderer._process(option.process.clickedItem, event, {
+                    additionalEventData: data,
+                    recommendation: recommendation
+                });
             });
 
             if (result.splitTestData.isControl === true) {
