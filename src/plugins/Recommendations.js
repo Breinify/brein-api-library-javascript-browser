@@ -177,7 +177,11 @@
             let attributes = $entry.get(0).attributes;
             $.each(attributes, function (idx, attribute) {
                 const replaced = _self._replace(attribute.value, replacements, option);
-                if (replaced !== null) {
+                if (replaced === null) {
+                    // do nothing
+                } else if (attribute.name.startsWith('data-rename-')) {
+                    $entry.attr(attribute.name.replace('data-rename-', ''), replaced);
+                } else {
                     $entry.attr(attribute.name, replaced);
                 }
             });
