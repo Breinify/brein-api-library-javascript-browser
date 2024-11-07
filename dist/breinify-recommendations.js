@@ -200,7 +200,7 @@
                 // if we do not have any value
                 let replacement;
                 if (hasPlaceholderOption) {
-                    if (placeholderOption === 'string') {
+                    if (typeof placeholderOption === 'string') {
                         replacement = placeholderOption;
                     } else if ($.isFunction(placeholderOption)) {
                         replacement = placeholderOption.call(option.placeholders, data, hasRecValue ? recValue : null);
