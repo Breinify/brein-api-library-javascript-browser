@@ -147,14 +147,14 @@
                          * object, otherwise we modify the initial object defined within the .on event
                          * definition
                          */
-                        if (!$.isArray(event.data.triggered[name])) {
-                            event.data = $.extend(true, {}, event.data);
-                            event.data.triggered[name] = [new Date().getTime()];
+                        if (!$.isPlainObject(event.brDataTriggered)) {
+                            event.brDataTriggered = {};
+                            event.brDataTriggered[name] = [new Date().getTime()];
                         } else if (settings.allowMultiFire === false) {
                             // it was already fired, so return
                             return;
                         } else {
-                            event.data.triggered[name].push(new Date().getTime());
+                            event.brDataTriggered[name].push(new Date().getTime());
                         }
 
                         callback(event, {
@@ -165,7 +165,7 @@
                 };
 
                 // and bind it
-                $(document).on('click', selector, {selector: selector, triggered: {}}, existingClickObserver.handler);
+                $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
             }
         },
 
