@@ -81,7 +81,8 @@
             }
         },
 
-        _appendContainer: function (option) {
+        _appendContainer: function (option, data) {
+            var _self = this;
 
             // no position defined to append
             if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
@@ -107,21 +108,28 @@
                 method = 'replace';
             }
 
-            selector = this._determineSelector(selector);
-            if (selector === null) {
+            let $anchor = this._determineSelector(selector);
+            if ($anchor === null) {
                 return null;
             }
 
-            let container = this._determineSelector(option.templates.container);
-            if (container === null) {
+            let $container = this._determineSelector(option.templates.container);
+            if ($container === null) {
                 return null;
             }
 
-            if ($.isFunction(selector[method])) {
-                selector[method](container);
+            // replace values within the container before appending it
+            $container = _self._replace($container, data, option);
+
+            /*
+             * Execute the method on the $anchor, for some reason the assignment to a variable of
+             * $anchor[method] causes issues, thus we do it "twice".
+             */
+            if ($.isFunction($anchor[method])) {
+                $anchor[method]($container);
             }
 
-            return container;
+            return $container;
         },
 
         _appendItems: function ($container, result, option) {
@@ -346,7 +354,7 @@
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
-            let $container = Renderer._appendContainer(option);
+            let $container = Renderer._appendContainer(option, data);
             let $itemContainer = $container.find('.br-rec-item-container');
             if ($itemContainer.length === 0) {
                 $itemContainer = $container;
