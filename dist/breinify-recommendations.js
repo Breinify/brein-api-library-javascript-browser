@@ -194,7 +194,7 @@
          * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
          * the modified text, will return {@code null} if no replacement took place.
          * @param value the value to replace
-         * @param recommendation the values from the recommendation to replace with
+         * @param data the data to replace values from
          * @param option options to modify the behavior
          * @returns {string|null} the replaced value or {@code null} if no replacement took place
          * @private
@@ -252,14 +252,15 @@
 
             // read the value by following the path
             let value = data;
-            for (let p in paths) {
+            for (let i = 0; i < paths.length; i++) {
 
                 // at this point we always need to have an object, since we have a path to read
                 if (!$.isPlainObject(value)) {
                     return null;
                 }
 
-                value = value[p];
+                let path = paths[i];
+                value = value[path];
             }
 
             return value;
