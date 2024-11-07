@@ -180,6 +180,7 @@
                 if (replaced === null) {
                     // do nothing
                 } else if (attribute.name.startsWith('data-rename-')) {
+                    $entry.removeAttr(attribute.name);
                     $entry.attr(attribute.name.replace('data-rename-', ''), replaced);
                 } else {
                     $entry.attr(attribute.name, replaced);
