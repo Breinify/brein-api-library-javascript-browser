@@ -103,7 +103,7 @@
                 selector = option.position.before;
                 method = 'before';
             } else if (option.position.after !== null) {
-                selector = options.position.after;
+                selector = option.position.after;
                 method = 'after';
             } else if (option.position.append !== null) {
                 selector = option.position.append;

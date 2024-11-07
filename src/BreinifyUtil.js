@@ -94,6 +94,45 @@
             }
         },
 
+        clickObserver: {
+            clickObservers: {},
+
+            add: function (selector, name, callback) {
+                const _self = this;
+
+                let existingClickObserver = this.clickObservers[selector];
+                if ($.isPlainObject(existingClickObserver)) {
+
+                    // Note: any existing callback would be overridden
+                    existingClickObserver.callbacks[name] = callback;
+                    return;
+                }
+
+                // create the new click observer
+                existingClickObserver = {
+                    callbacks: {}
+                };
+                this.clickObservers[selector] = existingClickObserver;
+
+                // create a handler for this selector
+                existingClickObserver.callbacks[name] = callback;
+                existingClickObserver.handler = function (event) {
+                    let clickObserver = _self.clickObserver[event.data.selector];
+                    if (!$.isPlainObject(clickObserver) || !$.isArray(clickObserver.callbacks)) {
+                        return;
+                    }
+
+                    const _selfEvent = this;
+                    $.each(clickObserver.callbacks, function(name, callback) {
+                        callback.call(_selfEvent, event);
+                    });
+                };
+
+                // and bind it
+                $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
+            }
+        },
+
         domObserver: {
             isInitialized: false,
             mutationObserver: null,
