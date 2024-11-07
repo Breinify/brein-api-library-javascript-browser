@@ -189,7 +189,7 @@
             const replacements = {
                 _counter: 0
             };
-            const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*)%%/;
+            const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/;
             const result = value.replace(regex, function (match, name) {
                 let placeholderOption = option.placeholders[name];
                 let hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === 'string';
