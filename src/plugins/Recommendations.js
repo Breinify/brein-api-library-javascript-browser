@@ -13,6 +13,7 @@
     const overload = Breinify.plugins._overload();
 
     const defaultRenderOption = {
+        recommender: null,
         splitTests: {
             control: {
                 itemSelector: null,
@@ -278,32 +279,66 @@
             const _self = this;
 
             overload.overload({
+                'Array': function (renderOptions) {
+
+                    let namedRenderOptions = {};
+                    let recommenderPayload = [];
+                    for (let i = 0; i < renderOptions.length; i++) {
+                        let renderOption = renderOptions[i];
+                        let recommenderOptions = renderOption.recommender;
+
+                        if (!$.isPlainObject(recommenderOptions) ||
+                            !$.isPlainObject(recommenderOptions.payload) ||
+                            !$.isArray(recommenderOptions.payload.namedRecommendations)) {
+
+                            Renderer._process(renderOption.process.error, {
+                                code: -1,
+                                error: true,
+                                message: 'invalid payload for recommender defined for rendering process',
+                                options: renderOption
+                            });
+                            return;
+                        }
+
+                        let name = this._determineName(recommenderOptions.payload, i);
+                        namedRenderOptions[name] = renderOption;
+
+                        recommenderPayload.push(recommenderOptions.payload);
+                    }
+
+                    this._retrieveRecommendations(recommenderPayload, function (error, data) {
+                        _self._renderRecommendations(namedRenderOptions, error, data);
+                    });
+                },
+                'Object': function (renderOptions) {
+                    _self.render([renderOptions]);
+                },
                 'Object,Object': function (payload, renderOptions) {
-                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(renderOptions);
                     this._retrieveRecommendations([payload], function (error, data) {
-                        _self._renderRecommendations(renderOptions, error, data);
+                        _self._renderRecommendations(options, error, data);
                     });
                 },
                 'Array,Object': function (payloads, renderOptions) {
-                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(renderOptions);
                     this._retrieveRecommendations(null, payloads, function (error, data) {
-                        _self._renderRecommendations(renderOptions, error, data);
+                        _self._renderRecommendations(options, error, data);
                     });
                 },
                 'String,Object': function (recommendationId, renderOptions) {
-                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(renderOptions);
                     this._retrieveRecommendations([{
                         namedRecommendations: [recommendationId]
                     }], function (error, data) {
-                        _self._renderRecommendations(renderOptions, error, data);
+                        _self._renderRecommendations(options, error, data);
                     });
                 },
                 'String,Object,Object': function (recommendationId, payload, renderOptions) {
-                    renderOptions = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(renderOptions);
                     this._retrieveRecommendations([$.extend({
                         namedRecommendations: [recommendationId]
                     }, payload)], function (error, data) {
-                        _self._renderRecommendations(renderOptions, error, data);
+                        _self._renderRecommendations(options, error, data);
                     });
                 }
             }, arguments, this);
@@ -457,13 +492,8 @@
                 this._determineAdditionalData(result, recommendationResult);
                 this._determineMetaData(result, recommendationResult);
 
-                // determine the name
-                let name;
-                if ($.isArray(payload.namedRecommendations) && payload.namedRecommendations.length === 1) {
-                    name = payload.namedRecommendations[0];
-                } else {
-                    name = 'response[' + i + ']';
-                }
+                // determine the name, we need the position of the payload as fallback
+                let name = this._determineName(payload, i);
 
                 let numRecommendations;
                 if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
@@ -542,6 +572,16 @@
 
                     result.additionalData[name] = val;
                 });
+            }
+        },
+
+        _determineName: function (payload, idx) {
+            if ($.isPlainObject(payload) &&
+                $.isArray(payload.namedRecommendations) &&
+                payload.namedRecommendations.length === 1) {
+                return payload.namedRecommendations[0];
+            } else {
+                return 'response[' + idx + ']';
             }
         },
 
