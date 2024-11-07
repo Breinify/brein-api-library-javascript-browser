@@ -284,24 +284,24 @@
                     let namedRenderOptions = {};
                     let recommenderPayload = [];
                     for (let i = 0; i < renderOptions.length; i++) {
-                        let renderOption = renderOptions[i];
-                        let recommenderOptions = renderOption.recommender;
+                        let options = this._preRenderRecommendations(renderOptions[i]);
+                        let recommenderOptions = options.recommender;
 
                         if (!$.isPlainObject(recommenderOptions) ||
                             !$.isPlainObject(recommenderOptions.payload) ||
                             !$.isArray(recommenderOptions.payload.namedRecommendations)) {
 
-                            Renderer._process(renderOption.process.error, {
+                            Renderer._process(options.process.error, {
                                 code: -1,
                                 error: true,
                                 message: 'invalid payload for recommender defined for rendering process',
-                                options: renderOption
+                                options: options
                             });
                             return;
                         }
 
                         let name = this._determineName(recommenderOptions.payload, i);
-                        namedRenderOptions[name] = renderOption;
+                        namedRenderOptions[name] = options;
 
                         recommenderPayload.push(recommenderOptions.payload);
                     }
