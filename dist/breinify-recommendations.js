@@ -435,6 +435,12 @@
         },
 
         _applyBindings: function (option, result) {
+
+            Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event) {
+                // Code to execute when any element is clicked
+                console.log("Clicked element5:", this, event.target);
+            });
+
             if (result.splitTestData.isControl === true) {
 
                 // we have a result from the "control" group, let's see what to do
