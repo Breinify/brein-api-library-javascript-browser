@@ -1,3 +1,5 @@
+// noinspection JSUnresolvedReference
+
 "use strict";
 
 /**
@@ -134,6 +136,9 @@
 
             // replace values within the container before appending it
             _self._replacePlaceholders($container, data, option);
+            $container
+                .attr('data-brrc-cont', 'true')
+                .data('recommendation', data);
 
             /*
              * Execute the method on the $anchor, for some reason the assignment to a variable of
@@ -155,7 +160,10 @@
             }
 
             $.each(result.recommendations, function (idx, recommendation) {
-                let $recItem = _self._replacePlaceholders($item.clone(), recommendation, option);
+                let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
+                $recItem
+                    .attr('data-brrc-item', 'true')
+                    .data('recommendation', recommendation);
 
                 $container.append($recItem);
                 Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
@@ -436,9 +444,18 @@
 
         _applyBindings: function (option, result) {
 
-            Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event) {
+            /*
+             * We register one general click handler, which will trigger on the defined selectors for this
+             * recommendation settings (options).
+             *
+             * The system allows multiple handlers, but only one handler with the specified name. Thus, we
+             * need to ensure that the name is unique for this specific recommender and allows to retrieve
+             * the needed information.
+             */
+            Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event, data) {
+
                 // Code to execute when any element is clicked
-                console.log("Clicked element5:", event.data, event.target);
+                console.log("Clicked element:", event.data, event.target, data);
             });
 
             if (result.splitTestData.isControl === true) {
