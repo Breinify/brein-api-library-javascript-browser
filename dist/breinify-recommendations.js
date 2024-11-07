@@ -484,7 +484,22 @@
         },
 
         _determineAdditionalData: function (recommendationResponse, result) {
+            /*
+             * Data may be provided under recommendationResponse.additionalData
+             * excluding known attributes like (_breinMetaData, splitTestData)..
+             */
+            if ($.isPlainObject(recommendationResponse) &&
+                $.isPlainObject(recommendationResponse.additionalData)) {
 
+                result.additionalData = {};
+                $.each(recommendationResponse.additionalData, function(name, val) {
+                    if (name === '_breinMetaData' || name === 'splitTestData') {
+                        return;
+                    }
+
+                    result.additionalData[name] = val;
+                });
+            }
         },
 
         _determineMetaData: function (recommendationResponse, result) {
