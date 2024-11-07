@@ -284,8 +284,10 @@
                     let namedRenderOptions = {};
                     let recommenderPayload = [];
                     for (let i = 0; i < renderOptions.length; i++) {
-                        let options = this._preRenderRecommendations(renderOptions[i]);
-                        let recommenderOptions = options.recommender;
+                        let options = this._preRenderRecommendations({
+                            'temporary': renderOptions[i]
+                        });
+                        let recommenderOptions = options.temporary.recommender;
 
                         if (!$.isPlainObject(recommenderOptions) ||
                             !$.isPlainObject(recommenderOptions.payload) ||
@@ -301,7 +303,7 @@
                         }
 
                         let name = this._determineName(recommenderOptions.payload, i);
-                        namedRenderOptions[name] = options;
+                        namedRenderOptions[name] = options.temporary;
 
                         recommenderPayload.push(recommenderOptions.payload);
                     }
