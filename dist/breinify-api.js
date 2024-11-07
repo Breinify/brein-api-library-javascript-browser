@@ -13260,7 +13260,13 @@ dependencyScope.jQuery = $;;
                             return;
                         }
 
+                        /*
+                         * If we change the event data at this point (the first time), we have to clone the
+                         * object, otherwise we modify the initial object defined within the .on event
+                         * definition
+                         */
                         if (!$.isArray(event.data.triggered[name])) {
+                            event.data = $.extend({}, event.data);
                             event.data.triggered[name] = [new Date().getTime()];
                         } else if (settings.allowMultiFire === false) {
                             // it was already fired, so return
