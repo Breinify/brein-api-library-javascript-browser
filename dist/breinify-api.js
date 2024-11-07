@@ -13240,10 +13240,12 @@ dependencyScope.jQuery = $;;
                         return;
                     }
 
-                    const _selfEvent = this;
-                    $.each(clickObserver.callbacks, function(name, callback) {
+                    $.each(clickObserver.callbacks, function (name, callback) {
                         if ($.isFunction(callback)) {
-                            callback.call(_selfEvent, event);
+                            callback(event, {
+                                selector: selector,
+                                name: name
+                            });
                         }
                     });
                 };
@@ -13992,7 +13994,7 @@ dependencyScope.jQuery = $;;
                 _private.domObserver.addClassChangeObserver($el, callback);
             },
 
-            addClickObserver: function(selector, name, callback) {
+            addClickObserver: function (selector, name, callback) {
                 _private.clickObserver.add(selector, name, callback);
             }
         },
