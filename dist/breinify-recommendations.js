@@ -384,8 +384,17 @@
             });
         },
 
-        _applyBindings: function (option, data) {
-            // TODO: implement
+        _applyBindings: function (option, result) {
+            if (result.splitTestData.isControl === true) {
+
+                // we have a result from the "control" group, let's see what to do
+                let itemSelector = option.splitTests.control.itemSelector;
+                let containerSelector = option.splitTests.control.containerSelector;
+
+            } else {
+
+                // we have a result
+            }
         },
 
         _renderRecommendation: function (option, data) {
@@ -401,8 +410,13 @@
 
             // and append the children for each result
             Renderer._appendItems($itemContainer, data, option);
-
             Renderer._process(option.process.attached, $container, $itemContainer, data, option);
+
+            // next we need to determine if we have to hide a control-group
+            let $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
+            if ($controlContainer !== null) {
+                $controlContainer.hide();
+            }
 
             Renderer._process(option.process.post, $container, $itemContainer, data, option);
         },
