@@ -167,8 +167,8 @@
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
                 $recItem
-                    .addClass(this.marker.item)
-                    .attr('data-' + this.marker.item, 'true')
+                    .addClass(_self.marker.item)
+                    .attr('data-' + _self.marker.item, 'true')
                     .data('recommendation', recommendation);
 
                 $container.append($recItem);
@@ -485,10 +485,10 @@
 
             // append the container element
             let $container = Renderer._appendContainer(option, data);
-            let $itemContainer = $container.find('.' + this.marker.container);
+            let $itemContainer = $container.find('.' + Renderer.marker.container);
             if ($itemContainer.length === 0) {
                 $itemContainer = $container;
-                $itemContainer.addClass(this.marker.container);
+                $itemContainer.addClass(Renderer.marker.container);
             }
 
             // and append the children for each result
