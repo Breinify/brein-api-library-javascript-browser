@@ -188,7 +188,7 @@
             const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*)%%/;
             const result = value.replace(regex, function (match, name) {
                 let placeholderOption = option.placeholders[name];
-                let hasPlaceholderOption = $.isPlainObject(placeholderOption) || typeof placeholderOption === 'string';
+                let hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === 'string';
                 let recValue = recommendation[name];
                 let hasRecValue = typeof recValue !== 'undefined';
 
@@ -197,10 +197,10 @@
                 if (hasPlaceholderOption) {
                     if (placeholderOption === 'string') {
                         replacement = placeholderOption;
-                    } else if ($.isFunction(placeholderOption.apply)) {
-                        replacement = placeholderOption.apply(name, recommendation, hasRecValue ? recValue : null);
-                    } else if (typeof placeholderOption.replacement === 'string') {
-                        replacement = placeholderOption.replacement;
+                    } else if ($.isFunction(placeholderOption)) {
+                        replacement = placeholderOption(recommendation, hasRecValue ? recValue : null);
+                    } else {
+                        replacement = null;
                     }
                 } else if (hasRecValue) {
                     replacement = recValue;
