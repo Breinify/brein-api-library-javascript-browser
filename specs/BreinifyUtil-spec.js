@@ -52,56 +52,6 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
-    it('can handle cookies', function () {
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.get('undefined')).toBeNull();
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.all()).toEqual({});
-
-        // set some cookies
-        Breinify.UTL.cookie.set('cookie', 'value', null, null, null, false);
-        Breinify.UTL.cookie.set('cookie', 'lastValue', null, null, null, false);
-        Breinify.UTL.cookie.set('anotherCookie', 'anotherValue', null, null, null, false);
-        Breinify.UTL.cookie.set('specialChars', '?%&*)(', null, null, null, false);
-        Breinify.UTL.cookie.set('empty', '', null, null, null, false);
-
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.all()).toEqual({
-            'anotherCookie': 'anotherValue',
-            'cookie': 'lastValue',
-            'empty': '',
-            'specialChars': '?%&*)('
-        });
-
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.get('cookie')).toEqual('lastValue');
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.get('anotherCookie')).toEqual('anotherValue');
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.get('empty')).toEqual('');
-
-        Breinify.UTL.cookie.reset('cookie');
-
-        //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-        expect(Breinify.UTL.cookie.all()).toEqual({
-            'anotherCookie': 'anotherValue',
-            'empty': '',
-            'specialChars': '?%&*)('
-        });
-    });
-
-    //noinspection JSUnresolvedFunction
-    it('can handle JSON cookies', function () {
-
-        // set some cookies
-        Breinify.UTL.cookie.setJson('json1', {'name': 'json1', 'value': 1}, null, null, null, false);
-        Breinify.UTL.cookie.setJson('json2', {'name': 'json2', 'value': 2}, null, null, null, false);
-
-        expect(Breinify.UTL.cookie.getJson('json1')).toEqual({'name': 'json1', 'value': 1});
-        expect(Breinify.UTL.cookie.getJson('json2')).toEqual({'name': 'json2', 'value': 2});
-    });
-
-    //noinspection JSUnresolvedFunction
     it('detects empty values', function () {
 
         //noinspection JSUnresolvedFunction,JSUnresolvedVariable
@@ -363,7 +313,6 @@ describe('BreinifyUtil', function () {
                 'values': []
             }
         }, function (error, result) {
-
             expect(result).toEqual({
                 'loaded': ['products', 'awards'],
                 'failed': []

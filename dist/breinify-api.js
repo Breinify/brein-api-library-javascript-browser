@@ -14708,10 +14708,12 @@ dependencyScope.jQuery = $;;
                 const _self = this;
                 let toBeLoaded = {};
                 let loadingStatus = [];
+                let counter = 0;
                 $.each(entries, function (key, entry) {
                     if (_self.get(key) === null || _self.isExpired(key)) {
                         toBeLoaded[key] = entry;
                         loadingStatus.push(key);
+                        counter++;
                     }
                 });
 
@@ -14736,7 +14738,8 @@ dependencyScope.jQuery = $;;
                     });
                 });
 
-                if (loadingStatus.length === 0 && $.isFunction(callback)) {
+                // if nothing was loaded still trigger
+                if (counter === 0 && loadingStatus.length === 0 && $.isFunction(callback)) {
                     callback(null, {
                         loaded: [],
                         failed: []

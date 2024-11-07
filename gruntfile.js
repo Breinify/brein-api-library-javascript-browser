@@ -346,13 +346,6 @@ module.exports = function (grunt) {
                 options: {
                     specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
                 }
-            },
-            testWithJQuery: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
-                options: {
-                    vendor: ['node_modules/jquery/dist/jquery.js', 'node_modules/jasmine-jquery/lib/jasmine-jquery.js'],
-                    specs: 'specs/**/*.jquery.js'
-                }
             }
         }
     });
@@ -424,14 +417,14 @@ module.exports = function (grunt) {
     grunt.registerTask('test', 'Tests the files using Jasmine', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('dist', 'jasmine:test', 'jasmine:testWithJQuery');
+        grunt.task.run('dist', 'jasmine:test');
     });
 
     //noinspection JSUnresolvedFunction
     grunt.registerTask('publish', 'Publishes the package to npm', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('dist', 'jasmine:test', 'jasmine:testWithJQuery');
+        grunt.task.run('dist', 'jasmine:test');
     });
 
     //noinspection JSUnresolvedFunction

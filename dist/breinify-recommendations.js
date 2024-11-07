@@ -1,5 +1,12 @@
 "use strict";
 
+/**
+ * This implementation allows the usage of simplified recommendations calls with
+ * rendering options. It utilizes the internal recommendation call of the Breinify
+ * Utility library (part of the core package) and enhances the possibilities
+ * to render and track the activities associated to the rendered activity (ex.
+ * clickedRecommendation).
+ */
 (function () {
     if (typeof Breinify !== 'object') {
         return;
