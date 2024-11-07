@@ -13266,7 +13266,7 @@ dependencyScope.jQuery = $;;
                          * definition
                          */
                         if (!$.isArray(event.data.triggered[name])) {
-                            event.data = $.extend({}, event.data);
+                            event.data = $.extend(true, {}, event.data);
                             event.data.triggered[name] = [new Date().getTime()];
                         } else if (settings.allowMultiFire === false) {
                             // it was already fired, so return
