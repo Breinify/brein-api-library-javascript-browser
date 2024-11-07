@@ -438,7 +438,7 @@
 
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event) {
                 // Code to execute when any element is clicked
-                console.log("Clicked element5:", this, event.target);
+                console.log("Clicked element5:", event.data, event.target);
             });
 
             if (result.splitTestData.isControl === true) {
