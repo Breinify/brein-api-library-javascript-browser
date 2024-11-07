@@ -13988,6 +13988,10 @@ dependencyScope.jQuery = $;;
 
             addClassChangeObserver: function ($el, callback) {
                 _private.domObserver.addClassChangeObserver($el, callback);
+            },
+
+            addClickObserver: function(selector, name, callback) {
+                _private.clickObserver.add(selector, name, callback);
             }
         },
 
