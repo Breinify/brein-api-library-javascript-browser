@@ -158,6 +158,7 @@
                         }
 
                         callback(event, {
+                            triggered: event.brDataTriggered[name],
                             selector: selector,
                             name: name
                         });
