@@ -27,7 +27,7 @@
             replace: null
         },
         placeholders: {
-            'random::uuid': function() {
+            'random::uuid': function () {
                 return Breinify.UTL.uuid();
             }
         },
@@ -119,7 +119,7 @@
             }
 
             // replace values within the container before appending it
-            $container = _self._replace($container, data, option);
+            _self._replacePlaceholders($container, data, option);
 
             /*
              * Execute the method on the $anchor, for some reason the assignment to a variable of
@@ -148,7 +148,17 @@
             });
         },
 
-        _replacePlaceholders: function ($entry, recommendation, option) {
+        /**
+         * Replaces all placeholders in text and attributes, the returned element is the same as
+         * passed in under {@code $entry}.
+         *
+         * @param $entry the element to check for replacements
+         * @param replacements the replacements to apply
+         * @param option the defined options
+         * @returns {*} the {@code $entry}, just for chaining purposes
+         * @private
+         */
+        _replacePlaceholders: function ($entry, replacements, option) {
             const _self = this;
 
             // check the text
@@ -156,7 +166,7 @@
                 return this.nodeType === 3; // Node.TEXT_NODE
             }).each(function () {
                 const $el = $(this);
-                const replaced = _self._replace($el.text(), recommendation, option);
+                const replaced = _self._replace($el.text(), replacements, option);
 
                 if (replaced !== null) {
                     $el.replaceWith(replaced);
@@ -166,7 +176,7 @@
             // check the attributes
             let attributes = $entry.get(0).attributes;
             $.each(attributes, function (idx, attribute) {
-                const replaced = _self._replace(attribute.value, recommendation, option);
+                const replaced = _self._replace(attribute.value, replacements, option);
                 if (replaced !== null) {
                     $entry.attr(attribute.name, replaced);
                 }
@@ -174,7 +184,7 @@
 
             // check also each child
             $entry.children().each(function () {
-                _self._replacePlaceholders($(this), recommendation, option);
+                _self._replacePlaceholders($(this), replacements, option);
             });
 
             return $entry;
