@@ -21,58 +21,6 @@
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
 
-    const defaultRenderOption = {
-        recommender: null,
-        bindings: {
-            selector: 'a'
-        },
-        splitTests: {
-            control: {
-                itemSelector: null,
-                containerSelector: null
-            }
-        },
-        position: {
-            before: null,
-            after: null,
-            prepend: null,
-            append: null,
-            replace: null
-        },
-        placeholders: {
-            'random::uuid': function () {
-                return Breinify.UTL.uuid();
-            }
-        },
-        templates: {
-            container: null,
-            item: null
-        },
-        process: {
-            error: function (error) {
-                // ignore
-            },
-            init: function (option) {
-                // nothing to initialize
-            },
-            pre: function (data, option) {
-                // nothing to execute on pre
-            },
-            attachedItem: function ($itemContainer, $item, data, option) {
-                // nothing to execute after attachment
-            },
-            attached: function ($container, $itemContainer, data, option) {
-                // nothing to execute after attachment
-            },
-            post: function ($container, $itemContainer, data, option) {
-                // nothing to execute after rendering is complete
-            },
-            clickedItem: function() {
-                // nothing to execute after rendering is complete
-            }
-        }
-    };
-
     const Renderer = {
         marker: {
             container: 'brrc-cont',
@@ -297,6 +245,61 @@
             }
 
             return value;
+        }
+    };
+
+
+    const defaultRenderOption = {
+        recommender: null,
+        bindings: {
+            selector: 'a'
+        },
+        splitTests: {
+            control: {
+                itemSelector: null,
+                containerSelector: null
+            }
+        },
+        position: {
+            before: null,
+            after: null,
+            prepend: null,
+            append: null,
+            replace: null
+        },
+        placeholders: {
+            'random::uuid': function () {
+                return Breinify.UTL.uuid();
+            },
+            'marker::container': Renderer.marker.container,
+            'marker::item': Renderer.marker.item
+        },
+        templates: {
+            container: null,
+            item: null
+        },
+        process: {
+            error: function (error) {
+                // ignore
+            },
+            init: function (option) {
+                // nothing to initialize
+            },
+            pre: function (data, option) {
+                // nothing to execute on pre
+            },
+            attachedItem: function ($itemContainer, $item, data, option) {
+                // nothing to execute after attachment
+            },
+            attached: function ($container, $itemContainer, data, option) {
+                // nothing to execute after attachment
+            },
+            post: function ($container, $itemContainer, data, option) {
+                // nothing to execute after rendering is complete
+            },
+            clickedItem: function() {
+                // nothing to execute after rendering is complete
+            }
         }
     };
 
