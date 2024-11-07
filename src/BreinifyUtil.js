@@ -117,7 +117,7 @@
                 // create a handler for this selector
                 existingClickObserver.callbacks[name] = callback;
                 existingClickObserver.handler = function (event) {
-                    let clickObserver = _self.clickObserver[event.data.selector];
+                    let clickObserver = _self.clickObservers[event.data.selector];
                     if (!$.isPlainObject(clickObserver) || !$.isArray(clickObserver.callbacks)) {
                         return;
                     }
