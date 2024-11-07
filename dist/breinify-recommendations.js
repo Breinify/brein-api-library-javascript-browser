@@ -199,7 +199,9 @@
          * @returns {string|null} the replaced value or {@code null} if no replacement took place
          * @private
          */
-        _replace: function (value, recommendation, option) {
+        _replace: function (value, data, option) {
+            var _self = this;
+
             if (typeof value !== 'string' || value.trim() === '') {
                 return null;
             }
@@ -207,11 +209,11 @@
             const replacements = {
                 _counter: 0
             };
-            const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
+            const regex = /%%([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)*|[a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
             const result = value.replace(regex, function (match, name) {
                 let placeholderOption = option.placeholders[name];
                 let hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === 'string';
-                let recValue = recommendation[name];
+                let recValue = _self._readPath(name, data);
                 let hasRecValue = typeof recValue !== 'undefined';
 
                 // if we do not have any value
@@ -220,7 +222,7 @@
                     if (placeholderOption === 'string') {
                         replacement = placeholderOption;
                     } else if ($.isFunction(placeholderOption)) {
-                        replacement = placeholderOption.call(option.placeholders, recommendation, hasRecValue ? recValue : null);
+                        replacement = placeholderOption.call(option.placeholders, data, hasRecValue ? recValue : null);
                     } else {
                         replacement = null;
                     }
@@ -240,6 +242,27 @@
             });
 
             return replacements._counter > 0 ? result : null;
+        },
+
+        _readPath: function (name, data) {
+            const paths = name.split('.');
+            if (paths.length === 1) {
+                return data[name];
+            }
+
+            // read the value by following the path
+            let value = data;
+            for (let p in paths) {
+
+                // at this point we always need to have an object, since we have a path to read
+                if (!$.isPlainObject(value)) {
+                    return null;
+                }
+
+                value = value[p];
+            }
+
+            return value;
         }
     };
 
@@ -492,7 +515,7 @@
                 $.isPlainObject(recommendationResponse.additionalData)) {
 
                 result.additionalData = {};
-                $.each(recommendationResponse.additionalData, function(name, val) {
+                $.each(recommendationResponse.additionalData, function (name, val) {
                     if (name === '_breinMetaData' || name === 'splitTestData') {
                         return;
                     }
