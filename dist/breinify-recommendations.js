@@ -600,7 +600,7 @@
 
             // store the info needed for clicks on the item's container
             $itemContainer
-                .attr('data-' + this.marker.container, 'true')
+                .attr('data-' + Renderer.marker.container, 'true')
                 .data(Renderer.marker.data, {
                     option: option,
                     data: data
