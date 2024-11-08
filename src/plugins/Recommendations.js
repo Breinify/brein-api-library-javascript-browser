@@ -655,13 +655,7 @@
              * the needed information.
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
-                const $el = $(this);
-
-                if (result.splitTestData.isControl === true) {
-                    _self._handleControlClick($el, event, additionalEventData);
-                } else {
-                    _self._handleClick($el, event, additionalEventData);
-                }
+                _self._handleClick($(this), event, additionalEventData);
             });
         },
 
