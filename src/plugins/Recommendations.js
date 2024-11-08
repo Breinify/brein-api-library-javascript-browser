@@ -530,7 +530,7 @@
                 additionalEventData: additionalEventData,
                 recommendationData: recommendationData
             };
-            Renderer._process(option.process.clickedItem, event, templateSettings);
+            Renderer._process(option.process.clickedItem, event, settings);
 
             /*
              * Determine the default knowledge for the activity-tags at this point,
