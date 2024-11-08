@@ -90,13 +90,6 @@
 
             // replace values within the container before appending it
             _self._replacePlaceholders($container, data, option);
-            $container
-                .attr('data-' + this.marker.container, 'true')
-                .addClass(this.marker.container)
-                .data(this.marker.data, {
-                    option: option,
-                    data: data
-                });
 
             /*
              * Execute the method on the $anchor, for some reason the assignment to a variable of
@@ -600,8 +593,18 @@
             let $itemContainer = $container.find('.' + Renderer.marker.container);
             if ($itemContainer.length === 0) {
                 $itemContainer = $container;
+
+                // add the class (it was obviously not there yet)
                 $itemContainer.addClass(Renderer.marker.container);
             }
+
+            // store the info needed for clicks on the item's container
+            $itemContainer
+                .attr('data-' + this.marker.container, 'true')
+                .data(Renderer.marker.data, {
+                    option: option,
+                    data: data
+                });
 
             // and append the children for each result
             Renderer._appendItems($itemContainer, data, option);
