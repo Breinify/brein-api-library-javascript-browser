@@ -265,7 +265,6 @@
         },
         splitTests: {
             control: {
-                itemSelector: null,
                 containerSelector: null
             }
         },
@@ -500,14 +499,15 @@
             }
 
             // Code to execute when any element is clicked
-            Renderer._process(option.process.clickedItem, event, {
+            const settings = {
                 isControl: false,
                 $recItem: $recItem,
                 $recContainer: $recContainer,
                 additionalEventData: additionalEventData,
                 recommendationData: recommendationData,
                 recommendation: recommendation
-            });
+            };
+            Renderer._process(option.process.clickedItem, event, settings);
 
             /*
              * Determine the default knowledge for the activity-tags at this point,
@@ -517,35 +517,28 @@
             const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
 
-            this._sendActivity(option, event, {
-                activityTags: activityTags,
-                additionalEventData: additionalEventData,
-                recommendationData: recommendationData,
-                recommendation: recommendation
-            });
+            settings.activityTags = activityTags;
+            this._sendActivity(option, event, settings);
         },
 
         _handleControlClick: function (event, $el, $controlContainer, recommendationData, additionalEventData, option) {
 
-            Renderer._process(option.process.clickedItem, event, {
+            const settings = {
                 isControl: true,
+                $controlItem: $el,
                 $controlContainer: $controlContainer,
                 additionalEventData: additionalEventData,
                 recommendationData: recommendationData
-            });
+            };
+            Renderer._process(option.process.clickedItem, event, templateSettings);
 
             /*
              * Determine the default knowledge for the activity-tags at this point,
              * for control knowledge outside the framework must be applied via the
              * createActivity process.
              */
-            const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
-
-            this._sendActivity(option, event, {
-                activityTags: activityTags,
-                additionalEventData: additionalEventData,
-                recommendationData: recommendationData
-            });
+            settings.activityTags = this._createDefaultTags(recommendationData, additionalEventData);
+            this._sendActivity(option, event, settings);
         },
 
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
