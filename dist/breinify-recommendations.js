@@ -501,7 +501,19 @@
                 recommendation: recommendation
             });
 
-            this._sendActivity(option, event);
+            /*
+             * Determine the default knowledge for the activity-tags at this point,
+             * for Breinify a lot of knowledge can be applied already, additional
+             * knowledge may be applied within the createActivity process.
+             */
+            const activityTags = {};
+
+            this._sendActivity(option, event, {
+                activityTags: activityTags,
+                additionalEventData: additionalEventData,
+                recommendationData: recommendationData,
+                recommendation: recommendation
+            });
         },
 
         _handleControlClick: function (event, $el, $controlContainer, recommendationData, additionalEventData, option) {
@@ -513,10 +525,21 @@
                 recommendationData: recommendationData
             });
 
-            this._sendActivity(option, event);
+            /*
+             * Determine the default knowledge for the activity-tags at this point,
+             * for control knowledge outside the framework must be applied via the
+             * createActivity process.
+             */
+            const activityTags = {};
+
+            this._sendActivity(option, event, {
+                activityTags: activityTags,
+                additionalEventData: additionalEventData,
+                recommendationData: recommendationData
+            });
         },
 
-        _sendActivity: function (option, event) {
+        _sendActivity: function (option, event, settings) {
 
             /*
                * Determine if the event had some key held to open in a new tab, if so we can
@@ -526,12 +549,12 @@
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
             const activityType = option.activity.type;
 
-            const settings = {
+            settings = $.extend(true, {
                 schedule: !openInNewTab,
                 activityType: activityType,
                 activityTags: {},
                 activityUser: {}
-            };
+            }, settings);
 
             // trigger the creation activity process to ensure that we can modify the activity to be  sent
             Renderer._process(option.process.createActivity, event, settings);
