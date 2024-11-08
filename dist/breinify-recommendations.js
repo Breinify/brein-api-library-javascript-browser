@@ -726,14 +726,19 @@
             return result.status.error;
         },
 
-        _determineRecommendationData: function (recommendationResponse, result) {
-
+        _determineRecommendationType: function (recommendationResponse) {
             let type = 'com.brein.common.dto.CustomerProductDto';
             if ($.isPlainObject(recommendationResponse) &&
                 $.isPlainObject(recommendationResponse._breinMetaData) &&
                 typeof recommendationResponse._breinMetaData.dataType === 'string' && recommendationResponse._breinMetaData.dataType.trim() !== '') {
                 type = recommendationResponse._breinMetaData.dataType.trim();
             }
+
+            return type;
+        },
+
+        _determineRecommendationData: function (recommendationResponse, result) {
+            const type = this._determineRecommendationType(recommendationResponse);
 
             if (type === 'com.brein.common.dto.CustomerProductDto') {
                 result.recommendations = this._mapProducts(recommendationResponse);
@@ -743,6 +748,7 @@
         },
 
         _determineAdditionalData: function (recommendationResponse, result) {
+
             /*
              * Data may be provided under recommendationResponse.additionalData
              * excluding known attributes like (_breinMetaData, splitTestData)..
@@ -772,10 +778,12 @@
         },
 
         _determineMetaData: function (recommendationResponse, result) {
-            /*
-             * Data may be provided under recommendationResponse.additionalData._breinMetaData
-             * currently we do not care about this data, other than to decide the mapper.
-             */
+
+            // data may be provided under recommendationResponse.additionalData._breinMetaData
+            result.meta = {};
+
+            // we keep the type for further processing (ex. activity mapping)
+            result.meta.type = this._determineRecommendationType(recommendationResponse);
         },
 
         _determineSplitTestData: function (recommendationResponse, result) {
