@@ -122,7 +122,7 @@
                     .addClass(_self.marker.item)
                     .attr('data-' + _self.marker.item, 'true')
                     .data(_self.marker.data, $.extend(true, {
-                        widgetPosition: idx
+                        widgetPosition: idx + 1
                     }, recommendation));
 
                 $container.append($recItem);
