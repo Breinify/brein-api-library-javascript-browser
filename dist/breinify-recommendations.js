@@ -628,11 +628,9 @@
 
             // send the activity, utilizing the activity plugin (needed here)
             if (settings.schedule === true) {
-                console.log('scheduled', settings);
-                // Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
+                Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
             } else {
-                console.log('not scheduled', settings);
-                // Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
+                Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
             }
         },
 
