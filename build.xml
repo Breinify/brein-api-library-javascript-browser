@@ -31,6 +31,7 @@
     </target>
 
     <target name="06-run-test-suite" depends="01-resolve-dependencies">
-        <exec-grunt module="test" nodeVersion="${node}" gruntVersion="${grunt}" />
+        <!-- disabled since pupeteer does not run on Debian 10 -->
+        <!-- <exec-grunt module="test" nodeVersion="${node}" gruntVersion="${grunt}" /> -->
     </target>
 </project>
