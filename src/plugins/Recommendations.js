@@ -466,7 +466,7 @@
         _handleClick: function ($el, event, additionalEventData) {
 
             // search for the container
-            const $container = $el.closest('.' + this.marker.container);
+            const $container = $el.closest('.' + Renderer.marker.container);
             if ($container.length !== 1) {
                 return;
             }
@@ -488,7 +488,7 @@
         _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
 
             // search for any item-element that would identify a recommendation click
-            const $recItem = $el.closest('.' + this.marker.item);
+            const $recItem = $el.closest('.' + Renderer.marker.item);
             if ($recItem.length !== 1) {
                 return;
             }
@@ -583,9 +583,9 @@
 
             // attach the data of the recommendation response to the container
             $controlContainer
-                .attr('data-' + this.marker.container, 'true')
-                .addClass(this.marker.container)
-                .data(this.marker.data, {
+                .attr('data-' + Renderer.marker.container, 'true')
+                .addClass(Renderer.marker.container)
+                .data(Renderer.marker.data, {
                     option: option,
                     data: data
                 });
