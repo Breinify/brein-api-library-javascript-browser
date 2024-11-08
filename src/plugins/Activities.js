@@ -513,8 +513,8 @@
          * @param type {string} the type of the activity
          * @param tags {object} the tags of the activity
          * @param maxAgeInMs {number} the max age of the activity to be sent
-         * @param filter {string} the filter that is executed when the delayed activity is found and in time
-         * @param id {string} the identifier (optional), should be set to override an existing scheduled activity
+         * @param filter {string=null} the filter that is executed when the delayed activity is found and in time
+         * @param id {string=} the identifier (optional), should be set to override an existing scheduled activity
          * @returns {string} the id assigned to the activity
          */
         scheduleDelayedActivity: function (user, type, tags, maxAgeInMs, filter, id) {

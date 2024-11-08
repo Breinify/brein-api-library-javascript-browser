@@ -92,7 +92,11 @@
             _self._replacePlaceholders($container, data, option);
             $container
                 .attr('data-' + this.marker.container, 'true')
-                .data(this.marker.data, data);
+                .addClass(this.marker.container)
+                .data(this.marker.data, {
+                    option: option,
+                    data: data
+                });
 
             /*
              * Execute the method on the $anchor, for some reason the assignment to a variable of
@@ -252,6 +256,9 @@
 
     const defaultRenderOption = {
         recommender: null,
+        activity: {
+            type: 'clickedRecommendation'
+        },
         bindings: {
             selector: 'a'
         },
@@ -298,8 +305,11 @@
             post: function ($container, $itemContainer, data, option) {
                 // nothing to execute after rendering is complete
             },
-            clickedItem: function() {
+            clickedItem: function (event, data, option) {
                 // nothing to execute after rendering is complete
+            },
+            createActivity: function (event, settings) {
+                // nothing to do, the settings are good as they are
             }
         }
     };
@@ -444,6 +454,7 @@
                         result: result
                     }, result.status));
                 } else if (result.splitTestData.isControl === true) {
+                    _self._setupControlContainer(option, result);
                     _self._applyBindings(option, result);
                 } else {
                     _self._renderRecommendation(option, result);
@@ -452,7 +463,98 @@
             });
         },
 
+        _handleClick: function ($el, event, additionalEventData) {
+
+            // search for the container
+            const $container = $el.closest('.' + this.marker.container);
+            if ($container.length !== 1) {
+                return;
+            }
+
+            const containerData = $container.data(Renderer.marker.data);
+            if (!$.isPlainObject(containerData) ||
+                !$.isPlainObject(containerData.option) ||
+                !$.isPlainObject(containerData.data)) {
+                return;
+            }
+
+            if (containerData.data.splitTestData.isControl === true) {
+                this._handleControlClick(event, $el, $container, containerData.data, additionalEventData, containerData.option);
+            } else {
+                this._handleRecommendationClick(event, $el, $container, containerData.data, additionalEventData, containerData.option);
+            }
+        },
+
+        _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
+
+            // search for any item-element that would identify a recommendation click
+            const $recItem = $el.closest('.' + this.marker.item);
+            if ($recItem.length !== 1) {
+                return;
+            }
+
+            const recommendation = $recItem.data(Renderer.marker.data);
+            if (!$.isPlainObject(recommendation)) {
+                return;
+            }
+
+            // Code to execute when any element is clicked
+            Renderer._process(option.process.clickedItem, event, {
+                isControl: false,
+                $recItem: $recItem,
+                $recContainer: $recContainer,
+                additionalEventData: additionalEventData,
+                recommendationData: recommendationData,
+                recommendation: recommendation
+            });
+
+            this._sendActivity(option, event);
+        },
+
+        _handleControlClick: function (event, $el, $controlContainer, recommendationData, additionalEventData, option) {
+
+            Renderer._process(option.process.clickedItem, event, {
+                isControl: true,
+                $controlContainer: $controlContainer,
+                additionalEventData: additionalEventData,
+                recommendationData: recommendationData
+            });
+
+            this._sendActivity(option, event);
+        },
+
+        _sendActivity: function (option, event) {
+
+            /*
+               * Determine if the event had some key held to open in a new tab, if so we can
+               * sent the activity directly from the current tab. If not we need to schedule
+               * the activity sent.
+               */
+            const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+            const activityType = option.activity.type;
+
+            const settings = {
+                schedule: !openInNewTab,
+                activityType: activityType,
+                activityTags: {},
+                activityUser: {}
+            };
+
+            // trigger the creation activity process to ensure that we can modify the activity to be  sent
+            Renderer._process(option.process.createActivity, event, settings);
+
+            // send the activity, utilizing the activity plugin (needed here)
+            if (settings.schedule === true) {
+                console.log('scheduled', settings);
+                // Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
+            } else {
+                console.log('not scheduled', settings);
+                // Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
+            }
+        },
+
         _applyBindings: function (option, result) {
+            const _self = this;
 
             /*
              * We register one general click handler, which will trigger on the defined selectors for this
@@ -462,37 +564,31 @@
              * need to ensure that the name is unique for this specific recommender and allows to retrieve
              * the needed information.
              */
-            Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function(event, data) {
+            Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
                 const $el = $(this);
 
-                // search for any element that would identify a recommendation click
-                const $recItem = $el.closest('.brrc-item');
-                if ($recItem.length !== 1) {
-                    return;
+                if (result.splitTestData.isControl === true) {
+                    _self._handleControlClick($el, event, additionalEventData);
+                } else {
+                    _self._handleClick($el, event, additionalEventData);
                 }
-
-                const recommendation = $recItem.data(Renderer.marker.data);
-                if (!$.isPlainObject(recommendation)) {
-                    return;
-                }
-
-                // Code to execute when any element is clicked
-                Renderer._process(option.process.clickedItem, event, {
-                    additionalEventData: data,
-                    recommendation: recommendation
-                });
             });
+        },
 
-            if (result.splitTestData.isControl === true) {
-
-                // we have a result from the "control" group, let's see what to do
-                let itemSelector = option.splitTests.control.itemSelector;
-                let containerSelector = option.splitTests.control.containerSelector;
-
-            } else {
-
-                // we have a result
+        _setupControlContainer: function (option, data) {
+            const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
+            if ($controlContainer === null) {
+                return;
             }
+
+            // attach the data of the recommendation response to the container
+            $controlContainer
+                .attr('data-' + this.marker.container, 'true')
+                .addClass(this.marker.container)
+                .data(this.marker.data, {
+                    option: option,
+                    data: data
+                });
         },
 
         _renderRecommendation: function (option, data) {
@@ -500,7 +596,7 @@
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
-            let $container = Renderer._appendContainer(option, data);
+            const $container = Renderer._appendContainer(option, data);
             let $itemContainer = $container.find('.' + Renderer.marker.container);
             if ($itemContainer.length === 0) {
                 $itemContainer = $container;
@@ -512,7 +608,7 @@
             Renderer._process(option.process.attached, $container, $itemContainer, data, option);
 
             // next we need to determine if we have to hide a control-group
-            let $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
+            const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
             if ($controlContainer !== null) {
                 $controlContainer.hide();
             }
