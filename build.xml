@@ -6,7 +6,7 @@
       -->
     <include file="../../brein-workspace/brein-intellij-workspace/common-libs/ant-util/util-ant.xml"/>
 
-    <property name="node" value="v8.6.0-linux-x64"/>
+    <property name="node" value="v20.11.0-linux-x64"/>
     <property name="grunt" value="1.5.3"/>
     <property name="app" value="brein-api-library-javascript-browser"/>
 
