@@ -27,6 +27,12 @@
             item: 'brrc-item',
             data: 'recommendation'
         },
+        splitTest: {
+            defaultTestGroup: 'breinify',
+            defaultControlGroup: 'control',
+            testGroupType: 'test',
+            controlGroupType: 'control'
+        },
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
@@ -115,7 +121,9 @@
                 $recItem
                     .addClass(_self.marker.item)
                     .attr('data-' + _self.marker.item, 'true')
-                    .data(_self.marker.data, recommendation);
+                    .data(_self.marker.data, $.extend(true, {
+                        widgetPosition: idx
+                    }, recommendation));
 
                 $container.append($recItem);
                 Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
@@ -506,7 +514,8 @@
              * for Breinify a lot of knowledge can be applied already, additional
              * knowledge may be applied within the createActivity process.
              */
-            const activityTags = {};
+            const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
+            this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
 
             this._sendActivity(option, event, {
                 activityTags: activityTags,
@@ -530,13 +539,78 @@
              * for control knowledge outside the framework must be applied via the
              * createActivity process.
              */
-            const activityTags = {};
+            const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
 
             this._sendActivity(option, event, {
                 activityTags: activityTags,
                 additionalEventData: additionalEventData,
                 recommendationData: recommendationData
             });
+        },
+
+        _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
+
+            // set the widgetPosition and the type (if possible)
+            if (typeof recommendation.widgetPosition === 'number') {
+                activityTags.widgetPosition = recommendation.widgetPosition;
+
+                if (typeof activityTags.widgetType === 'string') {
+                    activityTags.widgetId = activityTags.widgetType + '-' + activityTags.widgetPosition;
+                }
+            }
+
+            activityTags.productIds = [];
+            if (typeof recommendation.id === 'string') {
+                activityTags.productIds.push(recommendation.id);
+            }
+        },
+
+        _createDefaultTags: function (recommendationData, additionalEventData) {
+            const defaultTags = {};
+
+            // get the data for the split-test (should always be there), but just in case
+            const splitTestData = $.isPlainObject(recommendationData.splitTestData) ? recommendationData.splitTestData : {
+                active: false
+            };
+
+            /*
+             * Determine the group from the split-test, if there is no active split-test,
+             * i.e., there was no split-test information passed, we always name the group
+             * breinify (for simplicity reason).
+             */
+            let groupType, group;
+            if (splitTestData.active === false) {
+                groupType = Renderer.splitTest.testGroupType;
+                group = Renderer.splitTest.defaultTestGroup;
+            } else if (splitTestData.isControl === true) {
+                groupType = Renderer.splitTest.controlGroupType;
+                group = typeof splitTestData.groupDecision === 'string' && splitTestData.groupDecision.trim() !== '' ? splitTestData.groupDecision : Renderer.splitTest.defaultControlGroup;
+            } else {
+                groupType = Renderer.splitTest.testGroupType;
+                group = typeof splitTestData.groupDecision === 'string' && splitTestData.groupDecision.trim() !== '' ? splitTestData.groupDecision : Renderer.splitTest.defaultTestGroup;
+            }
+
+            const test = typeof splitTestData.testName === 'string' && splitTestData.testName.trim() !== '' ? splitTestData.testName : null;
+            const instance = typeof splitTestData.selectedInstance === 'string' && splitTestData.selectedInstance.trim() !== '' ? splitTestData.selectedInstance : null;
+
+            defaultTags.group = group;
+            defaultTags.groupType = groupType;
+            defaultTags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
+
+            // add some information of the recommender that was used
+            const recommendationPayload = $.isPlainObject(recommendationData.payload) ? recommendationData.payload : {};
+
+            const queryName = typeof recommendationPayload.queryName === 'string' && recommendationPayload.queryName.trim() !== '' ? recommendationPayload.queryName : null;
+            const recommenderName = typeof recommendationPayload.recommenderName === 'string' && recommendationPayload.recommenderName.trim() !== '' ? recommendationPayload.recommenderName : null;
+
+            /*
+             * We set the widget information we have at this point, widget position
+             * and id must be determined separately from the clicked item.
+             */
+            defaultTags.widgetType = recommenderName;
+            defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
+
+            return defaultTags;
         },
 
         _sendActivity: function (option, event, settings) {
@@ -681,16 +755,31 @@
                 // determine the name, we need the position of the payload as fallback
                 let name = this._determineName(payload, i);
 
-                let numRecommendations;
+                let numRecommendations = null;
                 if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
                     numRecommendations = payload.numRecommendations;
-                } else {
-                    numRecommendations = null;
                 }
+
+                let queryName = null;
+                if (typeof payload.recommendationQueryName === 'string' && payload.recommendationQueryName.trim() !== '') {
+                    queryName = payload.recommendationQueryName;
+                }
+
+                let recommenderName = null;
+                if ($.isPlainObject(payload) &&
+                    $.isArray(payload.namedRecommendations) &&
+                    payload.namedRecommendations.length === 1) {
+                    recommenderName = payload.namedRecommendations[0];
+                }
+
+                let isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
 
                 // add some general information
                 recommendationResult.payload = {
                     name: name,
+                    recommenderName: recommenderName,
+                    queryName: queryName,
+                    isForItems: isForItems,
                     expectedNumberOfRecommendations: numRecommendations
                 };
                 allRecommendationResults[name] = recommendationResult;
