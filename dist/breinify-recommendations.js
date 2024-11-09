@@ -296,6 +296,9 @@
             pre: function (data, option) {
                 // nothing to execute on pre
             },
+            attachedContainer: function($container, $itemContainer, data, option) {
+                // nothing to do
+            },
             attachedItem: function ($itemContainer, $item, data, option) {
                 // nothing to execute after attachment
             },
@@ -687,6 +690,7 @@
                     option: option,
                     data: data
                 });
+            Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
             // and append the children for each result
             Renderer._appendItems($itemContainer, data, option);
