@@ -219,6 +219,11 @@
                     replacement = null;
                 }
 
+                // check if we should replace with an empty value or not
+                if (replacement === null && $.isFunction(option.placeholderSettings.replaceWith)) {
+                    replacement = option.placeholderSettings.replaceWith(name);
+                }
+
                 // resolve the placeholders value for the name
                 if (replacement === null) {
                     return match;
@@ -275,6 +280,18 @@
             append: null,
             replace: null
         },
+        placeholderSettings: {
+            /**
+             * Method to determine what to replace the placeholder with if nothing was resolved, i.e.,
+             * if anything else did not resolve to a value.
+             * @param placeholder the placeholder that could not be resolved
+             * @returns {null|string} {@code null} if the placeholder should not be replaced,
+             * otherwise a string (can be empty)
+             */
+            replaceWith: function (placeholder) {
+                return '';
+            }
+        },
         placeholders: {
             'random::uuid': function () {
                 return Breinify.UTL.uuid();
@@ -296,7 +313,7 @@
             pre: function (data, option) {
                 // nothing to execute on pre
             },
-            attachedContainer: function($container, $itemContainer, data, option) {
+            attachedContainer: function ($container, $itemContainer, data, option) {
                 // nothing to do
             },
             attachedItem: function ($itemContainer, $item, data, option) {
