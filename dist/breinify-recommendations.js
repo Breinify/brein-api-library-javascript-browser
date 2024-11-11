@@ -28,6 +28,8 @@
             data: 'recommendation'
         },
         splitTest: {
+            defaultGroup: 'breinify',
+            defaultGroupType: 'none',
             defaultTestGroup: 'breinify',
             defaultControlGroup: 'control',
             testGroupType: 'test',
@@ -593,8 +595,8 @@
              */
             let groupType, group;
             if (splitTestData.active === false) {
-                groupType = Renderer.splitTest.testGroupType;
-                group = Renderer.splitTest.defaultTestGroup;
+                groupType = Renderer.splitTest.defaultGroupType;
+                group = Renderer.splitTest.defaultGroup;
             } else if (splitTestData.isControl === true) {
                 groupType = Renderer.splitTest.controlGroupType;
                 group = typeof splitTestData.groupDecision === 'string' && splitTestData.groupDecision.trim() !== '' ? splitTestData.groupDecision : Renderer.splitTest.defaultControlGroup;
