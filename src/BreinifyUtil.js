@@ -237,28 +237,28 @@
 
             checkModification: function ($modifiedNode, name, modification) {
 
-                let $el = $modifiedNode
+                let $els = $modifiedNode
                     .find(modification.selector)
                     .addBack(modification.selector);
 
-                if ($el.length === 0) {
+                if ($els.length === 0) {
                     return;
-                } else if ($.isFunction(modification.preCondition) && !modification.preCondition($el)) {
+                } else if ($.isFunction(modification.preCondition) && !modification.preCondition($els)) {
                     return;
                 } else if (!$.isFunction(modification.modifier)) {
                     return;
                 }
 
                 // get the current applied modifiers
-                let appliedModifier = $el.attr('data-applied-modifier');
+                let appliedModifier = $els.attr('data-applied-modifier');
                 appliedModifier = typeof appliedModifier === 'string' ? JSON.parse(appliedModifier) : [];
                 if ($.inArray(name, appliedModifier) !== -1) {
                     return;
                 }
 
-                if (modification.modifier($el) === true) {
+                if (modification.modifier($els) === true) {
                     appliedModifier.push(name);
-                    $el.attr('data-applied-modifier', JSON.stringify(appliedModifier));
+                    $els.attr('data-applied-modifier', JSON.stringify(appliedModifier));
                 }
             },
 
