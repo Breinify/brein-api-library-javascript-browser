@@ -415,7 +415,7 @@
                     this._retrieveRecommendations([payload], callback);
                 },
                 'Array,Function': function (payloads, callback) {
-                    this._retrieveRecommendations(null, payloads, callback);
+                    this._retrieveRecommendations(payloads, callback);
                 },
                 'String,Function': function (recommendationId, callback) {
                     this._retrieveRecommendations([{
