@@ -268,10 +268,10 @@
     const Activities = {
         marker: {
             observer: {
-                activate: 'brob-active'
+                activate: 'brob-active',
+                elementData: 'brob-data'
             }
         },
-
         domObserverActive: false,
 
         activateDomObserver: function() {
@@ -287,6 +287,7 @@
                         // get the values from the element
                         let $el = $(this);
                         console.log('observing', $el);
+                        console.log('observing', $el.data(this.marker.observer.elementData));
                     });
                 }
             });
