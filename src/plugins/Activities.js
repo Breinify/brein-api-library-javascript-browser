@@ -338,7 +338,7 @@
 
             for (let i = 0; i < observers.length; i++) {
                 const observer = $.isPlainObject(observers[i]) ? observers[i] : {};
-                operation($el, observer);
+                operation.call(this, $el, observer);
             }
         },
 
