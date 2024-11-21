@@ -275,6 +275,8 @@
         domObserverActive: false,
 
         activateDomObserver: function() {
+            const _self = this;
+
             if (this.domObserverActive === true) {
                 return;
             }
@@ -287,7 +289,7 @@
                         // get the values from the element
                         let $el = $(this);
                         console.log('observing', $el);
-                        console.log('observing', $el.data(this.marker.observer.elementData));
+                        console.log('observing', $el.data(_self.marker.observer.elementData));
                     });
                 }
             });
