@@ -265,36 +265,179 @@
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
 
+    const defaultClickObserverOption = {
+        observer: 'click',
+        settings: {
+            activityType: 'clickedElement',
+            /**
+             * If set to {@code null}, the system will assume that the click will open a new tab
+             * if indicated by the event-data (default). If set to a boolean value, the system will
+             * always assume the state indicated by the boolean ({@code true} assumed to open in a
+             * new tab, otherwise {@code false} will not be opened in a new tab).
+             */
+            openInNewTab: null,
+            onBeforeActivitySent: function (settings, eventData, user, tags) {
+            },
+            onAfterActivitySent: function (settings, eventData, user, tags) {
+            }
+        },
+        data: {
+            user: {},
+            tags: {}
+        }
+    };
+
+    const activateDomObserver = {
+        marker: {
+            activate: 'brob-active',
+            elementData: 'brob-data'
+        },
+
+        normalizeSettings: function (observerType, settings) {
+            if (observerType === 'click') {
+                return $.extend(true, {}, defaultClickObserverOption.settings, settings);
+            } else {
+                return settings;
+            }
+        },
+
+        normalizeData: function (observerType, settings, data) {
+
+            if (observerType === 'click') {
+                return $.extend(true, {}, defaultClickObserverOption.data, data);
+            } else {
+                return data;
+            }
+        },
+
+        /**
+         * Activates or deactivates the observation on the element.
+         * @param $el the element to evaluate
+         */
+        evaluate: function ($el) {
+            const setting = $el.attr('data-' + activateDomObserver.marker.activate);
+
+            let operation;
+            if (setting === 'true') {
+                operation = this.activateObserver;
+            } else if (setting === 'false') {
+                operation = this.deactivateObserver;
+            } else {
+                return;
+            }
+
+            let observers;
+            const elementData = $el.data(this.marker.elementData);
+            if ($.isPlainObject(elementData)) {
+                observers = [elementData];
+            } else if ($.isArray(elementData)) {
+                observers = elementData;
+            } else {
+                observers = [];
+            }
+
+            for (let i = 0; i < observers.length; i++) {
+                const observer = $.isPlainObject(observers[i]) ? observers[i] : {};
+                operation($el, observer);
+            }
+        },
+
+        activateObserver: function ($el, observer) {
+            const settings = $.isPlainObject(observer.settings) ? observer.settings : {};
+            const data = $.isPlainObject(observer.data) ? observer.data : {};
+
+            if (observer.observe === 'click') {
+                this.activateClickObserver($el, settings, data);
+            }
+        },
+
+        activateClickObserver: function ($el, settings, data) {
+            $el.click(function (event) {
+                const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+                const user = data.user;
+                const tags = data.tags;
+
+                const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : 'clickedElement';
+                const eventData = {
+                    event: event,
+                    defaultOpenInNewTab: openInNewTab
+                };
+
+                let execute = true;
+                if ($.isFunction(settings.onBeforeActivitySent)) {
+                    execute = settings.onBeforeActivitySent(settings, eventData, user, tags);
+                    execute = typeof execute === 'boolean' ? execute : true;
+                }
+
+                // do nothing if the execution was canceled
+                if (!execute) {
+                    return;
+                }
+
+                if (openInNewTab && (settings.openInNewTab === null || settings.openInNewTab === true)) {
+
+                    Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
+                } else if (!openInNewTab && (settings.openInNewTab === null || settings.openInNewTab === false)) {
+
+                    Breinify.plugins.activities.generic(activityType, user, tags, function () {
+                        if ($.isFunction(settings.onAfterActivitySent)) {
+                            settings.onAfterActivitySent(settings, eventData, user, tags);
+                        }
+                    });
+                }
+            });
+        },
+
+        deactivateObserver: function ($el, settings) {
+
+        }
+    };
+
     const Activities = {
         marker: {
-            observer: {
-                activate: 'brob-active',
-                elementData: 'brob-data'
-            }
+            observer: activateDomObserver.marker
         },
         domObserverActive: false,
 
-        activateDomObserver: function() {
-            const _self = this;
-
+        activateDomObserver: function () {
             if (this.domObserverActive === true) {
                 return;
             }
 
             Breinify.UTL.dom.addModification('activities::activateDomObserver', {
-                selector: '[data-' + this.marker.observer.activate + ']',
+                selector: '[data-' + activateDomObserver.marker.activate + ']',
                 modifier: function ($els) {
                     $els.each(function () {
-
-                        // get the values from the element
-                        let $el = $(this);
-                        console.log('observing', $el);
-                        console.log('observing', $el.data(_self.marker.observer.elementData));
+                        activateDomObserver.evaluate($(this));
                     });
                 }
             });
 
             this.domObserverActive = true;
+        },
+
+        setupObservableDomElement: function ($el, observerType, settings, data) {
+
+            const normalizedSettings = activateDomObserver.normalizeSettings(observerType, settings);
+            const normalizedData = activateDomObserver.normalizeData(observerType, settings, data);
+
+            let currentData = $el.data(this.marker.observer.elementData);
+            if (!$.isArray(currentData)) {
+                currentData = [];
+                $el.data(this.marker.observer.elementData, currentData);
+            }
+
+            currentData.push({
+                observe: observerType,
+                settings: normalizedSettings,
+                data: normalizedData
+            });
+
+            $el.data(this.marker.observer.elementData, currentData)
+                .attr('data-' + this.marker.observer.activate, 'true');
+
+            // just make it chainable
+            return this;
         },
 
         generic: function () {
