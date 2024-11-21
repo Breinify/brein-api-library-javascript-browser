@@ -1,3 +1,5 @@
+// noinspection JSUnusedGlobalSymbols
+
 "use strict";
 
 (function () {
@@ -67,6 +69,10 @@
                     break;
                 case 'gtag':
                     _self.type = gaType;
+
+                    _self.initialized = true;
+                    callback(_self.initialized);
+                    break;
                 default:
                     throw new Error('Using currently unavailable type: ' + gaType);
             }
@@ -145,9 +151,9 @@
                 return normalizedType;
             }
 
-            if (typeof ga === 'function') {
+            if (typeof window.ga === 'function') {
                 return 'ga';
-            } else if (typeof gtag === 'function') {
+            } else if (typeof window.gtag === 'function') {
                 return 'gtag';
             } else {
                 throw new Error('Unable to determine type, please specify.');
@@ -253,17 +259,44 @@
     try {
         window.localStorage.setItem('br-local-storage-test', 'true');
         window.localStorage.removeItem('br-local-storage-test');
-        
+
         usedDelayedActivitiesStorage = delayedActivitiesStorage.localStorage;
     } catch (e) {
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
 
     const Activities = {
+        marker: {
+            observer: {
+                activate: 'brob-active'
+            }
+        },
+
+        domObserverActive: false,
+
+        activateDomObserver: function() {
+            if (this.domObserverActive === true) {
+                return;
+            }
+
+            Breinify.UTL.dom.addModification('activities::activateDomObserver', {
+                selector: '[data-' + this.marker.observer.activate + ']',
+                modifier: function ($els) {
+                    $els.each(function () {
+
+                        // get the values from the element
+                        let $el = $(this);
+                        console.log('observing', $el);
+                    });
+                }
+            });
+
+            this.domObserverActive = true;
+        },
 
         generic: function () {
             const _self = this;
-            
+
             overload.overload({
                 'String,Object': function (type, user) {
                     _self._send(type, user, {}, null);
@@ -600,7 +633,7 @@
             let filter = activityData.filter;
             let filterParts = typeof filter === 'string' ? filter.split('::') : [];
 
-            let funcName = null, instance = null;
+            let funcName, instance;
             if (filterParts.length >= 2) {
 
                 // find the instance
@@ -865,7 +898,7 @@
         },
 
         _extendTags: function (type, tags) {
-            let tagsExtenderPlugIn = this.getConfig('tagsExtender', function (activityType) {
+            let tagsExtenderPlugIn = this.getConfig('tagsExtender', function () {
                 return {};
             });
 
@@ -874,7 +907,6 @@
                 tags = {};
             }
 
-            let tagsExtenderResult;
             if (tagsExtenderPlugIn === null || !$.isFunction(tagsExtenderPlugIn)) {
                 return $.extend({}, tags);
             } else {
