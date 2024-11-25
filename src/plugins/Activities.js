@@ -305,6 +305,8 @@
             changed: 'changed'
         },
         mutationObserver: null,
+        blurElements: [],
+        blurListener: null,
 
         init: function () {
             const _self = this;
@@ -389,7 +391,7 @@
             }
         },
 
-        readElementData: function($el) {
+        readElementData: function ($el) {
             let observers;
 
             const elementData = $el.data(this.marker.elementData);
@@ -449,10 +451,25 @@
             const _self = this;
 
             if ($el.is('iframe')) {
-                window.addEventListener('blur', function (event) {
-                    if ($(document.activeElement).is($el)) {
-                        _self.handleClick(event, $el, settings, data);
-                    }
+                if (this.blurListener === null) {
+                    this.blurListener = function (event) {
+
+                        for (let i = 0; i < _self.blurElements.length; i++) {
+                            const blurElement = _self.blurElements[i];
+
+                            if ($(document.activeElement).is(blurElement.$el)) {
+                                _self.handleClick(event, blurElement.$el, blurElement.settings, blurElement.data);
+                            }
+                        }
+                    };
+
+                    window.addEventListener('blur', this.blurListener);
+                }
+
+                this.blurElements.push({
+                    $el: $el,
+                    settings: settings,
+                    data: data
                 });
             } else {
                 $el.click(function (event) {
@@ -461,7 +478,7 @@
             }
         },
 
-        handleClick: function(event, $el, settings, data) {
+        handleClick: function (event, $el, settings, data) {
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
             const user = data.user;
             const tags = data.tags;
@@ -521,7 +538,8 @@
             const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
-            let currentData = activityDomObserver.readElementData($el); $el.data(this.marker.observer.elementData);
+            let currentData = activityDomObserver.readElementData($el);
+            $el.data(this.marker.observer.elementData);
             if (!$.isArray(currentData)) {
                 currentData = [];
             }
