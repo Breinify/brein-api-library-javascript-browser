@@ -281,10 +281,10 @@
             /**
              * If set to {@code null}, the system will assume that the click will open a new tab
              * if indicated by the event-data (default). If set to a boolean value, the system will
-             * always assume the state indicated by the boolean ({@code true} assumed to open in a
-             * new tab, otherwise {@code false} will not be opened in a new tab).
+             * always apply the state indicated by the boolean ({@code true} schedule the activity,
+             * otherwise {@code false} will not schedule the activity).
              */
-            openInNewTab: null,
+            scheduleActivities: null,
             onBeforeActivitySent: function (settings, eventData, user, tags) {
             },
             onAfterActivitySent: function (settings, eventData, user, tags) {
@@ -512,10 +512,10 @@
                 return;
             }
 
-            if ((settings.openInNewTab === null && openInNewTab) || settings.openInNewTab === true) {
+            if ((settings.scheduleActivities === null && !openInNewTab) || settings.scheduleActivities === true) {
 
                 Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
-            } else if ((settings.openInNewTab === null && !openInNewTab) || settings.openInNewTab === false) {
+            } else if ((settings.scheduleActivities === null && openInNewTab) || settings.scheduleActivities === false) {
 
                 Breinify.plugins.activities.generic(activityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
