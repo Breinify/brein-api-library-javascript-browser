@@ -430,40 +430,54 @@
         },
 
         activateClickObserver: function ($el, settings, data) {
-            $el.click(function (event) {
-                const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
-                const user = data.user;
-                const tags = data.tags;
+            const _self = this;
 
-                const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : 'clickedElement';
-                const eventData = {
-                    event: event,
-                    defaultOpenInNewTab: openInNewTab
-                };
+            if ($el.is('iframe')) {
+                window.addEventListener('blur', function (event) {
+                    if ($(document.activeElement).is($el)) {
+                        _self.handleClick(event, $el, settings, data);
+                    }
+                });
+            } else {
+                $el.click(function (event) {
+                    _self.handleClick(event, $el, settings, data);
+                });
+            }
+        },
 
-                let execute = true;
-                if ($.isFunction(settings.onBeforeActivitySent)) {
-                    execute = settings.onBeforeActivitySent(settings, eventData, user, tags);
-                    execute = typeof execute === 'boolean' ? execute : true;
-                }
+        handleClick: function(event, $el, settings, data) {
+            const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+            const user = data.user;
+            const tags = data.tags;
 
-                // do nothing if the execution was canceled
-                if (!execute) {
-                    return;
-                }
+            const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : 'clickedElement';
+            const eventData = {
+                event: event,
+                defaultOpenInNewTab: openInNewTab
+            };
 
-                if ((settings.openInNewTab === null && openInNewTab) || settings.openInNewTab === true) {
+            let execute = true;
+            if ($.isFunction(settings.onBeforeActivitySent)) {
+                execute = settings.onBeforeActivitySent(settings, eventData, user, tags);
+                execute = typeof execute === 'boolean' ? execute : true;
+            }
 
-                    Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
-                } else if ((settings.openInNewTab === null && !openInNewTab) || settings.openInNewTab === false) {
+            // do nothing if the execution was canceled
+            if (!execute) {
+                return;
+            }
 
-                    Breinify.plugins.activities.generic(activityType, user, tags, function () {
-                        if ($.isFunction(settings.onAfterActivitySent)) {
-                            settings.onAfterActivitySent(settings, eventData, user, tags);
-                        }
-                    });
-                }
-            });
+            if ((settings.openInNewTab === null && openInNewTab) || settings.openInNewTab === true) {
+
+                Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
+            } else if ((settings.openInNewTab === null && !openInNewTab) || settings.openInNewTab === false) {
+
+                Breinify.plugins.activities.generic(activityType, user, tags, function () {
+                    if ($.isFunction(settings.onAfterActivitySent)) {
+                        settings.onAfterActivitySent(settings, eventData, user, tags);
+                    }
+                });
+            }
         },
 
         deactivateObserver: function ($el, settings) {
