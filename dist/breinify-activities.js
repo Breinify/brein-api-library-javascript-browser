@@ -432,6 +432,8 @@
                 const observer = $.isPlainObject(observers[i]) ? observers[i] : {};
                 operation.call(this, $el, observer);
             }
+
+            $el.attr('data-' + activityDomObserver.marker.activate, 'evaluated');
         },
 
         activateObserver: function ($el, observer) {
