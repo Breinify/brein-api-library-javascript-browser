@@ -292,6 +292,11 @@
             activate: 'brob-active',
             elementData: 'brob-data'
         },
+        actions: {
+            removed: 'removed',
+            added: 'added',
+            changed: 'changed'
+        },
         mutationObserver: null,
 
         init: function () {
@@ -307,17 +312,17 @@
                     const removedNodes = mutations[i].removedNodes;
 
                     if (typeof attribute === 'string' && attribute === observerAttribute) {
-                        _self.determineChangedElement($(mutation.target), 'changed');
+                        _self.determineChangedElement($(mutation.target), _self.actions.changed);
                     }
 
                     for (let k = 0; k < addedNodes.length; k++) {
                         const addedNode = addedNodes[k];
-                        _self.determineChangedElement($(addedNode), 'added');
+                        _self.determineChangedElement($(addedNode), _self.actions.added);
                     }
 
                     for (let k = 0; k < removedNodes.length; k++) {
                         const removedNode = removedNodes[k];
-                        _self.determineChangedElement($(removedNode), 'removed');
+                        _self.determineChangedElement($(removedNode), _self.actions.removed);
                     }
                 }
             });
@@ -327,16 +332,6 @@
                 attributes: true,
                 attributeFilter: [observerAttribute],
             });
-
-
-            // Breinify.UTL.dom.addModification('activities::activityDomObserver', {
-            //     selector: '[data-' + this.marker.activate + ']',
-            //     modifier: function ($els) {
-            //         $els.each(function () {
-            //             _self.evaluate($(this));
-            //         });
-            //     }
-            // });
         },
 
         determineChangedElement: function ($el, type) {
@@ -357,7 +352,16 @@
         },
 
         handleChangedElement: function ($el, type) {
-            console.log('action: ' + type, $el);
+            if (this.actions.added === type) {
+                this.evaluate($el);
+            } else if (this.actions.changed === type) {
+                this.evaluate($el);
+            } else if (this.actions.removed === type) {
+                // for now there isn't anything to do
+                // this.evaluate($el);
+            } else {
+                // ignore
+            }
         },
 
         normalizeSettings: function (observerType, settings) {
