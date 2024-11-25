@@ -296,13 +296,36 @@
 
         init: function () {
             const _self = this;
+            const observerAttribute = 'data-' + this.marker.activate;
 
             // observe any attribute change to the observed attribute
             this.mutationObserver = new MutationObserver(function (mutations) {
                 for (let i = 0; i < mutations.length; i++) {
-                    console.log(mutations);
-                    for (let k = 0; k < mutations[i].addedNodes.length; k++) {
-                        console.log(mutations[i]);
+                    const mutation = mutations[i];
+                    const attribute = mutation.attributeName;
+                    const addedNodes = mutations[i].addedNodes;
+                    const removedNodes = mutations[i].removedNodes;
+
+                    let target;
+                    if (typeof attribute === 'string' && attribute === observerAttribute) {
+                        target = mutation.target;
+                        console.log('changed attribute', target);
+                    }
+
+                    if ($.isArray(addedNodes)) {
+                        for (let k = 0; k < addedNodes.length; k++) {
+                            const addedNode = addedNodes[k];
+
+                            console.log('added', addedNode);
+                        }
+                    }
+
+                    if ($.isArray(removedNodes)) {
+                        for (let k = 0; k < removedNodes.length; k++) {
+                            const removedNode = removedNodes[k];
+
+                            console.log('removed', removedNode);
+                        }
                     }
                 }
             });
@@ -310,7 +333,7 @@
                 subtree: true,
                 childList: true,
                 attributes: true,
-                attributeFilter: ['data-' + this.marker.activate],
+                attributeFilter: [observerAttribute],
             });
 
 
