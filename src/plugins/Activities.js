@@ -287,10 +287,23 @@
         }
     };
 
-    const activateDomObserver = {
+    const activityDomObserver = {
         marker: {
             activate: 'brob-active',
             elementData: 'brob-data'
+        },
+
+        init: function () {
+            const _self = this;
+
+            Breinify.UTL.dom.addModification('activities::activityDomObserver', {
+                selector: '[data-' + this.marker.activate + ']',
+                modifier: function ($els) {
+                    $els.each(function () {
+                        _self.evaluate($(this));
+                    });
+                }
+            });
         },
 
         normalizeSettings: function (observerType, settings) {
@@ -315,7 +328,7 @@
          * @param $el the element to evaluate
          */
         evaluate: function ($el) {
-            const setting = $el.attr('data-' + activateDomObserver.marker.activate);
+            const setting = $el.attr('data-' + activityDomObserver.marker.activate);
 
             let operation;
             if (setting === 'true') {
@@ -395,7 +408,7 @@
 
     const Activities = {
         marker: {
-            observer: activateDomObserver.marker
+            observer: activityDomObserver.marker
         },
         domObserverActive: false,
 
@@ -404,22 +417,14 @@
                 return;
             }
 
-            Breinify.UTL.dom.addModification('activities::activateDomObserver', {
-                selector: '[data-' + activateDomObserver.marker.activate + ']',
-                modifier: function ($els) {
-                    $els.each(function () {
-                        activateDomObserver.evaluate($(this));
-                    });
-                }
-            });
-
+            activityDomObserver.init();
             this.domObserverActive = true;
         },
 
         setupObservableDomElement: function ($el, observerType, settings, data) {
 
-            const normalizedSettings = activateDomObserver.normalizeSettings(observerType, settings);
-            const normalizedData = activateDomObserver.normalizeData(observerType, settings, data);
+            const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
+            const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
             let currentData = $el.data(this.marker.observer.elementData);
             if (!$.isArray(currentData)) {
