@@ -312,20 +312,16 @@
                         console.log('changed attribute', target, mutation);
                     }
 
-                    if (addedNodes instanceof NodeList) {
-                        for (let k = 0; k < addedNodes.length; k++) {
-                            const addedNode = addedNodes[k];
+                    for (let k = 0; k < addedNodes.length; k++) {
+                        const addedNode = addedNodes[k];
 
-                            console.log('added', addedNode, mutation);
-                        }
+                        console.log('added', addedNode, mutation);
                     }
 
-                    if (removedNodes instanceof NodeList) {
-                        for (let k = 0; k < removedNodes.length; k++) {
-                            const removedNode = removedNodes[k];
+                    for (let k = 0; k < removedNodes.length; k++) {
+                        const removedNode = removedNodes[k];
 
-                            console.log('removed', removedNode, mutation);
-                        }
+                        console.log('removed', removedNode, mutation);
                     }
                 }
             });
