@@ -485,6 +485,7 @@
 
             const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : 'clickedElement';
             const eventData = {
+                $el: $el,
                 event: event,
                 defaultOpenInNewTab: openInNewTab
             };
