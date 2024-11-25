@@ -534,6 +534,16 @@
         },
 
         setupObservableDomElement: function ($el, observerType, settings, data) {
+            const _self = this;
+
+            // we assign each element individually
+            if ($el.length > 1) {
+                $el.each(function () {
+                    _self.setupObservableDomElement($(this), observerType, settings, data);
+                });
+
+                return;
+            }
 
             const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
