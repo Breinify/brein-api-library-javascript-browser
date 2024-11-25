@@ -306,22 +306,18 @@
                     const addedNodes = mutations[i].addedNodes;
                     const removedNodes = mutations[i].removedNodes;
 
-                    let target;
                     if (typeof attribute === 'string' && attribute === observerAttribute) {
-                        target = mutation.target;
-                        console.log('changed attribute', target, mutation);
+                        _self.determineChangedElement($(mutation.target), 'changed');
                     }
 
                     for (let k = 0; k < addedNodes.length; k++) {
                         const addedNode = addedNodes[k];
-
-                        console.log('added', addedNode, mutation);
+                        _self.determineChangedElement($(addedNode), 'added');
                     }
 
                     for (let k = 0; k < removedNodes.length; k++) {
                         const removedNode = removedNodes[k];
-
-                        console.log('removed', removedNode, mutation);
+                        _self.determineChangedElement($(removedNode), 'removed');
                     }
                 }
             });
@@ -341,6 +337,27 @@
             //         });
             //     }
             // });
+        },
+
+        determineChangedElement: function ($el, type) {
+            const _self = this;
+            const observerSelector = '[data-' + this.marker.activate + ']';
+
+            if ($el.is(observerSelector)) {
+                this.handleChangedElement($el, type);
+                return;
+            }
+
+            const $innerEl = $el.find(observerSelector);
+            if ($innerEl.length > 0) {
+                $innerEl.each(function () {
+                    _self.handleChangedElement($innerEl, type);
+                });
+            }
+        },
+
+        handleChangedElement: function ($el, type) {
+            console.log('action: ' + type, $el);
         },
 
         normalizeSettings: function (observerType, settings) {
