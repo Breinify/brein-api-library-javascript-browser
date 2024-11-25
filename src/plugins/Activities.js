@@ -309,22 +309,22 @@
                     let target;
                     if (typeof attribute === 'string' && attribute === observerAttribute) {
                         target = mutation.target;
-                        console.log('changed attribute', target);
+                        console.log('changed attribute', target, mutation);
                     }
 
-                    if ($.isArray(addedNodes)) {
+                    if (addedNodes instanceof NodeList) {
                         for (let k = 0; k < addedNodes.length; k++) {
                             const addedNode = addedNodes[k];
 
-                            console.log('added', addedNode);
+                            console.log('added', addedNode, mutation);
                         }
                     }
 
-                    if ($.isArray(removedNodes)) {
+                    if (removedNodes instanceof NodeList) {
                         for (let k = 0; k < removedNodes.length; k++) {
                             const removedNode = removedNodes[k];
 
-                            console.log('removed', removedNode);
+                            console.log('removed', removedNode, mutation);
                         }
                     }
                 }
