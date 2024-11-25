@@ -268,7 +268,9 @@
     const defaultObserverOption = {
         settings: {
             bindDataByTag: false,
-            evaluateOnSetup: false
+            evaluateOnSetup: false,
+            onActivation: function (settings, eventData, user, tags) {
+            }
         }
     };
 
@@ -441,6 +443,15 @@
         activateObserver: function ($el, observer) {
             const settings = $.isPlainObject(observer.settings) ? observer.settings : {};
             const data = $.isPlainObject(observer.data) ? observer.data : {};
+
+            if ($.isFunction(settings.onActivation)) {
+                const user = data.user;
+                const tags = data.tags;
+
+                settings.onActivation(settings, {
+                    $el: $el
+                }, user, tags);
+            }
 
             if (observer.observe === 'click') {
                 this.activateClickObserver($el, settings, data);
