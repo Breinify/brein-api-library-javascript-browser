@@ -389,23 +389,9 @@
             }
         },
 
-        /**
-         * Activates or deactivates the observation on the element.
-         * @param $el the element to evaluate
-         */
-        evaluate: function ($el) {
-            const setting = $el.attr('data-' + activityDomObserver.marker.activate);
-
-            let operation;
-            if (setting === 'true') {
-                operation = this.activateObserver;
-            } else if (setting === 'false') {
-                operation = this.deactivateObserver;
-            } else {
-                return;
-            }
-
+        readElementData: function($el) {
             let observers;
+
             const elementData = $el.data(this.marker.elementData);
             if (typeof elementData === 'string' && typeof $el.attr('data-' + this.marker.elementData) === 'string') {
                 try {
@@ -422,6 +408,26 @@
                 observers = [];
             }
 
+            return observers;
+        },
+
+        /**
+         * Activates or deactivates the observation on the element.
+         * @param $el the element to evaluate
+         */
+        evaluate: function ($el) {
+            const setting = $el.attr('data-' + activityDomObserver.marker.activate);
+
+            let operation;
+            if (setting === 'true') {
+                operation = this.activateObserver;
+            } else if (setting === 'false') {
+                operation = this.deactivateObserver;
+            } else {
+                return;
+            }
+
+            const observers = this.readElementData($el);
             for (let i = 0; i < observers.length; i++) {
                 const observer = $.isPlainObject(observers[i]) ? observers[i] : {};
                 operation.call(this, $el, observer);
@@ -513,10 +519,9 @@
             const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
-            let currentData = $el.data(this.marker.observer.elementData);
+            let currentData = activityDomObserver.readElementData($el); $el.data(this.marker.observer.elementData);
             if (!$.isArray(currentData)) {
                 currentData = [];
-                $el.data(this.marker.observer.elementData, currentData);
             }
 
             currentData.push({
