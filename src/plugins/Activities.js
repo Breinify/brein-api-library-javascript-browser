@@ -292,18 +292,36 @@
             activate: 'brob-active',
             elementData: 'brob-data'
         },
+        mutationObserver: null,
 
         init: function () {
             const _self = this;
 
-            Breinify.UTL.dom.addModification('activities::activityDomObserver', {
-                selector: '[data-' + this.marker.activate + ']',
-                modifier: function ($els) {
-                    $els.each(function () {
-                        _self.evaluate($(this));
-                    });
+            // observe any attribute change to the observed attribute
+            this.mutationObserver = new MutationObserver(function (mutations) {
+                for (let i = 0; i < mutations.length; i++) {
+                    console.log(mutations);
+                    for (let k = 0; k < mutations[i].addedNodes.length; k++) {
+                        console.log(mutations[i]);
+                    }
                 }
             });
+            this.mutationObserver.observe(document, {
+                subtree: true,
+                childList: true,
+                attributes: true,
+                attributeFilter: ['data-' + this.marker.activate],
+            });
+
+
+            // Breinify.UTL.dom.addModification('activities::activityDomObserver', {
+            //     selector: '[data-' + this.marker.activate + ']',
+            //     modifier: function ($els) {
+            //         $els.each(function () {
+            //             _self.evaluate($(this));
+            //         });
+            //     }
+            // });
         },
 
         normalizeSettings: function (observerType, settings) {
