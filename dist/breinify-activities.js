@@ -267,6 +267,7 @@
 
     const defaultObserverOption = {
         settings: {
+            bindDataByTag: false,
             evaluateOnSetup: false
         }
     };
@@ -406,7 +407,14 @@
 
             let observers;
             const elementData = $el.data(this.marker.elementData);
-            if ($.isPlainObject(elementData)) {
+            if (typeof elementData === 'string' && typeof $el.attr('data-' + this.marker.elementData) === 'string') {
+                try {
+                    observers = JSON.parse(elementData);
+                } catch (e) {
+                    // we just can ignore this at this point
+                    observers = [];
+                }
+            } else if ($.isPlainObject(elementData)) {
                 observers = [elementData];
             } else if ($.isArray(elementData)) {
                 observers = elementData;
@@ -517,8 +525,13 @@
                 data: normalizedData
             });
 
-            $el.data(this.marker.observer.elementData, currentData)
-                .attr('data-' + this.marker.observer.activate, 'true');
+            if (normalizedSettings.bindDataByTag === true) {
+                $el.attr('data-' + this.marker.observer.elementData, JSON.stringify(currentData));
+            } else {
+                $el.data(this.marker.observer.elementData, currentData);
+            }
+
+            $el.attr('data-' + this.marker.observer.activate, 'true');
 
             // evaluate directly (not on bound or observing dom-event) if needed
             if (normalizedSettings.evaluateOnSetup === true) {
