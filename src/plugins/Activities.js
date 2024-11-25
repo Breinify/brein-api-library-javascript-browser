@@ -265,6 +265,12 @@
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
 
+    const defaultObserverOption = {
+        settings: {
+            evaluateOnSetup: false
+        }
+    };
+
     const defaultClickObserverOption = {
         observer: 'click',
         settings: {
@@ -365,10 +371,11 @@
         },
 
         normalizeSettings: function (observerType, settings) {
+
             if (observerType === 'click') {
-                return $.extend(true, {}, defaultClickObserverOption.settings, settings);
+                return $.extend(true, {}, defaultObserverOption.settings, defaultClickObserverOption.settings, settings);
             } else {
-                return settings;
+                return $.extend(true, {}, defaultObserverOption.settings, settings);
             }
         },
 
@@ -498,6 +505,11 @@
 
             $el.data(this.marker.observer.elementData, currentData)
                 .attr('data-' + this.marker.observer.activate, 'true');
+
+            // evaluate directly (not on bound or observing dom-event) if needed
+            if (normalizedSettings.evaluateOnSetup === true) {
+                activityDomObserver.evaluate($el);
+            }
 
             // just make it chainable
             return this;
