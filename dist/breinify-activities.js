@@ -491,6 +491,7 @@
 
         handleClick: function (event, $el, settings, data) {
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+            const willReloadPage = event.target instanceof HTMLAnchorElement;
             const user = data.user;
             const tags = data.tags;
 
@@ -498,7 +499,8 @@
             const eventData = {
                 $el: $el,
                 event: event,
-                defaultOpenInNewTab: openInNewTab
+                defaultOpenInNewTab: openInNewTab,
+                defaultWillReloadPage: willReloadPage
             };
 
             let execute = true;
@@ -512,10 +514,21 @@
                 return;
             }
 
-            if ((settings.scheduleActivities === null && !openInNewTab) || settings.scheduleActivities === true) {
+            let scheduleActivity = null;
+            if (settings.scheduleActivities === null) {
+                if (willReloadPage === false) {
+                    scheduleActivity = false;
+                } else {
+                    scheduleActivity = openInNewTab !== true;
+                }
+            } else if (typeof settings.scheduleActivities === 'boolean') {
+                scheduleActivity = settings.scheduleActivities;
+            }
+
+            if (scheduleActivity === true) {
 
                 Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
-            } else if ((settings.scheduleActivities === null && openInNewTab) || settings.scheduleActivities === false) {
+            } else if (scheduleActivity === false) {
 
                 Breinify.plugins.activities.generic(activityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
