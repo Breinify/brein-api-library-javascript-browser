@@ -512,10 +512,10 @@
                 return;
             }
 
-            if ((settings.scheduleActivities === null && !openInNewTab) || settings.scheduleActivities === true) {
+            if ((settings.scheduleActivities === null && openInNewTab) || settings.scheduleActivities === true) {
 
                 Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
-            } else if ((settings.scheduleActivities === null && openInNewTab) || settings.scheduleActivities === false) {
+            } else if ((settings.scheduleActivities === null && !openInNewTab) || settings.scheduleActivities === false) {
 
                 Breinify.plugins.activities.generic(activityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
