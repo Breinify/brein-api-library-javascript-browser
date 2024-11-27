@@ -14084,7 +14084,7 @@ dependencyScope.jQuery = $;;
             determineApiVersion: function () {
                 if ($.isPlainObject(scope.Breinify) &&
                     $.isPlainObject(scope.Breinify.plugins) &&
-                    $.isPlainObject(scope.Breinify.api) &&
+                    $.isPlainObject(scope.Breinify.plugins.api) &&
                     typeof scope.Breinify.plugins.api.version === 'string' &&
                     scope.Breinify.plugins.api.version.trim() !== '') {
                     return scope.Breinify.plugins.api.version.trim();
