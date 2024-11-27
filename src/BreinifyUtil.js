@@ -963,6 +963,18 @@
                 this.splitTestData = splitTestData;
             },
 
+            determineApiVersion: function () {
+                if ($.isPlainObject(scope.Breinify) &&
+                    $.isPlainObject(scope.Breinify.plugins) &&
+                    $.isPlainObject(scope.Breinify.api) &&
+                    typeof scope.Breinify.plugins.api.version === 'string' &&
+                    scope.Breinify.plugins.api.version.trim() !== '') {
+                    return scope.Breinify.plugins.api.version.trim();
+                } else {
+                    return 'n/a';
+                }
+            },
+
             create: function (user) {
                 let splitTestData;
                 try {
@@ -976,6 +988,7 @@
                 let defaultUser = {
                     'sessionId': this.getSessionId(),
                     'additional': {
+                        'apiVersion': this.determineApiVersion(),
                         'splitTests': splitTestData,
                         'identifiers': {
                             'browserId': this.getBrowserId()
