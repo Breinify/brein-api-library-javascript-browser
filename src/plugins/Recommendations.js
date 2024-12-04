@@ -83,7 +83,7 @@
                 method = 'prepend';
             } else if (option.position.replace !== null) {
                 selector = option.position.replace;
-                method = 'replace';
+                method = 'replaceWith';
             }
 
             let $anchor = this._determineSelector(selector);
