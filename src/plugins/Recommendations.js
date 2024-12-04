@@ -462,7 +462,7 @@
             $.each(options, function (name, option) {
                 let result = data[name];
 
-                if (!$.isPlainObject(result)) {
+                if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
                         code: -1,
                         error: true,
@@ -470,7 +470,7 @@
                         name: name,
                         result: result
                     });
-                } else if (result.error === true) {
+                } else if (result.status.error === true) {
                     Renderer._process(option.process.error, $.extend({
                         name: name,
                         result: result
