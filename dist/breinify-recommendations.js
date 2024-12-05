@@ -641,7 +641,9 @@
             const activityType = option.activity.type;
 
             settings = $.extend(true, {
-                scheduleActivities: null,
+                additionalEventData: {
+                    scheduleActivities: null
+                },
                 activityType: activityType,
                 activityTags: {},
                 activityUser: {}
@@ -652,14 +654,14 @@
 
             // decide to schedule or not
             let scheduleActivity = null;
-            if (settings.scheduleActivities === null) {
+            if (settings.additionalEventData.scheduleActivities === null) {
                 if (willReloadPage === false) {
                     scheduleActivity = false;
                 } else {
                     scheduleActivity = openInNewTab !== true;
                 }
-            } else if (typeof settings.scheduleActivities === 'boolean') {
-                scheduleActivity = settings.scheduleActivities;
+            } else if (typeof settings.additionalEventData.scheduleActivities === 'boolean') {
+                scheduleActivity = settings.additionalEventData.scheduleActivities;
             }
 
             // send the activity, utilizing the activity plugin (needed here)
