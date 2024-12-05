@@ -476,11 +476,11 @@
                         result: result
                     }, result.status));
                 } else if (result.splitTestData.isControl === true) {
-                    _self._setupControlContainer(option, result);
-                    _self._applyBindings(option, result);
+                    const $container = _self._setupControlContainer(option, result);
+                    _self._applyBindings(option, result, $container);
                 } else {
-                    _self._renderRecommendation(option, result);
-                    _self._applyBindings(option, result);
+                    const $container = _self._renderRecommendation(option, result);
+                    _self._applyBindings(option, result, $container);
                 }
             });
         },
@@ -656,7 +656,7 @@
             }
         },
 
-        _applyBindings: function (option, result) {
+        _applyBindings: function (option, result, $container) {
             const _self = this;
 
             /*
@@ -670,16 +670,21 @@
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
                 _self._handleClick($(this), event, additionalEventData);
             });
+
+            /*
+             * We allow more strict observers (on specific elements as well)
+             */
+
         },
 
         _setupControlContainer: function (option, data) {
             const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
             if ($controlContainer === null) {
-                return;
+                return null;
             }
 
             // attach the data of the recommendation response to the container
-            $controlContainer
+            return $controlContainer
                 .attr('data-' + Renderer.marker.container, 'true')
                 .addClass(Renderer.marker.container)
                 .data(Renderer.marker.data, {
@@ -722,6 +727,8 @@
             }
 
             Renderer._process(option.process.post, $container, $itemContainer, data, option);
+
+            return $container;
         },
 
         _retrieveRecommendations: function (payloads, callback) {
