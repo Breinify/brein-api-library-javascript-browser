@@ -681,7 +681,7 @@
                 const keys = Object.keys(specificSelectors);
                 for (let i = 0; i < keys.length; i++) {
                     const selector = keys[i];
-                    const specificSelector = specificSelectors[key];
+                    const specificSelector = specificSelectors[selector];
                     const additionalEventData = $.isPlainObject(specificSelector) ? specificSelector : {};
 
                     $container.find(selector).on('click', function (event) {
