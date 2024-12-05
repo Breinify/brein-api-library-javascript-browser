@@ -677,7 +677,7 @@
              * but is sometimes needed.
              */
             const specificSelectors = option.bindings.specificSelectors;
-            if ($.isPlainObject(specificSelectors)) {
+            if ($.isPlainObject(specificSelectors) && $container !== null) {
                 const keys = Object.keys(specificSelectors);
                 for (let i = 0; i < keys.length; i++) {
                     const selector = keys[i];
