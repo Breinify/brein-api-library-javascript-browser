@@ -637,10 +637,11 @@
                * the activity sent.
                */
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+            const willReloadPage = event.target instanceof HTMLAnchorElement;
             const activityType = option.activity.type;
 
             settings = $.extend(true, {
-                schedule: !openInNewTab,
+                scheduleActivities: null,
                 activityType: activityType,
                 activityTags: {},
                 activityUser: {}
@@ -649,10 +650,22 @@
             // trigger the creation activity process to ensure that we can modify the activity to be  sent
             Renderer._process(option.process.createActivity, event, settings);
 
+            // decide to schedule or not
+            let scheduleActivity = null;
+            if (settings.scheduleActivities === null) {
+                if (willReloadPage === false) {
+                    scheduleActivity = false;
+                } else {
+                    scheduleActivity = openInNewTab !== true;
+                }
+            } else if (typeof settings.scheduleActivities === 'boolean') {
+                scheduleActivity = settings.scheduleActivities;
+            }
+
             // send the activity, utilizing the activity plugin (needed here)
-            if (settings.schedule === true) {
+            if (scheduleActivity === true) {
                 Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
-            } else {
+            } else if (scheduleActivity === false) {
                 Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
             }
         },
