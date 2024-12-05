@@ -268,7 +268,8 @@
             type: 'clickedRecommendation'
         },
         bindings: {
-            selector: 'a'
+            selector: 'a',
+            specificSelectors: {}
         },
         splitTests: {
             control: {
@@ -672,9 +673,22 @@
             });
 
             /*
-             * We allow more strict observers (on specific elements as well)
+             * We allow more strict observers (on specific elements as well). This should be only a last resort,
+             * but is sometimes needed.
              */
+            const specificSelectors = option.bindings.specificSelectors;
+            if ($.isPlainObject(specificSelectors)) {
+                const keys = Object.keys(specificSelectors);
+                for (let i = 0; i < keys.length; i++) {
+                    const selector = keys[i];
+                    const specificSelector = specificSelectors[key];
+                    const additionalEventData = $.isPlainObject(specificSelector) ? specificSelector : {};
 
+                    $container.find(selector).on('click', function (event) {
+                        _self._handleClick($(this), event, additionalEventData);
+                    });
+                }
+            }
         },
 
         _setupControlContainer: function (option, data) {
