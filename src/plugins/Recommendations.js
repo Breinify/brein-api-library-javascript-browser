@@ -489,7 +489,7 @@
             });
         },
 
-        _handleClick: function ($el, event, additionalEventData) {
+        _handleClick: function (option, $el, event, additionalEventData) {
 
             // search for the container
             const $container = $el.closest('.' + Renderer.marker.container);
@@ -697,7 +697,7 @@
              * the needed information.
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
-                _self._handleClick($(this), event, additionalEventData);
+                _self._handleClick(option, $(this), event, additionalEventData);
             });
 
             /*
@@ -713,7 +713,7 @@
                     const additionalEventData = $.isPlainObject(specificSelector) ? specificSelector : {};
 
                     $container.find(selector).on('click', function (event) {
-                        _self._handleClick($(this), event, additionalEventData);
+                        _self._handleClick(option, $(this), event, additionalEventData);
                     });
                 }
             }
