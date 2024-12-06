@@ -516,7 +516,7 @@
              */
             if (additionalEventData.stopPropagation === true) {
                 event.stopPropagation();
-                Renderer._process(option.process.stoppedPropagation(), event, $el, $container,
+                Renderer._process(option.process.stoppedPropagation, event, $el, $container,
                     containerData.data, additionalEventData, containerData.option);
             }
         },
