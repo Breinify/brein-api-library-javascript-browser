@@ -506,6 +506,14 @@
             } else {
                 this._handleRecommendationClick(event, $el, $container, containerData.data, additionalEventData, containerData.option);
             }
+
+            /*
+             * It may be needed that the further propagation (especially for specific listeners)
+             * should be stopped
+             */
+            if (additionalEventData.stopPropagation === true) {
+                event.stopPropagation();
+            }
         },
 
         _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
@@ -562,10 +570,6 @@
              */
             settings.activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._sendActivity(option, event, settings);
-
-            if (additionalEventData.stopPropagation === true) {
-                event.stopPropagation();
-            }
         },
 
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
