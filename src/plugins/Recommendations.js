@@ -562,6 +562,10 @@
              */
             settings.activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._sendActivity(option, event, settings);
+
+            if (additionalEventData.stopPropagation === true) {
+                event.stopPropagation();
+            }
         },
 
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
