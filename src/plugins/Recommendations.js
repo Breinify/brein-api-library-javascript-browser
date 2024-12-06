@@ -509,7 +509,7 @@
 
             /*
              * It may be needed that the further propagation (especially for specific listeners)
-             * should be stopped
+             * should be stopped.
              */
             if (additionalEventData.stopPropagation === true) {
                 event.stopPropagation();
