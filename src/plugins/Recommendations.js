@@ -307,6 +307,9 @@
             item: null
         },
         process: {
+            stoppedPropagation: function(event) {
+                // nothing to do by default when an event gets cancelled
+            },
             error: function (error) {
                 // ignore
             },
@@ -513,6 +516,8 @@
              */
             if (additionalEventData.stopPropagation === true) {
                 event.stopPropagation();
+                Renderer._process(option.process.stoppedPropagation(), event, $el, $container,
+                    containerData.data, additionalEventData, containerData.option);
             }
         },
 

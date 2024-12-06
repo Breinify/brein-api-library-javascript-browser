@@ -307,6 +307,9 @@
             item: null
         },
         process: {
+            stoppedPropagation: function(event) {
+                // nothing to do by default when an event gets cancelled
+            },
             error: function (error) {
                 // ignore
             },
@@ -509,10 +512,12 @@
 
             /*
              * It may be needed that the further propagation (especially for specific listeners)
-             * should be stopped
+             * should be stopped.
              */
             if (additionalEventData.stopPropagation === true) {
                 event.stopPropagation();
+                Renderer._process(option.process.stoppedPropagation(), event, $el, $container,
+                    containerData.data, additionalEventData, containerData.option);
             }
         },
 
