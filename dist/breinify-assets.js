@@ -204,7 +204,7 @@
             });
         },
 
-        _renderMappedResource: function () {
+        _renderMappedResource: function ($el) {
             let mapId = $el.attr('data-mapId');
             let type = $el.attr('data-type');
 
