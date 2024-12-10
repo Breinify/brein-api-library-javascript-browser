@@ -307,7 +307,7 @@
             item: null
         },
         process: {
-            stoppedPropagation: function(event) {
+            stoppedPropagation: function (event) {
                 // nothing to do by default when an event gets cancelled
             },
             error: function (error) {
@@ -482,7 +482,11 @@
                 } else if (result.splitTestData.isControl === true) {
                     const $container = _self._setupControlContainer(option, result);
                     _self._applyBindings(option, result, $container);
+                } else if (result.status.code === 7120) {
+                    // the recommendation is supposed to be ignored, but there is no split-test
                 } else {
+
+                    // we have a normal recommendation call
                     const $container = _self._renderRecommendation(option, result);
                     _self._applyBindings(option, result, $container);
                 }
@@ -950,7 +954,7 @@
                 result.splitTestData = {
                     active: true,
                     isTest: false,
-                    isControl: true
+                    isControl: false
                 };
             } else {
 
