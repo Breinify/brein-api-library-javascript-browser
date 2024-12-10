@@ -188,6 +188,62 @@
             });
         },
 
+        registerMapResourcesDataTagsObserver: function () {
+            const _self = this;
+
+            Breinify.UTL.dom.addModification('assets::mapResourcesDataTagsObserver', {
+                selector: '[data-mapId][data-personalize-loaded!="true"]',
+                modifier: function ($els) {
+                    $els.each(function () {
+                        const $el = $(this);
+
+                        _self._renderMappedResource($el);
+                        $el.attr('data-personalize-loaded', 'true');
+                    });
+                }
+            });
+        },
+
+        _renderMappedResource: function () {
+            let mapId = $el.attr('data-mapId');
+            let type = $el.attr('data-type');
+
+            // make sure we have a valid mapId, otherwise there is nothing to do
+            if (typeof mapId !== 'string' || mapId.trim() === '') {
+                return;
+            }
+
+            // determine the type (if we do not have one)
+            if (typeof type === 'string' && type.trim() !== '') {
+                // nothing to do we already have a valid type
+            } else if ($el.is('a')) {
+                type = 'link';
+            } else if ($el.is('img')) {
+                type = 'image';
+            } else {
+                return;
+            }
+
+            // create the source
+            const source = 'https://assets.breinify.com/mappedResource/' + mapId;
+
+            // apply the type
+            if (type === 'image') {
+                let $newEl;
+                if ($el.is('img')) {
+                    $newEl = $el;
+                    $newEl.attr('src', source);
+                } else {
+                    $newEl = $('<img src="" alt=""/>');
+                    $newEl.attr('class', $el.attr('class'))
+                        .attr('style', $el.attr('style'))
+                        .attr('src', source);
+
+                    $el.replaceWith($newEl);
+                }
+            }
+        },
+
         areDataTagsEnabled: function (data, group, item) {
 
             // check if data is even present
@@ -533,6 +589,7 @@
 
             if (options.dataTagsObserver === true) {
                 _private.registerNamedResourcesDataTagsObserver();
+                _private.registerMapResourcesDataTagsObserver();
             }
         },
 
