@@ -944,7 +944,7 @@
                     isTest: recommendationResponse.statusCode === 200,
                     isControl: recommendationResponse.statusCode === 7120
                 }, recommendationResponse.additionalData.splitTestData);
-            } else if (result.statusCode === 7120) {
+            } else if (recommendationResponse.statusCode === 7120) {
 
                 // we are in the control group, but do not have any split-test data (should not happen)
                 result.splitTestData = {
