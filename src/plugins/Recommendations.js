@@ -946,11 +946,11 @@
                 }, recommendationResponse.additionalData.splitTestData);
             } else if (recommendationResponse.statusCode === 7120) {
 
-                // we are in the control group, but do not have any split-test data (should not happen)
+                // we are in the control group, but do not have any split-test data
                 result.splitTestData = {
                     active: true,
                     isTest: false,
-                    isControl: false
+                    isControl: true
                 };
             } else {
 
