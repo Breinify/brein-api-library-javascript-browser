@@ -298,8 +298,9 @@
             const MM = ('0' + (curDate.getMonth() + 1)).slice(-2);
             const dd = ('0' + curDate.getDate()).slice(-2);
             const HH = ('0' + curDate.getHours()).slice(-2);
-            const mm = ('0' + curDate.getMinutes()).slice(-2);
-            const ss = ('0' + curDate.getSeconds()).slice(-2);
+            // we only care about the full hour so 110000 instead of 113254, to avoid unneeded loading
+            const mm = '00'; // ('0' + curDate.getMinutes()).slice(-2);
+            const ss = '00'; //('0' + curDate.getSeconds()).slice(-2);
 
             // get and modify the user object (we do not want all the additional information, just the user info)
             const user = Breinify.UTL.user.create();
@@ -318,7 +319,6 @@
                     }
                 }
             }, user);
-            console.log(data);
 
             return 'https://assets.breinify.com/mappedResource/' + mapId;
         },
