@@ -291,29 +291,33 @@
         },
 
         _createSource: function (mapId) {
-            const data = {};
 
             // add the date instance (format yyyyMMdd HHmmss)
-            const date = new Date();
-            const yyyy = date.getFullYear();
-            const MM = ('0' + (date.getMonth() + 1)).slice(-2);
-            const dd = ('0' + date.getDate()).slice(-2);
-            const HH = ('0' + date.getHours()).slice(-2);
-            const mm = ('0' + date.getMinutes()).slice(-2);
-            const ss = ('0' + date.getSeconds()).slice(-2);
-            data.date = yyyy + MM + dd + ' ' + HH + mm + ss;
+            const curDate = new Date();
+            const yyyy = curDate.getFullYear();
+            const MM = ('0' + (curDate.getMonth() + 1)).slice(-2);
+            const dd = ('0' + curDate.getDate()).slice(-2);
+            const HH = ('0' + curDate.getHours()).slice(-2);
+            const mm = ('0' + curDate.getMinutes()).slice(-2);
+            const ss = ('0' + curDate.getSeconds()).slice(-2);
 
-            // add the user information
+            // get and modify the user object (we do not want all the additional information, just the user info)
             const user = Breinify.UTL.user.create();
-            const userAdditional = user.additional;
             delete user.additional;
-            user.additional = {
-                identifiers: {
-                    browserId: $.isPlainObject(userAdditional.identifiers) && typeof userAdditional.identifiers.browserId === 'string' ? userAdditional.identifiers.browserId : null
-                }
-            };
-            data.user = user;
 
+            // determine the values
+            const date = yyyy + MM + dd + ' ' + HH + mm + ss;
+            const browserId = Breinify.UTL.user.getBrowserId();
+
+            // build the whole thing, we add back the browserId
+            const data = $.extend(true, {
+                date: date,
+                additional: {
+                    identifiers: {
+                        browserId: browserId
+                    }
+                }
+            }, user);
             console.log(data);
 
             return 'https://assets.breinify.com/mappedResource/' + mapId;
