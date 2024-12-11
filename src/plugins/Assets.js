@@ -367,6 +367,8 @@
                 return true;
             } else if (data.type === this.marker.mappedResourceType.image) {
                 $resource.attr('src', newSource);
+                data.source = newSource;
+
                 return true;
             } else {
                 return false;
