@@ -17,7 +17,20 @@
     const prefixAssets = Breinify.UTL.constants.errors.prefix.assets;
 
     const _private = {
+        marker: {
+            mappedResourceType: {
+                image: 'image'
+            },
+            mappedResourceData: {
+                settings: 'br-mapped-resource-data'
+            }
+        },
         resultCache: {},
+        resourceAutoRefresh: {
+            handler: null,
+            resources: []
+        },
+
 
         _textResource: function (frameId, timestamp, callback) {
             let url = 'https://assets.breinify.com/frame/' + frameId;
@@ -205,15 +218,16 @@
         },
 
         _renderMappedResource: function ($el) {
-            let mapId = $el.attr('data-mapId');
-            let type = $el.attr('data-type');
+            const _self = this;
 
             // make sure we have a valid mapId, otherwise there is nothing to do
+            let mapId = $el.attr('data-mapId');
             if (typeof mapId !== 'string' || mapId.trim() === '') {
                 return;
             }
 
             // determine the type (if we do not have one)
+            let type = $el.attr('data-type');
             if (typeof type === 'string' && type.trim() !== '') {
                 // nothing to do we already have a valid type
             } else if ($el.is('a')) {
@@ -225,22 +239,93 @@
             }
 
             // create the source
-            const source = 'https://assets.breinify.com/mappedResource/' + mapId;
+            const source = this._createSource(mapId);
+
+            // create an idenitifer
+            let resourceId = $el.attr('id');
+            resourceId = typeof resourceId === 'string' && resourceId.trim() !== '' ? resourceId : Breinify.UTL.uuid();
+
+            // create the data object we attach to the element
+            const data = {
+                type: type,
+                resourceId: resourceId,
+                mapId: mapId,
+                source: source
+            };
 
             // apply the type
-            if (type === 'image') {
-                let $newEl;
+            let $newEl = null;
+            if (type === this.marker.mappedResourceType.image) {
                 if ($el.is('img')) {
                     $newEl = $el;
                     $newEl.attr('src', source);
                 } else {
-                    $newEl = $('<img src="" alt=""/>');
+                    $newEl = $('<img src="" alt="" />');
                     $newEl.attr('class', $el.attr('class'))
                         .attr('style', $el.attr('style'))
+                        .attr('alt', $el.attr('data-alt'))
                         .attr('src', source);
 
                     $el.replaceWith($newEl);
                 }
+            }
+
+            // apply some default attributes
+            if ($newEl !== null) {
+                $newEl.attr('id', resourceId);
+                $newEl.data(this.marker.mappedResourceData.settings, data);
+                $newEl.show();
+            }
+
+            const autoRefresh = $el.attr('data-auto-refresh') === 'true';
+            if (autoRefresh === true) {
+                if (this.resourceAutoRefresh.handler === null) {
+                    this.resourceAutoRefresh.handler = window.setInterval(function () {
+                        _self._checkAutoRefresh();
+                    }, 1000);
+                }
+
+                this.resourceAutoRefresh.resources.push(resourceId);
+                this._checkAutoRefresh();
+            }
+        },
+
+        _createSource: function (mapId) {
+            return 'https://assets.breinify.com/mappedResource/' + mapId;
+        },
+
+        _checkAutoRefresh: function () {
+
+            for (let i = this.resourceAutoRefresh.resources.length - 1; i >= 0; i--) {
+                const resourceId = this.resourceAutoRefresh.resources[i];
+                const $resource = $('#' + resourceId);
+
+                // cleanup if we have to
+                if (this._checkElementAutoRefresh($resource) === false) {
+                    this.resourceAutoRefresh.resources.splice(i, 1);
+                }
+            }
+        },
+
+        _checkElementAutoRefresh: function ($resource) {
+            if ($resource.length === 0) {
+                return false;
+            }
+
+            const data = $resource.data(this.marker.mappedResourceData.settings);
+            if (!$.isPlainObject(data) || typeof data.mapId !== 'string') {
+                return false;
+            }
+
+            // determine the new source, if it changed apply it otherwise nothing to change
+            const newSource = this._createSource(data.mapId);
+            if (data.source === newSource) {
+                return true;
+            } else if (data.type === this.marker.mappedResourceType.image) {
+                $resource.attr('src', newSource);
+                return true;
+            } else {
+                return false;
             }
         },
 
