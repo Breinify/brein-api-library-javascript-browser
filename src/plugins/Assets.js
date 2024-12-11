@@ -320,7 +320,22 @@
                 }
             }, user);
 
-            return 'https://assets.breinify.com/mappedResource/' + mapId;
+            // encode the data instance
+            let suffix = '/J/';
+            try {
+                const json = JSON.stringify(data);
+                const base64Json = btoa(json);
+                const urlFriendlyJson = base64Json.replaceAll('+', '~')
+                    .replaceAll('/', '-')
+                    .replaceAll('=', '_');
+                suffix += urlFriendlyJson;
+            } catch (e) {
+
+                // use default if it didn't work
+                suffix = '';
+            }
+
+            return 'https://assets.breinify.com/mappedResource/' + mapId + suffix;
         },
 
         _checkAutoRefresh: function () {
