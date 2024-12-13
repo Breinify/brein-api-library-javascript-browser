@@ -283,8 +283,6 @@
             }
 
             console.log(splitTest);
-            console.log(splitTest instanceof SplitTest);
-
             return splitTest === null ? null : splitTest.determineSplitTestData(cb);
         }
     };
