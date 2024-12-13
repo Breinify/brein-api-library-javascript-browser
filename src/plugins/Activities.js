@@ -420,6 +420,7 @@
          * @param $el the element to evaluate
          */
         evaluate: function ($el) {
+            const _self = this;
             const setting = $el.attr('data-' + activityDomObserver.marker.activate);
 
             let operation;
@@ -438,6 +439,12 @@
             }
 
             $el.attr('data-' + activityDomObserver.marker.activate, 'evaluated');
+
+            // check if the element has children that may need evaluate
+            const $unevaluatedEls = $el.find('[data-' + activityDomObserver.marker.activate + '!=evaluated]');
+            $unevaluatedEls.each(function () {
+                _self.evaluate($(this));
+            });
         },
 
         activateObserver: function ($el, observer) {
