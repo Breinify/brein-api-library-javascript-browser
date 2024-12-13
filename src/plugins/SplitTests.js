@@ -40,7 +40,7 @@
             this.tokens = $.extend(true, {}, this.tokens, $.isPlainObject(settings.tokens) ? settings.tokens : {});
             this.storageKey = $.extend(true, {}, this.storageKey, $.isPlainObject(settings.storageKey) ? settings.storageKey : {});
             this.timing = $.extend(true, {}, this.timing, $.isPlainObject(settings.timing) ? settings.timing : {});
-            this.payload = $.isPlainObject(settings.payload) || $.isFunction(settings.payload) ? settings.payload : {};
+            this.payload = $.isPlainObject(settings.payload) || $.isFunction(settings.payload) ? settings.payload : null;
 
             const checker = function (error, status) {
                 if (error !== null) {
@@ -79,6 +79,8 @@
             let payload;
             if ($.isFunction(this.payload)) {
                 payload = this.payload(this.checkForUserInfo());
+            } else  if ($.isPlainObject(this.payload)) {
+                payload = this.payload;
             } else {
                 payload = this.checkForUserInfo();
             }
