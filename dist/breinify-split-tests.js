@@ -14,7 +14,9 @@
 
     const SplitTest = {
         status: 'setup',
-        checker: {
+        error: null,
+        timing: {
+            expirationAfterMs: 60 * 60 * 1000,
             intervalInMs: 50,
             maxTimeInMs: 15000,
             durationInMs: 0
@@ -27,42 +29,42 @@
             live: null,
             test: null
         },
+        payload: null,
         cachedResult: null,
 
-        init: function (opt) {
+        init: function (settings) {
             const _self = this;
 
-            // make sure we won't fail
-            opt = $.isPlainObject(opt) ? opt : {};
-            opt.storageKey = $.extend(true, {
-                live: null,
-                test: null
-            }, $.isPlainObject(opt.storageKey) ? opt.storageKey : {});
-            opt.tokens = $.extend(true, {live: null, test: null}, $.isPlainObject(opt.tokens) ? opt.tokens : {});
-
-            this.storageKey.live = opt.storageKey.live;
-            this.storageKey.test = opt.storageKey.test;
-            this.tokens.live = opt.tokens.live;
-            this.tokens.test = opt.tokens.test;
+            // make sure we have valid settings (enrich as much as possible)
+            settings = $.isPlainObject(settings) ? settings : {};
+            this.tokens = $.extend(true, {}, this.tokens, $.isPlainObject(settings.tokens) ? settings.tokens : {});
+            this.storageKey = $.extend(true, {}, this.storageKey, $.isPlainObject(settings.storageKey) ? settings.storageKey : {});
+            this.timing = $.extend(true, {}, this.timing, $.isPlainObject(settings.timing) ? settings.timing : {});
+            this.payload = $.isPlainObject(settings.payload) || $.isFunction(settings.payload) ? settings.payload : {};
 
             const checker = function (error, status) {
                 if (error !== null) {
                     // we are done, we had an error - so we keep whatever we have right now
                     _self.status = 'error';
+                    _self.error = error;
                 } else if (status === true) {
                     // we are done, we have a result already
                     _self.status = 'done';
-                } else if (_self.checker.durationInMs >= _self.checker.maxTimeInMs) {
+                    _self.error = null;
+                } else if (_self.timing.durationInMs >= _self.timing.maxTimeInMs) {
                     _self.status = 'timed-out';
+                    _self.error = new Error('call timed out after ' + _self.timing.maxTimeInMs + 'ms');
 
                     // reset the split-test data, we most likely do not have a user
                     _self.setSplitTestData({}, null);
                 } else {
                     _self.status = 'loading';
+                    _self.error = null;
+
                     setTimeout(function () {
-                        _self.checker.durationInMs += _self.checker.intervalInMs;
+                        _self.timing.durationInMs += _self.timing.intervalInMs;
                         _self.resolveSplitTest(checker);
-                    }, _self.checker.intervalInMs);
+                    }, _self.timing.intervalInMs);
                 }
             };
 
@@ -73,8 +75,14 @@
         resolveSplitTest: function (cb) {
             const _self = this;
 
-            // check if we have a user
-            const payload = this.checkForUserInfo();
+            // determine the payload to utilize for the test
+            let payload;
+            if ($.isFunction(this.payload)) {
+                payload = this.payload(this.checkForUserInfo());
+            } else {
+                payload = this.checkForUserInfo();
+            }
+
             if (!$.isPlainObject(payload)) {
 
                 /*
@@ -85,38 +93,27 @@
                 return;
             }
 
-            // check if the data is already there (or expired)
             const currentData = this.getSplitTestData();
-            if ($.isPlainObject(currentData)) {
 
-                // make sure the data is semi up to date
-                if (typeof currentData.lastUpdated === 'number' &&
-                    new Date().getTime() - currentData.lastUpdated > 60 * 60 * 1000) {
-                    // data is older than 1h, so we refresh
-                }
-                // we have valid data for this email, so nothing to do
-                else if (payload.email === currentData.email) {
-                    cb(null, true);
-                    return;
-                }
-                // check if we have a "no-login" case, in that case reset now and be done
-                else if (payload.email === null) {
-                    _self.setSplitTestData({}, null);
-                    cb(null, true);
-                    return;
-                }
+            // check if the data is already there and not expired
+            if ($.isPlainObject(currentData) &&
+                typeof currentData.lastUpdated === 'number' &&
+                new Date().getTime() - currentData.lastUpdated <= this.timing.expirationAfterMs) {
+
+                cb(null, true);
             }
-
-            // retrieve the split-test if we have valid information
-            const token = Breinify.UTL.internal.isDevMode() ? this.tokens.test : this.tokens.live;
-            Breinify.UTL.internal.token(token, payload, function (error, response) {
-                if (error == null) {
-                    _self.setSplitTestData(payload, response);
-                    cb(null, true);
-                } else {
-                    cb(error, false);
-                }
-            }, 30000);
+            // request information about the split-test
+            else {
+                const token = Breinify.UTL.internal.isDevMode() ? this.tokens.test : this.tokens.live;
+                Breinify.UTL.internal.token(token, payload, function (error, response) {
+                    if (error == null) {
+                        _self.setSplitTestData(payload, response);
+                        cb(null, true);
+                    } else {
+                        cb(error, false);
+                    }
+                }, 30000);
+            }
         },
 
         determineSplitTestData: function (cb) {
@@ -127,16 +124,23 @@
             }
 
             // we have an "ending" status, so let's get the information
-            if (this.status !== 'setup' && this.status !== 'loading') {
+            if (this.status === 'setup' || this.status === 'loading') {
+                setTimeout(function () {
+                    _self.determineSplitTestData(cb);
+                }, 50);
+
+            } else if (this.status === 'error' || this.error !== null) {
                 const data = $.extend({
                     status: this.status
                 }, this.getSplitTestData());
 
-                cb(data);
+                cb(this.error, data);
             } else {
-                setTimeout(function () {
-                    _self.determineSplitTestData(cb);
-                }, 50);
+                const data = $.extend({
+                    status: this.status
+                }, this.getSplitTestData());
+
+                cb(null, data);
             }
         },
 
@@ -218,7 +222,15 @@
     };
 
     const _private = {
-        initSplitTest: function (tokens, storageKeys) {
+        initSplitTest: function (tokens, payload, storageKeys, timing) {
+
+            // we allow to utilize just non-empty strings for tokens and storage
+            if (typeof tokens === 'string' && tokens.trim() !== '') {
+                tokens = {live: tokens, test: tokens};
+            }
+            if (typeof storageKeys === 'string' && storageKeys.trim() !== '') {
+                storageKeys = {live: storageKeys, test: storageKeys};
+            }
 
             // there is no way to retrieve anything without tokens
             if (!$.isPlainObject(tokens)) {
@@ -240,6 +252,8 @@
 
             const splitTest = new Object.create(SplitTest);
             splitTest.init({
+                payload: payload,
+                timing: timing,
                 storageKey: $.extend(true, {
                     live: null,
                     test: null
@@ -257,19 +271,19 @@
     const module = {
         splitTests: {},
 
-        retrieveSplitTest(name, tokens, storageKeys) {
+        retrieveSplitTest(name, tokens, payload, storageKeys, cb, timing) {
             let splitTest = this.splitTests[name];
 
             // if we do not have one create one and keep it
             if (splitTest === null || typeof splitTest === 'undefined') {
-                splitTest = _private.initSplitTest(tokens, storageKeys);
+                splitTest = _private.initSplitTest(tokens, payload, storageKeys, timing);
                 this.splitTests[name] = splitTest;
             }
 
             console.log(splitTest);
             console.log(splitTest instanceof SplitTest);
-            console.log(splitTest === null ? null : splitTest.getSplitTestData());
-            return splitTest === null ? null : splitTest.getSplitTestData();
+
+            return splitTest === null ? null : splitTest.determineSplitTestData(cb);
         }
     };
 
