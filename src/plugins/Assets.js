@@ -217,6 +217,19 @@
             });
         },
 
+        refreshMappedResource: function ($el) {
+            const data = $el.data(this.marker.mappedResourceData.settings);
+
+            // mapId was no string and empty
+            if (!$.isPlainObject(data) || typeof data.mapId !== 'string' || data.mapId === '') {
+                return;
+            }
+
+            const source = this._createSource(data.mapId);
+            $el.removeAttr('src');
+            $el.attr('src', source);
+        },
+
         _renderMappedResource: function ($el) {
             const _self = this;
 
@@ -241,7 +254,7 @@
             // create the source
             const source = this._createSource(mapId);
 
-            // create an idenitifer
+            // create an identifier
             let resourceId = $el.attr('id');
             resourceId = typeof resourceId === 'string' && resourceId.trim() !== '' ? resourceId : Breinify.UTL.uuid();
 
@@ -722,6 +735,10 @@
                 _private.registerNamedResourcesDataTagsObserver();
                 _private.registerMapResourcesDataTagsObserver();
             }
+        },
+
+        refreshMapResource: function (mapId) {
+            _private.refreshMappedResource(mapId);
         },
 
         areDataTagsEnabled: function () {
