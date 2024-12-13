@@ -441,7 +441,8 @@
             $el.attr('data-' + activityDomObserver.marker.activate, 'evaluated');
 
             // check if the element has children that may need evaluate
-            const $unevaluatedEls = $el.find('[data-' + activityDomObserver.marker.activate + '!=evaluated]');
+            const $unevaluatedEls = $el.find('[data-' + activityDomObserver.marker.activate + ']');
+            console.log($unevaluatedEls.length);
             $unevaluatedEls.each(function () {
                 _self.evaluate($(this));
             });
