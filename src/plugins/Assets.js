@@ -737,8 +737,8 @@
             }
         },
 
-        refreshMapResource: function (mapId) {
-            _private.refreshMappedResource(mapId);
+        refreshMapResource: function ($el) {
+            _private.refreshMappedResource($el);
         },
 
         areDataTagsEnabled: function () {
