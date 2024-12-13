@@ -507,7 +507,8 @@
                 $el: $el,
                 event: event,
                 defaultOpenInNewTab: openInNewTab,
-                defaultWillReloadPage: willReloadPage
+                defaultWillReloadPage: willReloadPage,
+                overriddenScheduleActivities: false
             };
 
             let execute = true;
@@ -529,7 +530,7 @@
                     scheduleActivity = openInNewTab !== true;
                 }
             } else if (typeof settings.scheduleActivities === 'boolean') {
-                scheduleActivity = settings.scheduleActivities;
+                scheduleActivity = settings.scheduleActivities || eventData.overriddenScheduleActivities;
             }
 
             if (scheduleActivity === true) {
