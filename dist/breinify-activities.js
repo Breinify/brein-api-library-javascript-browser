@@ -377,7 +377,7 @@
 
         normalizeSettings: function (observerType, settings) {
 
-            if (observerType === 'click') {
+            if (observerType === defaultClickObserverOption.observer) {
                 return $.extend(true, {}, defaultObserverOption.settings, defaultClickObserverOption.settings, settings);
             } else {
                 return $.extend(true, {}, defaultObserverOption.settings, settings);
@@ -386,7 +386,7 @@
 
         normalizeData: function (observerType, settings, data) {
 
-            if (observerType === 'click') {
+            if (observerType === defaultClickObserverOption.observer) {
                 return $.extend(true, {}, defaultClickObserverOption.data, data);
             } else {
                 return data;
@@ -453,7 +453,7 @@
                 }, user, tags);
             }
 
-            if (observer.observe === 'click') {
+            if (observer.observe === defaultClickObserverOption.observer) {
                 this.activateClickObserver($el, settings, data);
             }
         },
@@ -505,7 +505,7 @@
 
             let execute = true;
             if ($.isFunction(settings.onBeforeActivitySent)) {
-                execute = settings.onBeforeActivitySent(settings, eventData, user, tags);
+                execute = settings.onBeforeActivitySent(settings, eventData, user, tags, $el);
                 execute = typeof execute === 'boolean' ? execute : true;
             }
 
@@ -532,14 +532,14 @@
 
                 Breinify.plugins.activities.generic(activityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
-                        settings.onAfterActivitySent(settings, eventData, user, tags);
+                        settings.onAfterActivitySent(settings, eventData, user, tags, $el);
                     }
                 });
             }
         },
 
         deactivateObserver: function ($el, settings) {
-
+            // nothing done on deactivation yet
         }
     };
 
@@ -558,6 +558,19 @@
             this.domObserverActive = true;
         },
 
+        /**
+         * Read the data attached to the element (we do not read any activation,
+         * calling this method means we want to read it).
+         *
+         * data is read from the 'brob-data' data (or "data-attribute"), which represents a JSON object
+         * having the values settings and data:
+         *
+         * {
+         *    observe : 'click',                // observerType
+         *    settings: {},                     // settings
+         *    data    : { user: {}, tags: {} }  // data instance
+         * }
+         */
         setupObservableDomElement: function ($el, observerType, settings, data) {
             const _self = this;
 

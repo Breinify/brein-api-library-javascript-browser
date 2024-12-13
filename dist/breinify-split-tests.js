@@ -211,7 +211,7 @@
                     }
                 });
             } catch (e) {
-                // do nothing
+                // do nothing, we just ignore it
             }
         },
 
