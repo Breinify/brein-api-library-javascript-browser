@@ -250,7 +250,7 @@
                 return null;
             }
 
-            const splitTest = new Object.create(SplitTest);
+            const splitTest = Object.create(SplitTest);
             splitTest.init({
                 payload: payload,
                 timing: timing,
