@@ -958,6 +958,10 @@
                 return this.splitTestData;
             },
 
+            addSplitTestData: function(data) {
+                _private.storeAdditionalData(data);
+            },
+
             updateSplitTestData: function (splitTestData) {
                 BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
                 this.splitTestData = splitTestData;

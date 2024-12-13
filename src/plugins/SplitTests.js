@@ -14,6 +14,7 @@
 
     const SplitTest = {
         status: 'setup',
+        testName: null,
         error: null,
         timing: {
             expirationAfterMs: 60 * 60 * 1000,
@@ -37,6 +38,7 @@
 
             // make sure we have valid settings (enrich as much as possible)
             settings = $.isPlainObject(settings) ? settings : {};
+            this.testName = settings.testName;
             this.tokens = $.extend(true, {}, this.tokens, $.isPlainObject(settings.tokens) ? settings.tokens : {});
             this.storageKey = $.extend(true, {}, this.storageKey, $.isPlainObject(settings.storageKey) ? settings.storageKey : {});
             this.timing = $.extend(true, {}, this.timing, $.isPlainObject(settings.timing) ? settings.timing : {});
@@ -79,7 +81,7 @@
             let payload;
             if ($.isFunction(this.payload)) {
                 payload = this.payload(this.checkForUserInfo());
-            } else  if ($.isPlainObject(this.payload)) {
+            } else if ($.isPlainObject(this.payload)) {
                 payload = this.payload;
             } else {
                 payload = this.checkForUserInfo();
@@ -173,13 +175,10 @@
                 response = {};
             }
 
-            const splitTestData = {
-                lastUpdated: new Date().getTime(),
-                loggedInUser: typeof payload.email === 'string'
-            };
-
             // keep the result locally (it will not change within the session)
-            this.cachedResult = $.extend(true, {}, splitTestData, payload, response);
+            this.cachedResult = $.extend(true, {}, {
+                lastUpdated: new Date().getTime()
+            }, response);
 
             // store the result in the local-storage if a storage is provided
             if (key !== null) {
@@ -190,26 +189,29 @@
                 }
             }
 
+
+            // determine the split-test information, if there aren't any there is nothing more to do
+            let splitTestData = null;
+            if ($.isPlainObject(this.cachedResult.splitTestData)) {
+                splitTestData = this.cachedResult.splitTestData;
+            } else if (typeof this.cachedResult.group === 'string') {
+                splitTestData = {
+                    groupDecision: this.cachedResult.group,
+                    testName: this.testName
+                };
+            } else {
+                return;
+            }
+
+            // store the additional data of the split-test for the instance
             try {
-                let currentData = Breinify.UTL.user.getSplitTestData();
-                currentData = $.isPlainObject(currentData) ? currentData : {};
-
-                console.log(currentData);
-                console.log(splitTestData);
-                console.log(response);
-
-                // delete currentData['Abandoned Cart'];
-
-                // const newData = $.extend(true, {
-                //     'Abandoned Cart': $.extend(true, {}, splitTestData, {
-                //         testName: 'Abandoned Cart',
-                //         groupDecision: typeof response.group === 'string' ? response.group : null
-                //     })
-                // }, currentData);
-                //
-                // Breinify.UTL.user.updateSplitTestData(newData);
+                Breinify.UTL.storeAdditionalData({
+                    additionalData: {
+                        splitTestData: splitTestData
+                    }
+                });
             } catch (e) {
-                // do nothing
+                // do nothing, we just ignore it
             }
         },
 
@@ -224,7 +226,7 @@
     };
 
     const _private = {
-        initSplitTest: function (tokens, payload, storageKeys, timing) {
+        initSplitTest: function (testName, tokens, payload, storageKeys, timing) {
 
             // we allow to utilize just non-empty strings for tokens and storage
             if (typeof tokens === 'string' && tokens.trim() !== '') {
@@ -254,6 +256,7 @@
 
             const splitTest = Object.create(SplitTest);
             splitTest.init({
+                testName: typeof testName === 'string' && testName.trim() !== '' ? testName.trim() : null,
                 payload: payload,
                 timing: timing,
                 storageKey: $.extend(true, {
@@ -278,11 +281,10 @@
 
             // if we do not have one create one and keep it
             if (splitTest === null || typeof splitTest === 'undefined') {
-                splitTest = _private.initSplitTest(tokens, payload, storageKeys, timing);
+                splitTest = _private.initSplitTest(name, tokens, payload, storageKeys, timing);
                 this.splitTests[name] = splitTest;
             }
 
-            console.log(splitTest);
             return splitTest === null ? null : splitTest.determineSplitTestData(cb);
         }
     };

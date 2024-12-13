@@ -9,18 +9,18 @@
     "use strict";
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(scope, 'Breinify', true)) {
         return;
     }
 
-    var $ = dependencyScope.jQuery;
-    var AttributeCollection = dependencyScope.AttributeCollection;
-    var BreinifyUser = dependencyScope.BreinifyUser;
-    var BreinifyConfig = dependencyScope.BreinifyConfig;
-    var BreinifyUtil = dependencyScope.BreinifyUtil;
+    const $ = dependencyScope.jQuery;
+    const AttributeCollection = dependencyScope.AttributeCollection;
+    const BreinifyUser = dependencyScope.BreinifyUser;
+    const BreinifyConfig = dependencyScope.BreinifyConfig;
+    const BreinifyUtil = dependencyScope.BreinifyUtil;
 
-    var ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
+    const ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
     /**
      * As JS don't supports data types, implements an overload method. This implementation is inspired by
@@ -32,9 +32,9 @@
         };
 
         this.toString = function (pointer) {
-            var output = '';
+            let output = '';
 
-            var keys = Object.keys(pointer);
+            let keys = Object.keys(pointer);
             keys.forEach(function (key) {
                 output += '[' + key + '] ';
             });
@@ -56,15 +56,15 @@
         },
 
         _$overload: function (pointer, args, context, wrapper) {
-            var regex = /function\s+(\w+)s*/;
-            var types = [];
+            let regex = /function\s+(\w+)s*/;
+            let types = [];
 
             // create a string to identify the structure of the signature
-            var containsRegEx = false;
-            for (var i = 0; i < args.length; i++) {
-                var arg = args[i];
+            let containsRegEx = false;
+            for (let i = 0; i < args.length; i++) {
+                let arg = args[i];
 
-                var type;
+                let type;
                 if (typeof arg === 'undefined' || arg === null) {
                     type = '([A-Za-z0-9_\\-]+)';
                     containsRegEx = true;
@@ -76,15 +76,15 @@
             }
 
             // check which one of the functions can be used
-            var func = null;
+            let func = null;
             if (containsRegEx) {
-                var typeRegEx = new RegExp('^' + types.toString() + '$', 'i');
+                let typeRegEx = new RegExp('^' + types.toString() + '$', 'i');
 
                 Object.keys(pointer).forEach(function (key) {
-                    var matches = typeRegEx.exec(key);
+                    let matches = typeRegEx.exec(key);
                     if (matches != null) {
-                        var exclude = false;
-                        for (var i = 1; i < matches.length; i++) {
+                        let exclude = false;
+                        for (let i = 1; i < matches.length; i++) {
                             if (wrapper.excludeNullType(matches[i])) {
                                 exclude = true;
                                 break;
@@ -111,24 +111,24 @@
         }
     };
 
-    var overload = new Wrapper();
+    const overload = new Wrapper();
 
     /*
      * The internally used configuration used for all calls.
      */
-    var _config = null;
+    let _config = null;
 
-    var _privates = {
+    const _privates = {
         ready: false,
 
         storeAdditionalData: function (data) {
-            var additionalData;
+            let additionalData;
             if (!$.isPlainObject(data)) {
                 return;
             } else if ($.isArray(data.results)) {
                 additionalData = [];
-                for (var i = 0; i < data.results.length; i++) {
-                    var result = data.results[i];
+                for (let i = 0; i < data.results.length; i++) {
+                    let result = data.results[i];
                     if ($.isPlainObject(result.additionalData)) {
                         additionalData.push(result.additionalData);
                     }
@@ -140,14 +140,14 @@
             }
 
             // iterate over the additionalData instances and collect the split-test information
-            var splitTestData = Breinify.UTL.user.getSplitTestData(false);
+            let splitTestData = Breinify.UTL.user.getSplitTestData(false);
             if (!$.isPlainObject(splitTestData)) {
                 splitTestData = {};
             }
 
             // add the new split-test information
-            for (var k = 0; k < additionalData.length; k++) {
-                var ad = additionalData[k];
+            for (let k = 0; k < additionalData.length; k++) {
+                let ad = additionalData[k];
                 if (!$.isPlainObject(ad) || !$.isPlainObject(ad.splitTestData) ||
                     Breinify.UTL.isEmpty(ad.splitTestData.groupDecision) ||
                     Breinify.UTL.isEmpty(ad.splitTestData.testName)) {
@@ -233,13 +233,13 @@
 
         generateLookUpMessage: function (dimensions, unixTimestamp) {
             dimensions = $.isArray(dimensions) ? dimensions : [];
-            var dimension = dimensions.length === 0 ? '' : dimensions[0];
+            let dimension = dimensions.length === 0 ? '' : dimensions[0];
             return dimension + unixTimestamp + dimensions.length;
         },
 
         generateTemporalDataMessage: function (unixTimestamp, localDateTime, timezone) {
-            var paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
-            var paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
+            let paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
+            let paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
 
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
         },
@@ -247,7 +247,7 @@
         handleUtmParameters: function () {
 
             // check if we have a plugin defined
-            var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_UTM_MAPPER);
+            let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_UTM_MAPPER);
             if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
                 mapper = mapper.map;
             }
@@ -262,13 +262,13 @@
             }
 
             // see https://en.wikipedia.org/wiki/UTM_parameters
-            var params = BreinifyUtil.loc.params();
+            let params = BreinifyUtil.loc.params();
 
-            var utmSource = Breinify.UTL.isEmpty(params['utm_source']) ? null : params['utm_source'];
-            var utmMedium = Breinify.UTL.isEmpty(params['utm_medium']) ? null : params['utm_medium'];
-            var utmCampaign = Breinify.UTL.isEmpty(params['utm_campaign']) ? null : params['utm_campaign'];
-            var utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
-            var utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
+            let utmSource = Breinify.UTL.isEmpty(params['utm_source']) ? null : params['utm_source'];
+            let utmMedium = Breinify.UTL.isEmpty(params['utm_medium']) ? null : params['utm_medium'];
+            let utmCampaign = Breinify.UTL.isEmpty(params['utm_campaign']) ? null : params['utm_campaign'];
+            let utmTerm = Breinify.UTL.isEmpty(params['utm_term']) ? null : params['utm_term'];
+            let utmContent = Breinify.UTL.isEmpty(params['utm_content']) ? null : params['utm_content'];
 
             // check if we even have parameters, otherwise return
             if (Breinify.UTL.isEmpty(utmSource) && Breinify.UTL.isEmpty(utmMedium) && Breinify.UTL.isEmpty(utmCampaign) &&
@@ -277,7 +277,7 @@
             }
 
             // create the data
-            var result = mapper({
+            let result = mapper({
                 'utmSource': utmSource,
                 'utmMedium': utmMedium,
                 'utmCampaign': utmCampaign,
@@ -292,7 +292,7 @@
         },
 
         handleGetParameters: function () {
-            var knownParams = {
+            let knownParams = {
                 'brec': {
                     'activity': {
                         'type': 'clickedRecommendation'
@@ -305,13 +305,12 @@
                 }
             };
 
-            var result = {};
-            var params = BreinifyUtil.loc.params();
+            let params = BreinifyUtil.loc.params();
 
             // check for known types
-            for (var knownParam in knownParams) {
+            for (let knownParam in knownParams) {
 
-                // skip if the are not own properties
+                // skip if there are no own properties
                 if (!knownParams.hasOwnProperty(knownParam)) {
                     continue;
                 }
@@ -328,13 +327,13 @@
         handleGetParameter: function (name, value, overrides) {
 
             // parse it and make sure it was parseable
-            var parsedValue = BreinifyUtil.loc.parseGetParameter(name, value);
+            let parsedValue = BreinifyUtil.loc.parseGetParameter(name, value);
             if (parsedValue === null) {
                 return;
             }
 
             // check if we have a plugin defined
-            var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_PARAMETER_MAPPER);
+            let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_PARAMETER_MAPPER);
             if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
                 mapper = mapper.map;
             }
@@ -350,7 +349,7 @@
                 };
             }
 
-            var combinedValue = mapper($.extend(true, {
+            let combinedValue = mapper($.extend(true, {
                 'user': Breinify.UTL.user.create(),
                 'activity': {
                     'category': null,
@@ -360,7 +359,7 @@
             }, parsedValue, overrides));
 
             // calculate a hash as unique identifier
-            var hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
+            let hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
             if (BreinifyUtil.cookie.check(hashId)) {
                 return;
             }
@@ -376,8 +375,8 @@
              * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
              * @param onReady {function|null} function to be executed after triggering the activity
              */
-            var user = combinedValue.user;
-            var activity = combinedValue.activity;
+            let user = combinedValue.user;
+            let activity = combinedValue.activity;
             Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, function () {
 
                 // mark it as successfully sent
@@ -415,7 +414,7 @@
     /**
      * The one and only instance of the library.
      */
-    var Breinify = {
+    const Breinify = {
         version: '{{PROJECT.VERSION}}',
         jQueryVersion: $.fn.jquery
     };
@@ -488,12 +487,12 @@
      * @param onReady {function|null} unction to be executed after triggering the recommendation request
      */
     Breinify.recommendation = function () {
-        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
+        const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
 
-        var recHandler = function (url, data, callback) {
+        const recHandler = function (url, data, callback) {
 
             // we utilize an internal callback to do some internal data-handling with the response
-            var internalCallback = function (data, errorText) {
+            const internalCallback = function (data, errorText) {
                 _privates.handleRecommendationResponse(data, errorText, callback);
             };
 
@@ -571,7 +570,7 @@
      */
     Breinify.recommendationUser = function (user, recommendation, sign, onReady) {
 
-        var _onReady = function (user) {
+        const _onReady = function (user) {
             if ($.isFunction(onReady)) {
                 onReady(user);
             }
@@ -589,13 +588,12 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = BreinifyUtil.unixTimestamp();
-            var signature = null;
-
+            const unixTimestamp = BreinifyUtil.unixTimestamp();
+            let signature = null;
             if (sign) {
-                var secret = _config.get(ATTR_CONFIG.SECRET);
+                const secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateRecommendationMessage(recommendation, unixTimestamp);
+                    const message = _privates.generateRecommendationMessage(recommendation, unixTimestamp);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -604,7 +602,7 @@
             }
 
             // create the data set
-            var data = {
+            const data = {
                 'user': user.all(),
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
@@ -636,7 +634,7 @@
      * @param onReady {function|null} function to be executed after triggering the activity
      */
     Breinify.activity = function () {
-        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
+        const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.ACTIVITY_ENDPOINT);
 
         overload.overload({
             'Object,String': function (user, type) {
@@ -691,7 +689,7 @@
      */
     Breinify.activityUser = function (user, type, category, description, tags, sign, onReady) {
 
-        var _onReady = function (user) {
+        const _onReady = function (user) {
             if ($.isFunction(onReady)) {
                 onReady(user);
             }
@@ -713,12 +711,12 @@
             sign = typeof sign === 'boolean' ? sign : (sign === null ? !BreinifyUtil.isEmpty(_config.get(ATTR_CONFIG.SECRET)) : false);
 
             // get the other values needed
-            var unixTimestamp = BreinifyUtil.unixTimestamp();
-            var signature = null;
+            const unixTimestamp = BreinifyUtil.unixTimestamp();
+            let signature = null;
             if (sign) {
-                var secret = _config.get(ATTR_CONFIG.SECRET);
+                const secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateActivityMessage(1, unixTimestamp, type);
+                    const message = _privates.generateActivityMessage(1, unixTimestamp, type);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -727,7 +725,7 @@
             }
 
             // create the data set
-            var data = {
+            let data = {
                 'user': user.all(),
 
                 'activity': {
@@ -757,7 +755,7 @@
      * @param onReady {function|null} function to be executed after triggering the temporalData request
      */
     Breinify.temporalData = function () {
-        var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT);
+        const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT);
 
         overload.overload({
             'Function': function (callback) {
@@ -792,7 +790,7 @@
      */
     Breinify.temporalDataUser = function (user, sign, onReady) {
 
-        var _onReady = function (user) {
+        const _onReady = function (user) {
             if ($.isFunction(onReady)) {
                 onReady(user);
             }
@@ -810,17 +808,17 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = BreinifyUtil.unixTimestamp();
-            var signature = null;
+            const unixTimestamp = BreinifyUtil.unixTimestamp();
+            let signature = null;
             if (sign) {
 
                 // might be a different secret
-                var secret = _config.get(ATTR_CONFIG.SECRET);
+                const secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var localDateTime = user.read('localDateTime');
-                    var timezone = user.read('timezone');
+                    const localDateTime = user.read('localDateTime');
+                    const timezone = user.read('timezone');
+                    const message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
 
-                    var message = _privates.generateTemporalDataMessage(unixTimestamp, localDateTime, timezone);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -829,7 +827,7 @@
             }
 
             // create the data set
-            var data = {
+            const data = {
                 'user': user.all(),
                 'apiKey': _config.get(ATTR_CONFIG.API_KEY),
                 'signature': signature,
@@ -848,7 +846,7 @@
     Breinify.lookup = function (user, dimensions, sign, onLookUp) {
 
         Breinify.lookupUser(user, dimensions, sign, function (data) {
-            var url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
+            const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
             _privates.ajax(url, data, onLookUp, onLookUp);
         });
     };
@@ -863,7 +861,7 @@
      */
     Breinify.lookupUser = function (user, dimensions, sign, onReady) {
 
-        var _onReady = function (user) {
+        const _onReady = function (user) {
             if ($.isFunction(onReady)) {
                 onReady(user);
             }
@@ -882,12 +880,12 @@
             sign = typeof sign === 'boolean' ? sign : false;
 
             // get the other values needed
-            var unixTimestamp = BreinifyUtil.unixTimestamp();
-            var signature = null;
+            const unixTimestamp = BreinifyUtil.unixTimestamp();
+            let signature = null;
             if (sign) {
-                var secret = _config.get(ATTR_CONFIG.SECRET);
+                const secret = _config.get(ATTR_CONFIG.SECRET);
                 if (typeof secret === 'string') {
-                    var message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
+                    const message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
                     signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
                 } else {
                     _onReady(null);
@@ -896,7 +894,7 @@
             }
 
             // create the data set
-            var data = {
+            const data = {
                 'user': user.all(),
 
                 'lookup': {
@@ -921,7 +919,7 @@
             return;
         }
 
-        var mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
+        let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
             mapper = mapper.map;
         } else if (_config === null) {
@@ -934,7 +932,7 @@
             return;
         }
 
-        var tags = mapper(e, scriptSourceRegEx);
+        const tags = mapper(e, scriptSourceRegEx);
         if (!$.isPlainObject(tags)) {
             return;
         }
@@ -964,7 +962,7 @@
 
         _addCustomization: function (name, customization) {
 
-            var customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            let customizations = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
             if (!$.isPlainObject(customizations)) {
                 customizations = this._add(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN, {});
             }
@@ -976,12 +974,12 @@
         },
 
         _getCustomization: function (name) {
-            var customerPlugIn = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
+            let customerPlugIn = this[BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN];
             if (!$.isPlainObject(customerPlugIn)) {
                 return null;
             }
 
-            var plugIn = customerPlugIn[name];
+            const plugIn = customerPlugIn[name];
             if (!$.isPlainObject(plugIn)) {
                 return null;
             }
@@ -1000,7 +998,7 @@
                 return this[name];
             }
 
-            var defConfig = $.isPlainObject(def) ? def : {};
+            let defConfig = $.isPlainObject(def) ? def : {};
 
             this[name] = $.extend({
                 config: defConfig,
@@ -1021,7 +1019,7 @@
                 },
 
                 getConfig: function (key, def) {
-                    var current = this.config[key];
+                    let current = this.config[key];
                     if (typeof current === 'undefined') {
                         return typeof def === 'undefined' ? null : def;
                     } else {
