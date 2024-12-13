@@ -517,7 +517,7 @@
             }
 
             // do nothing if the execution was canceled
-            if (!execute) {
+            if (execute === false) {
                 return;
             }
 
