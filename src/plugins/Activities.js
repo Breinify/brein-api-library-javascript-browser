@@ -580,7 +580,7 @@
             if (observerType === defaultClickObserverOption.observer) {
                 return $.extend(true, {}, defaultObserverOption.data, defaultClickObserverOption.data, data);
             } else {
-                return data;
+                return $.extend(true, {}, defaultObserverOption.data, data);
             }
         },
 
