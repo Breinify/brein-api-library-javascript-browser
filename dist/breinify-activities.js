@@ -279,12 +279,40 @@
             evaluateOnSetup: false,
             onActivation: function (settings, eventData, user, tags) {
             }
+        },
+        data: {
+            pageId: window.location.pathname
         }
     };
 
     const defaultClickObserverOption = {
         observer: 'click',
         settings: {
+            /**
+             * The default click event is bound to the <code>clickedElement</code>, which should have
+             * the following information:
+             * <pre>
+             * {
+             *   pageId: '/',           // the page-path from window.location.pathname (automatically added)
+             *   widget: 'my-widget',   // an identifier which explains which widget was clicked
+             * }
+             * </pre>
+             * Optional the following (known) information can be included:
+             * <pre>
+             * {
+             *   action: 'open'         // a name of the action caused by the click
+             * }
+             * </pre>
+             * If the click includes some split-testing we also add:
+             * <pre>
+             * {
+             *   splitTest: 'myTest',   // the name of the applied splitTest
+             *   group: 'ctGroup',      // the name of the selected group
+             *   groupType: 'control'   // control or test
+             * }
+             * </pre>
+             * Of course any other additional related information may be added.
+             */
             activityType: 'clickedElement',
             /**
              * If set to {@code null}, the system will assume that the click will open a new tab
@@ -542,7 +570,7 @@
         normalizeData: function (observerType, settings, data) {
 
             if (observerType === defaultClickObserverOption.observer) {
-                return $.extend(true, {}, defaultClickObserverOption.data, data);
+                return $.extend(true, defaultObserverOption.data, defaultClickObserverOption.data, data);
             } else {
                 return data;
             }
