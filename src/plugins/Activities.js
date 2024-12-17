@@ -265,6 +265,14 @@
         usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
     }
 
+    const defaultAdditionalMutationObserverSettings = {
+        settings: {
+            onElementSelection: function ($el) {
+                return $el;
+            }
+        }
+    };
+
     const defaultObserverOption = {
         settings: {
             bindDataByTag: false,
@@ -463,11 +471,23 @@
                 });
             } else if ($el.is(selector)) {
 
-                // check if the element is activated already, if so we do not need to do anything
-                const observerActive = $el.attr('data-' + this.marker.activate);
-                if (typeof observerActive !== 'string' || observerActive.trim() === '') {
-                    this.setupObservableDomElement($el, observerType, settings, data);
-                }
+                /*
+                 * We have a single element which fulfills the selector, next we have to apply
+                 * the settings and determine which elements have to be actually observed
+                 * within the (container-)element.
+                 */
+                const additionalMutationObserverSettings = $.extend(true, {}, defaultAdditionalMutationObserverSettings.settings, settings);
+                const $selectedEls = $.isFunction(additionalMutationObserverSettings.onElementSelection) ? additionalMutationObserverSettings.onElementSelection($el) : $el;
+
+                $selectedEls.each(function () {
+                    const $selectedEl = $(this);
+                    const observerActive = $selectedEl.attr('data-' + _self.marker.activate);
+
+                    // check if the element is activated already, if so we do not need to do anything
+                    if (typeof observerActive !== 'string' || observerActive.trim() === '') {
+                        _self.setupObservableDomElement($selectedEl, observerType, settings, data);
+                    }
+                });
             } else {
                 $el.find(selector).each(function () {
                     _self.setupSelectedElement($(this), selector, type, observerType, settings, data);
