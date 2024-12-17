@@ -392,7 +392,7 @@
                 subtree: true,
                 childList: true,
                 attributes: true,
-                attributeFilter: $.isArray(attributes) ? attributes : null
+                attributeFilter: $.isArray(attributes) ? attributes : undefined
             });
 
             this.additionalMutationObservers[selector] = observer;
