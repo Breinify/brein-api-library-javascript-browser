@@ -578,7 +578,7 @@
         normalizeData: function (observerType, settings, data) {
 
             if (observerType === defaultClickObserverOption.observer) {
-                return $.extend(true, defaultObserverOption.data, defaultClickObserverOption.data, data);
+                return $.extend(true, {}, defaultObserverOption.data, defaultClickObserverOption.data, data);
             } else {
                 return data;
             }
