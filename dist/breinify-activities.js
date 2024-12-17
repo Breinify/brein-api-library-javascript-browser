@@ -649,9 +649,10 @@
          * @param observerType the type to handle, ex. 'click'
          * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
          * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
+         * @param attributes an optional list (array) of attribute changes to observe
          */
-        registerAdditionalMutationObserver: function (selector, observerType, settings, data) {
-            activityDomObserver.registerAdditionalMutationObserver(selector, observerType, settings, data);
+        registerAdditionalMutationObserver: function (selector, observerType, settings, data, attributes) {
+            activityDomObserver.registerAdditionalMutationObserver(selector, observerType, settings, data, attributes);
         },
 
         /**
