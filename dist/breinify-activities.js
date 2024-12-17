@@ -307,6 +307,7 @@
             changed: 'changed'
         },
         mutationObserver: null,
+        additionalMutationObservers: {},
         blurElements: [],
         blurListener: null,
 
@@ -343,6 +344,79 @@
                 attributes: true,
                 attributeFilter: [observerAttribute],
             });
+        },
+
+        /**
+         * Registers an additional observer which triggers activities when observed. The "trick" is that these
+         * elements, when changes are observed will also trigger teh data-brob-active attribute change.
+         *
+         * @param selector the selector which selects elements to observe
+         * @param observerType the type to handle, ex. 'click'
+         * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
+         * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
+         */
+        registerAdditionalMutationObserver: function (selector, observerType, settings, data) {
+            const _self = this;
+
+            if (typeof this.additionalMutationObservers[selector] !== 'undefined') {
+                return;
+            }
+
+            const observer = new MutationObserver(function (mutations) {
+                for (let i = 0; i < mutations.length; i++) {
+                    const mutation = mutations[i];
+                    const attribute = mutation.attributeName;
+                    const addedNodes = mutations[i].addedNodes;
+                    const removedNodes = mutations[i].removedNodes;
+
+                    if (typeof attribute === 'string') {
+                        const $el = $(mutation.target);
+                        if ($el.is(selector)) {
+                            _self.setupSelectedElement($el, selector, _self.actions.changed, observerType, settings, data);
+                        }
+                    }
+
+                    for (let k = 0; k < addedNodes.length; k++) {
+                        const $el = $(addedNodes[k]);
+                        _self.setupSelectedElement($el, selector, _self.actions.added, observerType, settings, data);
+                    }
+
+                    for (let k = 0; k < removedNodes.length; k++) {
+                        const $el = $(removedNodes[k]);
+                        _self.setupSelectedElement($el, selector, _self.actions.removed, observerType, settings, data);
+                    }
+                }
+            });
+            observer.observe(document, {
+                subtree: true,
+                childList: true,
+                attributes: true,
+                attributeFilter: [observerAttribute],
+            });
+
+            this.additionalMutationObservers[selector] = observer;
+        },
+
+        setupSelectedElement: function ($el, selector, type, observerType, settings, data) {
+            const _self = this;
+
+            if ($el.is(selector)) {
+
+                // check if the element is activated already, if so we do not need to do anything
+                const observerActive = $el.attr('data-' + this.marker.observer.activate);
+                if (typeof observerActive !== 'string' || observerActive.trim() === '') {
+                    this.setupObservableDomElement($el, observerType, settings, data);
+                }
+
+                return;
+            }
+
+            const $innerEl = $el.find(selector);
+            if ($innerEl.length > 0) {
+                $innerEl.each(function () {
+                    _self.setupSelectedElement($innerEl, selector, type, observerType, settings, data);
+                });
+            }
         },
 
         determineChangedElement: function ($el, type) {
@@ -567,17 +641,29 @@
         },
 
         /**
+         * Registers an additional observer which triggers activities when observed. The "trick" is that these
+         * elements, when changes are observed will also trigger teh data-brob-active attribute change.
+         *
+         * @param selector the selector which selects elements to observe
+         * @param observerType the type to handle, ex. 'click'
+         * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
+         * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
+         */
+        registerAdditionalMutationObserver: function (selector, observerType, settings, data) {
+            activityDomObserver.registerAdditionalMutationObserver(selector, observerType, settings, data);
+        },
+
+        /**
          * Read the data attached to the element (we do not read any activation,
          * calling this method means we want to read it).
          *
          * data is read from the 'brob-data' data (or "data-attribute"), which represents a JSON object
          * having the values settings and data:
          *
-         * {
-         *    observe : 'click',                // observerType
-         *    settings: {},                     // settings
-         *    data    : { user: {}, tags: {} }  // data instance
-         * }
+         * @param $el the element to set up
+         * @param observerType the type to handle, ex. 'click'
+         * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
+         * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
          */
         setupObservableDomElement: function ($el, observerType, settings, data) {
             const _self = this;
@@ -595,7 +681,6 @@
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
             let currentData = activityDomObserver.readElementData($el);
-            $el.data(this.marker.observer.elementData);
             if (!$.isArray(currentData)) {
                 currentData = [];
             }
