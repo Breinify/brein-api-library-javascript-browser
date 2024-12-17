@@ -530,7 +530,7 @@
                 });
 
                 // if the parent contains the selector, the inner nodes (selected for observations) may have changed
-                $el.parent(selector).each(function () {
+                $el.parents(selector).each(function () {
                     _self.setupSelectedElement($(this), selector, type, observerType, settings, data);
                 });
             }
