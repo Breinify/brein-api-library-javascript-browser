@@ -347,6 +347,58 @@
         },
 
         /**
+         * Read the data attached to the element (we do not read any activation,
+         * calling this method means we want to read it).
+         *
+         * data is read from the 'brob-data' data (or "data-attribute"), which represents a JSON object
+         * having the values settings and data:
+         *
+         * @param $el the element to set up
+         * @param observerType the type to handle, ex. 'click'
+         * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
+         * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
+         */
+        setupObservableDomElement: function ($el, observerType, settings, data) {
+            const _self = this;
+
+            // we assign each element individually
+            if ($el.length > 1) {
+                $el.each(function () {
+                    _self.setupObservableDomElement($(this), observerType, settings, data);
+                });
+
+                return;
+            }
+
+            const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
+            const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
+
+            let currentData = activityDomObserver.readElementData($el);
+            if (!$.isArray(currentData)) {
+                currentData = [];
+            }
+
+            currentData.push({
+                observe: observerType,
+                settings: normalizedSettings,
+                data: normalizedData
+            });
+
+            if (normalizedSettings.bindDataByTag === true) {
+                $el.attr('data-' + this.marker.elementData, JSON.stringify(currentData));
+            } else {
+                $el.data(this.marker.elementData, currentData);
+            }
+
+            $el.attr('data-' + this.marker.activate, 'true');
+
+            // evaluate directly (not on bound or observing dom-event) if needed
+            if (normalizedSettings.evaluateOnSetup === true) {
+                activityDomObserver.evaluate($el);
+            }
+        },
+
+        /**
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
          * elements, when changes are observed will also trigger teh data-brob-active attribute change.
          *
@@ -408,15 +460,14 @@
                 if (typeof observerActive !== 'string' || observerActive.trim() === '') {
                     this.setupObservableDomElement($el, observerType, settings, data);
                 }
+            } else {
 
-                return;
-            }
-
-            const $innerEl = $el.find(selector);
-            if ($innerEl.length > 0) {
-                $innerEl.each(function () {
-                    _self.setupSelectedElement($innerEl, selector, type, observerType, settings, data);
-                });
+                const $innerEl = $el.find(selector);
+                if ($innerEl.length > 0) {
+                    $innerEl.each(function () {
+                        _self.setupSelectedElement($innerEl, selector, type, observerType, settings, data);
+                    });
+                }
             }
         },
 
@@ -627,9 +678,6 @@
     };
 
     const Activities = {
-        marker: {
-            observer: activityDomObserver.marker
-        },
         domObserverActive: false,
 
         activateDomObserver: function () {
@@ -653,6 +701,9 @@
          */
         registerAdditionalMutationObserver: function (selector, observerType, settings, data, attributes) {
             activityDomObserver.registerAdditionalMutationObserver(selector, observerType, settings, data, attributes);
+
+            // just make it chainable
+            return this;
         },
 
         /**
@@ -668,43 +719,7 @@
          * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
          */
         setupObservableDomElement: function ($el, observerType, settings, data) {
-            const _self = this;
-
-            // we assign each element individually
-            if ($el.length > 1) {
-                $el.each(function () {
-                    _self.setupObservableDomElement($(this), observerType, settings, data);
-                });
-
-                return;
-            }
-
-            const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
-            const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
-
-            let currentData = activityDomObserver.readElementData($el);
-            if (!$.isArray(currentData)) {
-                currentData = [];
-            }
-
-            currentData.push({
-                observe: observerType,
-                settings: normalizedSettings,
-                data: normalizedData
-            });
-
-            if (normalizedSettings.bindDataByTag === true) {
-                $el.attr('data-' + this.marker.observer.elementData, JSON.stringify(currentData));
-            } else {
-                $el.data(this.marker.observer.elementData, currentData);
-            }
-
-            $el.attr('data-' + this.marker.observer.activate, 'true');
-
-            // evaluate directly (not on bound or observing dom-event) if needed
-            if (normalizedSettings.evaluateOnSetup === true) {
-                activityDomObserver.evaluate($el);
-            }
+            activityDomObserver.setupObservableDomElement($el, observerType, settings, data);
 
             // just make it chainable
             return this;
