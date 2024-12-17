@@ -415,6 +415,10 @@
                 return;
             }
 
+            // before binding an observer we select the once that are there
+            const $selectedEls = $(selector);
+            _self.setupSelectedElement($selectedEls, selector, this.actions.added, observerType, settings, data);
+
             const observer = new MutationObserver(function (mutations) {
                 for (let i = 0; i < mutations.length; i++) {
                     const mutation = mutations[i];
@@ -453,7 +457,11 @@
         setupSelectedElement: function ($el, selector, type, observerType, settings, data) {
             const _self = this;
 
-            if ($el.is(selector)) {
+            if ($el.length > 1) {
+                $el.each(function () {
+                    _self.setupSelectedElement($(this), selector, type, observerType, settings, data);
+                });
+            } else if ($el.is(selector)) {
 
                 // check if the element is activated already, if so we do not need to do anything
                 const observerActive = $el.attr('data-' + this.marker.activate);
@@ -461,13 +469,9 @@
                     this.setupObservableDomElement($el, observerType, settings, data);
                 }
             } else {
-
-                const $innerEl = $el.find(selector);
-                if ($innerEl.length > 0) {
-                    $innerEl.each(function () {
-                        _self.setupSelectedElement($innerEl, selector, type, observerType, settings, data);
-                    });
-                }
+                $el.find(selector).each(function () {
+                    _self.setupSelectedElement($(this), selector, type, observerType, settings, data);
+                });
             }
         },
 
