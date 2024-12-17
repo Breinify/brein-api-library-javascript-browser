@@ -404,7 +404,7 @@
             if ($el.is(selector)) {
 
                 // check if the element is activated already, if so we do not need to do anything
-                const observerActive = $el.attr('data-' + this.marker.observer.activate);
+                const observerActive = $el.attr('data-' + this.marker.activate);
                 if (typeof observerActive !== 'string' || observerActive.trim() === '') {
                     this.setupObservableDomElement($el, observerType, settings, data);
                 }
