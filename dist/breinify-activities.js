@@ -704,7 +704,7 @@
 
             let execute = true;
             if ($.isFunction(settings.onBeforeActivitySent)) {
-                execute = settings.onBeforeActivitySent(settings, eventData, user, tags, $el);
+                execute = settings.onBeforeActivitySent(settings, eventData, user, tags);
                 execute = typeof execute === 'boolean' ? execute : true;
             }
 
@@ -713,7 +713,7 @@
                 return;
             }
 
-            let scheduleActivity = null;
+            let scheduleActivity;
             if (settings.scheduleActivities === null) {
                 if (willReloadPage === false) {
                     scheduleActivity = false;
@@ -724,14 +724,20 @@
                 scheduleActivity = settings.scheduleActivities || eventData.overriddenScheduleActivities;
             }
 
+            // set the info what was decided to the eventData to be usable in the onAfterActivitySent
+            eventData.scheduleActivity = scheduleActivity;
+
             if (scheduleActivity === true) {
 
                 Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
+                if ($.isFunction(settings.onAfterActivitySent)) {
+                    settings.onAfterActivitySent(settings, eventData, user, tags);
+                }
             } else if (scheduleActivity === false) {
 
                 Breinify.plugins.activities.generic(activityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
-                        settings.onAfterActivitySent(settings, eventData, user, tags, $el);
+                        settings.onAfterActivitySent(settings, eventData, user, tags);
                     }
                 });
             }
