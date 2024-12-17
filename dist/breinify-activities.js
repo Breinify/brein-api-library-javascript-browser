@@ -311,6 +311,12 @@
              *   groupType: 'control'   // control or test
              * }
              * </pre>
+             * If the click includes some recommender related info we may also add:
+             * <pre>
+             * {
+             *   namedRecommendations: [ 'myRec' ]    // a list of the named recommendations creating this info
+             * }
+             * </pre>
              * Of course any other additional related information may be added.
              */
             activityType: 'clickedElement',
