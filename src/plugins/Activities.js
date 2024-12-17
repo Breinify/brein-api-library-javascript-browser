@@ -281,7 +281,9 @@
             }
         },
         data: {
-            pageId: window.location.pathname
+            tags: {
+                pageId: window.location.pathname
+            }
         }
     };
 
