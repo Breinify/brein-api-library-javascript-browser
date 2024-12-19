@@ -351,7 +351,9 @@
             changed: 'changed'
         },
         mutationObserver: null,
-        additionalMutationObservers: {},
+        additionalSelectors: {},
+        additionalObservers: {},
+        additionalMutationObservers: null,
         blurElements: [],
         blurListener: null,
 
@@ -446,56 +448,120 @@
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
          * elements, when changes are observed will also trigger teh data-brob-active attribute change.
          *
-         * @param selector the selector which selects elements to observe
+         * @param selectors a single or an array of selectors which select elements affected
          * @param observerType the type to handle, ex. 'click'
          * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
          * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
          * @param attributes an optional list (array) of attribute changes to observe
          */
-        registerAdditionalMutationObserver: function (selector, observerType, settings, data, attributes) {
+        registerAdditionalMutationObserver: function (selectors, observerType, settings, data, attributes) {
             const _self = this;
 
-            if (typeof this.additionalMutationObservers[selector] !== 'undefined') {
+            let definedSelectors;
+            if ($.isArray(selectors)) {
+                definedSelectors = selectors;
+            } else if (typeof selectors === 'string') {
+                definedSelectors = [selectors];
+            } else {
+
+                // there is nothing to really register here, so let's just stop
                 return;
             }
 
-            // before binding an observer we select the once that are there
-            const $selectedEls = $(selector);
-            _self.setupSelectedElement($selectedEls, selector, this.actions.added, observerType, settings, data);
+            for (let i = 0; i < definedSelectors.length; i++) {
+                const definedSelector = definedSelectors[i];
 
-            const observer = new MutationObserver(function (mutations) {
-                for (let i = 0; i < mutations.length; i++) {
-                    const mutation = mutations[i];
-                    const attribute = mutation.attributeName;
-                    const addedNodes = mutations[i].addedNodes;
-                    const removedNodes = mutations[i].removedNodes;
+                // before binding an observer we select the once that are in the dom-tree and apply them as added
+                const $selectedEls = $(definedSelector);
+                _self.setupSelectedElement($selectedEls, definedSelector, this.actions.added, observerType, settings, data);
 
-                    if (typeof attribute === 'string') {
-                        const $el = $(mutation.target);
-                        if ($el.is(selector)) {
-                            _self.setupSelectedElement($el, selector, _self.actions.changed, observerType, settings, data);
-                        }
-                    }
+                // next, we create an identifier for the selector
+                const definedSelectorId = Breinify.UTL.uuid();
 
-                    for (let k = 0; k < addedNodes.length; k++) {
-                        const $el = $(addedNodes[k]);
-                        _self.setupSelectedElement($el, selector, _self.actions.added, observerType, settings, data);
-                    }
+                // and store the selector information under the specified identifier
+                this.additionalObservers[definedSelectorId] = {
+                    selector: definedSelector,
+                    observerType: observerType,
+                    settings: settings,
+                    data: data
+                };
 
-                    for (let k = 0; k < removedNodes.length; k++) {
-                        const $el = $(removedNodes[k]);
-                        _self.setupSelectedElement($el, selector, _self.actions.removed, observerType, settings, data);
-                    }
+                // last keep the identifier within the lists
+                const selectors = $.isArray(this.additionalSelectors[definedSelector]) ? this.additionalSelectors[definedSelector] : [];
+                this.additionalSelectors[definedSelector] = selectors;
+                selectors.push(definedSelectorId);
+            }
+
+            // make sure we have the additionalMutationObservers initialized if needed
+            if (typeof this.additionalMutationObservers === null) {
+
+                this.additionalMutationObservers = new MutationObserver(function (mutations) {
+                    _self.handleAdditionalMutations(mutations);
+                });
+
+                this.additionalMutationObservers.observe(document, {
+                    subtree: true,
+                    childList: true,
+                    attributes: true
+                });
+            }
+        },
+
+        handleAdditionalMutations: function (mutations) {
+            const _self = this;
+
+            for (let i = 0; i < mutations.length; i++) {
+                const mutation = mutations[i];
+                const target = typeof mutation.attributeName === 'string' ? mutation.target : null;
+                const addedNodes = mutations[i].addedNodes;
+                const removedNodes = mutations[i].removedNodes;
+
+                // we check each additional selector
+                const selectors = Object.keys(this.additionalSelectors);
+                for (let j = 0; j < selectors.length; j++) {
+                    const selector = selectors[j];
+                    _self.handleAdditionalMutationObserverChanges(selector, target, addedNodes, removedNodes);
                 }
-            });
-            observer.observe(document, {
-                subtree: true,
-                childList: true,
-                attributes: true,
-                attributeFilter: $.isArray(attributes) ? attributes : undefined
-            });
+            }
+        },
 
-            this.additionalMutationObservers[selector] = observer;
+        handleAdditionalMutationObserverChanges: function (selector, target, addedNodes, removedNodes) {
+            if (target !== null) {
+                const $el = $(target);
+
+                if ($el.is(selector)) {
+                    this.applyAdditionalMutationObserverChanges($el, selector, this.actions.changed);
+                }
+            }
+
+            for (let k = 0; k < addedNodes.length; k++) {
+                const $el = $(addedNodes[k]);
+                this.applyAdditionalMutationObserverChanges($el, selector, this.actions.added);
+            }
+
+            for (let k = 0; k < removedNodes.length; k++) {
+                const $el = $(removedNodes[k]);
+                this.applyAdditionalMutationObserverChanges($el, selector, this.actions.removed);
+            }
+        },
+
+        applyAdditionalMutationObserverChanges: function ($el, selector, type) {
+
+            // retrieve all affected selectorIds that are affected by this selector
+            let selectorIds = this.additionalSelectors[selector];
+            selectorIds = $.isArray(selectorIds) ? selectorIds : [];
+
+            // iterate over the selector identifiers and retrieve the settings
+            for (let k = 0; k < selectorIds.length; k++) {
+                const id = selectorIds[k];
+                const settings = this.additionalObservers[id];
+                if (!$.isPlainObject(settings)) {
+                    continue;
+                }
+
+                // apply the settings by setting up the new or modified element
+                this.setupSelectedElement($el, settings.selector, type, settings.observerType, settings.settings, settings.data);
+            }
         },
 
         setupSelectedElement: function ($el, selector, type, observerType, settings, data) {
