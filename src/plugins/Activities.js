@@ -495,7 +495,7 @@
             }
 
             // make sure we have the additionalMutationObservers initialized if needed
-            if (typeof this.additionalMutationObservers === null) {
+            if (this.additionalMutationObservers === null) {
 
                 this.additionalMutationObservers = new MutationObserver(function (mutations) {
                     _self.handleAdditionalMutations(mutations);
