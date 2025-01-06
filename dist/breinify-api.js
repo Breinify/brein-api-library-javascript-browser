@@ -16626,7 +16626,7 @@ dependencyScope.jQuery = $;;
             if ($.isPlainObject(this[name])) {
                 this[name].setConfig(config);
             } else {
-                $(document).on('breinifyPlugInAdded[' + name + ']', function (event, name, plugIn) {
+                $(document).on('breinifyPlugInBound[' + name + ']', function (event, name, plugIn) {
                     plugIn.setConfig(config);
                 });
             }
@@ -16700,12 +16700,21 @@ dependencyScope.jQuery = $;;
                 }
             }, plugIn);
 
-            // run setup of the plugin, if the method is defined for the plugin
+            /*
+             * Trigger some events for the plugin life-cycle:
+             * 1. bound - the plugin is actually bound to the `plugins` instance
+             * 2. setup - the plugin is set up (setup method executed); only triggered if setup method is available
+             * 3. added - the plugin is successfully added to the Breinify library stack
+             */
+            _privates.triggerEvent('breinifyPlugInBound[' + name + ']', [name, this[name]]);
+
+            // if there is a setup we set up the plug-in now and trigger the event
             if ($.isFunction(this[name].setup)) {
                 this[name].setup();
+
+                _privates.triggerEvent('breinifyPlugInSetup[' + name + ']', [name, this[name]]);
             }
 
-            // trigger an event
             _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
 
             return this[name];

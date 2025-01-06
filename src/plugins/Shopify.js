@@ -31,7 +31,7 @@
             // ... and set up the interval
             window.setInterval(function() {
                 _self._loadCart();
-            }, config.cartCheckInterval);
+            }, config.refreshRateInMs);
         },
 
         getToken: function() {
@@ -195,10 +195,10 @@
     const Shopify = {
 
         setup: function () {
-            const cartRefreshRate = this.getConfig('cart::refreshRateInMs', 250);
+            const cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', 1000);
 
             shopifyCart.setup({
-                cartCheckInterval: cartRefreshRate
+                refreshRateInMs: cartRefreshRateInMs
             });
         },
 
