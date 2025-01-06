@@ -15,13 +15,16 @@
         currentCart: null,
         observers: [],
 
-        init: function () {
+        init: function (config) {
             const _self = this;
-            const cartCheckInterval = 250;
 
+            // trigger cart updates now...
+            _self._loadCart();
+
+            // ... and set up the interval
             window.setInterval(function() {
                 _self._loadCart();
-            }, cartCheckInterval);
+            }, config.cartCheckInterval);
         },
 
         getToken: function() {
@@ -185,7 +188,11 @@
     const Shopify = {
 
         init: function () {
-            shopifyCart.init();
+            const cartRefreshRate = this.getConfig('cart::refreshRateInMs', 250);
+
+            shopifyCart.init({
+                cartCheckInterval: cartRefreshRate
+            });
         },
 
         cart: {
