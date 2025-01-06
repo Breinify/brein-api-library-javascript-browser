@@ -195,7 +195,7 @@
     const Shopify = {
 
         setup: function () {
-            const cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', 1000);
+            const cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', 2500);
 
             shopifyCart.setup({
                 refreshRateInMs: cartRefreshRateInMs
