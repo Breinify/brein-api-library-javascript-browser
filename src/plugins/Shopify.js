@@ -10,12 +10,19 @@
     }
 
     const shopifyCart = {
+        isSetup: false,
         loadedToken: null,
         lookUpToken: null,
         currentCart: null,
         observers: [],
 
-        init: function (config) {
+        setup: function (config) {
+
+            // make sure we do not set up the plugin twice
+            if (this.isSetup === true) {
+                return;
+            }
+
             const _self = this;
 
             // trigger cart updates now...
@@ -187,10 +194,10 @@
 
     const Shopify = {
 
-        init: function () {
+        setup: function () {
             const cartRefreshRate = this.getConfig('cart::refreshRateInMs', 250);
 
-            shopifyCart.init({
+            shopifyCart.setup({
                 cartCheckInterval: cartRefreshRate
             });
         },

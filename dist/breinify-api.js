@@ -16700,6 +16700,11 @@ dependencyScope.jQuery = $;;
                 }
             }, plugIn);
 
+            // run init of the plugin if available
+            if ($.isFunction(this[name]['setup'])) {
+                this[name].setup();
+            }
+
             // trigger an event
             _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
 

@@ -1028,6 +1028,11 @@
                 }
             }, plugIn);
 
+            // run setup of the plugin, if the method is defined for the plugin
+            if ($.isFunction(this[name]['setup'])) {
+                this[name].setup();
+            }
+
             // trigger an event
             _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
 
