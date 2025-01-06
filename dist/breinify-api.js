@@ -14750,6 +14750,20 @@ dependencyScope.jQuery = $;;
             }
         },
 
+        isNonEmptyString: function (value) {
+            return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+        },
+
+        toPrice: function (price) {
+            const nrPrice = this.toNumber(price);
+            return typeof nrPrice !== 'number' || isNaN(nrPrice) ? null : +(nrPrice.toFixed(2));
+        },
+
+        toInteger: function (integer) {
+            const nrInteger = this.toNumber(integer);
+            return typeof nrInteger !== 'number' || isNaN(nrInteger) ? null : +(nrInteger.toFixed(0));
+        },
+
         extend: function () {
             for (let i = 1; i < arguments.length; i++) {
                 for (let key in arguments[i]) {
@@ -16858,6 +16872,9 @@ dependencyScope.jQuery = $;;
         lowerize: function(str) { return str; },
         firstLetter: function(str, lowerCase) { return str; },
         toNumber: function(str) { return NaN; },
+        isNonEmptyString: function(str) { return null; },
+        toPrice: function(str) { return null; },
+        toInteger: function(str) { return null; },
         extend: function(str) { return {}; },
         _jquery: function() { return null; }
     };

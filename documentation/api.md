@@ -35,6 +35,9 @@ This documentation is organized as following:
     * Breinify.UTL.lowerize() [since version 1.0.23]
     * Breinify.UTL.firstLetter() [since version 1.0.23]
     * Breinify.UTL.toNumber() [since version 1.0.23]
+    * Breinify.UTL.isNonEmptyString() [since version 1.0.24]
+    * Breinify.UTL.toPrice() [since version 1.0.24]
+    * Breinify.UTL.toInteger() [since version 1.0.24]
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
     * Breinify.UTL.events.pageloaded(func) [since version 1.0.1]
