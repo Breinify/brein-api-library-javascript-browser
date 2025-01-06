@@ -1029,7 +1029,7 @@
             }, plugIn);
 
             // run setup of the plugin, if the method is defined for the plugin
-            if ($.isFunction(this[name]['setup'])) {
+            if ($.isFunction(this[name].setup)) {
                 this[name].setup();
             }
 

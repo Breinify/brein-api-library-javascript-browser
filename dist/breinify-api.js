@@ -16700,8 +16700,8 @@ dependencyScope.jQuery = $;;
                 }
             }, plugIn);
 
-            // run init of the plugin if available
-            if ($.isFunction(this[name]['setup'])) {
+            // run setup of the plugin, if the method is defined for the plugin
+            if ($.isFunction(this[name].setup)) {
                 this[name].setup();
             }
 
