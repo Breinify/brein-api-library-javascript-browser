@@ -13,15 +13,15 @@
         loadedToken: null,
         lookUpToken: null,
         currentCart: null,
+        observers: [],
 
         init: function () {
             const _self = this;
+            const cartCheckInterval = 250;
 
-            $.getJSON(window.Shopify.routes.root + 'cart.js', function (cart) {
-                if (typeof cart.token === 'string' && cart.token.trim() !== '') {
-                    _self.loadedToken = _self.parseToken(cart.token);
-                }
-            });
+            window.setInterval(function() {
+                _self._loadCart();
+            }, cartCheckInterval);
         },
 
         getToken: function() {
@@ -41,9 +41,24 @@
             }
         },
 
-        checkCartChanges: function (data) {
+        _loadCart: function() {
+            const _self = this;
+
+            $.getJSON(window.Shopify.routes.root + 'cart.js', function (cart) {
+                if (typeof cart.token === 'string' && cart.token.trim() !== '') {
+
+                    // parse the retrieved token and keep it
+                    _self.loadedToken = _self.parseToken(cart.token);
+
+                    // determine any changes and inform notifiers
+                    _self._checkCartChanges(cart);
+                }
+            });
+        },
+
+        _checkCartChanges: function (data) {
             const oldCart = this.currentCart;
-            const newCart = this.updateCart(data);
+            const newCart = this._updateCart(data);
 
             // we cannot determine any changes on the first update, so we ignore it
             if (oldCart === null) {
@@ -94,9 +109,18 @@
                 }
             }
 
+            // notify observers about the changes (if any)
+            if (removedItems.length > 0 || addedItems.length > 0) {
+
+                for (let i = 0; i < this.observers.length; i++) {
+                    const observer = this.observers[i];
+
+                    observer(addedItems, removedItems);
+                }
+            }
         },
 
-        updateCart: function (data) {
+        _updateCart: function (data) {
             if (!$.isPlainObject(data)) {
                 return this.currentCart;
             }
@@ -165,6 +189,14 @@
         },
 
         cart: {
+            onCartChange: function(observer) {
+                if (!$.isFunction(observer)) {
+                    return;
+                }
+
+                shopifyCart.observers.push(observer);
+            },
+
             bindLookUpToken: function(lookUp) {
                 shopifyCart.lookUpToken = $.isFunction(lookUp) ? function() {
                     return shopifyCart.parseToken(lookUp());
