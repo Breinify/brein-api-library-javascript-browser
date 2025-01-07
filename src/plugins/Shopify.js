@@ -34,13 +34,18 @@
                 }
             }
 
-            // trigger cart updates now...
-            _self._loadCart();
+            if (config.enableCartRequests === true) {
 
-            // ... and set up the interval
-            window.setInterval(function () {
+                // trigger cart updates now...
                 _self._loadCart();
-            }, config.refreshRateInMs);
+
+                // ... and set up the interval
+                if (typeof config.refreshRateInMs === 'number' && config.refreshRateInMs >= 10) {
+                    window.setInterval(function () {
+                        _self._loadCart();
+                    }, config.refreshRateInMs);
+                }
+            }
         },
 
         getToken: function () {
@@ -208,6 +213,9 @@
     const Shopify = {
 
         setup: function () {
+            let cartEnableRequest = this.getConfig('cart::enableRequests', null);
+            cartEnableRequest = typeof cartEnableRequest === 'boolean' ? cartEnableRequest : true;
+
             let cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', null);
             cartRefreshRateInMs = typeof cartRefreshRateInMs === 'number' ? cartRefreshRateInMs : 2500;
 
@@ -216,6 +224,7 @@
             cartObservers = $.isArray(cartObservers) ? cartObservers : null;
 
             shopifyCart.setup({
+                enableCartRequests: cartEnableRequest,
                 refreshRateInMs: cartRefreshRateInMs,
                 observers: cartObservers
             });
