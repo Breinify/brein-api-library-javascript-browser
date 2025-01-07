@@ -46,7 +46,7 @@
         getToken: function () {
             let token = $.isFunction(this.lookUpToken) ? this.lookUpToken() : null;
             if (typeof token !== 'string' || token.trim() === '') {
-                token = this.lookUpToken;
+                token = this.loadedToken;
             }
 
             return token;
