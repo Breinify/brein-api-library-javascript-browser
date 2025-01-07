@@ -208,8 +208,12 @@
     const Shopify = {
 
         setup: function () {
-            const cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', 2500);
-            const cartObservers = this.getConfig('cart::observers', null);
+            let cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', null);
+            cartRefreshRateInMs = typeof cartRefreshRateInMs === 'number' ? cartRefreshRateInMs : 2500;
+
+            let cartObservers = this.getConfig('cart::observers', null);
+            cartObservers = $.isFunction(cartObservers) ? [cartObservers] : cartObservers;
+            cartObservers = $.isArray(cartObservers) ? cartObservers : null;
 
             shopifyCart.setup({
                 refreshRateInMs: cartRefreshRateInMs,
