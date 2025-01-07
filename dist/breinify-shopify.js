@@ -74,7 +74,12 @@
         _loadCart: function () {
             const _self = this;
 
-            $.getJSON(window.Shopify.routes.root + 'cart.js', function (cart) {
+            // determine the root
+            const root = $.isPlainObject(window.Shopify) &&
+            $.isPlainObject(window.Shopify.routes) &&
+            typeof window.Shopify.routes.root === 'string' ? window.Shopify.routes.root : '/';
+
+            $.getJSON(root + 'cart.js', function (cart) {
 
                 // parse the retrieved token and keep it
                 _self.loadedToken = _self.parseToken(cart.token);
