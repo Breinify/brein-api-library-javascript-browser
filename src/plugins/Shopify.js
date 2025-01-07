@@ -46,6 +46,8 @@
                     }, config.refreshRateInMs);
                 }
             }
+
+            this.isSetup = true;
         },
 
         getToken: function () {
