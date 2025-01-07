@@ -9,6 +9,8 @@
         return;
     }
 
+    const $ = Breinify.UTL._jquery();
+
     const shopifyCart = {
         isSetup: false,
         loadedToken: null,
@@ -25,16 +27,23 @@
 
             const _self = this;
 
+            // add the observers for changes
+            if ($.isArray(config.observers)) {
+                for (let i = 0; i < config.observers.length; i++) {
+                    this.addObserver(config.observers[i]);
+                }
+            }
+
             // trigger cart updates now...
             _self._loadCart();
 
             // ... and set up the interval
-            window.setInterval(function() {
+            window.setInterval(function () {
                 _self._loadCart();
             }, config.refreshRateInMs);
         },
 
-        getToken: function() {
+        getToken: function () {
             let token = $.isFunction(this.lookUpToken) ? this.lookUpToken() : null;
             if (typeof token !== 'string' || token.trim() === '') {
                 token = this.lookUpToken;
@@ -51,18 +60,22 @@
             }
         },
 
-        _loadCart: function() {
+        addObserver: function (observer) {
+            if ($.isFunction(observer)) {
+                this.observers.push(observer);
+            }
+        },
+
+        _loadCart: function () {
             const _self = this;
 
             $.getJSON(window.Shopify.routes.root + 'cart.js', function (cart) {
-                if (typeof cart.token === 'string' && cart.token.trim() !== '') {
 
-                    // parse the retrieved token and keep it
-                    _self.loadedToken = _self.parseToken(cart.token);
+                // parse the retrieved token and keep it
+                _self.loadedToken = _self.parseToken(cart.token);
 
-                    // determine any changes and inform notifiers
-                    _self._checkCartChanges(cart);
-                }
+                // determine any changes and inform notifiers
+                _self._checkCartChanges(cart);
             });
         },
 
@@ -196,28 +209,26 @@
 
         setup: function () {
             const cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', 2500);
+            const cartObservers = this.getConfig('cart::observers', null);
 
             shopifyCart.setup({
-                refreshRateInMs: cartRefreshRateInMs
+                refreshRateInMs: cartRefreshRateInMs,
+                observers: cartObservers
             });
         },
 
         cart: {
-            onCartChange: function(observer) {
-                if (!$.isFunction(observer)) {
-                    return;
-                }
-
-                shopifyCart.observers.push(observer);
+            onCartChange: function (observer) {
+                shopifyCart.addObserver(observer);
             },
 
-            bindLookUpToken: function(lookUp) {
-                shopifyCart.lookUpToken = $.isFunction(lookUp) ? function() {
+            bindLookUpToken: function (lookUp) {
+                shopifyCart.lookUpToken = $.isFunction(lookUp) ? function () {
                     return shopifyCart.parseToken(lookUp());
                 } : null;
             },
 
-            getToken: function() {
+            getToken: function () {
                 return shopifyCart.getToken();
             }
         }
