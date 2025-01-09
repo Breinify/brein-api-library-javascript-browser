@@ -1648,8 +1648,8 @@
             settings.symbol = typeof settings.symbol === 'string' ? settings.symbol : '$';
             settings.symbolPosition = typeof settings.symbolPosition === 'string' ? settings.symbolPosition : 'prefix';
 
+            let value;
             try {
-                let value;
                 if (typeof price === 'number') {
                     value = price;
                 } else if (/\d+(?:\.\d+)?/.test(price)) {
