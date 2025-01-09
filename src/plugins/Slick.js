@@ -169,9 +169,8 @@
             });
         },
 
-        apply: function () {
-
-
+        apply: function ($el, slickConfig) {
+            _private.apply($el, slickConfig);
         }
     };
 
