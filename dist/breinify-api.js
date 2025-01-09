@@ -14076,7 +14076,7 @@ dependencyScope.jQuery = $;;
                 return this.splitTestData;
             },
 
-            addSplitTestData: function(data) {
+            addSplitTestData: function (data) {
                 _private.storeAdditionalData(data);
             },
 
@@ -14757,6 +14757,40 @@ dependencyScope.jQuery = $;;
         toPrice: function (price) {
             const nrPrice = this.toNumber(price);
             return typeof nrPrice !== 'number' || isNaN(nrPrice) ? null : +(nrPrice.toFixed(2));
+        },
+
+        formatPrice: function (price, settings) {
+
+            settings = !$.isPlainObject(settings) ? {} : settings;
+            settings.locales = typeof settings.locales === 'string' ? settings.locales : 'US-us';
+            settings.symbol = typeof settings.symbol === 'string' ? settings.symbol : '$';
+            settings.symbolPosition = typeof settings.symbolPosition === 'string' ? settings.symbolPosition : 'prefix';
+
+            try {
+                let value;
+                if (typeof price === 'number') {
+                    value = price;
+                } else if (/\d+(?:\.\d+)?/.test(price)) {
+                    value = parseFloat(price);
+                } else {
+                    value = Number(price);
+                }
+
+                value = value.toLocaleString(settings.locales, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            } catch (e) {
+                value = this.toPrice(price);
+            }
+
+            if (settings.symbolPosition === 'prefix') {
+                return settings.symbol + value;
+            } else if (settings.symbolPosition === 'suffix') {
+                return value + settings.symbol;
+            } else {
+                return value;
+            }
         },
 
         toInteger: function (integer) {
@@ -16888,6 +16922,7 @@ dependencyScope.jQuery = $;;
         toNumber: function(str) { return NaN; },
         isNonEmptyString: function(str) { return null; },
         toPrice: function(str) { return null; },
+        formatPrice: function(str) { return null; },
         toInteger: function(str) { return null; },
         extend: function(str) { return {}; },
         _jquery: function() { return null; }
