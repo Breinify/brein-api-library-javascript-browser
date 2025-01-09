@@ -13,7 +13,7 @@
     const _private = {
         defMaxWaitTimeInMs: 2500,
 
-        apply: function (settings) {
+        setup: function (settings) {
             const _self = this;
 
             const startTimeInMs = new Date().getTime();
@@ -42,6 +42,20 @@
                         if (status === false) {
                             _self._load(settings);
                         }
+                    });
+                }
+            });
+        },
+
+        apply: function ($el, slickConfig) {
+            const _self = this;
+
+            this._waitFor(15000, function () {
+                return _self._hasWndSlick();
+            }, function (status) {
+                if (status === true) {
+                    $el.each(function () {
+                        window.$(this).slick(slickConfig);
                     });
                 }
             });
@@ -133,8 +147,6 @@
                 }
             });
         }
-
-
     };
 
     const Slick = {
@@ -150,11 +162,16 @@
             let onLoad = this.getConfig('onLoad', null);
             onLoad = $.isFunction(onLoad) ? onLoad : null;
 
-            _private.apply({
+            _private.setup({
                 checkForSlick: checkForSlick,
                 maxWaitTimeInMs: maxWaitTimeInMs,
                 onLoad: onLoad
             });
+        },
+
+        apply: function () {
+
+
         }
     };
 
