@@ -56,13 +56,13 @@
         },
 
         _hasWndSlick: function () {
-            return typeof window.$ !== 'function' &&
+            return typeof window.$ === 'function' &&
                 $.isPlainObject(window.$.fn) &&
                 $.isFunction(window.$.fn.slick);
         },
 
         _hasWndJQuery: function () {
-            return typeof window.$ !== 'function' &&
+            return typeof window.$ === 'function' &&
                 $.isPlainObject(window.$.fn) &&
                 typeof window.$.fn.jquery === 'string'
         },
