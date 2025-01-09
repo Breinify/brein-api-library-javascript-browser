@@ -147,9 +147,13 @@
             let checkForSlick = this.getConfig('checkForSlick', null);
             checkForSlick = typeof checkForSlick === 'boolean' ? checkForSlick : false;
 
+            let onLoad = this.getConfig('onLoad', null);
+            onLoad = $.isFunction(onLoad) ? onLoad : null;
+
             _private.apply({
                 checkForSlick: checkForSlick,
-                maxWaitTimeInMs: maxWaitTimeInMs
+                maxWaitTimeInMs: maxWaitTimeInMs,
+                onLoad: onLoad
             });
         }
     };
