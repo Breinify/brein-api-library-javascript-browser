@@ -768,7 +768,12 @@
 
             // next we need to determine if we have to hide a control-group
             const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
-            if ($controlContainer !== null) {
+
+            // we only hide if the control-container is not the same as the container (avoid a misconfiguration)
+            if ($controlContainer !== null &&
+                $controlContainer.length === 1 &&
+                $controlContainer.get(0) !== $container.get(0) &&
+                $controlContainer.find('.brrc-item').length === 0) {
                 $controlContainer.hide();
             }
 
