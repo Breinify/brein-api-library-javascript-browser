@@ -120,16 +120,23 @@
 
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
-                $recItem
-                    .addClass(_self.marker.item)
-                    .attr('data-' + _self.marker.item, 'true')
-                    .data(_self.marker.data, $.extend(true, {
-                        widgetPosition: idx + 1
-                    }, recommendation));
+                _self._setupItemData($recItem, idx, recommendation);
 
                 $container.append($recItem);
                 Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
             });
+        },
+
+        _isItem: function ($item) {
+            return $item.closest('[data-' + Renderer.marker.container + '="true"]').length !== 1;
+        },
+
+        _setupItemData: function ($recItem, idx, recommendation) {
+            $recItem.addClass(this.marker.item)
+                .attr('data-' + this.marker.item, 'true')
+                .data(this.marker.data, $.extend(true, {
+                    widgetPosition: idx < 0 ? idx : idx + 1
+                }, recommendation));
         },
 
         /**
@@ -432,6 +439,15 @@
                     }, payload)], callback);
                 }
             }, arguments, this);
+        },
+
+        setRecommendationData: function ($el, idx, data) {
+            if (!Renderer._isItem($el)) {
+                return false;
+            } else {
+                Renderer._setupItemData($el, idx, data);
+                return true;
+            }
         },
 
         _preRenderRecommendations: function (renderOptions) {
