@@ -120,7 +120,9 @@
 
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
-                _self._setupItemData($recItem, idx, recommendation);
+                _self._setupItemData($recItem, idx, $.extend(true, {
+                    widgetPosition: idx < 0 ? idx : idx + 1
+                }, recommendation));
 
                 $container.append($recItem);
                 Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
@@ -131,12 +133,10 @@
             return $item.closest('[data-' + Renderer.marker.container + '="true"]').length !== 1;
         },
 
-        _setupItemData: function ($recItem, idx, recommendation) {
+        _setupItemData: function ($recItem, idx, data) {
             $recItem.addClass(this.marker.item)
                 .attr('data-' + this.marker.item, 'true')
-                .data(this.marker.data, $.extend(true, {
-                    widgetPosition: idx < 0 ? idx : idx + 1
-                }, recommendation));
+                .data(this.marker.data, data);
         },
 
         /**
