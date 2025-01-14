@@ -675,6 +675,10 @@
 
             settings = $.extend(true, {
                 additionalEventData: {
+                    meta: {
+                        openInNewTab: openInNewTab,
+                        willReloadPage: willReloadPage,
+                    },
                     scheduleActivities: null
                 },
                 activityType: activityType,
