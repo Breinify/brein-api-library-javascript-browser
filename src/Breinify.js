@@ -914,11 +914,6 @@
 
     Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings) {
 
-        // make sure we can match, otherwise the handling will fail
-        if (!(scriptSourceRegEx instanceof RegExp)) {
-            return;
-        }
-
         let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
             mapper = mapper.map;

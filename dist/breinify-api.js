@@ -15192,9 +15192,11 @@ dependencyScope.jQuery = $;;
                 // nothing to do, we are good the specified regular expression matches
             }
             // otherwise we may have script settings
-            else if ($.isPlainObject(scriptSettings) && $.isArray(scriptSettings.regExps.some(function(val) {
-                return e.filename.match(val) !== null;
-            }))) {
+            else if ($.isPlainObject(scriptSettings) &&
+                $.isArray(scriptSettings.regExps) &&
+                scriptSettings.regExps.some(function (val) {
+                    return e.filename.match(val) !== null;
+                })) {
                 // nothing to do, we are good we found at least one matching entry (using the new approach)
             } else {
                 return null;
@@ -16631,11 +16633,6 @@ dependencyScope.jQuery = $;;
     };
 
     Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings) {
-
-        // make sure we can match, otherwise the handling will fail
-        if (!(scriptSourceRegEx instanceof RegExp)) {
-            return;
-        }
 
         let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
