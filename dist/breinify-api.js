@@ -15181,27 +15181,39 @@ dependencyScope.jQuery = $;;
     });
     attributes.add('ERROR_TAGS_MAPPER', {
         name: 'errorTagsMapper',
-        defaultValue: function (e, scriptSourceRegEx) {
+        defaultValue: function (e, scriptSourceRegEx, scriptSettings) {
 
-            // make sure we have an error originated within the script
-            if (typeof e.filename !== 'string' || e.filename.match(scriptSourceRegEx) === null) {
+            // we need to have a valid "source"
+            if (typeof e.filename !== 'string') {
+                return null;
+            }
+            // we may have defined (deprecated) a `scriptSourceRegEx`, and it matches, so we can move one
+            else if (scriptSourceRegEx instanceof RegExp && e.filename.match(scriptSourceRegEx) !== null) {
+                // nothing to do, we are good the specified regular expression matches
+            }
+            // otherwise we may have script settings
+            else if ($.isPlainObject(scriptSettings) && $.isArray(scriptSettings.regExps.some(function(val) {
+                return e.filename.match(val) !== null;
+            }))) {
+                // nothing to do, we are good we found at least one matching entry (using the new approach)
+            } else {
                 return null;
             }
 
-            var handle = true;
+            let handle = true;
 
             /*
              * Check if we have a script error being handled,
              * we normally don't want to send these since we somehow are blocked
              * but for some percentage we still send it to learn about a "why".
              */
-            var msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
+            const msg = typeof e.message === 'string' ? e.message.toLowerCase() : '';
             if (msg.indexOf('script error') > -1) {
                 handle = Math.random() > 0.99;
             }
 
             if (handle === true) {
-                var error = typeof e.error === 'undefined' ? null : e.error;
+                const error = typeof e.error === 'undefined' ? null : e.error;
                 return {
                     'message': e.message,
                     'type': error === null ? null : error.name,
@@ -16618,7 +16630,7 @@ dependencyScope.jQuery = $;;
         });
     };
 
-    Breinify.handleError = function (e, scriptSourceRegEx) {
+    Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings) {
 
         // make sure we can match, otherwise the handling will fail
         if (!(scriptSourceRegEx instanceof RegExp)) {
@@ -16638,7 +16650,7 @@ dependencyScope.jQuery = $;;
             return;
         }
 
-        const tags = mapper(e, scriptSourceRegEx);
+        const tags = mapper(e, scriptSourceRegEx, scriptSettings);
         if (!$.isPlainObject(tags)) {
             return;
         }

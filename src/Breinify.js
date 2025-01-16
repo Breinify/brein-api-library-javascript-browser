@@ -912,7 +912,7 @@
         });
     };
 
-    Breinify.handleError = function (e, scriptSourceRegEx) {
+    Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings) {
 
         // make sure we can match, otherwise the handling will fail
         if (!(scriptSourceRegEx instanceof RegExp)) {
@@ -932,7 +932,7 @@
             return;
         }
 
-        const tags = mapper(e, scriptSourceRegEx);
+        const tags = mapper(e, scriptSourceRegEx, scriptSettings);
         if (!$.isPlainObject(tags)) {
             return;
         }
