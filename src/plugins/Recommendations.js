@@ -689,6 +689,16 @@
             // trigger the creation activity process to ensure that we can modify the activity to be  sent
             Renderer._process(option.process.createActivity, event, settings);
 
+            /*
+             * After this step we may have some new information set (via the createActivity listener), so
+             * let's reevaluate if we have the widgetPosition, but not a widgetId
+             */
+            if (typeof settings.activityTags.widgetPosition === 'number' &&
+                typeof settings.activityTags.widgetType === 'string' &&
+                typeof settings.activityTags.widgetId !== 'string') {
+                settings.activityTags.widgetId = settings.activityTags.widgetType + '-' + settings.activityTags.widgetPosition;
+            }
+
             // decide to schedule or not
             let scheduleActivity = null;
             if (settings.additionalEventData.scheduleActivities === null) {
