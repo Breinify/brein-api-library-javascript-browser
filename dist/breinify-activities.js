@@ -333,6 +333,16 @@
             scheduleActivities: null,
             onBeforeActivitySent: function (settings, eventData, user, tags) {
             },
+            /**
+             * This method does not what for the actual activity to be successfully sent, but triggers right
+             * after the sent was initiated
+             * @param settings the settings
+             * @param eventData the event's data
+             * @param user the user object
+             * @param tags the tags
+             */
+            onActivitySent: function (settings, eventData, user, tags) {
+            },
             onAfterActivitySent: function (settings, eventData, user, tags) {
             }
         },
@@ -798,6 +808,9 @@
             if (scheduleActivity === true) {
 
                 Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
+                if ($.isFunction(settings.onActivitySent)) {
+                    settings.onActivitySent(settings, eventData, user, tags);
+                }
                 if ($.isFunction(settings.onAfterActivitySent)) {
                     settings.onAfterActivitySent(settings, eventData, user, tags);
                 }
@@ -808,6 +821,10 @@
                         settings.onAfterActivitySent(settings, eventData, user, tags);
                     }
                 });
+
+                if ($.isFunction(settings.onActivitySent)) {
+                    settings.onActivitySent(settings, eventData, user, tags);
+                }
             }
         },
 
