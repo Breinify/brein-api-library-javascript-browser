@@ -717,8 +717,8 @@
         },
 
         activateObserver: function ($el, observer) {
-            const settings = $.isPlainObject(observer.settings) ? observer.settings : {};
-            const data = $.isPlainObject(observer.data) ? observer.data : {};
+            const settings = $.isPlainObject(observer.settings) ? $.extend(true, {}, observer.settings) : {};
+            const data = $.isPlainObject(observer.data) ? $.extend(true, {}, observer.data) : {};
 
             if ($.isFunction(settings.onActivation)) {
                 const user = data.user;
