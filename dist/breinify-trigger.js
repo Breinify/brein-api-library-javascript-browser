@@ -70,7 +70,7 @@
         observeUrlChanges: function () {
             const _self = this;
 
-            // we are already bound
+            // we are already observing, so no need to do it again
             if (_self.oldPushState !== null || _self.oldReplaceState !== null || _self.popStateListener !== null) {
                 return;
             } else if (typeof window.history !== 'object') {
@@ -78,8 +78,17 @@
                 return;
             }
 
-            // before observing we once trigger the dependent modules (as init)
+            // before observing changes trigger the dependent modules once ...
             this.handlePageChange();
+
+            // ... and start observing for newly added modules need to be checked
+            $(document).on('module-added', function (name, module) {
+                try {
+                    _self.checkModule(name, module);
+                } catch (e) {
+                    console.error('failed to check module: ' + name);
+                }
+            });
 
             if ($.isFunction(window.history.pushState)) {
                 _self.oldPushState = window.history.pushState;
@@ -207,15 +216,6 @@
         init: function () {
             changeObserver.observeDomTreeChanges();
             changeObserver.observeUrlChanges();
-
-            // we also add the module-added listener since newly loaded modules need to be checked
-            $(document).on('module-added', function (name, module) {
-                try {
-                    changeObserver.checkModule(name, module);
-                } catch (e) {
-                    console.error('failed to check module: ' + name);
-                }
-            });
         }
     };
 
