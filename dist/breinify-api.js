@@ -14827,7 +14827,15 @@ dependencyScope.jQuery = $;;
 
                 // check if we already have an instance (init may be called multiple times)
                 if (this.instance === null) {
-                    if (typeof window.localStorage === 'object') {
+
+                    let localStorageType;
+                    try {
+                        localStorageType = typeof window.localStorage;
+                    } catch (e) {
+                        localStorageType = null;
+                    }
+
+                    if (localStorageType === 'object') {
                         this.instance = window.localStorage;
                     } else {
 
