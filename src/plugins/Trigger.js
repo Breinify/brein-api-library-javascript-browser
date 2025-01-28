@@ -191,7 +191,7 @@
 
             // make sure we have a valid module
             if (!$.isPlainObject(module) || !$.isFunction(module.onChange)) {
-                return;
+                // return;
             }
             // check if additional requirements have to be checked, if not just execute
             else if (!$.isFunction(module.findRequirements)) {
