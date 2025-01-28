@@ -82,7 +82,7 @@
             this.handlePageChange();
 
             // ... and start observing for newly added modules need to be checked
-            $(document).on('module-added', function (name, module) {
+            $(document).on('module-added', function (event, name, module) {
                 try {
                     _self.checkModule(name, module);
                 } catch (e) {

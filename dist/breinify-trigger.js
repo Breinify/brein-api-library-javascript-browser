@@ -82,7 +82,7 @@
             this.handlePageChange();
 
             // ... and start observing for newly added modules need to be checked
-            $(document).on('module-added', function (name, module) {
+            $(document).on('module-added', function (event, name, module) {
                 try {
                     _self.checkModule(name, module);
                 } catch (e) {
@@ -191,7 +191,7 @@
 
             // make sure we have a valid module
             if (!$.isPlainObject(module) || !$.isFunction(module.onChange)) {
-                return;
+                // return;
             }
             // check if additional requirements have to be checked, if not just execute
             else if (!$.isFunction(module.findRequirements)) {
