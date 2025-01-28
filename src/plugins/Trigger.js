@@ -160,11 +160,11 @@
 
             // if we do not have a valid module or not a ready function we are done
             if (!$.isPlainObject(module) || !$.isFunction(module.onChange)) {
-                return;
+                // return;
             }
             // next we check that we have a valid-page checker and that the page is valid
             else if ($.isFunction(module.isValidPage) && !module.isValidPage(window.location.pathname)) {
-                return;
+                // return;
             }
             // check if we have to find a specific dom-element to appear or happen
             else if (!$.isFunction(module.findRequirements)) {
@@ -173,17 +173,18 @@
                 this.executeOnChange(module);
             }
             // make sure we do not have the same module twice, so just ignore if it exists already
-            if (typeof this.domTreeDependModules[name] !== 'undefined') {
-                return;
+            else if (typeof this.domTreeDependModules[name] !== 'undefined') {
+                // return;
+            } else {
+
+                // trigger with body to ensure that changes are detected
+                this.executeOnChange(module, $('body'), {
+                    type: 'full-scan'
+                });
+
+                // we also add the element to observe any further changes
+                this.domTreeDependModules[name] = module;
             }
-
-            // check if the requirement is met on body
-            this.executeOnChange(module, $('body'), {
-                type: 'full-scan'
-            });
-
-            // we also add the element to observe any further changes
-            this.domTreeDependModules[name] = module;
         },
 
         executeOnChange: function (module, $el, data) {
