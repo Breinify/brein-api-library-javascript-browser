@@ -170,7 +170,7 @@
             else if (!$.isFunction(module.findRequirements)) {
 
                 // if not we just trigger the change-detected since all requirements are met
-                this.executeOnChange(module, {});
+                this.executeOnChange(module);
             }
             // make sure we do not have the same module twice, so just ignore if it exists already
             if (typeof this.domTreeDependModules[name] !== 'undefined') {
@@ -187,22 +187,29 @@
         },
 
         executeOnChange: function (module, $el, data) {
+
+            // make sure we have a valid module
             if (!$.isPlainObject(module) || !$.isFunction(module.onChange)) {
                 return;
             }
-
-            // determine the requirements and handle the result
-            const requirements = module.findRequirements($el, data);
-            if (requirements === null || requirements === false || typeof requirements === 'undefined') {
-                // do nothing we are done, the result indicates a no-handle
-            } else if ($.isPlainObject(requirements)) {
-                module.onChange(requirements);
-            } else if (requirements instanceof $ && requirements.length > 0) {
-                module.onChange({
-                    $requirements: requirements
-                });
-            } else if (requirements === true) {
+            // check if additional requirements have to be checked, if not just execute
+            else if (!$.isFunction(module.findRequirements)) {
                 module.onChange({});
+            } else {
+
+                // determine the requirements and handle the result
+                const requirements = module.findRequirements($el, data);
+                if (requirements === null || requirements === false || typeof requirements === 'undefined') {
+                    // do nothing we are done, the result indicates a no-handle
+                } else if ($.isPlainObject(requirements)) {
+                    module.onChange(requirements);
+                } else if (requirements instanceof $ && requirements.length > 0) {
+                    module.onChange({
+                        $requirements: requirements
+                    });
+                } else if (requirements === true) {
+                    module.onChange({});
+                }
             }
         }
     };
