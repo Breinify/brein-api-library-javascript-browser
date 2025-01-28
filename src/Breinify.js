@@ -392,7 +392,7 @@
 
             // trigger the Breinify ready event on both jQuery instances
             $(document).trigger(eventName, data);
-            if (typeof window.$ === 'function' && typeof window.$.fn === 'function') {
+            if (typeof window.$ === 'function' && typeof window.$.fn === 'function' && $ !== window.$) {
                 window.$(document).trigger(eventName, data);
             }
         },

@@ -289,6 +289,7 @@ module.exports = function (grunt) {
             plugins: {
                 files: {
                     'dist/breinify-activities.min.js': 'src/plugins/Activities.js',
+                    'dist/breinify-trigger.min.js': 'src/plugins/Trigger.js',
                     'dist/breinify-assets.min.js': 'src/plugins/Assets.js',
                     'dist/breinify-split-tests.min.js': 'src/plugins/SplitTests.js',
                     'dist/breinify-shopify.min.js': 'src/plugins/Shopify.js',
@@ -325,6 +326,7 @@ module.exports = function (grunt) {
             plugins: {
                 files: [
                     {expand: true, cwd: 'src/plugins', src: 'Activities.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-activities.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'Trigger.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-trigger.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Assets.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-assets.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'SplitTests.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-split-tests.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Slick.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-slick.js' } },
@@ -348,7 +350,7 @@ module.exports = function (grunt) {
          */
         jasmine: {
             test: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
+                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-trigger.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
                 options: {
                     specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
                 }
