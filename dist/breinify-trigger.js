@@ -17,6 +17,7 @@
         oldPushState: null,
         oldReplaceState: null,
         popStateListener: null,
+        urlChangeObservers: {},
 
         observeDomTreeChanges: function () {
             const _self = this;
@@ -65,6 +66,18 @@
                 attributeOldValue: false, // Record the previous value of changed attributes
                 characterDataOldValue: false // Record the previous value of changed text nodes
             });
+        },
+
+        addUrlChangeObserver: function(name, observer) {
+            if (!$.isFunction(observer)) {
+                return;
+            }
+
+            this.urlChangeObservers[name] = observer;
+        },
+
+        removeUrlChangeObserver: function(name) {
+            delete this.urlChangeObservers[name];
         },
 
         observeUrlChanges: function () {
@@ -137,6 +150,11 @@
             } catch (e) {
                 console.error('failed to trigger ready', e);
             }
+
+            // trigger each register observer
+            $.each(_self.urlChangeObservers, function (name, urlChangeObserver) {
+                urlChangeObserver();
+            });
         },
 
         handleDomChange: function ($el, details) {
@@ -224,6 +242,14 @@
         init: function () {
             changeObserver.observeDomTreeChanges();
             changeObserver.observeUrlChanges();
+        },
+
+        addUrlChangeObserver: function(name, observer) {
+            changeObserver.addUrlChangeObserver(name, observer);
+        },
+
+        removeUrlChangeObserver: function(name) {
+            changeObserver.removeUrlChangeObserver(name);
         }
     };
 
