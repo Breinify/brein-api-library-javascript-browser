@@ -679,6 +679,7 @@
                         openInNewTab: openInNewTab,
                         willReloadPage: willReloadPage,
                     },
+                    sendActivities: true,
                     scheduleActivities: null
                 },
                 activityType: activityType,
@@ -688,6 +689,14 @@
 
             // trigger the creation activity process to ensure that we can modify the activity to be  sent
             Renderer._process(option.process.createActivity, event, settings);
+
+            /*
+             * Check if the activity is still supposed to be sent out, this would mean something "incorrect"
+             * was handled, and we just stop the sending completely.
+             */
+            if (settings.additionalEventData.sendActivities === false) {
+                return;
+            }
 
             /*
              * After this step we may have some new information set (via the createActivity listener), so
