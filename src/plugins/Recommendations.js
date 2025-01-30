@@ -338,7 +338,7 @@
             post: function ($container, $itemContainer, data, option) {
                 // nothing to execute after rendering is complete
             },
-            clickedItem: function (event, data, option) {
+            clickedItem: function (event, settings) {
                 // nothing to execute after rendering is complete
             },
             createActivity: function (event, settings) {
