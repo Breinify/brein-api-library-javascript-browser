@@ -850,18 +850,19 @@
                     });
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
-                // and append the children for each result
-                if (settings.externalRender !== true) {
-                    Renderer._appendItems($itemContainer, data, option);
-                    Renderer._process(option.process.attached, $container, $itemContainer, data, option);
-                } else {
-
+                // if a third party is rendering, apply the data to the rendered elements
+                if (settings.externalRendering === true) {
                     $.each(result.recommendations, function (idx, recommendation) {
                         let $recItem = $itemContainer.eq(idx);
                         _self._setupItemData($recItem, idx, $.extend(true, {
                             widgetPosition: idx < 0 ? idx : idx + 1
                         }, recommendation));
                     });
+                }
+                // if we are rendering append the children for each result
+                else {
+                    Renderer._appendItems($itemContainer, data, option);
+                    Renderer._process(option.process.attached, $container, $itemContainer, data, option);
                 }
 
                 // next we need to determine if we have to hide a control-group
