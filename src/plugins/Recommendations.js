@@ -64,7 +64,11 @@
 
             // no position defined to append
             if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
-                cb(null);
+                cb(null, {
+                    error: true,
+                    errorDescription: 'missing position',
+                    externalRendering: false
+                });
                 return;
             }
 
@@ -86,18 +90,31 @@
                 selector = option.position.replace;
                 method = 'replaceWith';
             } else if (option.position.externalRender !== null) {
-                this._applyExternalRender(option, data, cb);
+                this._applyExternalRender(option, data, function ($target) {
+                    cb($target, {
+                        error: false,
+                        externalRendering: true
+                    });
+                });
                 return;
             }
 
             let $anchor = this._determineSelector(selector);
             if ($anchor === null) {
-                cb(null);
+                cb(null, {
+                    error: true,
+                    errorDescription: 'unable to find anchor',
+                    externalRendering: false
+                });
                 return;
             }
             let $container = this._determineSelector(option.templates.container);
             if ($container === null) {
-                cb(null);
+                cb(null, {
+                    error: true,
+                    errorDescription: 'unable to find container',
+                    externalRendering: false
+                });
                 return;
             }
 
@@ -110,9 +127,17 @@
              */
             if ($.isFunction($anchor[method])) {
                 $anchor[method]($container);
+                cb($container, {
+                    error: false,
+                    externalRendering: false
+                });
+            } else {
+                cb(null, {
+                    error: true,
+                    errorDescription: 'unable to apply method to anchor',
+                    externalRendering: false
+                });
             }
-
-            cb($container);
         },
 
         _applyExternalRender: function (option, data, cb) {
@@ -459,11 +484,11 @@
         },
 
         setRecommendationData: function ($el, idx, data) {
-            if (!Renderer._isItem($el)) {
-                return false;
-            } else {
+            if (Renderer._isItem($el)) {
                 Renderer._setupItemData($el, idx, data);
                 return true;
+            } else {
+                return false;
             }
         },
 
@@ -801,10 +826,10 @@
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
-            Renderer._appendContainer(option, data, function ($container) {
+            Renderer._appendContainer(option, data, function ($container, settings) {
 
-                if ($container === null) {
-                    cb(null);
+                if ($container === null || settings.error === true) {
+                    cb(null, settings);
                     return;
                 }
 
@@ -826,8 +851,18 @@
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
                 // and append the children for each result
-                Renderer._appendItems($itemContainer, data, option);
-                Renderer._process(option.process.attached, $container, $itemContainer, data, option);
+                if (settings.externalRender !== true) {
+                    Renderer._appendItems($itemContainer, data, option);
+                    Renderer._process(option.process.attached, $container, $itemContainer, data, option);
+                } else {
+
+                    $.each(result.recommendations, function (idx, recommendation) {
+                        let $recItem = $itemContainer.eq(idx);
+                        _self._setupItemData($recItem, idx, $.extend(true, {
+                            widgetPosition: idx < 0 ? idx : idx + 1
+                        }, recommendation));
+                    });
+                }
 
                 // next we need to determine if we have to hide a control-group
                 const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
@@ -841,7 +876,7 @@
                 }
 
                 Renderer._process(option.process.post, $container, $itemContainer, data, option);
-                cb($container);
+                cb($container, settings);
             });
         },
 
