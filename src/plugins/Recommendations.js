@@ -59,12 +59,13 @@
             }
         },
 
-        _appendContainer: function (option, data) {
-            var _self = this;
+        _appendContainer: function (option, data, cb) {
+            const _self = this;
 
             // no position defined to append
             if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
-                return null;
+                cb(null);
+                return;
             }
 
             let method = null;
@@ -84,16 +85,20 @@
             } else if (option.position.replace !== null) {
                 selector = option.position.replace;
                 method = 'replaceWith';
+            } else if (option.position.externalRender !== null) {
+                this._applyExternalRender(option, data, cb);
+                return;
             }
 
             let $anchor = this._determineSelector(selector);
             if ($anchor === null) {
-                return null;
+                cb(null);
+                return;
             }
-
             let $container = this._determineSelector(option.templates.container);
             if ($container === null) {
-                return null;
+                cb(null);
+                return;
             }
 
             // replace values within the container before appending it
@@ -107,7 +112,15 @@
                 $anchor[method]($container);
             }
 
-            return $container;
+            cb($container);
+        },
+
+        _applyExternalRender: function (option, data, cb) {
+            if ($.isFunction(option.position.externalRender)) {
+                option.position.externalRender(data, cb);
+            } else {
+                cb(null);
+            }
         },
 
         _appendItems: function ($container, result, option) {
@@ -288,7 +301,11 @@
             after: null,
             prepend: null,
             append: null,
-            replace: null
+            replace: null,
+            /**
+             * If used, it must be a function taking in
+             */
+            externalRender: null
         },
         placeholderSettings: {
             /**
@@ -503,8 +520,9 @@
                 } else {
 
                     // we have a normal recommendation call
-                    const $container = _self._renderRecommendation(option, result);
-                    _self._applyBindings(option, result, $container);
+                    _self._renderRecommendation(option, result, function ($container) {
+                        _self._applyBindings(option, result, $container);
+                    });
                 }
             });
         },
@@ -778,47 +796,53 @@
                 });
         },
 
-        _renderRecommendation: function (option, data) {
+        _renderRecommendation: function (option, data, cb) {
 
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
-            const $container = Renderer._appendContainer(option, data);
-            let $itemContainer = $container.find('.' + Renderer.marker.container);
-            if ($itemContainer.length === 0) {
-                $itemContainer = $container;
+            Renderer._appendContainer(option, data, function ($container) {
 
-                // add the class (it was obviously not there yet)
-                $itemContainer.addClass(Renderer.marker.container);
-            }
+                if ($container === null) {
+                    cb(null);
+                    return;
+                }
 
-            // store the info needed for clicks on the item's container
-            $itemContainer
-                .attr('data-' + Renderer.marker.container, 'true')
-                .data(Renderer.marker.data, {
-                    option: option,
-                    data: data
-                });
-            Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
+                let $itemContainer = $container.find('.' + Renderer.marker.container);
+                if ($itemContainer.length === 0) {
+                    $itemContainer = $container;
 
-            // and append the children for each result
-            Renderer._appendItems($itemContainer, data, option);
-            Renderer._process(option.process.attached, $container, $itemContainer, data, option);
+                    // add the class (it was obviously not there yet)
+                    $itemContainer.addClass(Renderer.marker.container);
+                }
 
-            // next we need to determine if we have to hide a control-group
-            const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
+                // store the info needed for clicks on the item's container
+                $itemContainer
+                    .attr('data-' + Renderer.marker.container, 'true')
+                    .data(Renderer.marker.data, {
+                        option: option,
+                        data: data
+                    });
+                Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
-            // we only hide if the control-container is not the same as the container (avoid a misconfiguration)
-            if ($controlContainer !== null &&
-                $controlContainer.length === 1 &&
-                $controlContainer.get(0) !== $container.get(0) &&
-                $controlContainer.find('.brrc-item').length === 0) {
-                $controlContainer.hide();
-            }
+                // and append the children for each result
+                Renderer._appendItems($itemContainer, data, option);
+                Renderer._process(option.process.attached, $container, $itemContainer, data, option);
 
-            Renderer._process(option.process.post, $container, $itemContainer, data, option);
+                // next we need to determine if we have to hide a control-group
+                const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
 
-            return $container;
+                // we only hide if the control-container is not the same as the container (avoid a misconfiguration)
+                if ($controlContainer !== null &&
+                    $controlContainer.length === 1 &&
+                    $controlContainer.get(0) !== $container.get(0) &&
+                    $controlContainer.find('.brrc-item').length === 0) {
+                    $controlContainer.hide();
+                }
+
+                Renderer._process(option.process.post, $container, $itemContainer, data, option);
+                cb($container);
+            });
         },
 
         _retrieveRecommendations: function (payloads, callback) {
