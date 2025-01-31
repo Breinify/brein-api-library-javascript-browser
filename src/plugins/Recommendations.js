@@ -852,7 +852,7 @@
 
                 // if a third party is rendering, apply the data to the rendered elements
                 if (settings.externalRendering === true) {
-                    $.each(result.recommendations, function (idx, recommendation) {
+                    $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = $itemContainer.eq(idx);
                         _self._setupItemData($recItem, idx, $.extend(true, {
                             widgetPosition: idx < 0 ? idx : idx + 1
