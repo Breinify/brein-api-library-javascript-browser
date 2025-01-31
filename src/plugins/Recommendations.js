@@ -437,6 +437,7 @@
                         recommenderPayload.push(recommenderOptions.payload);
                     }
 
+
                     this._retrieveRecommendations(recommenderPayload, function (error, data) {
                         _self._renderRecommendations(namedRenderOptions, error, data);
                     });
@@ -801,8 +802,9 @@
                 scheduleActivity = settings.additionalEventData.scheduleActivities;
             }
 
-            // send the activity, utilizing the activity plugin (needed here)
-            if (scheduleActivity === true) {
+            if (!$.isPlainObject(Breinify.plugins.activities)) {
+                // activities is not available
+            } else if (scheduleActivity === true) {
                 Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
             } else if (scheduleActivity === false) {
                 Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
