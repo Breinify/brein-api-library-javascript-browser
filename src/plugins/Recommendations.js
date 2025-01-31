@@ -385,6 +385,9 @@
             },
             createActivity: function (event, settings) {
                 // nothing to do, the settings are good as they are
+            },
+            modifyResponse: function(response) {
+                // nothing to do, we keep the response as it was
             }
         }
     };
@@ -521,9 +524,16 @@
                 return;
             }
 
+            // add possibility to "modify" options and data, for example to split-the results of one call
+            const response = {
+                options: options,
+                response: data
+            };
+            Renderer._process(option.process.modifyResponse, response);
+
             // fire each named recommendation, with the option
-            $.each(options, function (name, option) {
-                let result = data[name];
+            $.each(response.options, function (name, option) {
+                let result = response.data[name];
 
                 if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
