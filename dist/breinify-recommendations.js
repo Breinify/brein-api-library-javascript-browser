@@ -893,7 +893,7 @@
                 if (settings.externalRendering === true) {
 
                     $.each(data.recommendations, function (idx, recommendation) {
-                        let $recItem = $itemContainer$itemContainer.children().eq(idx);
+                        let $recItem = $itemContainer.children().eq(idx);
                         Renderer._setupItemData($recItem, idx, $.extend(true, {
                             widgetPosition: idx < 0 ? idx : idx + 1
                         }, recommendation));
