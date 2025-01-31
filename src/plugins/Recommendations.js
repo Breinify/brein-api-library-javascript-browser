@@ -385,9 +385,18 @@
             },
             createActivity: function (event, settings) {
                 // nothing to do, the settings are good as they are
-            },
-            modifyResponse: function(response) {
-                // nothing to do, we keep the response as it was
+            }
+        },
+        data: {
+            modify: function (result, option) {
+                /*
+                 * Nothing to do, by default we keep the result and option untouched.
+                 * The method can be used to:
+                 *  - split: return [{result: result, option: option}]
+                 *  - change: return {result: modResult, option: option}
+                 *  - do nothing: return null
+                 */
+                return null;
             }
         }
     };
@@ -524,16 +533,9 @@
                 return;
             }
 
-            // add possibility to "modify" options and data, for example to split-the results of one call
-            const response = {
-                options: options,
-                response: data
-            };
-            Renderer._process(option.process.modifyResponse, response);
-
             // fire each named recommendation, with the option
-            $.each(response.options, function (name, option) {
-                let result = response.data[name];
+            $.each(options, function (name, option) {
+                let result = data[name];
 
                 if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
@@ -548,19 +550,44 @@
                         name: name,
                         result: result
                     }, result.status));
-                } else if (result.splitTestData.isControl === true) {
-                    const $container = _self._setupControlContainer(option, result);
-                    _self._applyBindings(option, result, $container);
-                } else if (result.status.code === 7120) {
-                    // the recommendation is supposed to be ignored, but there is no split-test
-                } else {
+                } else if ($.isFunction(option.data.modify)) {
+                    let modifyResults = option.data.modify(result, option);
 
-                    // we have a normal recommendation call
-                    _self._renderRecommendation(option, result, function ($container) {
-                        _self._applyBindings(option, result, $container);
-                    });
+                    if ($.isArray(modifyResults)) {
+                        // nothing to change
+                    } else if ($.isPlainObject(modifyResults) &&
+                        $.isPlainObject(modifyResults.result) &&
+                        $.isPlainObject(modifyResults.option)) {
+                        modifyResults = [modifyResults];
+                    } else {
+                        modifyResults = [{result: result, option: option}]
+                    }
+
+                    for (let i = 0; i < modifyResults.length; i++) {
+                        const modifyResult = modifyResults[i];
+                        _self._applyRecommendation(modifyResult.result, modifyResult.option);
+                    }
+                } else {
+                    _self._applyRecommendation(result, option);
                 }
             });
+        },
+
+        _applyRecommendation: function (result, option) {
+            const _self = this;
+
+            if (result.splitTestData.isControl === true) {
+                const $container = _self._setupControlContainer(option, result);
+                this._applyBindings(option, result, $container);
+            } else if (result.status.code === 7120) {
+                // the recommendation is supposed to be ignored, but there is no split-test
+            } else {
+
+                // we have a normal recommendation call
+                this._renderRecommendation(option, result, function ($container) {
+                    _self._applyBindings(option, result, $container);
+                });
+            }
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
