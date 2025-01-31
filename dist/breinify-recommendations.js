@@ -390,6 +390,7 @@
     };
 
     const Recommendations = {
+        marker: $.extend(true, {}, Renderer.marker),
 
         render: function () {
             const _self = this;
