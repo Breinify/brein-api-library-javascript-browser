@@ -822,7 +822,6 @@
         },
 
         _renderRecommendation: function (option, data, cb) {
-
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
@@ -855,7 +854,7 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = $itemContainer.eq(idx);
-                        _self._setupItemData($recItem, idx, $.extend(true, {
+                        Renderer._setupItemData($recItem, idx, $.extend(true, {
                             widgetPosition: idx < 0 ? idx : idx + 1
                         }, recommendation));
                     });
