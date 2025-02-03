@@ -1751,7 +1751,7 @@
 
                 // recursively check each key-value pair
                 for (const key of keys1) {
-                    if ($.inArray(key, keys2) === -1 || !this.deepEqual(o1[key], o2[key])) {
+                    if ($.inArray(key, keys2) === -1 || !this.equals(o1[key], o2[key])) {
                         return false;
                     }
                 }
