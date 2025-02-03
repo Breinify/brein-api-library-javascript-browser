@@ -1157,7 +1157,7 @@
                         }
                     }
                 } catch (e) {
-                    console.error('failed to handle event: ' + name, event);
+                    console.error('failed to handle event: ' + event, e);
                 }
             }
         },
