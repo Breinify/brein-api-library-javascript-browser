@@ -1701,19 +1701,15 @@
         /**
          * Checks if two objects/variables are equal. The equality is a deep comparison and
          * assumes that arrays do not have to be equally sorted (i.e., [1, 2, 3] == [2, 1, 3]).
-         * 
+         *
          * @param o1 the first object
          * @param o2 the second object
          * @returns {boolean} returns true if o1 == o2, otherwise false
          */
         equals: function (o1, o2) {
 
-            // check if they are the same reference
-            if (typeof o1 === 'undefined' && typeof o2 === 'undefined') {
-                return true;
-            } else if (o1 === o2) {
-                return true;
-            } else if (o1 === null && o2 === null) {
+            // check if they are the same reference, both undefined, or both null
+            if (o1 === o2) {
                 return true;
             } else if ($.isArray(o1) && $.isArray(o2)) {
                 if (o1.length !== o2.length) {
