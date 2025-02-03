@@ -1345,11 +1345,13 @@
 
             // add the receipt
             if ($.isPlainObject(receipt)) {
-                tags.transactionPriceTotal = typeof receipt.priceTotal === 'number' ? receipt.priceTotal : 0.0;
-                tags.transactionTaxTotal = typeof receipt.taxTotal === 'number' ? receipt.taxTotal : 0.0;
-                tags.transactionDiscountTotal = typeof receipt.discountTotal === 'number' ? receipt.discountTotal : 0.0;
-                tags.transactionMiscTotal = typeof receipt.miscTotal === 'number' ? receipt.miscTotal : 0.0;
-                tags.transactionTotal = typeof receipt.total === 'number' ? receipt.total :
+                const total = Breinify.UTL.toPrice(receipt.total);
+
+                tags.transactionPriceTotal = Breinify.UTL.toPrice(receipt.priceTotal);
+                tags.transactionTaxTotal = Breinify.UTL.toPrice(receipt.taxTotal);
+                tags.transactionDiscountTotal = Breinify.UTL.toPrice(receipt.discountTotal);
+                tags.transactionMiscTotal = Breinify.UTL.toPrice(receipt.miscTotal);
+                tags.transactionTotal = total !== null ? total :
                     (tags.transactionPriceTotal + tags.transactionTaxTotal + tags.transactionMiscTotal - tags.transactionDiscountTotal);
             }
 
