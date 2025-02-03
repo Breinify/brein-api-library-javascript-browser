@@ -1144,12 +1144,16 @@
 
             _handleEvent: function (name, instance, event) {
 
-                if ($.isFunction(instance)) {
-                    instance.call(event, name, event);
-                } else if ($.isPlainObject(instance) && $.isFunction(instance.handle)) {
-                    if (!$.isFunction(instance.filter) || instance.filter.call(event, name, event) === true) {
-                        instance.handle.call(event, name, event);
+                try {
+                    if ($.isFunction(instance)) {
+                        instance.call(event, name, event);
+                    } else if ($.isPlainObject(instance) && $.isFunction(instance.handle)) {
+                        if (!$.isFunction(instance.filter) || instance.filter.call(event, name, event) === true) {
+                            instance.handle.call(event, name, event);
+                        }
                     }
+                } catch (e) {
+                    console.error('failed to handle event: ' + name, event);
                 }
             }
         },
