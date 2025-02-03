@@ -14245,7 +14245,11 @@ dependencyScope.jQuery = $;;
                 window.dataLayer.push = function (event) {
 
                     // trigger the current implementation
-                    _self._initialPush.call(window.dataLayer, event);
+                    try {
+                        _self._initialPush.call(window.dataLayer, event);
+                    } catch (e) {
+                        // we ignore any error on the inital push
+                    }
 
                     // trigger the event listeners
                     for (let name in _self.dataLayerEventListener) {
