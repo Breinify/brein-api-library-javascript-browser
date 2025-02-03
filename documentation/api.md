@@ -39,6 +39,7 @@ This documentation is organized as following:
     * Breinify.UTL.toPrice() [since version 1.0.24]
     * Breinify.UTL.formatPrice() [since version 1.0.24]
     * Breinify.UTL.toInteger() [since version 1.0.24]
+    * Breinify.UTL.equals() [since version 1.0.24]
   * [Breinify.UTL.events](#breinifyutlevents)
     * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
     * Breinify.UTL.events.pageloaded(func) [since version 1.0.1]

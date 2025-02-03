@@ -14816,6 +14816,74 @@ dependencyScope.jQuery = $;;
             return arguments[0];
         },
 
+        /**
+         * Checks if two objects/variables are equal. The equality is a deep comparison and
+         * assumes that arrays do not have to be equally sorted (i.e., [1, 2, 3] == [2, 1, 3]).
+         * 
+         * @param o1 the first object
+         * @param o2 the second object
+         * @returns {boolean} returns true if o1 == o2, otherwise false
+         */
+        equals: function (o1, o2) {
+
+            // check if they are the same reference
+            if (typeof o1 === 'undefined' && typeof o2 === 'undefined') {
+                return true;
+            } else if (o1 === o2) {
+                return true;
+            } else if (o1 === null && o2 === null) {
+                return true;
+            } else if ($.isArray(o1) && $.isArray(o2)) {
+                if (o1.length !== o2.length) {
+                    return false;
+                }
+
+                // create a copy of obj2 to avoid modifying the original
+                const obj2Copy = [...o2];
+
+                // iterate over the arrays to search for an equal entry
+                for (let i = 0; i < o1.length; i++) {
+                    const obj1 = o1[i];
+
+                    let index = -1;
+                    for (let k = 0; k < obj2Copy.length; k++) {
+                        const obj2 = obj2Copy[k];
+                        if (this.deepEqual(obj1, obj2)) {
+                            index = k;
+                        }
+                    }
+
+                    // if we could not find the product, the arrays are not equal
+                    if (index === -1) {
+                        return false;
+                    } else {
+                        // remove the found element from p2Copy
+                        obj2Copy.splice(index, 1);
+                    }
+                }
+
+                // if we reached this point, the obj2Copy must be empty and the arrays are equal
+                return obj2Copy.length === 0;
+            } else if ($.isPlainObject(o1) && $.isPlainObject(o2)) {
+                const keys1 = Object.keys(o1);
+                const keys2 = Object.keys(o2);
+                if (keys1.length !== keys2.length) {
+                    return false;
+                }
+
+                // recursively check each key-value pair
+                for (const key of keys1) {
+                    if ($.inArray(key, keys2) === -1 || !this.deepEqual(o1[key], o2[key])) {
+                        return false;
+                    }
+                }
+
+                return true;
+            } else {
+                return false;
+            }
+        },
+
         storage: {
             splitTestDataInstanceName: 'split-test-data',
             instance: null,
@@ -16938,6 +17006,7 @@ dependencyScope.jQuery = $;;
         firstLetter: function(str, lowerCase) { return str; },
         toNumber: function(str) { return NaN; },
         isNonEmptyString: function(str) { return null; },
+        equals: function(o1, o2) { return o1 === o2; },
         toPrice: function(str) { return null; },
         formatPrice: function(str) { return null; },
         toInteger: function(str) { return null; },
