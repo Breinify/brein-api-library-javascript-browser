@@ -13586,44 +13586,55 @@ dependencyScope.jQuery = $;;
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
 
-                // if the url is not passed in we use a special decoding for HTML entities
-                // to avoid this, just pass in the url
-                if (typeof url !== 'string') {
-                    let decoder = document.createElement('textarea');
-                    decoder.innerHTML = this.url();
-                    url = decoder.value;
-                }
+                try {
+                    const urlSearchParams = new URLSearchParams(window.location.search);
+                    const result = {};
+                    urlSearchParams.forEach(function (value, key) {
+                        result[key] = value;
+                    });
 
-                paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
-                paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
-                paramSplit = typeof paramSplit === 'string' ? paramSplit : '=';
+                    return result;
+                } catch (e) {
 
-                let paramListSeparatorPos = url.indexOf(paramListSeparator);
-                if (paramListSeparatorPos < 0) {
-                    return {};
-                }
-
-                let paramsUrl = url.substring(paramListSeparatorPos + 1);
-                let paramStrs = paramsUrl.split(paramSeparator);
-                if (paramStrs.length === 0) {
-                    return {};
-                }
-
-                let result = {};
-                for (let i = 0; i < paramStrs.length; i++) {
-                    let paramStr = paramStrs[i];
-                    let paramVals = paramStr.split(paramSplit);
-
-                    let paramName = decodeURIComponent(paramVals[0]);
-
-                    if (paramVals.length === 2) {
-                        result[paramName] = decodeURIComponent(paramVals[1]);
-                    } else {
-                        result[paramName] = null;
+                    // if the url is not passed in we use a special decoding for HTML entities
+                    // to avoid this, just pass in the url
+                    if (typeof url !== 'string') {
+                        let decoder = document.createElement('textarea');
+                        decoder.innerHTML = this.url();
+                        url = decoder.value;
                     }
-                }
 
-                return result;
+                    paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
+                    paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
+                    paramSplit = typeof paramSplit === 'string' ? paramSplit : '=';
+
+                    let paramListSeparatorPos = url.indexOf(paramListSeparator);
+                    if (paramListSeparatorPos < 0) {
+                        return {};
+                    }
+
+                    let paramsUrl = url.substring(paramListSeparatorPos + 1);
+                    let paramStrs = paramsUrl.split(paramSeparator);
+                    if (paramStrs.length === 0) {
+                        return {};
+                    }
+
+                    let result = {};
+                    for (let i = 0; i < paramStrs.length; i++) {
+                        let paramStr = paramStrs[i];
+                        let paramVals = paramStr.split(paramSplit);
+
+                        let paramName = decodeURIComponent(paramVals[0]);
+
+                        if (paramVals.length === 2) {
+                            result[paramName] = decodeURIComponent(paramVals[1]);
+                        } else {
+                            result[paramName] = null;
+                        }
+                    }
+
+                    return result;
+                }
             },
 
             hasParam: function (param, paramListSeparator, paramSeparator, paramSplit, url) {
