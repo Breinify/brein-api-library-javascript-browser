@@ -573,7 +573,8 @@
 
                     // the result will be a promise
                     let modifyResponse = option.data.modify(result, option);
-                    if (option.data.modify.constructor.name !== 'AsyncFunction' &&
+                    if ($.isFunction(option.data.modify.constructor) &&
+                        option.data.modify.constructor.name === 'AsyncFunction' &&
                         window.Promise && modifyResponse instanceof window.Promise) {
                         modifyResponse
                             .then(result => handleModifyResult(result))
