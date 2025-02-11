@@ -552,21 +552,39 @@
                         result: result
                     }, result.status));
                 } else if ($.isFunction(option.data.modify)) {
-                    let modifyResults = option.data.modify(result, option);
 
-                    if ($.isArray(modifyResults)) {
-                        // nothing to change
-                    } else if ($.isPlainObject(modifyResults) &&
-                        $.isPlainObject(modifyResults.result) &&
-                        $.isPlainObject(modifyResults.option)) {
-                        modifyResults = [modifyResults];
-                    } else {
-                        modifyResults = [{result: result, option: option}]
+                    const handleModifyResult = function (modifyResults) {
+                        if ($.isArray(modifyResults)) {
+                            // nothing to change
+                        } else if ($.isPlainObject(modifyResults) &&
+                            $.isPlainObject(modifyResults.result) &&
+                            $.isPlainObject(modifyResults.option)) {
+                            modifyResults = [modifyResults];
+                        } else {
+                            modifyResults = [{result: result, option: option}]
+                        }
+
+                        for (let i = 0; i < modifyResults.length; i++) {
+                            const modifyResult = modifyResults[i];
+                            _self._applyRecommendation(modifyResult.result, modifyResult.option);
+                        }
                     }
 
-                    for (let i = 0; i < modifyResults.length; i++) {
-                        const modifyResult = modifyResults[i];
-                        _self._applyRecommendation(modifyResult.result, modifyResult.option);
+                    // the result will be a promise
+                    let modifyResponse = option.data.modify(result, option);
+                    if (option.data.modify.constructor.name !== 'AsyncFunction' &&
+                        window.Promise && modifyResponse instanceof window.Promise) {
+                        modifyResponse
+                            .then(result => handleModifyResult(result))
+                            .catch(error => Renderer._process(option.process.error, {
+                                code: -1,
+                                error: true,
+                                message: error.message,
+                                name: error.name,
+                                result: error
+                            }));
+                    } else {
+                        handleModifyResult(modifyResponse);
                     }
                 } else {
                     _self._applyRecommendation(result, option);
