@@ -553,6 +553,7 @@
                     }, result.status));
                 } else if ($.isFunction(option.data.modify)) {
 
+                    // the method used in any case to handle the modified responses
                     const handleModifyResult = function (modifyResults) {
                         if ($.isArray(modifyResults)) {
                             // nothing to change
