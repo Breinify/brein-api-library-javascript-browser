@@ -14863,7 +14863,7 @@ dependencyScope.jQuery = $;;
                     let index = -1;
                     for (let k = 0; k < obj2Copy.length; k++) {
                         const obj2 = obj2Copy[k];
-                        if (this.deepEqual(obj1, obj2)) {
+                        if (this.equals(obj1, obj2)) {
                             index = k;
                         }
                     }
