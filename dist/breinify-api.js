@@ -14087,7 +14087,22 @@ dependencyScope.jQuery = $;;
                 return this.splitTestData;
             },
 
-            replaceSplitTestData: function(name, splitTestData) {
+            /**
+             * This method is used to replace the split-test information of the named split-test. The data looks like:
+             * <pre>
+             * {
+             *   "lastUpdated": <unixTimestamp>, // not needed, will be set by method
+             *   "testName": "myTestName",       // not needed, will be set by method
+             *   "groupDecision": "Breinify",
+             *   "selectedInstance": "theInstance",
+             *   "usedEnforcedGroup": false
+             * }
+             * </pre>
+             *
+             * @param name the name of the test to replace the data for
+             * @param splitTestData the data to replace with
+             */
+            replaceSplitTestData: function (name, splitTestData) {
 
                 // we allow to pass in the split-test name with the splitTestData
                 if ($.isPlainObject(name) && (typeof splitTestData === 'undefined' || splitTestData === null)) {
@@ -17006,7 +17021,11 @@ dependencyScope.jQuery = $;;
             getBrowserId: function() { return null; },
             getSessionId: function() { return null; },
             getMarkerSessionId: function() { return null; },
-            resetSessionId: function() { return null; }
+            resetSessionId: function() { return null; },
+            getSplitTestData: function() { return null; },
+            replaceSplitTestData: function() {},
+            updateSplitTestData: function() {},
+            determineApiVersion: function() { return 'snippet'; }
         },
         events: {
             observerInterval: null,
