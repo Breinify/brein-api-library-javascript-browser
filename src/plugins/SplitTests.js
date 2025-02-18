@@ -189,7 +189,6 @@
                 }
             }
 
-
             // determine the split-test information, if there aren't any there is nothing more to do
             let splitTestData = null;
             if ($.isPlainObject(this.cachedResult.splitTestData)) {
@@ -204,15 +203,7 @@
             }
 
             // store the additional data of the split-test for the instance
-            try {
-                Breinify.UTL.storeAdditionalData({
-                    additionalData: {
-                        splitTestData: splitTestData
-                    }
-                });
-            } catch (e) {
-                // do nothing, we just ignore it
-            }
+            Breinify.UTL.user.replaceSplitTestData(this.testName, splitTestData);
         },
 
         determineStorageKey: function () {

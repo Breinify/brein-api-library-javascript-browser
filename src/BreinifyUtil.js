@@ -969,13 +969,41 @@
                 return this.splitTestData;
             },
 
-            addSplitTestData: function (data) {
-                _private.storeAdditionalData(data);
+            replaceSplitTestData: function(name, splitTestData) {
+
+                // we allow to pass in the split-test name with the splitTestData
+                if ($.isPlainObject(name) && (typeof splitTestData === 'undefined' || splitTestData === null)) {
+                    splitTestData = name;
+                    name = splitTestData.testName;
+                }
+
+                // check if we have valid information at this point
+                if (typeof name !== 'string' || !$.isPlainObject(splitTestData)) {
+                    return;
+                }
+
+                // get the currently stored data, and remove the split-test that is updated
+                let currentData = this.getSplitTestData();
+                currentData = $.isPlainObject(currentData) ? currentData : {};
+                delete currentData[name];
+
+                // add the data for the new split-test in as an object with the name of the split-test
+                const newSplitTestData = {};
+                newSplitTestData[name] = $.extend(true, {}, splitTestData, {
+                    testName: name,
+                    lastUpdated: new Date().getTime()
+                });
+
+                this.updateSplitTestData($.extend(true, newSplitTestData, currentData));
             },
 
             updateSplitTestData: function (splitTestData) {
-                BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
-                this.splitTestData = splitTestData;
+                try {
+                    BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
+                    this.splitTestData = splitTestData;
+                } catch (e) {
+                    // ignore if storage issues arise
+                }
             },
 
             determineApiVersion: function () {
