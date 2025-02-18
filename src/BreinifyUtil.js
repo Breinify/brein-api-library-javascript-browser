@@ -1012,6 +1012,9 @@
                 this.updateSplitTestData($.extend(true, newSplitTestData, currentData));
             },
 
+            /**
+             * This method is used to override <b>ALL</b> split-test data with the one provided.
+             */
             updateSplitTestData: function (splitTestData) {
                 try {
                     BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
