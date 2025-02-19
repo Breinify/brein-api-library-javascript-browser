@@ -1707,7 +1707,6 @@
         },
 
         formatPrice: function (price, settings) {
-
             settings = !$.isPlainObject(settings) ? {} : settings;
             settings.locales = typeof settings.locales === 'string' ? settings.locales : 'US-us';
             settings.symbol = typeof settings.symbol === 'string' ? settings.symbol : '$';
@@ -1715,12 +1714,17 @@
 
             let value;
             try {
-                if (typeof price === 'number') {
+                if (price === null) {
+                    return null;
+                } else if (typeof price === 'number') {
                     value = price;
                 } else if (/\d+(?:\.\d+)?/.test(price)) {
                     value = parseFloat(price);
                 } else {
                     value = Number(price);
+                    if (isNaN(value)) {
+                        return null;
+                    }
                 }
 
                 value = value.toLocaleString(settings.locales, {

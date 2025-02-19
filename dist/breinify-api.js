@@ -14130,6 +14130,9 @@ dependencyScope.jQuery = $;;
                 this.updateSplitTestData($.extend(true, newSplitTestData, currentData));
             },
 
+            /**
+             * This method is used to override <b>ALL</b> split-test data with the one provided.
+             */
             updateSplitTestData: function (splitTestData) {
                 try {
                     BreinifyUtil.storage.update(BreinifyUtil.storage.splitTestDataInstanceName, 30 * 24 * 60, splitTestData);
@@ -14822,7 +14825,6 @@ dependencyScope.jQuery = $;;
         },
 
         formatPrice: function (price, settings) {
-
             settings = !$.isPlainObject(settings) ? {} : settings;
             settings.locales = typeof settings.locales === 'string' ? settings.locales : 'US-us';
             settings.symbol = typeof settings.symbol === 'string' ? settings.symbol : '$';
@@ -14830,12 +14832,17 @@ dependencyScope.jQuery = $;;
 
             let value;
             try {
-                if (typeof price === 'number') {
+                if (price === null) {
+                    return null;
+                } else if (typeof price === 'number') {
                     value = price;
                 } else if (/\d+(?:\.\d+)?/.test(price)) {
                     value = parseFloat(price);
                 } else {
                     value = Number(price);
+                    if (isNaN(value)) {
+                        return null;
+                    }
                 }
 
                 value = value.toLocaleString(settings.locales, {
