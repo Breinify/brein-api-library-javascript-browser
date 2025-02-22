@@ -306,7 +306,6 @@
         }
     };
 
-
     const defaultRenderOption = {
         recommender: null,
         activity: {
@@ -436,7 +435,6 @@
 
                         recommenderPayload.push(recommenderOptions.payload);
                     }
-
 
                     this._retrieveRecommendations(recommenderPayload, function (error, data) {
                         _self._renderRecommendations(namedRenderOptions, error, data);
@@ -599,14 +597,14 @@
 
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
-                this._applyBindings(option, result, $container);
+                this._applyBindings(option, $container);
             } else if (result.status.code === 7120) {
                 // the recommendation is supposed to be ignored, but there is no split-test
             } else {
 
                 // we have a normal recommendation call
                 this._renderRecommendation(option, result, function ($container) {
-                    _self._applyBindings(option, result, $container);
+                    _self._applyBindings(option, $container);
                 });
             }
         },
@@ -831,12 +829,12 @@
             }
         },
 
-        _applyBindings: function (option, result, $container) {
+        _applyBindings: function (option, $container) {
             const _self = this;
 
             /*
              * We register one general click handler, which will trigger on the defined selectors for this
-             * recommendation settings (options).
+             * recommendation settings (option).
              *
              * The system allows multiple handlers, but only one handler with the specified name. Thus, we
              * need to ensure that the name is unique for this specific recommender and allows to retrieve
