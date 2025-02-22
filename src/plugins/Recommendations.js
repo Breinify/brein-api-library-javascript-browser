@@ -870,9 +870,19 @@
             }
 
             // attach the data of the recommendation response to the container
-            return $controlContainer
+            return this._setupContainer($controlContainer, option, data);
+        },
+
+        _setupContainer: function ($container, option, data) {
+
+            // check if the container is already marker
+            if (!$container.hasClass(Renderer.marker.container)) {
+                $container.addClass(Renderer.marker.container);
+            }
+
+            // add the additional data to the container
+            return $container
                 .attr('data-' + Renderer.marker.container, 'true')
-                .addClass(Renderer.marker.container)
                 .data(Renderer.marker.data, {
                     option: option,
                     data: data
@@ -899,12 +909,7 @@
                 }
 
                 // store the info needed for clicks on the item's container
-                $itemContainer
-                    .attr('data-' + Renderer.marker.container, 'true')
-                    .data(Renderer.marker.data, {
-                        option: option,
-                        data: data
-                    });
+                $itemContainer = this._setupContainer($itemContainer, option, data);
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
                 // if a third party is rendering, apply the data to the rendered elements
