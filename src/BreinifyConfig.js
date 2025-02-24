@@ -8,18 +8,18 @@
 !function (scope, dependencyScope) {
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'BreinifyConfig', true)) {
         return;
     }
 
     //noinspection JSUnresolvedVariable
-    var AttributeCollection = dependencyScope.AttributeCollection;
+    const AttributeCollection = dependencyScope.AttributeCollection;
 
     /*
      * Overview of all the different properties available in the configuration.
      */
-    var attributes = new AttributeCollection();
+    const attributes = new AttributeCollection();
     attributes.add('URL', {
         name: 'url',
         defaultValue: 'https://api.breinify.com',
@@ -68,7 +68,7 @@
         validate: function (value) {
 
             if (value !== null && typeof value === 'string') {
-                return value.match(/([A-Z0-9]{4}\-){7}([A-Z0-9]{4})/);
+                return value.match(/([A-Z0-9]{4}-){7}([A-Z0-9]{4})/);
             } else {
                 return false;
             }
@@ -222,7 +222,7 @@
         }
     });
 
-    var BreinifyConfig = function (config) {
+    const BreinifyConfig = function (config) {
         this.version = '{{PROJECT.VERSION}}';
 
         /*
@@ -276,7 +276,7 @@
         },
 
         default: function (attribute) {
-            var defaults = attributes.defaults();
+            const defaults = attributes.defaults();
             return defaults[attribute];
         },
 

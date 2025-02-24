@@ -7,18 +7,18 @@
 !function (scope, dependencyScope) {
     "use strict";
 
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'BreinifyUser', true)) {
         return;
     }
 
-    var AttributeCollection = dependencyScope.AttributeCollection;
-    var BreinifyUtil = dependencyScope.BreinifyUtil;
+    const AttributeCollection = dependencyScope.AttributeCollection;
+    const BreinifyUtil = dependencyScope.BreinifyUtil;
 
     /*
      * Overview of all the different properties available in the configuration.
      */
-    var attributes = new AttributeCollection();
+    const attributes = new AttributeCollection();
 
     /*
      * Overview of all the different properties available for a user.
@@ -94,21 +94,20 @@
         }
     });
 
-    var _privates = {
+    const _privates = {
         resolvedGeoLocation: false,
         geoLocation: null,
 
         resolveGeoLocation: function (callback) {
-            var _self = this;
+            const _self = this;
 
             if (_self.resolvedGeoLocation) {
                 callback(_self.geoLocation);
                 return;
             }
 
-            var geo = navigator.geolocation;
-            //noinspection JSUnresolvedVariable
-            var permissions = navigator.permissions;
+            const geo = navigator.geolocation;
+            const permissions = navigator.permissions;
 
             // make sure we have a geolocation implementation
             if (typeof geo !== 'object') {
@@ -162,8 +161,8 @@
         }
     };
 
-    var BreinifyUser = function (user, onReady) {
-        var instance = this;
+    const BreinifyUser = function (user, onReady) {
+        const instance = this;
         instance.version = '{{PROJECT.VERSION}}';
 
         // set the values provided
@@ -171,7 +170,7 @@
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
-            var userAgent = navigator.userAgent;
+            const userAgent = navigator.userAgent;
 
             if (!BreinifyUtil.isEmpty(userAgent)) {
                 instance.add('userAgent', userAgent);
@@ -180,7 +179,7 @@
 
         // set the referrer to a default value if there isn't one yet
         if (instance.read('referrer') === null) {
-            var referrer = document.referrer;
+            const referrer = document.referrer;
 
             if (!BreinifyUtil.isEmpty(referrer)) {
                 instance.add('referrer', referrer);
@@ -189,7 +188,7 @@
 
         // also add the current URL if not provided
         if (instance.read('url') === null) {
-            var url = window.location.href;
+            const url = window.location.href;
 
             if (!BreinifyUtil.isEmpty(url)) {
                 instance.add('url', url);
@@ -198,7 +197,7 @@
 
         // add the timezone
         if (instance.read('timezone') === null) {
-            var timezone = BreinifyUtil.timezone();
+            const timezone = BreinifyUtil.timezone();
 
             if (!BreinifyUtil.isEmpty(timezone)) {
                 instance.add('timezone', timezone);
@@ -207,7 +206,7 @@
 
         // add the localDateTime
         if (instance.read('localDateTime') === null) {
-            var localDateTime = BreinifyUtil.localDateTime();
+            const localDateTime = BreinifyUtil.localDateTime();
 
             if (!BreinifyUtil.isEmpty(localDateTime)) {
                 instance.add('localDateTime', localDateTime);
@@ -215,8 +214,8 @@
         }
 
         // try to set the location if there isn't one yet
-        var location = instance.read('location');
-        var hasLocation = $.isPlainObject(location) && typeof location.latitude === 'number' && typeof location.longitude === 'number';
+        const location = instance.read('location');
+        const hasLocation = $.isPlainObject(location) && typeof location.latitude === 'number' && typeof location.longitude === 'number';
         if (!hasLocation && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
         } else if ($.isFunction(onReady)) {
@@ -237,7 +236,7 @@
     BreinifyUser.prototype = {
 
         addGeoLocation: function (onReady) {
-            var instance = this;
+            const instance = this;
 
             _privates.resolveGeoLocation(function (location) {
                 if (!BreinifyUtil.isEmpty(location)) {
@@ -305,7 +304,7 @@
                     this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
                 }
             } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
-                var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
+                const email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
                 // if we have an email, we do not change the MD5
                 if (email !== null) {
@@ -334,7 +333,7 @@
 
         setAll: function (user) {
 
-            var plainUser = {};
+            let plainUser = {};
             if (typeof user === 'undefined' || user == null) {
                 // nothing to do
             } else if (user instanceof BreinifyUser) {
@@ -345,7 +344,7 @@
                 throw new Error('The passed parameter "user" is invalid.');
             }
 
-            var instance = this;
+            let instance = this;
             $.each(plainUser, function (attribute, value) {
                 if (attribute === 'additional') {
                     instance.add(value);

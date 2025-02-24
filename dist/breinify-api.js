@@ -15205,18 +15205,18 @@ dependencyScope.jQuery = $;;
 !function (scope, dependencyScope) {
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'BreinifyConfig', true)) {
         return;
     }
 
     //noinspection JSUnresolvedVariable
-    var AttributeCollection = dependencyScope.AttributeCollection;
+    const AttributeCollection = dependencyScope.AttributeCollection;
 
     /*
      * Overview of all the different properties available in the configuration.
      */
-    var attributes = new AttributeCollection();
+    const attributes = new AttributeCollection();
     attributes.add('URL', {
         name: 'url',
         defaultValue: 'https://api.breinify.com',
@@ -15265,7 +15265,7 @@ dependencyScope.jQuery = $;;
         validate: function (value) {
 
             if (value !== null && typeof value === 'string') {
-                return value.match(/([A-Z0-9]{4}\-){7}([A-Z0-9]{4})/);
+                return value.match(/([A-Z0-9]{4}-){7}([A-Z0-9]{4})/);
             } else {
                 return false;
             }
@@ -15419,7 +15419,7 @@ dependencyScope.jQuery = $;;
         }
     });
 
-    var BreinifyConfig = function (config) {
+    const BreinifyConfig = function (config) {
         this.version = '1.0.24';
 
         /*
@@ -15473,7 +15473,7 @@ dependencyScope.jQuery = $;;
         },
 
         default: function (attribute) {
-            var defaults = attributes.defaults();
+            const defaults = attributes.defaults();
             return defaults[attribute];
         },
 
@@ -15503,18 +15503,18 @@ dependencyScope.jQuery = $;;
 !function (scope, dependencyScope) {
     "use strict";
 
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'BreinifyUser', true)) {
         return;
     }
 
-    var AttributeCollection = dependencyScope.AttributeCollection;
-    var BreinifyUtil = dependencyScope.BreinifyUtil;
+    const AttributeCollection = dependencyScope.AttributeCollection;
+    const BreinifyUtil = dependencyScope.BreinifyUtil;
 
     /*
      * Overview of all the different properties available in the configuration.
      */
-    var attributes = new AttributeCollection();
+    const attributes = new AttributeCollection();
 
     /*
      * Overview of all the different properties available for a user.
@@ -15590,21 +15590,20 @@ dependencyScope.jQuery = $;;
         }
     });
 
-    var _privates = {
+    const _privates = {
         resolvedGeoLocation: false,
         geoLocation: null,
 
         resolveGeoLocation: function (callback) {
-            var _self = this;
+            const _self = this;
 
             if (_self.resolvedGeoLocation) {
                 callback(_self.geoLocation);
                 return;
             }
 
-            var geo = navigator.geolocation;
-            //noinspection JSUnresolvedVariable
-            var permissions = navigator.permissions;
+            const geo = navigator.geolocation;
+            const permissions = navigator.permissions;
 
             // make sure we have a geolocation implementation
             if (typeof geo !== 'object') {
@@ -15658,8 +15657,8 @@ dependencyScope.jQuery = $;;
         }
     };
 
-    var BreinifyUser = function (user, onReady) {
-        var instance = this;
+    const BreinifyUser = function (user, onReady) {
+        const instance = this;
         instance.version = '1.0.24';
 
         // set the values provided
@@ -15667,7 +15666,7 @@ dependencyScope.jQuery = $;;
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
-            var userAgent = navigator.userAgent;
+            const userAgent = navigator.userAgent;
 
             if (!BreinifyUtil.isEmpty(userAgent)) {
                 instance.add('userAgent', userAgent);
@@ -15676,7 +15675,7 @@ dependencyScope.jQuery = $;;
 
         // set the referrer to a default value if there isn't one yet
         if (instance.read('referrer') === null) {
-            var referrer = document.referrer;
+            const referrer = document.referrer;
 
             if (!BreinifyUtil.isEmpty(referrer)) {
                 instance.add('referrer', referrer);
@@ -15685,7 +15684,7 @@ dependencyScope.jQuery = $;;
 
         // also add the current URL if not provided
         if (instance.read('url') === null) {
-            var url = window.location.href;
+            const url = window.location.href;
 
             if (!BreinifyUtil.isEmpty(url)) {
                 instance.add('url', url);
@@ -15694,7 +15693,7 @@ dependencyScope.jQuery = $;;
 
         // add the timezone
         if (instance.read('timezone') === null) {
-            var timezone = BreinifyUtil.timezone();
+            const timezone = BreinifyUtil.timezone();
 
             if (!BreinifyUtil.isEmpty(timezone)) {
                 instance.add('timezone', timezone);
@@ -15703,7 +15702,7 @@ dependencyScope.jQuery = $;;
 
         // add the localDateTime
         if (instance.read('localDateTime') === null) {
-            var localDateTime = BreinifyUtil.localDateTime();
+            const localDateTime = BreinifyUtil.localDateTime();
 
             if (!BreinifyUtil.isEmpty(localDateTime)) {
                 instance.add('localDateTime', localDateTime);
@@ -15711,8 +15710,8 @@ dependencyScope.jQuery = $;;
         }
 
         // try to set the location if there isn't one yet
-        var location = instance.read('location');
-        var hasLocation = $.isPlainObject(location) && typeof location.latitude === 'number' && typeof location.longitude === 'number';
+        const location = instance.read('location');
+        const hasLocation = $.isPlainObject(location) && typeof location.latitude === 'number' && typeof location.longitude === 'number';
         if (!hasLocation && $.isFunction(onReady)) {
             instance.addGeoLocation(onReady);
         } else if ($.isFunction(onReady)) {
@@ -15733,7 +15732,7 @@ dependencyScope.jQuery = $;;
     BreinifyUser.prototype = {
 
         addGeoLocation: function (onReady) {
-            var instance = this;
+            const instance = this;
 
             _privates.resolveGeoLocation(function (location) {
                 if (!BreinifyUtil.isEmpty(location)) {
@@ -15801,7 +15800,7 @@ dependencyScope.jQuery = $;;
                     this.set(BreinifyUser.ATTRIBUTES.MD5EMAIL, BreinifyUtil.md5(value));
                 }
             } else if (attribute === BreinifyUser.ATTRIBUTES.MD5EMAIL) {
-                var email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
+                const email = this.get(BreinifyUser.ATTRIBUTES.EMAIL);
 
                 // if we have an email, we do not change the MD5
                 if (email !== null) {
@@ -15830,7 +15829,7 @@ dependencyScope.jQuery = $;;
 
         setAll: function (user) {
 
-            var plainUser = {};
+            let plainUser = {};
             if (typeof user === 'undefined' || user == null) {
                 // nothing to do
             } else if (user instanceof BreinifyUser) {
@@ -15841,7 +15840,7 @@ dependencyScope.jQuery = $;;
                 throw new Error('The passed parameter "user" is invalid.');
             }
 
-            var instance = this;
+            let instance = this;
             $.each(plainUser, function (attribute, value) {
                 if (attribute === 'additional') {
                     instance.add(value);
