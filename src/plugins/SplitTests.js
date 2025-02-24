@@ -276,7 +276,11 @@
                 this.splitTests[name] = splitTest;
             }
 
-            return splitTest === null ? null : splitTest.determineSplitTestData(cb);
+            if (splitTest === null) {
+                cb(new Error('unable to initialize or find split-test: ' + name));
+            } else {
+                splitTest.determineSplitTestData(cb);
+            }
         }
     };
 

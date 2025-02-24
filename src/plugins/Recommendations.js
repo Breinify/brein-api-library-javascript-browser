@@ -890,6 +890,8 @@
         },
 
         _renderRecommendation: function (option, data, cb) {
+            const _self = this;
+
             Renderer._process(option.process.pre, data, option);
 
             // append the container element
@@ -909,7 +911,7 @@
                 }
 
                 // store the info needed for clicks on the item's container
-                $itemContainer = this._setupContainer($itemContainer, option, data);
+                $itemContainer = _self._setupContainer($itemContainer, option, data);
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
 
                 // if a third party is rendering, apply the data to the rendered elements
