@@ -14120,12 +14120,16 @@ dependencyScope.jQuery = $;;
                 currentData = $.isPlainObject(currentData) ? currentData : {};
                 delete currentData[name];
 
-                // add the data for the new split-test in as an object with the name of the split-test
+                // if there is no data we just remove the split-test information completely, which already happened
                 const newSplitTestData = {};
-                newSplitTestData[name] = $.extend(true, {}, splitTestData, {
-                    testName: name,
-                    lastUpdated: new Date().getTime()
-                });
+                if ($.isPlainObject(splitTestData)) {
+
+                    // add the data for the new split-test in as an object with the name of the split-test
+                    newSplitTestData[name] = $.extend(true, {}, splitTestData, {
+                        testName: name,
+                        lastUpdated: new Date().getTime()
+                    });
+                }
 
                 this.updateSplitTestData($.extend(true, newSplitTestData, currentData));
             },
