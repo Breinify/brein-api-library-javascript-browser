@@ -167,7 +167,7 @@
         },
 
         _isItem: function ($item) {
-            return $item.closest('[data-' + this.marker.container + '="true"]').length !== 1;
+            return $item.closest('[data-' + this.marker.container + '="true"]').length === 1;
         },
 
         _setupItemData: function ($recItem, idx, data) {
