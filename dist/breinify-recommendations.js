@@ -1,5 +1,3 @@
-// noinspection JSUnresolvedReference
-
 "use strict";
 
 /**
@@ -600,7 +598,7 @@
             let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
                 $items.each(function(idx) {
-                    Rendered.setRecommendationData($(this), idx, {});
+                    Renderer.setRecommendationData($(this), idx, {});
                 });
             }
         },
