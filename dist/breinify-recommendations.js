@@ -164,12 +164,12 @@
                 }, recommendation));
 
                 $container.append($recItem);
-                Renderer._process(option.process.attachedItem, $container, $recItem, recommendation, option);
+                _self._process(option.process.attachedItem, $container, $recItem, recommendation, option);
             });
         },
 
         _isItem: function ($item) {
-            return $item.closest('[data-' + Renderer.marker.container + '="true"]').length !== 1;
+            return $item.closest('[data-' + this.marker.container + '="true"]').length !== 1;
         },
 
         _setupItemData: function ($recItem, idx, data) {
@@ -597,7 +597,7 @@
              * There is currently no item bound to the container (which is expected when being
              * on a non-control group), see _handleRecommendationClick(...)
              */
-            let $items = this._determineSelector(option.templates.item, $container);
+            let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
                 $items.each(function(idx) {
                     Rendered.setRecommendationData($(this), idx, {});
