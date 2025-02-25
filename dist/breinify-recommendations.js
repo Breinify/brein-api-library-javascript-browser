@@ -99,7 +99,7 @@
                 return;
             }
 
-            let $anchor = this._determineSelector(selector);
+            const $anchor = this._determineSelector(selector);
             if ($anchor === null) {
                 cb(null, {
                     error: true,
@@ -108,7 +108,8 @@
                 });
                 return;
             }
-            let $container = this._determineSelector(option.templates.container);
+
+            const $container = this._determineSelector(option.templates.container);
             if ($container === null) {
                 cb(null, {
                     error: true,
@@ -403,6 +404,42 @@
     const Recommendations = {
         marker: $.extend(true, {}, Renderer.marker),
 
+        /**
+         * <p>The bind method is used to bind the functionality provided by this library to given or otherwise loaded.
+         * Use-cases for the usage of the bind (instead of render) method could be:
+         * <ul>
+         *     <li>3rd-party rendering (ex. via backend), but handling of activities (ex. clickedRecommendation)</li>
+         *     <li>using of split-testing within third party rendering</li>
+         * </ul></p>
+         * <p>The method uses the same (but limited or less applied) options as the rendering method</p>
+         */
+        bind: function () {
+
+            const _self = this;
+
+            overload.overload({
+                'Object,Object': function (splitTestSettings, renderOptions) {
+                    let option = $.extend(true, {}, defaultRenderOption, renderOption);
+
+                    _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
+                        const recData = _self._mapResult({
+                            additionalData: {
+                                splitTestData: data
+                            },
+                            statusCode: 200
+                        });
+
+                        let $container = this._determineSelector(option.templates.container);
+                        _self._setupContainer($container, option, recData);
+                        _self._applyBindings(option, $container);
+                    });
+                }
+            }, arguments, this);
+        },
+
+        /**
+         * The render method is used to render the configured recommendations within the given user-interface.
+         */
         render: function () {
             const _self = this;
 
@@ -502,6 +539,22 @@
             } else {
                 return false;
             }
+        },
+
+        _loadSplitTestSeparately: function (splitTestSettings, cb) {
+
+            // name, tokens, payload, storageKeys, cb, timing
+            const splitTestName = splitTestSettings.name;
+            const splitTestTokens = Breinify.UTL.isNonEmptyString(splitTestSettings.token) === null ? splitTestSettings.tokens : splitTestSettings.token;
+            const splitTestStorage = Breinify.UTL.isNonEmptyString(splitTestSettings.storageKey) === null ? splitTestSettings.storageKeys : splitTestSettings.storageKey;
+            const splitTestPayload = $.extend(true, {
+                splitTestName: splitTestSettings.name
+            }, splitTestSettings.payload);
+
+            Breinify.plugins.splitTests.retrieveSplitTest(splitTestName, splitTestTokens,
+                splitTestPayload, splitTestStorage, function (error, data) {
+                    cb(error, data);
+                });
         },
 
         _preRenderRecommendations: function (renderOptions) {
@@ -962,28 +1015,34 @@
             });
         },
 
+        _mapResult: function (result) {
+            let recommendationResult = {};
+
+            if (this._determineErrorResponse(result, recommendationResult)) {
+                // nothing to do, the error-data was written
+            } else if (this._determineSplitTestData(result, recommendationResult)) {
+                // nothing to do, the split-test-data was written
+            } else {
+                this._determineRecommendationData(result, recommendationResult);
+            }
+
+            this._determineAdditionalData(result, recommendationResult);
+            this._determineMetaData(result, recommendationResult);
+
+            return recommendationResult;
+        },
+
         _mapResults: function (payloads, results) {
             let allRecommendationResults = {};
 
             // let's map the responses to a more readable way
             for (let i = 0; i < results.length; i++) {
-                let payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
-                let result = results[i];
-
-                let recommendationResult = {};
-                if (this._determineErrorResponse(result, recommendationResult)) {
-                    // nothing to do, the error-data was written
-                } else if (this._determineSplitTestData(result, recommendationResult)) {
-                    // nothing to do, the split-test-data was written
-                } else {
-                    this._determineRecommendationData(result, recommendationResult);
-                }
-
-                this._determineAdditionalData(result, recommendationResult);
-                this._determineMetaData(result, recommendationResult);
+                const payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
+                const result = results[i];
+                const recommendationResult = this._mapResult(result);
 
                 // determine the name, we need the position of the payload as fallback
-                let name = this._determineName(payload, i);
+                const name = this._determineName(payload, i);
 
                 let numRecommendations = null;
                 if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
@@ -1002,7 +1061,7 @@
                     recommenderName = payload.namedRecommendations[0];
                 }
 
-                let isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
+                const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
 
                 // add some general information
                 recommendationResult.payload = {
