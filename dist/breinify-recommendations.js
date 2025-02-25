@@ -418,18 +418,33 @@
             const _self = this;
 
             overload.overload({
+                'Object': function (renderOption) {
+                    let option = $.extend(true, {}, defaultRenderOption, renderOption);
+
+                    let $container = this._determineSelector(option.templates.container);
+                    _self._setupContainer($container, option, {});
+                    _self._applyBindings(option, $container);
+                },
                 'Object,Object': function (splitTestSettings, renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
 
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
-                        const recData = _self._mapResult({
-                            additionalData: {
-                                splitTestData: data
-                            },
-                            statusCode: 200
-                        });
 
-                        let $container = this._determineSelector(option.templates.container);
+                        let recData;
+                        if (error === null) {
+                            recData = _self._mapResult({
+                                additionalData: {
+                                    splitTestData: data
+                                },
+                                statusCode: 200
+                            });
+                        } else {
+                            recData = _self._mapResult({
+                                statusCode: 500
+                            });
+                        }
+
+                        let $container = _self._determineSelector(option.templates.container);
                         _self._setupContainer($container, option, recData);
                         _self._applyBindings(option, $container);
                     });
