@@ -235,7 +235,7 @@
          * @private
          */
         _replace: function (value, data, option) {
-            var _self = this;
+            const _self = this;
 
             if (typeof value !== 'string' || value.trim() === '') {
                 return null;
@@ -431,11 +431,18 @@
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
 
                         if (error === null) {
+                            let statusCode = 200;
+                            if ($.isArray(splitTestSettings.controlGroups) &&
+                                $.isPlainObject(data.splitTestData) &&
+                                $.inArray(data.splitTestData.groupDecision, splitTestSettings.controlGroups) > -1) {
+                                statusCode = 7120;
+                            }
+
                             const recData = _self._mapResult({
                                 additionalData: {
                                     splitTestData: data
                                 },
-                                statusCode: 200
+                                statusCode: statusCode
                             });
 
                             let $container = Renderer._determineSelector(option.templates.container);
@@ -564,7 +571,11 @@
 
         _loadSplitTestSeparately: function (splitTestSettings, cb) {
 
-            // name, tokens, payload, storageKeys, cb, timing
+            if (Breinify.plugins._isAdded('splitTests') === false) {
+                cb(new Error('please ensure that the split-tests plugin is available when using this feature.'));
+                return;
+            }
+
             const splitTestName = splitTestSettings.name;
             const splitTestTokens = Breinify.UTL.isNonEmptyString(splitTestSettings.token) === null ? splitTestSettings.tokens : splitTestSettings.token;
             const splitTestStorage = Breinify.UTL.isNonEmptyString(splitTestSettings.storageKey) === null ? splitTestSettings.storageKeys : splitTestSettings.storageKey;
@@ -1223,7 +1234,7 @@
             }
 
             let mappedProducts = [];
-            for (var i = 0; i < recommendationResponse.result.length; i++) {
+            for (let i = 0; i < recommendationResponse.result.length; i++) {
                 let product = recommendationResponse.result[i];
                 let mappedProduct = this._mapProduct(product);
 
@@ -1264,7 +1275,7 @@
             }
 
             let mappedResults = [];
-            for (var i = 0; i < recommendationResponse.result.length; i++) {
+            for (let i = 0; i < recommendationResponse.result.length; i++) {
                 let result = recommendationResponse.result[i];
                 let mappedResult = {
                     '_recommenderWeight': result.weight,
