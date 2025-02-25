@@ -157,9 +157,7 @@
 
             $.each(result.recommendations, function (idx, recommendation) {
                 let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
-                _self._setupItemData($recItem, idx, $.extend(true, {
-                    widgetPosition: idx < 0 ? idx : idx + 1
-                }, recommendation));
+                _self._setupItemData($recItem, idx, recommendation);
 
                 $container.append($recItem);
                 _self._process(option.process.attachedItem, $container, $recItem, recommendation, option);
@@ -171,9 +169,13 @@
         },
 
         _setupItemData: function ($recItem, idx, data) {
+            const normIdx = typeof idx === 'number' ? idx < 0 ? idx : idx + 1 : null;
+
             $recItem.addClass(this.marker.item)
                 .attr('data-' + this.marker.item, 'true')
-                .data(this.marker.data, data);
+                .data(this.marker.data, $.extend(true, {
+                    widgetPosition: normIdx
+                }, data));
         },
 
         /**
@@ -1023,9 +1025,7 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = $itemContainer.children().eq(idx);
-                        Renderer._setupItemData($recItem, idx, $.extend(true, {
-                            widgetPosition: idx < 0 ? idx : idx + 1
-                        }, recommendation));
+                        Renderer._setupItemData($recItem, idx, recommendation);
                     });
                 }
                 // if we are rendering append the children for each result
