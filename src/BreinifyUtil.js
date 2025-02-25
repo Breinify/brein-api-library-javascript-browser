@@ -1804,7 +1804,7 @@
                         }
                     }
 
-                    // if we could not find the product, the arrays are not equal
+                    // if we could not find the item, the arrays are not equal
                     if (index === -1) {
                         return false;
                     } else {
