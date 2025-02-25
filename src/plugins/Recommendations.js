@@ -446,7 +446,7 @@
                             });
                         }
 
-                        let $container = _self._determineSelector(option.templates.container);
+                        let $container = Renderer._determineSelector(option.templates.container);
                         _self._setupContainer($container, option, recData);
                         _self._applyBindings(option, $container);
                     });
