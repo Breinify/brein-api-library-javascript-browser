@@ -430,25 +430,29 @@
 
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
 
-                        let recData;
                         if (error === null) {
-                            recData = _self._mapResult({
+                            const recData = _self._mapResult({
                                 additionalData: {
                                     splitTestData: data
                                 },
                                 statusCode: 200
                             });
+
+                            let $container = Renderer._determineSelector(option.templates.container);
+                            _self._setupContainer($container, option, recData);
+                            _self._applyBindings(option, $container);
                         } else {
                             const message = error instanceof Error ? error.message : null;
-                            recData = _self._mapResult({
+                            const errorData = _self._mapResult({
                                 statusCode: 400,
-                                message: error.message
+                                message: message
                             });
-                        }
 
-                        let $container = Renderer._determineSelector(option.templates.container);
-                        _self._setupContainer($container, option, recData);
-                        _self._applyBindings(option, $container);
+                            Renderer._process(option.process.error, $.extend({
+                                name: splitTestSettings.name,
+                                result: errorData
+                            }, errorData.status));
+                        }
                     });
                 }
             }, arguments, this);
