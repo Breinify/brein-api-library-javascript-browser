@@ -585,6 +585,7 @@
         },
 
         _bindContainer: function (option, recData) {
+            const _self = this;
             const data = $.isPlainObject(recData) ? recData : {};
 
             let $container = Renderer._determineSelector(option.templates.container);
@@ -598,7 +599,7 @@
             let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
                 $items.each(function(idx) {
-                    Renderer.setRecommendationData($(this), idx, {});
+                    _self.setRecommendationData($(this), idx, {});
                 });
             }
         },
