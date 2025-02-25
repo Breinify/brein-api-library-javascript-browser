@@ -385,7 +385,7 @@
             post: function ($container, $itemContainer, data, option) {
                 // by default, nothing to execute after recommendation rendering is complete
             },
-            finalize: function (option, /* (optional) */ $container) {
+            finalize: function (option, result, /* (optional) */ $container) {
                 // by default, nothing to execute after the process (control or test) is finished
             },
             clickedItem: function (event, settings) {
@@ -708,16 +708,16 @@
                 const $container = _self._setupControlContainer(option, result);
                 this._applyBindings(option, $container);
 
-                Renderer._process(option.process.finalize, option, $container);
+                Renderer._process(option.process.finalize, option, result, $container);
             } else if (result.status.code === 7120) {
                 // the recommendation is supposed to be ignored, but there is no split-test
-                Renderer._process(option.process.finalize, option, null);
+                Renderer._process(option.process.finalize, option, result, null);
             } else {
 
                 // we have a normal recommendation call
                 this._renderRecommendation(option, result, function ($container) {
                     _self._applyBindings(option, $container);
-                    Renderer._process(option.process.finalize, option, $container);
+                    Renderer._process(option.process.finalize, option, result, $container);
                 });
             }
         },
