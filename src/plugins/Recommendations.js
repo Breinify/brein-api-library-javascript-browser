@@ -45,9 +45,9 @@
             }
         },
 
-        _determineSelector: function (value) {
+        _determineSelector: function (value, parameters) {
             if ($.isFunction(value)) {
-                value = value();
+                value = value(parameters);
             }
 
             if (typeof value === 'string') {
@@ -152,7 +152,7 @@
         _appendItems: function ($container, result, option) {
             const _self = this;
 
-            let $item = this._determineSelector(option.templates.item);
+            let $item = this._determineSelector(option.templates.item, $container);
             if ($item === null) {
                 return null;
             }
@@ -351,6 +351,11 @@
             'marker::container': Renderer.marker.container,
             'marker::item': Renderer.marker.item
         },
+        /*
+         * Defines HTML templates or jQuery instances that define how a container or item of the rendered recommender
+         * should look like. In the case a binding is utilized (instead of rendering) these templates are considered
+         * selectors, which return a selector to select the container and the items in a rendered recommendation.
+         */
         templates: {
             container: null,
             item: null
@@ -420,10 +425,7 @@
             overload.overload({
                 'Object': function (renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
-
-                    let $container = this._determineSelector(option.templates.container);
-                    _self._setupContainer($container, option, {});
-                    _self._applyBindings(option, $container);
+                    _self._bindContainer(option);
                 },
                 'Object,Object': function (splitTestSettings, renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
@@ -438,21 +440,16 @@
                                 statusCode = 7120;
                             }
 
-                            const recData = _self._mapResult({
+                            _self._bindContainer(option, _self._mapResult({
                                 additionalData: {
                                     splitTestData: data
                                 },
                                 statusCode: statusCode
-                            });
-
-                            let $container = Renderer._determineSelector(option.templates.container);
-                            _self._setupContainer($container, option, recData);
-                            _self._applyBindings(option, $container);
+                            }));
                         } else {
-                            const message = error instanceof Error ? error.message : null;
                             const errorData = _self._mapResult({
                                 statusCode: 400,
-                                message: message
+                                message: error instanceof Error ? error.message : null
                             });
 
                             Renderer._process(option.process.error, $.extend({
@@ -587,6 +584,27 @@
                 splitTestPayload, splitTestStorage, function (error, data) {
                     cb(error, data);
                 });
+        },
+
+        _bindContainer: function (option, recData) {
+            const data = $.isPlainObject(recData) ? recData : {};
+
+            let $container = Renderer._determineSelector(option.templates.container);
+            _self._setupContainer($container, option, data);
+            _self._applyBindings(option, $container);
+
+            /*
+             * There is currently no item bound to the container (which is expected when being
+             * on a non-control group), see _handleRecommendationClick(...)
+             */
+            let $items = this._determineSelector(option.templates.item, $container);
+            if ($items === null) {
+                return null;
+            }
+
+            $items.each(function(idx) {
+                Rendered.setRecommendationData($(this), idx, {});
+            });
         },
 
         _preRenderRecommendations: function (renderOptions) {
