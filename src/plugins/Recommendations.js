@@ -439,8 +439,10 @@
                                 statusCode: 200
                             });
                         } else {
+                            const message = error instanceof Error ? error.message : null;
                             recData = _self._mapResult({
-                                statusCode: 500
+                                statusCode: 400,
+                                message: error.message
                             });
                         }
 
