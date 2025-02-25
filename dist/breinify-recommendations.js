@@ -590,21 +590,19 @@
             const data = $.isPlainObject(recData) ? recData : {};
 
             let $container = Renderer._determineSelector(option.templates.container);
-            _self._setupContainer($container, option, data);
-            _self._applyBindings(option, $container);
+            this._setupContainer($container, option, data);
+            this._applyBindings(option, $container);
 
             /*
              * There is currently no item bound to the container (which is expected when being
              * on a non-control group), see _handleRecommendationClick(...)
              */
             let $items = this._determineSelector(option.templates.item, $container);
-            if ($items === null) {
-                return null;
+            if ($items !== null) {
+                $items.each(function(idx) {
+                    Rendered.setRecommendationData($(this), idx, {});
+                });
             }
-
-            $items.each(function(idx) {
-                Rendered.setRecommendationData($(this), idx, {});
-            });
         },
 
         _preRenderRecommendations: function (renderOptions) {
