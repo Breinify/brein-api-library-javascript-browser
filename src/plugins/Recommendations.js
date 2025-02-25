@@ -362,34 +362,37 @@
         },
         process: {
             stoppedPropagation: function (event) {
-                // nothing to do by default when an event gets cancelled
+                // by default, nothing to when an event is cancelled
             },
             error: function (error) {
-                // ignore
+                // by default, ignored
             },
             init: function (option) {
-                // nothing to initialize
+                // by default, nothing to initialize
             },
             pre: function (data, option) {
-                // nothing to execute on pre
+                // by default, nothing to execute pre/before rendering of recommendation starts
             },
             attachedContainer: function ($container, $itemContainer, data, option) {
-                // nothing to do
+                // by default, nothing to do when the recommendation container is attached
             },
             attachedItem: function ($itemContainer, $item, data, option) {
-                // nothing to execute after attachment
+                // by default, nothing to execute after attachment of an item
             },
             attached: function ($container, $itemContainer, data, option) {
-                // nothing to execute after attachment
+                // by default, nothing to after all items and the container have been attachment
             },
             post: function ($container, $itemContainer, data, option) {
-                // nothing to execute after rendering is complete
+                // by default, nothing to execute after recommendation rendering is complete
+            },
+            finalize: function (option, /* (optional) */ $container) {
+                // by default, nothing to execute after the process (control or test) is finished
             },
             clickedItem: function (event, settings) {
-                // nothing to execute after rendering is complete
+                // by default, nothing to execute after an item is clicked
             },
             createActivity: function (event, settings) {
-                // nothing to do, the settings are good as they are
+                // by default, nothing to do, when an activity is created and ready to send
             }
         },
         data: {
@@ -704,13 +707,17 @@
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
                 this._applyBindings(option, $container);
+
+                Renderer._process(option.process.finalize, option, $container);
             } else if (result.status.code === 7120) {
                 // the recommendation is supposed to be ignored, but there is no split-test
+                Renderer._process(option.process.finalize, option, null);
             } else {
 
                 // we have a normal recommendation call
                 this._renderRecommendation(option, result, function ($container) {
                     _self._applyBindings(option, $container);
+                    Renderer._process(option.process.finalize, option, $container);
                 });
             }
         },
