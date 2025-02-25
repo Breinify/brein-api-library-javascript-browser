@@ -444,7 +444,7 @@
 
                             _self._bindContainer(option, _self._mapResult(recPayload, {
                                 additionalData: {
-                                    splitTestData: data
+                                    splitTestData: data.splitTestData
                                 },
                                 statusCode: statusCode
                             }));
