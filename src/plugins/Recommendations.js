@@ -822,8 +822,8 @@
                 }
             }
 
-            activityTags.productIds = [];
             if (typeof recommendation.id === 'string') {
+                activityTags.productIds = [];
                 activityTags.productIds.push(recommendation.id);
             }
         },
