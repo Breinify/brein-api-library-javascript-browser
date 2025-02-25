@@ -800,6 +800,14 @@
              * createActivity process.
              */
             settings.activityTags = this._createDefaultTags(recommendationData, additionalEventData);
+
+            // check if the event has data assign to it already, if so we try to determine additional information
+            const $recItem = $el.closest('.' + Renderer.marker.item);
+            const recommendation = $recItem.length === 1 ? $recItem.data(Renderer.marker.data) : null;
+            if ($.isPlainObject(recommendation)) {
+                this._applyBreinifyTags(settings.activityTags, recommendationData, recommendation, additionalEventData);
+            }
+
             this._sendActivity(option, event, settings);
         },
 
