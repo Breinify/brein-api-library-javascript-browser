@@ -430,6 +430,10 @@
 
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
 
+                        // we need to "fake" the recommendation payload
+                        const recPayload = $.isPlainObject(option.recommender) &&
+                        $.isPlainObject(option.recommender.payload) ? option.recommender.payload : {};
+
                         if (error === null) {
                             let statusCode = 200;
                             if ($.isArray(splitTestSettings.controlGroups) &&
@@ -438,14 +442,14 @@
                                 statusCode = 7120;
                             }
 
-                            _self._bindContainer(option, _self._mapResult({
+                            _self._bindContainer(option, _self._mapResult(recPayload, {
                                 additionalData: {
                                     splitTestData: data
                                 },
                                 statusCode: statusCode
                             }));
                         } else {
-                            const errorData = _self._mapResult({
+                            const errorData = _self._mapResult(recPayload, {
                                 statusCode: 400,
                                 message: error instanceof Error ? error.message : null
                             });
@@ -598,7 +602,7 @@
              */
             let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
-                $items.each(function(idx) {
+                $items.each(function (idx) {
                     _self.setRecommendationData($(this), idx, {});
                 });
             }
@@ -1062,7 +1066,7 @@
             });
         },
 
-        _mapResult: function (result) {
+        _mapResult: function (payload, result) {
             let recommendationResult = {};
 
             if (this._determineErrorResponse(result, recommendationResult)) {
@@ -1076,6 +1080,33 @@
             this._determineAdditionalData(result, recommendationResult);
             this._determineMetaData(result, recommendationResult);
 
+            let numRecommendations = null;
+            if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
+                numRecommendations = payload.numRecommendations;
+            }
+
+            let queryName = null;
+            if (typeof payload.recommendationQueryName === 'string' && payload.recommendationQueryName.trim() !== '') {
+                queryName = payload.recommendationQueryName;
+            }
+
+            let recommenderName = null;
+            if ($.isPlainObject(payload) &&
+                $.isArray(payload.namedRecommendations) &&
+                payload.namedRecommendations.length === 1) {
+                recommenderName = payload.namedRecommendations[0];
+            }
+
+            const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
+
+            // add some general information
+            recommendationResult.payload = {
+                recommenderName: recommenderName,
+                queryName: queryName,
+                isForItems: isForItems,
+                expectedNumberOfRecommendations: numRecommendations
+            };
+
             return recommendationResult;
         },
 
@@ -1086,38 +1117,16 @@
             for (let i = 0; i < results.length; i++) {
                 const payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
                 const result = results[i];
-                const recommendationResult = this._mapResult(result);
+                const recommendationResult = this._mapResult(payload, result);
+
+                // make sure we have the payload (for the name)
+                if (!$.isPlainObject(recommendationResult.payload)) {
+                    recommendationResult.payload = {};
+                }
 
                 // determine the name, we need the position of the payload as fallback
                 const name = this._determineName(payload, i);
-
-                let numRecommendations = null;
-                if (typeof payload.numRecommendations === 'number' && payload.numRecommendations > 0) {
-                    numRecommendations = payload.numRecommendations;
-                }
-
-                let queryName = null;
-                if (typeof payload.recommendationQueryName === 'string' && payload.recommendationQueryName.trim() !== '') {
-                    queryName = payload.recommendationQueryName;
-                }
-
-                let recommenderName = null;
-                if ($.isPlainObject(payload) &&
-                    $.isArray(payload.namedRecommendations) &&
-                    payload.namedRecommendations.length === 1) {
-                    recommenderName = payload.namedRecommendations[0];
-                }
-
-                const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
-
-                // add some general information
-                recommendationResult.payload = {
-                    name: name,
-                    recommenderName: recommenderName,
-                    queryName: queryName,
-                    isForItems: isForItems,
-                    expectedNumberOfRecommendations: numRecommendations
-                };
+                recommendationResult.payload.name = name;
                 allRecommendationResults[name] = recommendationResult;
             }
 
