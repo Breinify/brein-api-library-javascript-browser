@@ -418,7 +418,7 @@
             const _self = this;
 
             overload.overload({
-                'Object,Object': function (splitTestSettings, renderOptions) {
+                'Object,Object': function (splitTestSettings, renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
 
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
