@@ -1219,7 +1219,7 @@
         _determineName: function (payload, idx) {
             if ($.isPlainObject(payload) &&
                 $.isArray(payload.namedRecommendations) &&
-                payload.namedRecommendations.length === 1) {
+                payload.namedRecommendations.length === 1 && false) {
                 return payload.namedRecommendations[0];
             } else {
                 return 'response[' + idx + ']';
