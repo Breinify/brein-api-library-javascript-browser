@@ -310,6 +310,10 @@
     };
 
     const defaultRenderOption = {
+        meta: {
+            // should never be set outside, will be sent when rendering is started
+            processId: null,
+        },
         recommender: null,
         activity: {
             type: 'clickedRecommendation'
@@ -424,16 +428,23 @@
          * <p>The method uses the same (but limited or less applied) options as the rendering method</p>
          */
         bind: function () {
-
             const _self = this;
+
+            /*
+             * Generate a unique identifier which allows to cancel the rendering in between recommendation
+             * retrieval, and actual rendering.
+             */
+            const processId = Breinify.UTL.uuid();
 
             overload.overload({
                 'Object': function (renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
+                    option.meta.processId = processId;
                     _self._bindContainer(option);
                 },
                 'Object,Object': function (splitTestSettings, renderOption) {
                     let option = $.extend(true, {}, defaultRenderOption, renderOption);
+                    option.meta.processId = processId;
 
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
 
@@ -477,13 +488,19 @@
         render: function () {
             const _self = this;
 
+            /*
+             * Generate a unique identifier which allows to cancel the rendering in between recommendation
+             * retrieval, and actual rendering.
+             */
+            const processId = Breinify.UTL.uuid();
+
             overload.overload({
                 'Array': function (renderOptions) {
 
                     let namedRenderOptions = {};
                     let recommenderPayload = [];
                     for (let i = 0; i < renderOptions.length; i++) {
-                        let options = this._preRenderRecommendations({
+                        let options = this._preRenderRecommendations(processId, {
                             'temporary': renderOptions[i]
                         });
                         let recommenderOptions = options.temporary.recommender;
@@ -515,19 +532,19 @@
                     _self.render([renderOptions]);
                 },
                 'Object,Object': function (payload, renderOptions) {
-                    let options = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations([payload], function (error, data) {
                         _self._renderRecommendations(options, error, data);
                     });
                 },
                 'Array,Object': function (payloads, renderOptions) {
-                    let options = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations(payloads, function (error, data) {
                         _self._renderRecommendations(options, error, data);
                     });
                 },
                 'String,Object': function (recommendationId, renderOptions) {
-                    let options = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations([{
                         namedRecommendations: [recommendationId]
                     }], function (error, data) {
@@ -535,7 +552,7 @@
                     });
                 },
                 'String,Object,Object': function (recommendationId, payload, renderOptions) {
-                    let options = this._preRenderRecommendations(renderOptions);
+                    let options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations([$.extend({
                         namedRecommendations: [recommendationId]
                     }, payload)], function (error, data) {
@@ -543,6 +560,8 @@
                     });
                 }
             }, arguments, this);
+
+            return processId;
         },
 
         get: function () {
@@ -615,12 +634,13 @@
             }
         },
 
-        _preRenderRecommendations: function (renderOptions) {
+        _preRenderRecommendations: function (processId, renderOptions) {
             const options = {};
             $.each(renderOptions, function (name, renderOption) {
                 let option = $.extend(true, {}, defaultRenderOption, renderOption);
-                Renderer._process(option.process.init, option);
+                option.meta.processId = processId;
 
+                Renderer._process(option.process.init, option);
                 options[name] = option;
             });
 
