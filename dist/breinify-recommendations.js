@@ -709,7 +709,7 @@
             $.each(options, function (name, option) {
                 let result = data[name];
 
-                if (this._isCanceled(option.meta.processId)) {
+                if (_self._isCanceled(option.meta.processId)) {
                     Renderer._process(option.process.canceled, option, result);
                 } else if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
