@@ -205,8 +205,10 @@
 
             // check the attributes
             let attributes = $entry.get(0).attributes;
-            $.each(attributes, function (idx, attribute) {
+            for (let i = 0; i < attributes.length; i++) {
+                const attribute = attributes[i];
                 const replaced = _self._replace(attribute.value, replacements, option);
+
                 if (replaced === null) {
                     // do nothing
                 } else if (attribute.name.startsWith('data-rename-')) {
@@ -215,7 +217,7 @@
                 } else {
                     $entry.attr(attribute.name, replaced);
                 }
-            });
+            }
 
             // check also each child
             $entry.children().each(function () {
