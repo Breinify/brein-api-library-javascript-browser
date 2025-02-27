@@ -1220,7 +1220,7 @@
 
             if ($.isPlainObject(payload) &&
                 $.isArray(payload.namedRecommendations) &&
-                payload.namedRecommendations.length === 1 && false) {
+                payload.namedRecommendations.length === 1) {
 
                 /*
                  * The allPayloads is an array which provides information about "other" payloads,
