@@ -1216,25 +1216,54 @@
             }
         },
 
-        _determineName: function (payload, idx, allPayloads) {
-
-            if ($.isPlainObject(payload) &&
-                $.isArray(payload.namedRecommendations) &&
-                payload.namedRecommendations.length === 1) {
-
-                /*
-                 * The allPayloads is an array which provides information about "other" payloads,
-                 * it is used to fix conflicts (i.e., same recommendation requests use the same
-                 * named recommendation).
-                 */
-                if ($.isArray(allPayloads) && allPayloads.length > 0) {
-                    console.log(allPayloads);
-                }
-                return payload.namedRecommendations[0];
+        _determineName: function (payload, idx, payloads) {
+            const candidate = this._extractCandidateNameFromPayload(payload);
+            if (candidate === null) {
+                return 'response[' + idx + ']';
             }
 
-            // use just a fallback name, not helpful but maybe the only option
-            return 'response[' + idx + ']';
+            /*
+             * The allPayloads is an array which provides information about "other" payloads,
+             * it is used to fix conflicts (i.e., same recommendation requests use the same
+             * named recommendation).
+             */
+            const candidates = this._extractCandidateNamesFromPayloads(payloads);
+            const candidateUsage = candidates[candidate];
+
+            // check if we have a conflict, if so we need to use a fallback name
+            if (typeof candidateUsage === 'number' && candidateUsage > 1) {
+                return candidate + '[' + idx + ']';
+            }
+
+            return candidate;
+        },
+
+        _extractCandidateNamesFromPayloads: function (payloads) {
+            const candidates = {};
+
+            if (!$.isArray(payloads)) {
+                return candidates;
+            }
+
+            for (let i = 0; i < payloads.length; i++) {
+
+                // we support direct payloads or an array of options
+                let p = $.isPlainObject(payloads[i]) && $.isPlainObject(payloads[i].recommender) &&
+                $.isPlainObject(payloads[i].recommender.payload) ? payloads[i].recommender.payload : payloads[i];
+
+                const candidate = this._extractCandidateNameFromPayload(p);
+                if (candidate !== null) {
+                    candidates[candidate] = typeof candidates[candidate] === 'number' ? candidates[candidate] + 1 : 1;
+                }
+            }
+
+            return candidates;
+        },
+
+        _extractCandidateNameFromPayload: function (payload) {
+            return $.isPlainObject(payload) &&
+            $.isArray(payload.namedRecommendations) &&
+            payload.namedRecommendations.length === 1 ? payload.namedRecommendations[0] : null;
         },
 
         _determineMetaData: function (recommendationResponse, result) {
