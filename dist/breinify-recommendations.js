@@ -499,7 +499,7 @@
                             return;
                         }
 
-                        let name = this._determineName(recommenderOptions.payload, i);
+                        let name = this._determineName(recommenderOptions.payload, i, renderOptions);
                         namedRenderOptions[name] = options.temporary;
 
                         recommenderPayload.push(recommenderOptions.payload);
@@ -520,7 +520,7 @@
                 },
                 'Array,Object': function (payloads, renderOptions) {
                     let options = this._preRenderRecommendations(renderOptions);
-                    this._retrieveRecommendations(null, payloads, function (error, data) {
+                    this._retrieveRecommendations(payloads, function (error, data) {
                         _self._renderRecommendations(options, error, data);
                     });
                 },
@@ -1140,7 +1140,7 @@
                 }
 
                 // determine the name, we need the position of the payload as fallback
-                const name = this._determineName(payload, i);
+                const name = this._determineName(payload, i, payloads);
                 recommendationResult.payload.name = name;
                 allRecommendationResults[name] = recommendationResult;
             }
@@ -1216,14 +1216,25 @@
             }
         },
 
-        _determineName: function (payload, idx) {
+        _determineName: function (payload, idx, allPayloads) {
+
             if ($.isPlainObject(payload) &&
                 $.isArray(payload.namedRecommendations) &&
                 payload.namedRecommendations.length === 1 && false) {
+
+                /*
+                 * The allPayloads is an array which provides information about "other" payloads,
+                 * it is used to fix conflicts (i.e., same recommendation requests use the same
+                 * named recommendation).
+                 */
+                if ($.isArray(allPayloads) && allPayloads.length > 0) {
+                    console.log(allPayloads);
+                }
                 return payload.namedRecommendations[0];
-            } else {
-                return 'response[' + idx + ']';
             }
+
+            // use just a fallback name, not helpful but maybe the only option
+            return 'response[' + idx + ']';
         },
 
         _determineMetaData: function (recommendationResponse, result) {
