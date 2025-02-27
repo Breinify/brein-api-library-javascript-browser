@@ -309,6 +309,12 @@
         }
     };
 
+    const canceledRequests = {
+        _status: {
+            canceled: 'canceled'
+        }
+    };
+
     const defaultRenderOption = {
         meta: {
             // should never be set outside, will be sent when rendering is started
@@ -368,9 +374,12 @@
         },
         process: {
             stoppedPropagation: function (event) {
-                // by default, nothing to when an event is cancelled
+                // by default, nothing to when an event is canceled
             },
             error: function (error) {
+                // by default, ignored
+            },
+            canceled: function() {
                 // by default, ignored
             },
             init: function (option) {
@@ -480,6 +489,14 @@
                     });
                 }
             }, arguments, this);
+        },
+
+        cancel: function(processId) {
+            canceledRequests[processId] = {
+                cancellationTime: new Date().getTime(),
+                status: canceledRequests._status.canceled,
+                processId: processId
+            };
         },
 
         /**
@@ -594,6 +611,31 @@
             }
         },
 
+        _isCanceled: function(processId) {
+            const now = new Date().getTime();
+
+            // find expired processes
+            const expiredProcesses = [];
+            $.each(canceledRequests, function(processId, canceledRequest) {
+                if (now - canceledRequest.cancellationTime > 60 * 1000) {
+                    expiredProcesses.push(processId);
+                }
+            });
+
+            // delete the expired processes that were found
+            for (let i = 0; i < expiredProcesses.length; i++) {
+                const expiredProcessId = expiredProcesses[i];
+                delete canceledRequests[expiredProcessId];
+            }
+
+            const canceledRequest = canceledRequests[processId];
+            if (!$.isPlainObject(canceledRequest)) {
+                return false;
+            }
+
+            return canceledRequest.status === canceledRequests._status.canceled;
+        },
+
         _loadSplitTestSeparately: function (splitTestSettings, cb) {
 
             if (Breinify.plugins._isAdded('splitTests') === false) {
@@ -667,7 +709,9 @@
             $.each(options, function (name, option) {
                 let result = data[name];
 
-                if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
+                if (this._isCanceled(option.meta.processId)) {
+                    Renderer._process(option.process.canceled, option, result);
+                } else if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
                         code: -1,
                         error: true,
