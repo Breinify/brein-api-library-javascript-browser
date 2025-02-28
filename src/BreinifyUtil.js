@@ -1712,7 +1712,7 @@
 
         formatPrice: function (price, settings) {
             settings = !$.isPlainObject(settings) ? {} : settings;
-            settings.locales = typeof settings.locales === 'string' ? settings.locales : 'US-us';
+            settings.locales = typeof settings.locales === 'string' ? settings.locales : 'en-US';
             settings.symbol = typeof settings.symbol === 'string' ? settings.symbol : '$';
             settings.symbolPosition = typeof settings.symbolPosition === 'string' ? settings.symbolPosition : 'prefix';
 
