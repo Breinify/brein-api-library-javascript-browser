@@ -205,6 +205,7 @@
 
             // check the attributes
             let attributes = $entry.get(0).attributes;
+            const renaming = {};
             for (let i = 0; i < attributes.length; i++) {
                 const attribute = attributes[i];
                 const replaced = _self._replace(attribute.value, replacements, option);
@@ -212,12 +213,21 @@
                 if (replaced === null) {
                     // do nothing
                 } else if (attribute.name.startsWith('data-rename-')) {
-                    $entry.removeAttr(attribute.name);
-                    $entry.attr(attribute.name.replace('data-rename-', ''), replaced);
+
+                    // we cannot modify the attributes here, otherwise the attribute array we iterate over gets modified
+                    renaming[attribute.name] = {
+                        name: attribute.name.replace('data-rename-', ''),
+                        value: replaced
+                    };
                 } else {
                     $entry.attr(attribute.name, replaced);
                 }
             }
+
+            $.each(renaming, function(attrName, settings) {
+                $entry.removeAttr(attrName);
+                $entry.attr(settings.name, settings.value);
+            });
 
             // check also each child
             $entry.children().each(function () {
