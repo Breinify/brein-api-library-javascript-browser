@@ -61,6 +61,20 @@
             });
         },
 
+        refresh: function($el) {
+            const _self = this;
+
+            this._waitFor(15000, function () {
+                return _self._hasWndSlick();
+            }, function (status) {
+                if (status === true) {
+                    $el.each(function () {
+                        window.$(this).slick('refresh');
+                    });
+                }
+            });
+        },
+
         _determineMaxWaitTimeInMs: function (settings) {
             return $.isPlainObject(settings) && typeof settings.maxWaitTimeInMs === 'number' ? settings.maxWaitTimeInMs : this.defMaxWaitTimeInMs;
         },
