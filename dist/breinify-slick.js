@@ -185,6 +185,10 @@
 
         apply: function ($el, slickConfig) {
             _private.apply($el, slickConfig);
+        },
+
+        refresh: function ($el) {
+            _private.refresh($el);
         }
     };
 
