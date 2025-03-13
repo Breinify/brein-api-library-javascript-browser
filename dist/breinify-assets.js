@@ -217,7 +217,7 @@
             });
         },
 
-        refreshMappedResource: function ($el) {
+        refreshMappedResource: function ($el, settings) {
             const data = $el.data(this.marker.mappedResourceData.settings);
 
             // mapId was no string and empty
@@ -225,9 +225,11 @@
                 return;
             }
 
-            const source = this._createSource(data.mapId);
+            const source = this._createSource(data.mapId, settings);
             $el.removeAttr('src');
             $el.attr('src', source);
+
+            data.source = source;
         },
 
         _renderMappedResource: function ($el) {
@@ -303,7 +305,7 @@
             }
         },
 
-        _createSource: function (mapId) {
+        _createSource: function (mapId, settings) {
 
             // add the date instance (format yyyyMMdd HHmmss)
             const curDate = new Date();
@@ -331,7 +333,7 @@
                         browserId: browserId
                     }
                 }
-            }, user);
+            }, user, $.isPlainObject(settings) ? settings : {});
 
             // encode the data instance
             let suffix = '/J/';
@@ -737,8 +739,8 @@
             }
         },
 
-        refreshMapResource: function ($el) {
-            _private.refreshMappedResource($el);
+        refreshMapResource: function ($el, settings) {
+            _private.refreshMappedResource($el, settings);
         },
 
         areDataTagsEnabled: function () {
