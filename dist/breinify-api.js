@@ -14959,7 +14959,7 @@ dependencyScope.jQuery = $;;
 
             init: function (entries, callback) {
                 if (!$.isPlainObject(entries)) {
-                    return;
+                    entries = {};
                 }
 
                 // check if we already have an instance (init may be called multiple times)
@@ -15075,8 +15075,11 @@ dependencyScope.jQuery = $;;
             },
 
             isExpired: function (name) {
-                let json = this.instance.getItem('breinify-' + name);
+                if (this.instance === null || !$.isFunction(this.instance.getItem)) {
+                    return true;
+                }
 
+                let json = this.instance.getItem('breinify-' + name);
                 if (typeof json === 'string') {
                     let storableData = JSON.parse(json);
                     if ($.isPlainObject(storableData)) {
@@ -15090,6 +15093,10 @@ dependencyScope.jQuery = $;;
             },
 
             update: function (name, expiresInSec, data) {
+                if (this.instance === null || !$.isFunction(this.instance.setItem)) {
+                    return;
+                }
+
                 this.instance.setItem('breinify-' + name, this.createStorableData(expiresInSec, data));
             },
 
@@ -15110,6 +15117,10 @@ dependencyScope.jQuery = $;;
             },
 
             get: function (name) {
+                if (this.instance === null || !$.isFunction(this.instance.getItem)) {
+                    return null;
+                }
+
                 let json = this.instance.getItem('breinify-' + name);
                 if (typeof json === 'string') {
                     let storableData = JSON.parse(json);
