@@ -257,7 +257,7 @@
             const render = function ($selectedEl, selectedType, foundMapId, cb) {
 
                 // check if the final type is valid
-                if (selectedType) {
+                if (typeof selectedType !== 'string' || selectedType.trim() === '') {
                     cb(new Error('invalid type: ' + selectedType));
                 } else {
                     _self._renderMappedResource($selectedEl, selectedType, foundMapId, cb);
