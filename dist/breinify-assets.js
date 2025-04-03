@@ -249,7 +249,7 @@
 
             // determine the type (if we do not have one)
             let type = $el.attr('data-type');
-            if (typeof type !== 'string' || type.trim() !== '') {
+            if (typeof type !== 'string' || type.trim() === '') {
                 callback(new Error('missing type'));
                 return;
             }
