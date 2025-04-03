@@ -18,8 +18,11 @@
 
     const _private = {
         marker: {
+            mappedResourceAutoDetectionType: 'auto',
             mappedResourceType: {
-                image: 'image'
+                image: 'image',
+                url: 'url',
+                html: 'html'
             },
             mappedResourceData: {
                 settings: 'br-mapped-resource-data'
@@ -210,7 +213,7 @@
                     $els.each(function () {
                         const $el = $(this);
 
-                        _self._renderMappedResource($el);
+                        _self._handleMappedResource($el);
                         $el.attr('data-personalize-loaded', 'true');
                     });
                 }
@@ -232,24 +235,74 @@
             data.source = source;
         },
 
-        _renderMappedResource: function ($el) {
+        _handleMappedResource: function ($el, callback) {
             const _self = this;
+            callback = $.isFunction(callback) ? callback : function () {
+            };
 
             // make sure we have a valid mapId, otherwise there is nothing to do
             let mapId = $el.attr('data-mapId');
             if (typeof mapId !== 'string' || mapId.trim() === '') {
+                callback(new Error('missing mapId'));
                 return;
             }
 
             // determine the type (if we do not have one)
             let type = $el.attr('data-type');
-            if (typeof type === 'string' && type.trim() !== '') {
-                // nothing to do we already have a valid type
-            } else if ($el.is('a')) {
-                type = 'link';
-            } else if ($el.is('img')) {
-                type = 'image';
+            if (typeof type !== 'string' || type.trim() !== '') {
+                callback(new Error('missing type'));
+                return;
+            }
+
+            const render = function ($selectedEl, selectedType, foundMapId, cb) {
+
+                // check if the final type is valid
+                if (selectedType) {
+                    cb(new Error('invalid type: ' + selectedType));
+                } else {
+                    _self._renderMappedResource($selectedEl, selectedType, foundMapId, cb);
+                }
+            };
+            if (type === this.marker.mappedResourceAutoDetectionType) {
+                const headUrl = this._createUrl(mapId, {});
+                $.ajax({
+                    url: headUrl,
+                    type: 'HEAD',
+                    success: function (data, textStatus, jqXHR) {
+                        let contentType = jqXHR.getResponseHeader('x-mapped-resource-content-type');
+                        contentType = typeof contentType === 'string' ? contentType.toLowerCase() : 'undefined';
+
+                        render($el, contentType, mapId, callback);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        callback(new Error('failed to determine type: ' + textStatus + ' (' + errorThrown + ')'));
+                    }
+                });
             } else {
+                render($el, type, mapId, callback);
+            }
+        },
+
+        _renderMappedResource: function ($el, type, mapId, callback) {
+            const _self = this;
+            callback = $.isFunction(callback) ? callback : function () {
+            };
+
+            if (typeof type !== 'string' || type.trim() === '') {
+                callback(new Error('invalid type: ' + type));
+                return;
+            }
+
+            // ensure that we have a valid type
+            let foundType = null;
+            $.each(this.marker.mappedResourceType, function (key, value) {
+                if (value === type.toLowerCase()) {
+                    foundType = value;
+                }
+            });
+
+            if (foundType === null) {
+                callback(new Error('invalid type: ' + type));
                 return;
             }
 
@@ -262,20 +315,22 @@
 
             // create the data object we attach to the element
             const data = {
-                type: type,
+                type: foundType,
                 resourceId: resourceId,
                 mapId: mapId,
                 source: source
             };
 
             // apply the type
-            let $newEl = null;
-            if (type === this.marker.mappedResourceType.image) {
+            if (foundType === this.marker.mappedResourceType.image) {
+                let $newEl;
+
                 if ($el.is('img')) {
                     $newEl = $el;
+
                     $newEl.attr('src', source);
                 } else {
-                    $newEl = $('<img src="" alt="" />');
+                    const $newEl = $('<img src="" alt="" />');
                     $newEl.attr('class', $el.attr('class'))
                         .attr('style', $el.attr('style'))
                         .attr('alt', $el.attr('data-alt'))
@@ -283,14 +338,56 @@
 
                     $el.replaceWith($newEl);
                 }
+
+                this._setUpElement($el, $newEl, resourceId, data, callback);
+            } else if (foundType === this.marker.mappedResourceType.html) {
+                $.ajax({
+                    url: source,
+                    type: 'GET',
+                    dataType: 'html',
+                    success: function (data) {
+                        const $newEl = $(data);
+
+                        $newEl.attr('class', $el.attr('class'))
+                            .attr('style', $el.attr('style'));
+
+                        $el.replaceWith($newEl);
+
+                        _self._setUpElement($el, $newEl, resourceId, data, callback);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        callback(new Error('failed to retrieve data: ' + textStatus + ' (' + errorThrown + ')'));
+                    }
+                });
+            } else if (foundType === this.marker.mappedResourceType.url) {
+                let $newEl;
+
+                if ($el.is('a')) {
+                    $newEl = $el;
+                    $newEl.attr('href', source);
+                } else {
+                    $newEl = $('<a href="" />');
+                    $newEl.attr('class', $el.attr('class'))
+                        .attr('style', $el.attr('style'))
+                        .attr('target', $el.attr('data-target'))
+                        .attr('href', source);
+
+                    $el.replaceWith($newEl);
+                }
+
+                this._setUpElement($el, $newEl, resourceId, data, callback);
+            } else {
+                callback(new Error('unsupported type: ' + type));
             }
+        },
+
+        _setUpElement: function($el, $newEl, resourceId, data, callback) {
+            const _self = this;
 
             // apply some default attributes
-            if ($newEl !== null) {
-                $newEl.attr('id', resourceId);
-                $newEl.data(this.marker.mappedResourceData.settings, data);
-                $newEl.show();
-            }
+            $newEl.attr('id', resourceId)
+                .data(this.marker.mappedResourceData.settings, data)
+                .show();
 
             const autoRefresh = $el.attr('data-auto-refresh') === 'true';
             if (autoRefresh === true) {
@@ -303,6 +400,11 @@
                 this.resourceAutoRefresh.resources.push(resourceId);
                 this._checkAutoRefresh();
             }
+
+            callback(null, {
+                $el: $newEl,
+                data: data
+            });
         },
 
         _createSource: function (mapId, settings) {
@@ -335,15 +437,15 @@
                 }
             }, user, $.isPlainObject(settings) ? settings : {});
 
+            return this._createUrl(mapId, data);
+        },
+
+        _createUrl: function (mapId, data) {
+
             // encode the data instance
             let suffix = '/J/';
             try {
-                const json = JSON.stringify(data);
-                const base64Json = btoa(json);
-                const urlFriendlyJson = base64Json.replaceAll('+', '~')
-                    .replaceAll('/', '-')
-                    .replaceAll('=', '_');
-                suffix += urlFriendlyJson;
+                suffix += this._encodeData(data);
             } catch (e) {
 
                 // use default if it didn't work
@@ -351,6 +453,14 @@
             }
 
             return 'https://assets.breinify.com/mappedResource/' + mapId + suffix;
+        },
+
+        _encodeData: function (data) {
+            const json = JSON.stringify(data);
+            const base64Json = btoa(json);
+            return base64Json.replaceAll('+', '~')
+                .replaceAll('/', '-')
+                .replaceAll('=', '_');
         },
 
         _checkAutoRefresh: function () {
