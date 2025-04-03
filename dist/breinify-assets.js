@@ -230,12 +230,10 @@
                 return;
             }
 
-            const source = this._createSource(data.mapId, settings);
+            data.source = this._createSource(data.mapId, settings);
             this._renderMappedResource($el, data.type, data.mapId);
             // $el.removeAttr('src');
             // $el.attr('src', source);
-
-            data.source = source;
         },
 
         _handleMappedResource: function ($el, callback) {
