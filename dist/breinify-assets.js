@@ -237,8 +237,7 @@
 
         _handleMappedResource: function ($el, callback) {
             const _self = this;
-            callback = $.isFunction(callback) ? callback : function () {
-            };
+            callback = $.isFunction(callback) ? callback : this._createCallback();
 
             // make sure we have a valid mapId, otherwise there is nothing to do
             let mapId = $el.attr('data-mapId');
@@ -285,8 +284,7 @@
 
         _renderMappedResource: function ($el, type, mapId, callback) {
             const _self = this;
-            callback = $.isFunction(callback) ? callback : function () {
-            };
+            callback = $.isFunction(callback) ? callback : this._createCallback();
 
             if (typeof type !== 'string' || type.trim() === '') {
                 callback(new Error('invalid type: ' + type));
@@ -381,7 +379,7 @@
             }
         },
 
-        _setUpElement: function($el, $newEl, resourceId, data, callback) {
+        _setUpElement: function ($el, $newEl, resourceId, data, callback) {
             const _self = this;
 
             // apply some default attributes
@@ -497,6 +495,18 @@
                 return true;
             } else {
                 return false;
+            }
+        },
+
+        _createCallback: function () {
+            return function (error, data) {
+                if (!Breinify.UTL.internal.isDevMode()) {
+                    return;
+                } else if (error === null) {
+                    console.log('[Breinify] utilizing following data to render mapped resource', data);
+                } else {
+                    console.error('[Breinify] failed to utilize mapped resource', error);
+                }
             }
         },
 
