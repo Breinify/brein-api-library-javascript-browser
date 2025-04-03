@@ -328,7 +328,7 @@
 
                     $newEl.attr('src', source);
                 } else {
-                    const $newEl = $('<img src="" alt="" />');
+                    $newEl = $('<img src="" alt="" />');
                     $newEl.attr('class', $el.attr('class'))
                         .attr('style', $el.attr('style'))
                         .attr('alt', $el.attr('data-alt'))
