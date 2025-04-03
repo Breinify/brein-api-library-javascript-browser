@@ -230,8 +230,7 @@
                 return;
             }
 
-            data.source = this._createSource(data.mapId, settings);
-            this._renderMappedResource($el, data.type, data.mapId);
+            this._renderMappedResource($el, data.type, data.mapId, settings);
             // $el.removeAttr('src');
             // $el.attr('src', source);
         },
@@ -260,7 +259,7 @@
                 if (typeof selectedType !== 'string' || selectedType.trim() === '') {
                     cb(new Error('invalid type: ' + selectedType));
                 } else {
-                    _self._renderMappedResource($selectedEl, selectedType, foundMapId, cb);
+                    _self._renderMappedResource($selectedEl, selectedType, foundMapId, null, cb);
                 }
             };
 
@@ -271,7 +270,7 @@
                     type: 'HEAD',
                     success: function (data, textStatus, jqXHR) {
                         let contentType = jqXHR.getResponseHeader('x-mapped-resource-content-type');
-                        contentType = typeof contentType === 'string' ? contentType: 'UNDEFINED';
+                        contentType = typeof contentType === 'string' ? contentType : 'UNDEFINED';
 
                         // determine the render-type (type) to be used for the contentType
                         let selectedType;
@@ -301,7 +300,7 @@
             }
         },
 
-        _renderMappedResource: function ($el, type, mapId, callback) {
+        _renderMappedResource: function ($el, type, mapId, settings, callback) {
             const _self = this;
             callback = $.isFunction(callback) ? callback : this._createCallback();
 
@@ -324,7 +323,7 @@
             }
 
             // create the source
-            const source = this._createSource(mapId);
+            const source = this._createSource(mapId, settings);
 
             // create an identifier
             let resourceId = $el.attr('id');
@@ -530,14 +529,11 @@
             const newSource = this._createSource(data.mapId);
             if (data.source === newSource) {
                 return true;
-            } else if (data.type === this.marker.mappedResourceType.image) {
-                $resource.attr('src', newSource);
-                data.source = newSource;
-
-                return true;
-            } else {
-                return false;
             }
+
+            // trigger a refresh with the current (modified source)
+            this.refreshMappedResource($resource);
+            return true;
         },
 
         _createCallback: function () {
