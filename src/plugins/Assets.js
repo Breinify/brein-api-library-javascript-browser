@@ -369,7 +369,6 @@
                             .attr('style', $el.attr('style'));
 
                         $el.replaceWith($newEl);
-
                         _self._setUpElement($el, $newEl, resourceId, data, callback);
                     },
                     error: function (jqXHR, textStatus, errorThrown) {

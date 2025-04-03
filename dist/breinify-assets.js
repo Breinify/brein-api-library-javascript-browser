@@ -363,14 +363,12 @@
                     url: source,
                     type: 'GET',
                     dataType: 'html',
-                    success: function (data) {
-                        const $newEl = $(data);
-
+                    success: function (html) {
+                        const $newEl = $(html);
                         $newEl.attr('class', $el.attr('class'))
                             .attr('style', $el.attr('style'));
 
                         $el.replaceWith($newEl);
-
                         _self._setUpElement($el, $newEl, resourceId, data, callback);
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
