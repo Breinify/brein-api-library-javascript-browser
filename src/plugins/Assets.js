@@ -22,6 +22,7 @@
             mappedResourceType: {
                 image: 'image',
                 url: 'url',
+                iframe: 'iframe',
                 html: 'html'
             },
             mappedResourceData: {
@@ -271,7 +272,21 @@
                         let contentType = jqXHR.getResponseHeader('x-mapped-resource-content-type');
                         contentType = typeof contentType === 'string' ? contentType.toLowerCase() : 'undefined';
 
-                        render($el, contentType, mapId, callback);
+                        // determine the render-type (type) to be used for the contentType
+                        let selectedType;
+                        switch (contentType) {
+                            case 'IMAGE':
+                                selectedType = _self.marker.mappedResourceType.image;
+                                break;
+                            case 'HTML':
+                                selectedType = _self.marker.mappedResourceType.html;
+                                break;
+                            case 'URL':
+                                selectedType = _self.marker.mappedResourceType.iframe;
+                                break;
+                        }
+
+                        render($el, selectedType, mapId, callback);
                     },
                     error: function (jqXHR, textStatus, errorThrown) {
                         callback(new Error('failed to determine type: ' + textStatus + ' (' + errorThrown + ')'));
@@ -376,6 +391,22 @@
                     } else {
                         $newEl.text(source);
                     }
+
+                    $el.replaceWith($newEl);
+                }
+
+                this._setUpElement($el, $newEl, resourceId, data, callback);
+            } else if (foundType === this.marker.mappedResourceType.iframe) {
+                let $newEl;
+
+                if ($el.is('iframe')) {
+                    $newEl = $el;
+                    $newEl.attr('src', source);
+                } else {
+                    $newEl = $('<iframe src=""></iframe>');
+                    $newEl.attr('class', $el.attr('class'))
+                        .attr('style', $el.attr('style'))
+                        .attr('src', source);
 
                     $el.replaceWith($newEl);
                 }
