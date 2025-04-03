@@ -23,7 +23,8 @@
                 image: 'image',
                 url: 'url',
                 iframe: 'iframe',
-                html: 'html'
+                html: 'html',
+                untouched: 'untouched'
             },
             mappedResourceData: {
                 settings: 'br-mapped-resource-data'
@@ -263,6 +264,7 @@
                     _self._renderMappedResource($selectedEl, selectedType, foundMapId, cb);
                 }
             };
+
             if (type === this.marker.mappedResourceAutoDetectionType) {
                 const headUrl = this._createUrl(mapId, {});
                 $.ajax({
@@ -270,7 +272,7 @@
                     type: 'HEAD',
                     success: function (data, textStatus, jqXHR) {
                         let contentType = jqXHR.getResponseHeader('x-mapped-resource-content-type');
-                        contentType = typeof contentType === 'string' ? contentType.toLowerCase() : 'undefined';
+                        contentType = typeof contentType === 'string' ? contentType: 'UNDEFINED';
 
                         // determine the render-type (type) to be used for the contentType
                         let selectedType;
@@ -283,6 +285,9 @@
                                 break;
                             case 'URL':
                                 selectedType = _self.marker.mappedResourceType.iframe;
+                                break;
+                            default:
+                                selectedType = _self.marker.mappedResourceType.untouched;
                                 break;
                         }
 
@@ -412,6 +417,8 @@
                 }
 
                 this._setUpElement($el, $newEl, resourceId, data, callback);
+            } else if (foundType === this.marker.mappedResourceType.iframe) {
+                this._setUpElement($el, $el, resourceId, data, callback);
             } else {
                 callback(new Error('unsupported type: ' + type));
             }
