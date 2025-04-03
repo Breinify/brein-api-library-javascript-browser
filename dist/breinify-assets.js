@@ -364,11 +364,18 @@
                     $newEl = $el;
                     $newEl.attr('href', source);
                 } else {
-                    $newEl = $('<a href="" />');
+                    $newEl = $('<a href=""></a>');
                     $newEl.attr('class', $el.attr('class'))
                         .attr('style', $el.attr('style'))
                         .attr('target', $el.attr('data-target'))
                         .attr('href', source);
+
+                    const linkText = $el.attr('data-link-text');
+                    if (typeof linkText === 'string' && linkText.trim() !== '') {
+                        $newEl.text(linkText);
+                    } else {
+                        $newEl.text(source);
+                    }
 
                     $el.replaceWith($newEl);
                 }
