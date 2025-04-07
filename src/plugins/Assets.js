@@ -222,6 +222,11 @@
             });
         },
 
+        isMappedResource: function($el) {
+            const data = $el.data(this.marker.mappedResourceData.settings);
+            return $.isPlainObject(data) && typeof data.mapId === 'string' && data.mapId !== '';
+        },
+
         refreshMappedResource: function ($el, settings) {
             const data = $el.data(this.marker.mappedResourceData.settings);
 
@@ -534,8 +539,8 @@
                 return true;
             }
 
-            // trigger a refresh with the current (modified source)
-            this.refreshMappedResource($resource);
+            // trigger a refresh for the modified source
+            this.refreshMappedResource($resource, currentSettings);
             return true;
         },
 
@@ -902,6 +907,10 @@
 
         refreshMapResource: function ($el, settings) {
             _private.refreshMappedResource($el, settings);
+        },
+
+        isMapResource: function ($el) {
+            return _private.isMappedResource($el);
         },
 
         areDataTagsEnabled: function () {
