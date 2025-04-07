@@ -231,8 +231,6 @@
             }
 
             this._renderMappedResource($el, data.type, data.mapId, settings);
-            // $el.removeAttr('src');
-            // $el.attr('src', source);
         },
 
         _handleMappedResource: function ($el, callback) {
