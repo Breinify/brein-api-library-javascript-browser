@@ -222,20 +222,16 @@
             });
         },
 
-        isMappedResource: function($el) {
-            const data = $el.data(this.marker.mappedResourceData.settings);
+        isMappedResource: function($el, data) {
+            data = typeof data !== 'undefined' ? data : $el.data(this.marker.mappedResourceData.settings);
             return $.isPlainObject(data) && typeof data.mapId === 'string' && data.mapId !== '';
         },
 
         refreshMappedResource: function ($el, settings) {
             const data = $el.data(this.marker.mappedResourceData.settings);
-
-            // mapId was no string and empty
-            if (!$.isPlainObject(data) || typeof data.mapId !== 'string' || data.mapId === '') {
-                return;
+            if (this.isMappedResource($el, data)) {
+                this._renderMappedResource($el, data.type, data.mapId, settings);
             }
-
-            this._renderMappedResource($el, data.type, data.mapId, settings);
         },
 
         _handleMappedResource: function ($el, callback) {
@@ -252,8 +248,7 @@
             // determine the type (if we do not have one)
             let type = $el.attr('data-type');
             if (typeof type !== 'string' || type.trim() === '') {
-                callback(new Error('missing type'));
-                return;
+                type = this.marker.mappedResourceAutoDetectionType;
             }
 
             const render = function ($selectedEl, selectedType, foundMapId, cb) {
@@ -262,7 +257,10 @@
                 if (typeof selectedType !== 'string' || selectedType.trim() === '') {
                     cb(new Error('invalid type: ' + selectedType));
                 } else {
-                    _self._renderMappedResource($selectedEl, selectedType, foundMapId, null, cb);
+                    const data = $selectedEl.data(_self.marker.mappedResourceData.settings);
+                    const currentSettings = $.isPlainObject(data.settings) ? data.settings : {};
+
+                    _self._renderMappedResource($selectedEl, selectedType, foundMapId, currentSettings, cb);
                 }
             };
 
@@ -528,7 +526,7 @@
             }
 
             const data = $resource.data(this.marker.mappedResourceData.settings);
-            if (!$.isPlainObject(data) || typeof data.mapId !== 'string') {
+            if (!this.isMappedResource($resource, data)) {
                 return false;
             }
 
