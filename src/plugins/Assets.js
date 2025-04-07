@@ -328,6 +328,9 @@
             // create an identifier
             let resourceId = $el.attr('id');
             resourceId = typeof resourceId === 'string' && resourceId.trim() !== '' ? resourceId : Breinify.UTL.uuid();
+            if (Breinify.UTL.internal.isDevMode()) {
+                console.log('[Breinify] determined following settings for resource "' + resourceId + "'", settings);
+            }
 
             // create the data object we attach to the element
             const data = {
@@ -539,7 +542,7 @@
         _createCallback: function () {
             return function (error, data) {
                 if (!Breinify.UTL.internal.isDevMode()) {
-                    return;
+                    // nothing to do
                 } else if (error === null) {
                     console.log('[Breinify] utilizing following data to render mapped resource', data);
                 } else {
