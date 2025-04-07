@@ -258,7 +258,7 @@
                     cb(new Error('invalid type: ' + selectedType));
                 } else {
                     const data = $selectedEl.data(_self.marker.mappedResourceData.settings);
-                    const currentSettings = $.isPlainObject(data.settings) ? data.settings : {};
+                    const currentSettings = $.isPlainObject(data) && $.isPlainObject(data.settings) ? data.settings : {};
 
                     _self._renderMappedResource($selectedEl, selectedType, foundMapId, currentSettings, cb);
                 }
