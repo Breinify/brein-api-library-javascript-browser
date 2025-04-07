@@ -335,7 +335,8 @@
                 type: foundType,
                 resourceId: resourceId,
                 mapId: mapId,
-                source: source
+                source: source,
+                settings: settings
             };
 
             // apply the type
@@ -527,7 +528,8 @@
             }
 
             // determine the new source, if it changed apply it otherwise nothing to change
-            const newSource = this._createSource(data.mapId);
+            const currentSettings = $.isPlainObject(data.settings) ? data.settings : {};
+            const newSource = this._createSource(data.mapId, currentSettings);
             if (data.source === newSource) {
                 return true;
             }
