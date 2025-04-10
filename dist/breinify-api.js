@@ -7,8 +7,19 @@
  * for all further dependencies. Thus, the dependencies won't
  * register any global variables.
  */
-;(function(window){
-  var dependencyScope = {
+;(function(window) {
+
+  // make sure we do not have any Breinify instance already
+  if (typeof window.Breinify === 'object') {
+    const version = typeof window.Breinify.version === 'string' ? window.Breinify.version : 'n/a';
+    const apiVersion = typeof window.Breinify.plugins === 'object' && typeof window.Breinify.plugins.api === 'object' && typeof window.Breinify.plugins.api.version === 'string' ? window.Breinify.plugins.api.version : 'n/a';;
+    console.log('Breinify already available (version: ' + version + ', API version: ' + apiVersion + ')');
+
+    return;
+  }
+
+  // create the dependencyScope
+  const dependencyScope = {
     skipRequire: true
   };
 
@@ -12410,7 +12421,7 @@ jstz.olson = {
 	}
 };
 ;
-var $ = jQuery.noConflict(true);
+let $ = jQuery.noConflict(true);
 dependencyScope.jQuery = $;;
 /*
  * We override the window parameter and make sure it'll be passed
@@ -12961,12 +12972,12 @@ dependencyScope.jQuery = $;;
 !function (scope, dependencyScope) {
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'AttributeCollection', true)) {
         return;
     }
 
-    var AttributeCollection = function () {
+    const AttributeCollection = function () {
         this._defaultValues = {};
         this._settings = {};
         this._attributes = {};
@@ -12999,7 +13010,7 @@ dependencyScope.jQuery = $;;
          * @param {object} setting the settings of the attribute
          */
         add: function (key, setting) {
-            var name;
+            let name;
 
             if ($.isPlainObject(setting)) {
                 if (typeof setting.name === 'string') {
@@ -13024,7 +13035,7 @@ dependencyScope.jQuery = $;;
             this._defaultValues[name] = setting.defaultValue;
 
             if (typeof setting.group !== 'undefined' && setting.optional === false) {
-                var group = this._groups[setting.group];
+                let group = this._groups[setting.group];
                 if (!$.isArray(group)) {
                     group = [];
                     this._groups[setting.group] = group;
@@ -13039,7 +13050,7 @@ dependencyScope.jQuery = $;;
         },
 
         setting: function (attribute) {
-            var setting = this._settings[attribute];
+            const setting = this._settings[attribute];
 
             if (setting === null || typeof setting === 'undefined') {
                 return null;
@@ -13049,7 +13060,7 @@ dependencyScope.jQuery = $;;
         },
 
         group: function (attribute) {
-            var group = this._groups[attribute];
+            const group = this._groups[attribute];
 
             if (group === null || typeof group === 'undefined') {
                 return null;
@@ -13059,7 +13070,7 @@ dependencyScope.jQuery = $;;
         },
 
         validate: function (attribute, value) {
-            var setting = this.setting(attribute);
+            const setting = this.setting(attribute);
 
             if (setting === null) {
                 return false;
@@ -13071,8 +13082,8 @@ dependencyScope.jQuery = $;;
         },
 
         validateProperties: function (obj) {
-            var instance = this;
-            var groups = {};
+            const instance = this;
+            const groups = {};
 
             $.each(obj, function (attribute, value) {
 
@@ -13083,11 +13094,11 @@ dependencyScope.jQuery = $;;
                     throw new Error('The value "' + value + '" is invalid for the property "' + attribute + '".');
                 }
 
-                var setting = instance.setting(attribute);
-                var groupName = setting.group;
+                const setting = instance.setting(attribute);
+                const groupName = setting.group;
 
                 if (typeof groupName !== 'undefined' && setting.optional === false) {
-                    var group = groups[groupName];
+                    let group = groups[groupName];
                     if (!$.isArray(group)) {
                         group = [];
                         groups[groupName] = group;
@@ -13099,7 +13110,7 @@ dependencyScope.jQuery = $;;
 
             // check the groups, we validate if for each found group the needed values exists
             $.each(groups, function (groupName, attributeNames) {
-                var group = instance.group(groupName);
+                const group = instance.group(groupName);
 
                 // get all the settings for the group (i.e., all the none-optional attributes)
                 $.each(group, function (idx, groupSetting) {
@@ -16935,7 +16946,7 @@ dependencyScope.jQuery = $;;
     /*
      * We just create a simple wrapper, which makes sure every code works.
      */
-    var Breinify = {};
+    const Breinify = {};
 
     // things that shouldn't be used anyways (not documented)
     Breinify.BreinifyConfig = function() {};
