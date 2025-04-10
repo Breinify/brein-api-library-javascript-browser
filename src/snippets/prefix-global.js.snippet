@@ -6,7 +6,13 @@
 ;(function(window) {
 
   // make sure we do not have any Breinify instance already
-  if (typeof window.Breinify === 'object') { return; }
+  if (typeof window.Breinify === 'object') {
+    const version = typeof window.Breinify.version === 'string' ? window.Breinify.version : 'n/a';
+    const apiVersion = typeof window.Breinify.plugins === 'object' && typeof window.Breinify.plugins.api === 'object' && typeof window.Breinify.plugins.api.version === 'string' ? window.Breinify.plugins.api.version : 'n/a';;
+    console.log('Breinify already available (version: ' + version + ', API version: ' + apiVersion + ')');
+
+    return;
+  }
 
   // create the dependencyScope
   const dependencyScope = {
