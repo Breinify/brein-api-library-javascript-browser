@@ -3,12 +3,12 @@
 !function (scope, dependencyScope) {
 
     //noinspection JSUnresolvedVariable
-    var misc = dependencyScope.misc;
+    const misc = dependencyScope.misc;
     if (misc.check(window, 'AttributeCollection', true)) {
         return;
     }
 
-    var AttributeCollection = function () {
+    const AttributeCollection = function () {
         this._defaultValues = {};
         this._settings = {};
         this._attributes = {};
@@ -41,7 +41,7 @@
          * @param {object} setting the settings of the attribute
          */
         add: function (key, setting) {
-            var name;
+            let name;
 
             if ($.isPlainObject(setting)) {
                 if (typeof setting.name === 'string') {
@@ -66,7 +66,7 @@
             this._defaultValues[name] = setting.defaultValue;
 
             if (typeof setting.group !== 'undefined' && setting.optional === false) {
-                var group = this._groups[setting.group];
+                let group = this._groups[setting.group];
                 if (!$.isArray(group)) {
                     group = [];
                     this._groups[setting.group] = group;
@@ -81,7 +81,7 @@
         },
 
         setting: function (attribute) {
-            var setting = this._settings[attribute];
+            const setting = this._settings[attribute];
 
             if (setting === null || typeof setting === 'undefined') {
                 return null;
@@ -91,7 +91,7 @@
         },
 
         group: function (attribute) {
-            var group = this._groups[attribute];
+            const group = this._groups[attribute];
 
             if (group === null || typeof group === 'undefined') {
                 return null;
@@ -101,7 +101,7 @@
         },
 
         validate: function (attribute, value) {
-            var setting = this.setting(attribute);
+            const setting = this.setting(attribute);
 
             if (setting === null) {
                 return false;
@@ -113,8 +113,8 @@
         },
 
         validateProperties: function (obj) {
-            var instance = this;
-            var groups = {};
+            const instance = this;
+            const groups = {};
 
             $.each(obj, function (attribute, value) {
 
@@ -125,11 +125,11 @@
                     throw new Error('The value "' + value + '" is invalid for the property "' + attribute + '".');
                 }
 
-                var setting = instance.setting(attribute);
-                var groupName = setting.group;
+                const setting = instance.setting(attribute);
+                const groupName = setting.group;
 
                 if (typeof groupName !== 'undefined' && setting.optional === false) {
-                    var group = groups[groupName];
+                    let group = groups[groupName];
                     if (!$.isArray(group)) {
                         group = [];
                         groups[groupName] = group;
@@ -141,7 +141,7 @@
 
             // check the groups, we validate if for each found group the needed values exists
             $.each(groups, function (groupName, attributeNames) {
-                var group = instance.group(groupName);
+                const group = instance.group(groupName);
 
                 // get all the settings for the group (i.e., all the none-optional attributes)
                 $.each(group, function (idx, groupSetting) {
