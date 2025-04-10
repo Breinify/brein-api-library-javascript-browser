@@ -4,6 +4,11 @@
  * register any global variables.
  */
 ;(function(window) {
+
+  // make sure we do not have any Breinify instance already
+  if (typeof window.Breinify === 'object') { return; }
+
+  // create the dependencyScope
   const dependencyScope = {
     skipRequire: true
   };
