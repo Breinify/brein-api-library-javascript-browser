@@ -850,7 +850,8 @@
                 $recContainer: $recContainer,
                 additionalEventData: additionalEventData,
                 recommendationData: recommendationData,
-                recommendation: recommendation
+                recommendation: recommendation,
+                option: option
             };
             Renderer._process(option.process.clickedItem, event, settings);
 
@@ -873,7 +874,8 @@
                 $controlItem: $el,
                 $controlContainer: $controlContainer,
                 additionalEventData: additionalEventData,
-                recommendationData: recommendationData
+                recommendationData: recommendationData,
+                option: option
             };
             Renderer._process(option.process.clickedItem, event, settings);
 
