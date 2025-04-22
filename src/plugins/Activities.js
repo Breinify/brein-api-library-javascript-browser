@@ -1149,6 +1149,9 @@
                 timestamp: new Date().getTime()
             };
 
+            // we set the page information right now, so the scheduled information has it
+            activityData.tags = this._setPageTags(activityData.tags);
+
             // return the identifier
             return usedDelayedActivitiesStorage.store(id, activityData);
         },
@@ -1503,6 +1506,23 @@
             }
         },
 
+        _setPageTags: function (tags) {
+
+            tags = $.isPlainObject(tags) ? tags : {};
+
+            /*
+             * Also add always some page specific identifiers, these are:
+             * - pageId : an identifier (wrapper) for the current page
+             * - pageUrl: the URL of the current page
+             * - title  : the title of the current page
+             */
+            tags.pageId = Breinify.UTL.isNonEmptyString(tags.pageId) === null ? window.location.pathname : tags.pageId;
+            tags.pageUrl = Breinify.UTL.isNonEmptyString(tags.pageUrl) === null ? window.location.href : tags.pageUrl;
+            tags.title = Breinify.UTL.isNonEmptyString(tags.title) === null ? document.title : tags.title;
+
+            return tags;
+        },
+
         _send: function (type, user, tags, callback) {
             user = Breinify.UTL.user.create(user);
             tags = this._extendTags(type, tags);
@@ -1515,6 +1535,9 @@
              * this ensures that activities can be bundles of having the same origin
              */
             tags.originId = originId;
+
+            // set also the page information if it's not available yet
+            tags = this._setPageTags(tags);
 
             // send the activity to Breinify
             Breinify.activity(user, type, null, null, tags, function (data, error) {
