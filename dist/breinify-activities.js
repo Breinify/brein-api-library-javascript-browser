@@ -331,11 +331,21 @@
              * otherwise {@code false} will not schedule the activity).
              */
             scheduleActivities: null,
+            /**
+             * This method triggers before the actual sending happens. The information can be manipulated here
+             * to be taken into effect for the actual sending (ex. adding tags).
+             *
+             * @param settings the settings
+             * @param eventData the event's data
+             * @param user the user object
+             * @param tags the tags
+             */
             onBeforeActivitySent: function (settings, eventData, user, tags) {
             },
             /**
-             * This method does not what for the actual activity to be successfully sent, but triggers right
-             * after the sent was initiated
+             * This method does not wait for the actual activity to be successfully sent, but triggers right
+             * after the sending was initiated.
+             *
              * @param settings the settings
              * @param eventData the event's data
              * @param user the user object
@@ -343,6 +353,14 @@
              */
             onActivitySent: function (settings, eventData, user, tags) {
             },
+            /**
+             * This method triggers when the sending was successful.
+             *
+             * @param settings the settings
+             * @param eventData the event's data
+             * @param user the user object
+             * @param tags the tags
+             */
             onAfterActivitySent: function (settings, eventData, user, tags) {
             }
         },
@@ -458,7 +476,7 @@
 
         /**
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
-         * elements, when changes are observed will also trigger teh data-brob-active attribute change.
+         * elements, when changes are observed will also trigger the data-brob-active attribute change.
          *
          * @param selectors a single or an array of selectors which select elements affected
          * @param observerType the type to handle, ex. 'click'
@@ -847,7 +865,7 @@
 
         /**
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
-         * elements, when changes are observed will also trigger teh data-brob-active attribute change.
+         * elements, when changes are observed will also trigger the data-brob-active attribute change.
          *
          * @param selector the selector which selects elements to observe
          * @param observerType the type to handle, ex. 'click'
