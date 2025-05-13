@@ -287,6 +287,20 @@
         }
     };
 
+    const defaultSubmitObserverOption = {
+        observer: 'submit',
+        settings: {
+            activityType: 'submittedForm',
+            scheduleActivities: null,
+            onBeforeActivitySent: function (settings, eventData, user, tags) {
+            },
+            onActivitySent: function (settings, eventData, user, tags) {
+            },
+            onAfterActivitySent: function (settings, eventData, user, tags) {
+            }
+        }
+    };
+
     const defaultClickObserverOption = {
         observer: 'click',
         settings: {
@@ -749,7 +763,30 @@
 
             if (observer.observe === defaultClickObserverOption.observer) {
                 this.activateClickObserver($el, settings, data);
+            } else if (observer.observe === defaultSubmitObserverOption.observer) {
+                this.activateSubmitObserver($el, settings, data);
             }
+        },
+
+        activateSubmitObserver: function ($el, settings, data) {
+            const _self = this;
+
+            $el.submit(function (event) {
+                _self.handleSubmit(event, $el, settings, data);
+            });
+        },
+
+        handleSubmit: function (event, $el, settings, data) {
+            const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : defaultSubmitObserverOption.settings.activityType;
+            const eventData = {
+                $el: $el,
+                event: event,
+                defaultOpenInNewTab: false,
+                defaultWillReloadPage: false,
+                overriddenScheduleActivities: false
+            };
+
+            this.handleEvent(activityType, eventData, $el, settings, data);
         },
 
         activateClickObserver: function ($el, settings, data) {
@@ -786,10 +823,8 @@
         handleClick: function (event, $el, settings, data) {
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
             const willReloadPage = event.target instanceof HTMLAnchorElement;
-            const user = data.user;
-            const tags = data.tags;
 
-            const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : 'clickedElement';
+            const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : defaultClickObserverOption.settings.activityType;
             const eventData = {
                 $el: $el,
                 event: event,
@@ -797,6 +832,13 @@
                 defaultWillReloadPage: willReloadPage,
                 overriddenScheduleActivities: false
             };
+
+            this.handleEvent(activityType, eventData, $el, settings, data);
+        },
+
+        handleEvent: function (activityType, eventData, $el, settings, data) {
+            const user = data.user;
+            const tags = data.tags;
 
             let execute = true;
             if ($.isFunction(settings.onBeforeActivitySent)) {
@@ -811,10 +853,10 @@
 
             let scheduleActivity;
             if (settings.scheduleActivities === null) {
-                if (willReloadPage === false) {
+                if (eventData.defaultWillReloadPage === false) {
                     scheduleActivity = false;
                 } else {
-                    scheduleActivity = openInNewTab !== true;
+                    scheduleActivity = eventData.defaultOpenInNewTab !== true;
                 }
             } else if (typeof settings.scheduleActivities === 'boolean') {
                 scheduleActivity = settings.scheduleActivities || eventData.overriddenScheduleActivities;
