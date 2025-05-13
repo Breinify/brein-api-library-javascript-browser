@@ -15784,7 +15784,10 @@ dependencyScope.jQuery = $;;
             if ($.isPlainObject(additional) && typeof value === 'undefined') {
                 $.extend(this._user.additional, additional)
             } else if (typeof additional === 'string' && typeof value !== 'undefined') {
-                this._user.additional[additional] = value;
+                const additionalValue = {};
+                additionalValue[additional] = value;
+
+                this._user.additional = $.extend(true, {}, this._user.additional, additionalValue);
             } else {
                 throw new Error('The additional must be a plain object');
             }
