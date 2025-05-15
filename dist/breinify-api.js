@@ -14043,6 +14043,31 @@ dependencyScope.jQuery = $;;
                 return tagName === null ? 'no tag' : tagName.toLowerCase();
             },
 
+            determineElementType: function($el, mapper) {
+                const tagName = this.getTagName($el);
+
+                // apply any mapper first if one is specified
+                if ($.isFunction(mapper)) {
+                    const elementType = BreinifyUtil.isNonEmptyString(mapper(tagName, $el));
+                    if (elementType !== null) {
+                        return elementType;
+                    }
+                }
+
+                switch (tagName) {
+                    case 'a':
+                        return 'anchor (' + tagName + ')';
+                    case 'img':
+                        return 'image (' + tagName + ')';
+                    case 'div':
+                        return 'block (' + tagName + ')';
+                    case 'span':
+                        return 'inline (' + tagName + ')';
+                    default:
+                        return 'miscellaneous (' + tagName + ')';
+                }
+            },
+
             addModification: function (modificationId, modification) {
                 _private.domObserver.addModification(modificationId, modification);
             },
