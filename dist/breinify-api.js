@@ -17044,6 +17044,7 @@ dependencyScope.jQuery = $;;
         },
         dom: {
             getTagName: function() { return 'no tag'; },
+            determineElementType: function() { return null; },
             addModification: function() {},
             removeModification: function() {},
             addClassChangeObserver: function() {}
