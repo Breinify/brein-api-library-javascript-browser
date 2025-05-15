@@ -14038,6 +14038,11 @@ dependencyScope.jQuery = $;;
 
         dom: {
 
+            getTagName: function($el) {
+                let tagName = $el === null ? null : Breinify.UTL.isNonEmptyString($el.prop('tagName'));
+                return tagName === null ? 'no tag' : tagName.toLowerCase();
+            },
+
             addModification: function (modificationId, modification) {
                 _private.domObserver.addModification(modificationId, modification);
             },
@@ -17013,6 +17018,7 @@ dependencyScope.jQuery = $;;
             }
         },
         dom: {
+            getTagName: function() { return 'no tag'; },
             addModification: function() {},
             removeModification: function() {},
             addClassChangeObserver: function() {}

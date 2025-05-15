@@ -909,6 +909,11 @@
 
         dom: {
 
+            getTagName: function($el) {
+                let tagName = $el === null ? null : Breinify.UTL.isNonEmptyString($el.prop('tagName'));
+                return tagName === null ? 'no tag' : tagName.toLowerCase();
+            },
+
             addModification: function (modificationId, modification) {
                 _private.domObserver.addModification(modificationId, modification);
             },
