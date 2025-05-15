@@ -14039,7 +14039,7 @@ dependencyScope.jQuery = $;;
         dom: {
 
             getTagName: function($el) {
-                let tagName = $el === null ? null : Breinify.UTL.isNonEmptyString($el.prop('tagName'));
+                let tagName = $el === null ? null : BreinifyUtil.isNonEmptyString($el.prop('tagName'));
                 return tagName === null ? 'no tag' : tagName.toLowerCase();
             },
 
