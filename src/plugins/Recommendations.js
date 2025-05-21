@@ -350,7 +350,9 @@
             append: null,
             replace: null,
             /**
-             * If used, it must be a function taking in
+             * If used, it must be a function taking in data and a callback, i.e.:
+             * {@code function(data, callback) { ... }}, whereby the callback has to be triggered with
+             * resulting $target instance (i.e., the container).
              */
             externalRender: null
         },
