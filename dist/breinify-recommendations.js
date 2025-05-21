@@ -52,7 +52,7 @@
                 return null;
             } else if (typeof value === 'string') {
                 return $(value);
-            } else if (typeof value === 'object' && typeof value.jquery === 'string') {
+            } else if (value instanceof $) {
                 return value;
             } else {
                 return null;
@@ -1139,7 +1139,7 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        if ($recItem !== null && typeof $recItem === 'object' && typeof $recItem.jquery === 'string' && $recItem.length === 1) {
+                        if ($recItem instanceof $ && $recItem.length === 1) {
                             Renderer._setupItemData($recItem, idx, recommendation);
                         }
                     });
