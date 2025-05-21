@@ -1137,7 +1137,9 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        Renderer._setupItemData($recItem, idx, recommendation);
+                        if ($recItem instanceof $ && $recItem.length === 1) {
+                            Renderer._setupItemData($recItem, idx, recommendation);
+                        }
                     });
                 }
                 // if we are rendering append the children for each result
