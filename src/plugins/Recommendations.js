@@ -48,7 +48,9 @@
                 value = value(parameters);
             }
 
-            if (typeof value === 'string') {
+            if (value === null) {
+                return null;
+            } else if (typeof value === 'string') {
                 return $(value);
             } else if (typeof value === 'object' && typeof value.jquery === 'string') {
                 return value;
@@ -1131,13 +1133,13 @@
 
                 // if a third party is rendering, apply the data to the rendered elements
                 if (settings.externalRendering === true) {
-                    const itemSelection = $.isFunction(settings.itemSelection) ? settings.itemSelection : function($itemContainer, idx) {
+                    const itemSelection = $.isFunction(settings.itemSelection) ? settings.itemSelection : function ($itemContainer, idx) {
                         return $itemContainer.children().eq(idx);
                     };
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        if (typeof $recItem === 'object' && typeof $recItem.jquery === 'string' && $recItem.length === 1) {
+                        if ($recItem !== null && typeof $recItem === 'object' && typeof $recItem.jquery === 'string' && $recItem.length === 1) {
                             Renderer._setupItemData($recItem, idx, recommendation);
                         }
                     });
