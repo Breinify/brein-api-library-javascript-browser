@@ -416,6 +416,7 @@
      */
     const Breinify = {
         version: '{{PROJECT.VERSION}}',
+        jQuery: $,
         jQueryVersion: $.fn.jquery
     };
 

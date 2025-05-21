@@ -15173,6 +15173,13 @@ dependencyScope.jQuery = $;;
         },
 
         _jquery: function () {
+
+            /*
+             * This is more tricky than it seems to be, since if there are multiple Breinify instances loaded, ex.,
+             * one script is used for personalization content, the other for activity content, this instances
+             * would change for each script (since jQuery is script bound). We want to ensure we utilize the same
+             * instance for both scripts, thus we bind a jQuery internally as a global jQuery if it's not used yet
+             */
             return $;
         }
     };
@@ -16335,6 +16342,7 @@ dependencyScope.jQuery = $;;
      */
     const Breinify = {
         version: '1.0.24',
+        jQuery: $,
         jQueryVersion: $.fn.jquery
     };
 
