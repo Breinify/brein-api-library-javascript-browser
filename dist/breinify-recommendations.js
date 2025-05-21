@@ -88,11 +88,12 @@
                 selector = option.position.replace;
                 method = 'replaceWith';
             } else if (option.position.externalRender !== null) {
-                this._applyExternalRender(option, data, function ($target) {
-                    cb($target, {
+                this._applyExternalRender(option, data, function ($target, settings) {
+                    cb($target, $.extend(true, {
                         error: false,
-                        externalRendering: true
-                    });
+                        externalRendering: true,
+                        itemSelection: null
+                    }, settings));
                 });
                 return;
             }
@@ -180,12 +181,12 @@
 
         /**
          * Replaces all placeholders in text and attributes, the returned element is the same as
-         * passed in under {@code $entry}.
+         * passed in under `$entry`.
          *
          * @param $entry the element to check for replacements
          * @param replacements the replacements to apply
          * @param option the defined options
-         * @returns {*} the {@code $entry}, just for chaining purposes
+         * @returns {*} the `$entry`, just for chaining purposes
          * @private
          */
         _replacePlaceholders: function ($entry, replacements, option) {
@@ -224,7 +225,7 @@
                 }
             }
 
-            $.each(renaming, function(attrName, settings) {
+            $.each(renaming, function (attrName, settings) {
                 $entry.removeAttr(attrName);
                 $entry.attr(settings.name, settings.value);
             });
@@ -239,11 +240,11 @@
 
         /**
          * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
-         * the modified text, will return {@code null} if no replacement took place.
+         * the modified text, will return `null` if no replacement took place.
          * @param value the value to replace
          * @param data the data to replace values from
          * @param option options to modify the behavior
-         * @returns {string|null} the replaced value or {@code null} if no replacement took place
+         * @returns {string|null} the replaced value or `null` if no replacement took place
          * @private
          */
         _replace: function (value, data, option) {
@@ -350,7 +351,22 @@
             append: null,
             replace: null,
             /**
-             * If used, it must be a function taking in
+             * If used, it must be a function taking in data and a callback, i.e.:
+             * `function(data, callback) { ... }`, whereby the callback has to be triggered with
+             * resulting $target instance (i.e., the container).
+             *
+             * The callback takes optionally settings to override the external rendering settings, i.e.,
+             * `callback($itemContainer, { ... })`.
+             *
+             * The settings are currently:
+             * ```json
+             * {
+             *   error: false,             // default is false and normally should not be changed
+             *   externalRendering: true,  // default is true and normally should not be changed
+             *   itemSelection: null       // can be overridden to provide an own item selection method
+             *                             // -> function($itemContainer, idx, recommendation)
+             * }
+             * ```
              */
             externalRender: null
         },
@@ -359,7 +375,7 @@
              * Method to determine what to replace the placeholder with if nothing was resolved, i.e.,
              * if anything else did not resolve to a value.
              * @param placeholder the placeholder that could not be resolved
-             * @returns {null|string} {@code null} if the placeholder should not be replaced,
+             * @returns {null|string} `null` if the placeholder should not be replaced,
              * otherwise a string (can be empty)
              */
             replaceWith: function (placeholder) {
@@ -389,7 +405,7 @@
             error: function (error) {
                 // by default, ignored
             },
-            canceled: function() {
+            canceled: function () {
                 // by default, ignored
             },
             init: function (option) {
@@ -501,7 +517,7 @@
             }, arguments, this);
         },
 
-        cancel: function(processId) {
+        cancel: function (processId) {
             canceledRequests[processId] = {
                 cancellationTime: new Date().getTime(),
                 status: canceledRequests._status.canceled,
@@ -621,12 +637,12 @@
             }
         },
 
-        _isCanceled: function(processId) {
+        _isCanceled: function (processId) {
             const now = new Date().getTime();
 
             // find expired processes
             const expiredProcesses = [];
-            $.each(canceledRequests, function(processId, canceledRequest) {
+            $.each(canceledRequests, function (processId, canceledRequest) {
                 if (now - canceledRequest.cancellationTime > 60 * 1000) {
                     expiredProcesses.push(processId);
                 }
@@ -1115,9 +1131,12 @@
 
                 // if a third party is rendering, apply the data to the rendered elements
                 if (settings.externalRendering === true) {
+                    const itemSelection = $.isFunction(settings.itemSelection) ? settings.itemSelection : function($itemContainer, idx) {
+                        return $itemContainer.children().eq(idx);
+                    };
 
                     $.each(data.recommendations, function (idx, recommendation) {
-                        let $recItem = $itemContainer.children().eq(idx);
+                        let $recItem = itemSelection($itemContainer, idx, recommendation);
                         Renderer._setupItemData($recItem, idx, recommendation);
                     });
                 }
