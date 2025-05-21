@@ -909,12 +909,12 @@
 
         dom: {
 
-            getTagName: function($el) {
+            getTagName: function ($el) {
                 let tagName = $el === null ? null : BreinifyUtil.isNonEmptyString($el.prop('tagName'));
                 return tagName === null ? 'no tag' : tagName.toLowerCase();
             },
 
-            determineElementType: function($el, mapper) {
+            determineElementType: function ($el, mapper) {
                 const tagName = this.getTagName($el);
 
                 // apply any mapper first if one is specified
@@ -2044,18 +2044,7 @@
         },
 
         _jquery: function () {
-
-            /*
-             * This is more tricky than it seems to be, since if there are multiple Breinify instances loaded, ex.,
-             * one script is used for personalization content, the other for activity content, this instances
-             * would change for each script (since jQuery is script bound). We want to ensure we utilize the same
-             * instance for both scripts, thus we bind a jQuery internally as a global jQuery if it's not used yet
-             */
-            if (scope.Breinify.jQuery) {
-                return scope.Breinify.jQuery;
-            } else {
-                return $;
-            }
+            return $;
         }
     };
 
