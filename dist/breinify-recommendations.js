@@ -50,7 +50,7 @@
 
             if (typeof value === 'string') {
                 return $(value);
-            } else if (value instanceof $) {
+            } else if (typeof value === 'object' && typeof value.jquery === 'string') {
                 return value;
             } else {
                 return null;
@@ -1137,7 +1137,7 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        if ($recItem instanceof $ && $recItem.length === 1) {
+                        if (typeof $recItem === 'object' && typeof $recItem.jquery === 'string' && $recItem.length === 1) {
                             Renderer._setupItemData($recItem, idx, recommendation);
                         }
                     });
