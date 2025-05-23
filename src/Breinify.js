@@ -496,7 +496,16 @@
                 _privates.handleRecommendationResponse(data, errorText, callback);
             };
 
-            _privates.ajax(url, data, internalCallback, internalCallback);
+            const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
+            if ($.isFunction(wrapper)) {
+                wrapper(function(execute) {
+                    if (execute !== false) {
+                        _privates.ajax(url, data, internalCallback, internalCallback);
+                    }
+                })
+            } else {
+                _privates.ajax(url, data, internalCallback, internalCallback);
+            }
         };
 
         overload.overload({

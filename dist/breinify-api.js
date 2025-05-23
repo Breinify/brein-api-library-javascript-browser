@@ -15512,7 +15512,8 @@ dependencyScope.jQuery = $;;
         CUSTOMER_PLUGIN_USER_LOOKUP: 'userLookUp',
         CUSTOMER_PLUGIN_UTM_MAPPER: 'utmMapper',
         CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER: 'errorTagsMapper',
-        CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper'
+        CUSTOMER_PLUGIN_PARAMETER_MAPPER: 'parametersMapper',
+        CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER: 'recommendationRequestWrapper'
     };
 
     /*
@@ -16415,7 +16416,16 @@ dependencyScope.jQuery = $;;
                 _privates.handleRecommendationResponse(data, errorText, callback);
             };
 
-            _privates.ajax(url, data, internalCallback, internalCallback);
+            const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
+            if ($.isFunction(wrapper)) {
+                wrapper(function(execute) {
+                    if (execute !== false) {
+                        _privates.ajax(url, data, internalCallback, internalCallback);
+                    }
+                })
+            } else {
+                _privates.ajax(url, data, internalCallback, internalCallback);
+            }
         };
 
         overload.overload({
