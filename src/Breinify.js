@@ -498,7 +498,7 @@
 
             const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
             if ($.isFunction(wrapper)) {
-                wrapper(function(execute) {
+                wrapper(url, data, function(execute) {
                     if (execute !== false) {
                         _privates.ajax(url, data, internalCallback, internalCallback);
                     }
