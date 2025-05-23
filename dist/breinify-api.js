@@ -16411,20 +16411,31 @@ dependencyScope.jQuery = $;;
 
         const recHandler = function (url, data, callback) {
 
+            const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
+            const preFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.pre) ? wrapper.pre : null;
+            const postFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.post) ? wrapper.post : null;
+
             // we utilize an internal callback to do some internal data-handling with the response
-            const internalCallback = function (data, errorText) {
-                _privates.handleRecommendationResponse(data, errorText, callback);
+            let internalCallback = function (data, errorText) {
+                if (postFunction === null) {
+                    _privates.handleRecommendationResponse(data, errorText, callback);
+                } else {
+                    postFunction(data, errorText, function (execute) {
+                        if (execute !== false) {
+                            _privates.handleRecommendationResponse(data, errorText, callback);
+                        }
+                    });
+                }
             };
 
-            const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
-            if ($.isFunction(wrapper)) {
-                wrapper(url, data, function(execute) {
+            if (preFunction === null) {
+                _privates.ajax(url, data, internalCallback, internalCallback);
+            } else {
+                preFunction(url, data, function (execute) {
                     if (execute !== false) {
                         _privates.ajax(url, data, internalCallback, internalCallback);
                     }
-                })
-            } else {
-                _privates.ajax(url, data, internalCallback, internalCallback);
+                });
             }
         };
 
