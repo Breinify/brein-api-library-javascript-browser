@@ -16428,6 +16428,7 @@ dependencyScope.jQuery = $;;
                 }
             };
 
+            // if there is a pre-function we execute it before actually running the ajax
             if (preFunction === null) {
                 _privates.ajax(url, data, internalCallback, internalCallback);
             } else {
