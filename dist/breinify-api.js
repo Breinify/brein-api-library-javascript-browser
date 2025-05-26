@@ -16428,16 +16428,7 @@ dependencyScope.jQuery = $;;
                 }
             };
 
-            // if there is a pre-function we execute it before actually running the ajax
-            if (preFunction === null) {
-                _privates.ajax(url, data, internalCallback, internalCallback);
-            } else {
-                preFunction(function (execute) {
-                    if (execute !== false) {
-                        _privates.ajax(url, data, internalCallback, internalCallback);
-                    }
-                });
-            }
+            _privates.ajax(url, data, internalCallback, internalCallback);
         };
 
         overload.overload({
