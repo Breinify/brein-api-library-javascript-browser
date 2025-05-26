@@ -15943,7 +15943,7 @@ dependencyScope.jQuery = $;;
     const ATTR_CONFIG = BreinifyConfig.ATTRIBUTES;
 
     /**
-     * As JS don't supports data types, implements an overload method. This implementation is inspired by
+     * As JS does not support data types, implements an overload method. This implementation is inspired by
      * https://github.com/myfingersarebroken/aer
      */
     function Wrapper() {
@@ -16398,7 +16398,7 @@ dependencyScope.jQuery = $;;
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
     /**
-     * Sends an recommendation request to the Breinify server.
+     * Sends a recommendation request to the Breinify server.
      *
      * @param user {object} the user-information
      * @param nrOfRecommendations {number|null} the amount of recommendations to get
@@ -16409,11 +16409,11 @@ dependencyScope.jQuery = $;;
     Breinify.recommendation = function () {
         const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.RECOMMENDATION_ENDPOINT);
 
-        const recHandler = function (url, data, callback) {
+        const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
+        const preFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.pre) ? wrapper.pre : null;
+        const postFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.post) ? wrapper.post : null;
 
-            const wrapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_RECOMMENDATION_REQUEST_WRAPPER);
-            const preFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.pre) ? wrapper.pre : null;
-            const postFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.post) ? wrapper.post : null;
+        const recHandler = function (url, data, callback) {
 
             // we utilize an internal callback to do some internal data-handling with the response
             let internalCallback = function (data, errorText) {
@@ -16432,7 +16432,7 @@ dependencyScope.jQuery = $;;
             if (preFunction === null) {
                 _privates.ajax(url, data, internalCallback, internalCallback);
             } else {
-                preFunction(url, data, function (execute) {
+                preFunction(function (execute) {
                     if (execute !== false) {
                         _privates.ajax(url, data, internalCallback, internalCallback);
                     }
@@ -16446,14 +16446,14 @@ dependencyScope.jQuery = $;;
                     'numRecommendations': 3
                 }, false, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Number,Function': function (user, nrOfRecommendations, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations
                 }, false, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Number,String,Function': function (user, nrOfRecommendations, category, callback) {
                 Breinify.recommendationUser(user, {
@@ -16461,14 +16461,14 @@ dependencyScope.jQuery = $;;
                     'recommendationCategories': [category]
                 }, false, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Number,Boolean,Function': function (user, nrOfRecommendations, sign, callback) {
                 Breinify.recommendationUser(user, {
                     'numRecommendations': nrOfRecommendations
                 }, sign, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Number,String,Boolean,Function': function (user, nrOfRecommendations, category, sign, callback) {
                 Breinify.recommendationUser(user, {
@@ -16476,27 +16476,27 @@ dependencyScope.jQuery = $;;
                     'recommendationCategories': [category]
                 }, sign, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Object,Function': function (user, recommendation, callback) {
                 Breinify.recommendationUser(user, recommendation, false, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Array,Function': function (user, recommendation, callback) {
                 Breinify.recommendationUser(user, recommendation, false, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Object,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             },
             'Object,Array,Boolean,Function': function (user, recommendation, sign, callback) {
                 Breinify.recommendationUser(user, recommendation, sign, function (data) {
                     recHandler(url, data, callback);
-                });
+                }, preFunction);
             }
         }, arguments, this);
     };
@@ -16508,8 +16508,9 @@ dependencyScope.jQuery = $;;
      * @param recommendation the instance of the recommendations settings
      * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
      * @param onReady {function|null} function to be executed after successful user creation
+     * @param preFunction {function} a function that is executed before any user and on-ready is resolved, if this method does not return {@code true} the execution is stopped
      */
-    Breinify.recommendationUser = function (user, recommendation, sign, onReady) {
+    Breinify.recommendationUser = function (user, recommendation, sign, onReady, preFunction) {
 
         const _onReady = function (user) {
             if ($.isFunction(onReady)) {
@@ -16517,8 +16518,7 @@ dependencyScope.jQuery = $;;
             }
         };
 
-        // get the user information
-        _privates.createUser(user, function (user) {
+        const onSuccess = function (user) {
 
             if (!user.validate()) {
                 _onReady(null);
@@ -16559,7 +16559,18 @@ dependencyScope.jQuery = $;;
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
-        });
+        };
+
+        if ($.isFunction(preFunction)) {
+            preFunction(function (execute) {
+                if (execute !== false) {
+                    _privates.createUser(user, onSuccess);
+                }
+            });
+        } else {
+            // get the user information
+            _privates.createUser(user, onSuccess);
+        }
     };
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
