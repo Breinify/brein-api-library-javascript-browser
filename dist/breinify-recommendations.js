@@ -639,6 +639,13 @@
             }
         },
 
+        createClickedRecommendationTags: function(recommendationData, recommendation, additionalEventData) {
+            const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
+            this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
+
+            return activityTags;
+        },
+
         _isCanceled: function (processId) {
             const now = new Date().getTime();
 

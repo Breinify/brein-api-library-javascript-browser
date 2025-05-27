@@ -16555,6 +16555,7 @@ dependencyScope.jQuery = $;;
         if ($.isFunction(preFunction)) {
             preFunction(function (execute) {
                 if (execute !== false) {
+                    // get the user information if the execution should happen
                     _privates.createUser(user, onSuccess);
                 }
             });
