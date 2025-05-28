@@ -139,8 +139,8 @@
             for (let i = 0; i < allIds.length; i++) {
                 const id = allIds[i];
 
-                const oldItem = oldCart.items[id];
-                const newItem = newCart.items[id];
+                const { keys: k1, ...oldItem} = oldCart.items[id];
+                const { keys: k2, ...newItem} = newCart.items[id];
 
                 if ($.isPlainObject(oldItem) && $.isPlainObject(newItem)) {
 
@@ -160,7 +160,7 @@
                     removedItems.push(oldItem);
                 } else {
 
-                    // the item was added, it's no in the old one
+                    // the item was added, it's not in the old one
                     addedItems.push(newItem);
                 }
             }
