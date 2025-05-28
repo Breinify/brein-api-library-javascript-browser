@@ -262,6 +262,7 @@
                     currentCartItem.quantity += quantity;
                     currentCartItem.keys.push(item.key);
 
+                    // add any additional information of the item
                     for (let j = 0; j < this.additionalItemData.length; j++) {
                         const itemAttr = this.additionalItemData[j];
                         currentCartItem.additionalData[itemAttr] = item[itemAttr];
@@ -271,6 +272,7 @@
                 // nothing to update, this is an invalid result
             }
 
+            // add any requested additional data from the cart instance
             for (let i = 0; i < this.additionalData.length; i++) {
                 const cartAttr = this.additionalData[i];
                 this.currentCart.additionalData[cartAttr] = data[cartAttr];
