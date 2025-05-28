@@ -17,6 +17,8 @@
         lookUpToken: null,
         currentCart: null,
         originalFetch: null,
+        additionalData: [],
+        additionalItemData: [],
         observers: [],
 
         setup: function (config) {
@@ -82,6 +84,13 @@
                         _self._loadCart();
                     });
                 };
+            }
+
+            if ($.isArray(config.additionalData)) {
+                this.additionalData = config.additionalData;
+            }
+            if ($.isArray(config.additionalItemData)) {
+                this.additionalItemData = config.additionalItemData;
             }
 
             this.isSetup = true;
@@ -211,14 +220,16 @@
                     isEmpty: true,
                     size: 0,
                     quantity: 0,
-                    items: {}
+                    items: {},
+                    additionalData: {}
                 };
             } else if ($.isArray(data.items)) {
                 this.currentCart = {
                     isEmpty: true,
                     size: 0,
                     quantity: 0,
-                    items: {}
+                    items: {},
+                    additionalData: {}
                 };
 
                 for (let i = 0; i < data.items.length; i++) {
@@ -239,6 +250,7 @@
                     let currentCartItem = this.currentCart.items[id];
                     if (!$.isPlainObject(currentCartItem)) {
                         currentCartItem = {
+                            additionalData: {},
                             quantity: 0,
                             keys: []
                         };
@@ -249,9 +261,19 @@
                     currentCartItem.name = Breinify.UTL.isNonEmptyString(item.product_title);
                     currentCartItem.quantity += quantity;
                     currentCartItem.keys.push(item.key);
+
+                    for (let j = 0; j < this.additionalItemData.length; j++) {
+                        const itemAttr = this.additionalItemData[j];
+                        currentCartItem.additionalData[itemAttr] = item[itemAttr];
+                    }
                 }
             } else {
                 // nothing to update, this is an invalid result
+            }
+
+            for (let i = 0; j < this.additionalData.length; j++) {
+                const cartAttr = this.additionalData[j];
+                this.currentCart.additionalData[cartAttr] = data[cartAttr];
             }
 
             return this.currentCart;
@@ -274,10 +296,18 @@
             cartObservers = $.isFunction(cartObservers) ? [cartObservers] : cartObservers;
             cartObservers = $.isArray(cartObservers) ? cartObservers : null;
 
+            let additionalData = this.getConfig('cart::additionalData', null);
+            additionalData = $.isArray(additionalData) ? additionalData : [];
+
+            let additionalItemData = this.getConfig('cart::additionalItemData', null);
+            additionalItemData = $.isArray(additionalItemData) ? additionalItemData : [];
+
             shopifyCart.setup({
                 enableCartRequests: cartEnableRequest,
                 captureCartFetchEvents: captureCartFetchEvents,
                 refreshRateInMs: cartRefreshRateInMs,
+                additionalData: additionalData,
+                additionalItemData: additionalItemData,
                 observers: cartObservers
             });
         },
