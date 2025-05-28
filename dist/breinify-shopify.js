@@ -139,28 +139,34 @@
             for (let i = 0; i < allIds.length; i++) {
                 const id = allIds[i];
 
-                const { keys: k1, ...oldItem} = oldCart.items[id];
-                const { keys: k2, ...newItem} = newCart.items[id];
+                const cartOldItem = oldCart.items[id];
+                const cartNewItem = newCart.items[id];
 
-                if ($.isPlainObject(oldItem) && $.isPlainObject(newItem)) {
+                if ($.isPlainObject(cartOldItem) && $.isPlainObject(cartNewItem)) {
 
                     // check any difference in quantity, old > new means removed, old < new added
-                    if (oldItem.quantity > newItem.quantity) {
+                    if (cartOldItem.quantity > cartNewItem.quantity) {
+
+                        const { keys: k1, ...oldItem } = cartOldItem;
                         removedItems.push($.extend(true, {}, oldItem, {
-                            quantity: oldItem.quantity - newItem.quantity
+                            quantity: oldItem.quantity - cartNewItem.quantity
                         }));
-                    } else if (oldItem.quantity < newItem.quantity) {
+                    } else if (cartOldItem.quantity < cartNewItem.quantity) {
+
+                        const { keys: k2, ...newItem } = cartNewItem;
                         addedItems.push($.extend(true, {}, newItem, {
-                            quantity: newItem.quantity - oldItem.quantity
+                            quantity: newItem.quantity - cartOldItem.quantity
                         }));
                     }
-                } else if ($.isPlainObject(oldItem)) {
+                } else if ($.isPlainObject(cartOldItem)) {
 
                     // in the new cart, the item does not exist anymore
+                    const { keys: k1, ...oldItem } = cartOldItem;
                     removedItems.push(oldItem);
                 } else {
 
                     // the item was added, it's not in the old one
+                    const { keys: k2, ...newItem } = cartNewItem;
                     addedItems.push(newItem);
                 }
             }
