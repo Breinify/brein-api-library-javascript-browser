@@ -16,6 +16,7 @@
         loadedToken: null,
         lookUpToken: null,
         currentCart: null,
+        originalFetch: null,
         observers: [],
 
         setup: function (config) {
@@ -45,6 +46,26 @@
                         _self._loadCart();
                     }, config.refreshRateInMs);
                 }
+            }
+
+            if (config.captureCartFetchEvents === true) {
+                this.originalFetch = window.fetch;
+
+                window.fetch = function () {
+                    const args = arguments;
+                    const url = args[0];
+
+                    if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                        return _self.originalFetch.apply(this, args);
+                    }
+
+                    return _self.originalFetch.apply(this, args).then(response => {
+                        // response.clone().json().then(data => _self._loadCart());
+
+                        _self._loadCart();
+                        return response;
+                    });
+                };
             }
 
             this.isSetup = true;
@@ -223,6 +244,9 @@
             let cartEnableRequest = this.getConfig('cart::enableRequests', null);
             cartEnableRequest = typeof cartEnableRequest === 'boolean' ? cartEnableRequest : true;
 
+            let captureCartFetchEvents = this.getConfig('cart::captureCartFetchEvents', null);
+            captureCartFetchEvents = typeof captureCartFetchEvents === 'boolean' ? captureCartFetchEvents : true;
+
             let cartRefreshRateInMs = this.getConfig('cart::refreshRateInMs', null);
             cartRefreshRateInMs = typeof cartRefreshRateInMs === 'number' ? cartRefreshRateInMs : 2500;
 
@@ -232,6 +256,7 @@
 
             shopifyCart.setup({
                 enableCartRequests: cartEnableRequest,
+                captureCartFetchEvents: captureCartFetchEvents,
                 refreshRateInMs: cartRefreshRateInMs,
                 observers: cartObservers
             });
