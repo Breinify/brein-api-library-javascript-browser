@@ -271,8 +271,8 @@
                 // nothing to update, this is an invalid result
             }
 
-            for (let i = 0; j < this.additionalData.length; j++) {
-                const cartAttr = this.additionalData[j];
+            for (let i = 0; i < this.additionalData.length; i++) {
+                const cartAttr = this.additionalData[i];
                 this.currentCart.additionalData[cartAttr] = data[cartAttr];
             }
 
