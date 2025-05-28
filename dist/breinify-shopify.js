@@ -207,10 +207,6 @@
                     if (id === null) {
                         continue;
                     }
-                    // do not include this Jewelry Polishing Cloth Tarnish Removing (free item)
-                    else if (id === '40255563595860') {
-                        continue;
-                    }
 
                     const quantity = Breinify.UTL.toInteger(item.quantity);
 
@@ -221,7 +217,8 @@
                     let currentCartItem = this.currentCart.items[id];
                     if (!$.isPlainObject(currentCartItem)) {
                         currentCartItem = {
-                            quantity: 0
+                            quantity: 0,
+                            keys: []
                         };
                         this.currentCart.items[id] = currentCartItem;
                     }
@@ -229,6 +226,7 @@
                     currentCartItem.id = id;
                     currentCartItem.name = Breinify.UTL.isNonEmptyString(item.product_title);
                     currentCartItem.quantity += quantity;
+                    currentCartItem.keys.push(item.key);
                 }
             } else {
                 // nothing to update, this is an invalid result
