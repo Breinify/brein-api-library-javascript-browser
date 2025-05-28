@@ -66,6 +66,22 @@
                         return response;
                     });
                 };
+
+                this.originalAjax = window.jQuery.ajax;
+                window.jQuery.ajax = function (settings) {
+
+                    // settings can be a string (url) or an object
+                    const url = typeof settings === 'string' ? settings : settings.url;
+
+                    if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                        return _self.originalAjax.apply(this, arguments);
+                    }
+
+                    // Call original ajax, then trigger your cart update logic on success
+                    return _self.originalAjax.call(this, settings).done(function () {
+                        _self._loadCart();
+                    });
+                };
             }
 
             this.isSetup = true;
@@ -147,13 +163,13 @@
                     // check any difference in quantity, old > new means removed, old < new added
                     if (cartOldItem.quantity > cartNewItem.quantity) {
 
-                        const { keys: k1, ...oldItem } = cartOldItem;
+                        const {keys: k1, ...oldItem} = cartOldItem;
                         removedItems.push($.extend(true, {}, oldItem, {
                             quantity: oldItem.quantity - cartNewItem.quantity
                         }));
                     } else if (cartOldItem.quantity < cartNewItem.quantity) {
 
-                        const { keys: k2, ...newItem } = cartNewItem;
+                        const {keys: k2, ...newItem} = cartNewItem;
                         addedItems.push($.extend(true, {}, newItem, {
                             quantity: newItem.quantity - cartOldItem.quantity
                         }));
@@ -161,12 +177,12 @@
                 } else if ($.isPlainObject(cartOldItem)) {
 
                     // in the new cart, the item does not exist anymore
-                    const { keys: k1, ...oldItem } = cartOldItem;
+                    const {keys: k1, ...oldItem} = cartOldItem;
                     removedItems.push(oldItem);
                 } else {
 
                     // the item was added, it's not in the old one
-                    const { keys: k2, ...newItem } = cartNewItem;
+                    const {keys: k2, ...newItem} = cartNewItem;
                     addedItems.push(newItem);
                 }
             }
