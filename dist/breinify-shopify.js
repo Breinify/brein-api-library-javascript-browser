@@ -150,7 +150,7 @@
                 for (let i = 0; i < this.observers.length; i++) {
                     const observer = this.observers[i];
 
-                    observer(addedItems, removedItems);
+                    observer(addedItems, removedItems, newCart);
                 }
             }
         },
