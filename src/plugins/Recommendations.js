@@ -1286,9 +1286,11 @@
         _determineRecommendationType: function (recommendationResponse) {
             let type = 'com.brein.common.dto.CustomerProductDto';
             if ($.isPlainObject(recommendationResponse) &&
-                $.isPlainObject(recommendationResponse._breinMetaData) &&
-                typeof recommendationResponse._breinMetaData.dataType === 'string' && recommendationResponse._breinMetaData.dataType.trim() !== '') {
-                type = recommendationResponse._breinMetaData.dataType.trim();
+                $.isPlainObject(recommendationResponse.additionalData) &&
+                $.isPlainObject(recommendationResponse.additionalData._breinMetaData) &&
+                typeof recommendationResponse.additionalData._breinMetaData.dataType === 'string' &&
+                recommendationResponse.additionalData._breinMetaData.dataType.trim() !== '') {
+                type = recommendationResponse.additionalData._breinMetaData.dataType.trim();
             }
 
             return type;
@@ -1299,6 +1301,8 @@
 
             if (type === 'com.brein.common.dto.CustomerProductDto') {
                 result.recommendations = this._mapProducts(recommendationResponse);
+            } else if (type === 'com.brein.common.dto.CustomerAssetsDto') {
+                result.recommendations = this._mapAny(recommendationResponse);
             } else {
                 result.recommendations = this._mapAny(recommendationResponse);
             }
