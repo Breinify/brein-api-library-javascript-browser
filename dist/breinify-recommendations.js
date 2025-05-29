@@ -1302,7 +1302,7 @@
             if (type === 'com.brein.common.dto.CustomerProductDto') {
                 result.recommendations = this._mapProducts(recommendationResponse);
             } else if (type === 'com.brein.common.dto.CustomerAssetsDto') {
-                result.recommendations = this._mapAny(recommendationResponse);
+                result.recommendations = this._mapAssets(recommendationResponse);
             } else {
                 result.recommendations = this._mapAny(recommendationResponse);
             }
@@ -1419,6 +1419,41 @@
             return result.active;
         },
 
+        _mapAssets: function(recommendationResponse) {
+            if (!$.isArray(recommendationResponse.result)) {
+                return [];
+            }
+
+            let mappedAssets = [];
+            for (let i = 0; i < recommendationResponse.result.length; i++) {
+                let asset = recommendationResponse.result[i];
+                let mappedAsset = this._mapAsset(asset);
+
+                mappedAssets.push(mappedAsset);
+            }
+
+            return mappedAssets;
+        },
+
+        _mapAsset: function (asset) {
+            if (!$.isPlainObject(asset) || typeof asset.dataIdExternal !== 'string') {
+                return null;
+            } else if (!$.isPlainObject(asset.additionalData)) {
+                return null;
+            }
+
+            return {
+                '_recommenderWeight': asset.weight,
+                'id': asset.dataIdExternal,
+                'type': this._getValue(asset, 'assets::assetType'),
+                'url': this._getValue(asset, 'assets::assetUrl'),
+                'image': this._getValue(asset, 'assets::assetImageUrl'),
+                'categories': this._getValue(asset, 'assets::assetCategories'),
+                'description': this._getValue(asset, 'assets::assetDescription'),
+                'additionalData': asset.additionalData
+            };
+        },
+
         _mapProducts: function (recommendationResponse) {
             if (!$.isArray(recommendationResponse.result)) {
                 return [];
@@ -1480,8 +1515,8 @@
             return mappedResults;
         },
 
-        _getValue: function (product, name) {
-            let value = product.additionalData[name];
+        _getValue: function (entity, name) {
+            let value = entity.additionalData[name];
             return typeof value === 'undefined' || value === null ? null : value;
         }
     };
