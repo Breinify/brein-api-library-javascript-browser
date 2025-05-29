@@ -290,6 +290,7 @@ module.exports = function (grunt) {
                 files: {
                     'dist/breinify-activities.min.js': 'src/plugins/Activities.js',
                     'dist/breinify-trigger.min.js': 'src/plugins/Trigger.js',
+                    'dist/breinify-dev-studio.min.js': 'src/plugins/DevStudio.js',
                     'dist/breinify-assets.min.js': 'src/plugins/Assets.js',
                     'dist/breinify-split-tests.min.js': 'src/plugins/SplitTests.js',
                     'dist/breinify-shopify.min.js': 'src/plugins/Shopify.js',
@@ -327,6 +328,7 @@ module.exports = function (grunt) {
                 files: [
                     {expand: true, cwd: 'src/plugins', src: 'Activities.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-activities.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Trigger.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-trigger.js' } },
+                    {expand: true, cwd: 'src/plugins', src: 'DevStudio.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-dev-studio.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Assets.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-assets.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'SplitTests.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-split-tests.js' } },
                     {expand: true, cwd: 'src/plugins', src: 'Slick.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-slick.js' } },

@@ -176,7 +176,7 @@
 
         checkModule: function (name, module) {
 
-            // if we do not have a valid module or not a ready function we are done
+            // if we do not have a valid module or not a onChange function we are done
             if (!$.isPlainObject(module) || !$.isFunction(module.onChange)) {
                 // return;
             }
