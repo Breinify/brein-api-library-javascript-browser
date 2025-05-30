@@ -80,12 +80,12 @@
                 div.plugin-bubble { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
                 div.plugin-header { font-size: 14px; font-weight: bold; color: #4fc3f7; padding: 10px 12px; cursor: pointer; user-select: none; position: relative; }
                 span.plugin-indicator { position: absolute; right: 12px; top: 10px; font-size: 12px; transform-origin: center; transition: transform 0.3s ease; }
-                span.plugin-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 12px; }
-                span.plugin-content.expended { padding: 10px 12px }
-                span.plugin-content ul { list-style-type: none; padding-left: 0; margin: 0; }
-                span.plugin-content ul li { margin-bottom: 4px; }
-                span.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; }
-                span.plugin-content ul li span.plugin-prop-value { color: #ffffff; }
+                div.plugin-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 12px; }
+                div.plugin-content.expended { padding: 10px 12px }
+                div.plugin-content ul { list-style-type: none; padding-left: 0; margin: 0; }
+                div.plugin-content ul li { margin-bottom: 4px; }
+                div.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; }
+                div.plugin-content ul li span.plugin-prop-value { color: #ffffff; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
@@ -166,11 +166,11 @@
                 expanded = $header.hasClass('expended');
 
                 if (expanded) {
-                    expanded.removeClass('expended');
-                    $content.css('maxHeight', $(content)[0].scrollHeight + 'px');
+                    $header.removeClass('expended');
+                    $content.css('maxHeight', $content[0].scrollHeight + 'px');
                     $indicator.text('▼');
                 } else {
-                    expanded.addClass('expended');
+                    $header.addClass('expended');
                     $content.css('maxHeight', '0');
                     $indicator.text('─');
                 }
