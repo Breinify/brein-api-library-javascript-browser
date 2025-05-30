@@ -168,6 +168,7 @@
     `;
             header.appendChild(indicator);
 
+
             const content = document.createElement('div');
             content.style.cssText = `
       max-height: 0;
