@@ -84,8 +84,8 @@
                 div.plugin-content.expended { padding: 10px 12px }
                 div.plugin-content ul { list-style-type: none; padding-left: 0; margin: 0; }
                 div.plugin-content ul li { margin-bottom: 4px; }
-                div.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; }
-                div.plugin-content ul li span.plugin-prop-value { color: #ffffff; }
+                div.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; display: inline-block; padding-right: 5px; }
+                div.plugin-content ul li span.plugin-prop-value { color: #ffffff; display: inline-block; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
