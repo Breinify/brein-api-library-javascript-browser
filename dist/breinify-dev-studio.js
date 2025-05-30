@@ -1,6 +1,43 @@
 "use strict";
 
 (function () {
+    const $ = Breinify.UTL._jquery();
+
+    const _private = {
+        resizable: function ($shadowRoot) {
+            const $body = $('body');
+
+            const $resizeHandle = $shadowRoot.find('#resize-handle')
+                .data('isResizing', false);
+            $resizeHandle.mousedown(e => {
+                $resizeHandle.data({
+                    isResizing: true,
+                    startX: e.clientX,
+                    startWidth: $resizeHandle.parent()[0].getBoundingClientRect().width
+                });
+
+                $body.css('user-select', 'none');
+                e.preventDefault();
+            });
+            $(document).on('mouseup blur', e => {
+                if ($resizeHandle.data('isResizing') === true) {
+                    $resizeHandle.data('isResizing', false);
+                    $body.css('user-select', '');
+                }
+            });
+            $(document).mousemove(e => {
+                if (!$resizeHandle.data('isResizing') === true) {
+                    return;
+                }
+
+                const startWidth = $resizeHandle.data('startWidth');
+                const dx = $resizeHandle.data('startX') - e.clientX;
+                const newWidth = Math.min(Math.max(startWidth + dx, 200), 1000);
+
+                $resizeHandle.parent().css('width', newWidth + 'px');
+            });
+        }
+    };
 
     class BreinifyDevConsole extends HTMLElement {
         $shadowRoot = null;
@@ -21,7 +58,6 @@
             this.isVisible = true;
 
             this.render();
-            //this.hookConsole();
             this.toggleDevStudio();
         }
 
@@ -79,35 +115,7 @@
 
             this.$tabs.click(e => this.switchTab(e));
 
-            const $resizeHandle = this.$shadowRoot.find('#resize-handle')
-                .data('isResizing', false);
-            $resizeHandle.mousedown(e => {
-                $resizeHandle.data({
-                    isResizing: true,
-                    startX: e.clientX,
-                    startWidth: $resizeHandle.parent()[0].getBoundingClientRect().width
-                });
-
-                $('body').css('user-select', 'none');
-                e.preventDefault();
-            });
-            $(document).on('mouseup blur', e => {
-                if ($resizeHandle.data('isResizing') === true) {
-                    $resizeHandle.data('isResizing', false);
-                    $('body').css('user-select', '');
-                }
-            });
-            $(document).mousemove(e => {
-                if (!$resizeHandle.data('isResizing') === true) {
-                    return;
-                }
-
-                const startWidth = $resizeHandle.data('startWidth');
-                const dx = $resizeHandle.data('startX') - e.clientX;
-                const newWidth = Math.min(Math.max(startWidth + dx, 200), 1000);
-
-                $resizeHandle.parent().css('width', newWidth + 'px');
-            });
+            _private.resizable(this.$shadowRoot);
         }
 
         toggleDevStudio() {
@@ -139,48 +147,15 @@
                 this.$infoContainer.addClass('active');
             }
         }
-
-        hookConsole() {
-            ['log', 'warn', 'error', 'info'].forEach(method => {
-                const original = console[method];
-                console[method] = (...args) => {
-                    const msg = args.map(arg => {
-                        try {
-                            if (typeof arg === 'object' && arg !== null) {
-                                return JSON.stringify(arg, null, 2);
-                            }
-                            return String(arg);
-                        } catch {
-                            return '[object]';
-                        }
-                    }).join(' ');
-
-                    const entry = document.createElement('div');
-                    entry.textContent = `[${method.toUpperCase()}] ${msg}`;
-                    entry.style.color = {
-                        log: 'white',
-                        warn: 'orange',
-                        error: 'red',
-                        info: 'lightblue'
-                    }[method];
-
-                    this.$logContainer.append(entry);
-                    this.$logContainer.get(0).scrollTop = this.$logContainer.get(0).scrollHeight;
-
-                    original.apply(console, args);
-                };
-            });
-        }
     }
 
     const DevStudio = {
         devStudio: null,
 
         init: function () {
-            // if (Breinify.UTL.internal.isDevMode() !== true) {
-            //     return;
-            // } else
-            if (this.devStudio !== null) {
+            if (Breinify.UTL.internal.isDevMode() !== true) {
+                return;
+            } else if (this.devStudio !== null) {
                 return;
             }
 
