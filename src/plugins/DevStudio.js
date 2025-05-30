@@ -77,6 +77,15 @@
                 header button.tab:hover:not(.active) { color: #fff; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
+                div.plugin-bubble { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
+                div.plugin-header { font-size: 14px; font-weight: bold; color: #4fc3f7; padding: 10px 12px; cursor: pointer; user-select: none; position: relative; }
+                span.plugin-indicator { position: absolute; right: 12px; top: 10px; font-size: 12px; transform-origin: center; transition: transform 0.3s ease; }
+                span.plugin-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 12px; }
+                span.plugin-content.expended { padding: 10px 12px }
+                span.plugin-content ul { list-style-type: none; padding-left: 0; margin: 0; }
+                span.plugin-content ul li { margin-bottom: 4px; }
+                span.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; }
+                span.plugin-content ul li span.plugin-prop-value { color: #ffffff; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
@@ -132,80 +141,38 @@
         }
 
         showPluginInfo(pluginName, config) {
-            const bubble = document.createElement('div');
-            bubble.style.cssText = `
-      background: linear-gradient(to bottom, #2a2a2a, #1f1f1f);
-      border: 1px solid #333;
-      border-left: 4px solid #4fc3f7;
-      border-radius: 6px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      overflow: hidden;
-      transition: max-height 0.3s ease, padding 0.3s ease;
-    `;
+            const $bubble = $('<div class="plugin-bubble"></div>');
+            const $header =$('<div class="plugin-header">🔌 ' + pluginName + '</div>');
 
-            const header = document.createElement('div');
-            header.style.cssText = `
-      font-size: 14px;
-      font-weight: bold;
-      color: #4fc3f7;
-      padding: 10px 12px;
-      cursor: pointer;
-      user-select: none;
-      position: relative;
-    `;
-            header.textContent = `🔌 ${pluginName}`;
+            const $indicator = $('<span class="plugin-indicator">─</span>');
+            $header.appendChild($indicator);
 
-            const indicator = document.createElement('span');
-            indicator.textContent = '▶';
-            indicator.style.cssText = `
-      position: absolute;
-      right: 12px;
-      top: 10px;
-      font-size: 12px;
-      transform-origin: center;
-      transition: transform 0.3s ease;
-    `;
-            header.appendChild(indicator);
-
-            const content = document.createElement('div');
-            content.style.cssText = `
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease, padding 0.3s ease;
-      padding: 0 12px;
-    `;
-
-            const list = document.createElement('ul');
-            list.style.cssText = `
-      list-style-type: none;
-      padding-left: 0;
-      margin: 0;
-    `;
+            const $content = $('<div class="plugin-content"></div>');
+            const $list = $('<ul></ul>');
 
             Object.entries(config).forEach(([key, value]) => {
-                const item = document.createElement('li');
-                item.innerHTML = `<span style="color:#bbb;">${key}:</span> <span style="color:#fff;">${value}</span>`;
-                item.style.marginBottom = '4px';
-                list.appendChild(item);
+                const $item = $('<li><span class="plugin-prop-key">' + key + ':</span><span class="plugin-prop-value">' + value + '</span></li>');
+                $list.append($item);
             });
 
-            content.appendChild(list);
-            bubble.appendChild(header);
-            bubble.appendChild(content);
-            this.$infoContainer.prepend(bubble);
+            $content.append($list);
+            $bubble.append($header);
+            $bubble.append($content);
+
+            this.$infoContainer.prepend($bubble);
 
             let expanded = false;
-            header.addEventListener('click', () => {
-                expanded = !expanded;
+            $header.click(() => {
+                expanded = $header.hasClass('expended');
+
                 if (expanded) {
-                    content.style.maxHeight = `${content.scrollHeight}px`;
-                    content.style.padding = '10px 12px';
-                    indicator.textContent = '▼';
+                    expanded.removeClass('expended');
+                    $content.css('maxHeight', $(content)[0].scrollHeight + 'px');
+                    $indicator.text('▼');
                 } else {
-                    content.style.maxHeight = '0';
-                    content.style.padding = '0 12px';
-                    indicator.textContent = '▶';
+                    expanded.addClass('expended');
+                    $content.css('maxHeight', '0');
+                    $indicator.text('─');
                 }
             });
         }
