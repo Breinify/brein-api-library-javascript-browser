@@ -2,14 +2,159 @@
 
 (function () {
 
+    class BreinifyDevConsole extends HTMLElement {
+        constructor() {
+            super();
+
+            this.attachShadow({mode: 'open'});
+
+            // SVG brein icon (16x16)
+            this.isVisible = true;
+
+            this.render();
+            this.hookConsole();
+        }
+
+        render() {
+            this.shadowRoot.innerHTML = `
+            <style>
+                :host { all: initial; }
+                div.title { display: flex; flex-flow: row; font-weight: bold; font-size: 14px; line-height: 14px; padding: 6px 10px; }
+                button.close-btn { background: transparent; border: none; color: #ccc; font-size: 18px; cursor: pointer; padding: 0 6px; user-select: none; }
+                button.close-btn:hover { color: white; }
+                #panel { position: fixed; bottom: 0; right: 0; width: 400px; height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff; background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px; display: flex; flex-direction: column; z-index: 999999; transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
+                header { background: #111; padding: 6px 10px; display: flex; align-items: center; user-select: none; border-top-left-radius: 6px; color: #eee; }
+                header > .tabs { display: flex; gap: 10px; flex-grow: 1; }
+                header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; padding: 4px 8px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; }
+                header button.tab.active { border-bottom-color: #fff; color: white; }
+                header button.tab:hover:not(.active) { color: #fff; }
+                #log-container { flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
+                #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 1000000; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
+                #toggle-button:hover svg path { fill: #ccc; }
+                ::-webkit-scrollbar { width: 6px; }
+                ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+                ::-webkit-scrollbar-thumb:hover { background: #555; }
+            </style>
+            <div id="panel">
+                <div class="title">
+                    <div style="flex-grow: 1; align-content: center;">Breinify DevStudio</div>
+                    <button class="close-btn" title="Hide Breinify DevStudio">&#x2715;</button>
+                </div>
+                <header>
+                    <div class="tabs">
+                        <button class="tab active" data-tab="console">Console</button>
+                        <button class="tab" data-tab="info">Info</button>
+                    </div>
+                </header>
+                <div id="log-container"></div>
+            </div>
+            <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
+
+            this.logContainer = this.shadowRoot.querySelector('#log-container');
+            this.toggleButton = this.shadowRoot.querySelector('#toggle-button');
+            this.panel = this.shadowRoot.querySelector('#panel');
+            this.closeBtn = this.shadowRoot.querySelector('button.close-btn');
+            this.tabs = this.shadowRoot.querySelectorAll('button.tab');
+
+            this.closeBtn.addEventListener('click', () => this.toggleConsole());
+            this.toggleButton.addEventListener('click', () => this.toggleConsole());
+
+            this.tabs.forEach(tab => tab.addEventListener('click', e => this.switchTab(e)));
+        }
+
+        toggleConsole() {
+            this.isVisible = !this.isVisible;
+
+            if (this.isVisible) {
+                this.panel.style.transform = 'translateY(0)';
+                this.panel.style.opacity = '1';
+                this.toggleButton.style.display = 'none';
+            } else {
+                this.panel.style.transform = 'translateY(100%)';
+                this.panel.style.opacity = '0';
+                this.toggleButton.style.display = 'flex';
+            }
+        }
+
+        switchTab(event) {
+            const selectedTab = event.target.dataset.tab;
+            this.tabs.forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === selectedTab);
+            });
+
+            // For now, just clear or keep logs on console tab, and show placeholder on info tab
+            if (selectedTab === 'console') {
+                this.logContainer.style.display = 'block';
+                if (this.infoDiv) this.infoDiv.style.display = 'none';
+            } else if (selectedTab === 'info') {
+
+                // Lazy create info div
+                if (!this.infoDiv) {
+                    this.infoDiv = document.createElement('div');
+                    this.infoDiv.textContent = 'Information tab content goes here.';
+                    this.infoDiv.style.padding = '10px';
+                    this.infoDiv.style.color = '#ddd';
+                    this.infoDiv.style.height = '100%';
+                    this.infoDiv.style.overflowY = 'auto';
+                    this.logContainer.after(this.infoDiv);
+                }
+
+                this.logContainer.style.display = 'none';
+                this.infoDiv.style.display = 'block';
+            }
+        }
+
+        hookConsole() {
+            ['log', 'warn', 'error', 'info'].forEach(method => {
+                const original = console[method];
+                console[method] = (...args) => {
+                    const msg = args.map(arg => {
+                        try {
+                            if (typeof arg === 'object' && arg !== null) {
+                                return JSON.stringify(arg, null, 2);
+                            }
+                            return String(arg);
+                        } catch {
+                            return '[object]';
+                        }
+                    }).join(' ');
+
+                    const entry = document.createElement('div');
+                    entry.textContent = `[${method.toUpperCase()}] ${msg}`;
+                    entry.style.color = {
+                        log: 'white',
+                        warn: 'orange',
+                        error: 'red',
+                        info: 'lightblue'
+                    }[method];
+
+                    if (this.logContainer) {
+                        this.logContainer.appendChild(entry);
+                        this.logContainer.scrollTop = this.logContainer.scrollHeight;
+                    }
+
+                    original.apply(console, args);
+                };
+            });
+        }
+    }
+
     const DevStudio = {
+        devStudio: null,
 
         init: function () {
-            if (Breinify.UTL.internal.isDevMode() !== true) {
+            // if (Breinify.UTL.internal.isDevMode() !== true) {
+            //     return;
+            // } else
+            if (this.devStudio !== null) {
                 return;
             }
 
-            console.log('DevStudio is being loaded');
+            const elementName = 'breinify-dev-console';
+            customElements.define(elementName, BreinifyDevConsole);
+
+            this.devStudio = document.createElement(elementName);
+            document.body.appendChild(this.devStudio);
         }
     }
 
