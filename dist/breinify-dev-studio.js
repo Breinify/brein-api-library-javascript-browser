@@ -145,7 +145,7 @@
             const $header =$('<div class="plugin-header">🔌 ' + pluginName + '</div>');
 
             const $indicator = $('<span class="plugin-indicator">─</span>');
-            $header.appendChild($indicator);
+            $header.append($indicator);
 
             const $content = $('<div class="plugin-content"></div>');
             const $list = $('<ul></ul>');
