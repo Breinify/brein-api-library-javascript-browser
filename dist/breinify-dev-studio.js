@@ -7,8 +7,7 @@
         resizable: function ($shadowRoot) {
             const $body = $('body');
 
-            const $resizeHandle = $shadowRoot.find('#resize-handle')
-                .data('isResizing', false);
+            const $resizeHandle = $shadowRoot.find('#resize-handle').data('isResizing', false);
             $resizeHandle.mousedown(e => {
                 $resizeHandle.data({
                     isResizing: true,
@@ -19,7 +18,7 @@
                 $body.css('user-select', 'none');
                 e.preventDefault();
             });
-            $(document).on('mouseup blur', e => {
+            $(document).on('mouseup blur', () => {
                 if ($resizeHandle.data('isResizing') === true) {
                     $resizeHandle.data('isResizing', false);
                     $body.css('user-select', '');
@@ -113,7 +112,7 @@
             this.$closeBtn.click(() => this.toggleDevStudio());
             this.$toggleButton.click(() => this.toggleDevStudio());
 
-            this.$tabs.click(e => this.switchTab(e));
+            this.$tabs.click(e => this._switchTab(e));
 
             _private.resizable(this.$shadowRoot);
         }
@@ -132,7 +131,86 @@
             }
         }
 
-        switchTab(event) {
+        showPluginInfo(pluginName, config) {
+            const bubble = document.createElement('div');
+            bubble.style.cssText = `
+      background: linear-gradient(to bottom, #2a2a2a, #1f1f1f);
+      border: 1px solid #333;
+      border-left: 4px solid #4fc3f7;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    `;
+
+            const header = document.createElement('div');
+            header.style.cssText = `
+      font-size: 14px;
+      font-weight: bold;
+      color: #4fc3f7;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    `;
+            header.textContent = `🔌 ${pluginName}`;
+
+            const indicator = document.createElement('span');
+            indicator.textContent = '▶';
+            indicator.style.cssText = `
+      position: absolute;
+      right: 12px;
+      top: 10px;
+      font-size: 12px;
+      transform-origin: center;
+      transition: transform 0.3s ease;
+    `;
+            header.appendChild(indicator);
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0 12px;
+    `;
+
+            const list = document.createElement('ul');
+            list.style.cssText = `
+      list-style-type: none;
+      padding-left: 0;
+      margin: 0;
+    `;
+
+            Object.entries(config).forEach(([key, value]) => {
+                const item = document.createElement('li');
+                item.innerHTML = `<span style="color:#bbb;">${key}:</span> <span style="color:#fff;">${value}</span>`;
+                item.style.marginBottom = '4px';
+                list.appendChild(item);
+            });
+
+            content.appendChild(list);
+            bubble.appendChild(header);
+            bubble.appendChild(content);
+            this.$infoContainer.prepend(bubble);
+
+            let expanded = false;
+            header.addEventListener('click', () => {
+                expanded = !expanded;
+                if (expanded) {
+                    content.style.maxHeight = `${content.scrollHeight}px`;
+                    content.style.padding = '10px 12px';
+                    indicator.textContent = '▼';
+                } else {
+                    content.style.maxHeight = '0';
+                    content.style.padding = '0 12px';
+                    indicator.textContent = '▶';
+                }
+            });
+        }
+
+        _switchTab(event) {
             const selectedTab = event.target.dataset.tab;
             this.$tabs.each(function () {
                 this.classList.toggle('active', this.dataset.tab === selectedTab);
@@ -149,6 +227,7 @@
         }
     }
 
+    // this is just a wrapper around the custom-element, adding it to the DOM tree if not there yet
     const DevStudio = {
         devStudio: null,
 
@@ -167,9 +246,8 @@
         }
     }
 
-    // bind the module
+    // initialize the module once Breinify is ready
     const BoundDevStudio = Breinify.plugins._add('devStudio', DevStudio);
-
     Breinify.onReady(function () {
         BoundDevStudio.init();
     });
