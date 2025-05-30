@@ -140,7 +140,7 @@
             }
         }
 
-        showPluginInfo(pluginName, config) {
+        _showPluginInfo(pluginName, config) {
             const $bubble = $('<div class="plugin-bubble"></div>');
             const $header =$('<div class="plugin-header">🔌 ' + pluginName + '</div>');
 
