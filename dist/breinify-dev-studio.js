@@ -3,6 +3,15 @@
 (function () {
 
     class BreinifyDevConsole extends HTMLElement {
+        $shadowRoot = null;
+        $toggleButton = null;
+        $panel = null;
+        $closeBtn = null;
+        $tabs = null;
+
+        $logContainer = null;
+        $infoContainer = null;
+
         constructor() {
             super();
 
@@ -13,6 +22,7 @@
 
             this.render();
             this.hookConsole();
+            this.toggleDevStudio();
         }
 
         render() {
@@ -28,7 +38,8 @@
                 header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; padding: 4px 8px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
-                #log-container { flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
+                div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
+                div.container.active { display: block; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 1000000; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
@@ -46,61 +57,53 @@
                         <button class="tab" data-tab="info">Info</button>
                     </div>
                 </header>
-                <div id="log-container"></div>
+                <div id="log-container" class="container active"></div>
+                <div id="info-container" class="container"></div>
             </div>
             <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
 
-            this.logContainer = this.shadowRoot.querySelector('#log-container');
-            this.toggleButton = this.shadowRoot.querySelector('#toggle-button');
-            this.panel = this.shadowRoot.querySelector('#panel');
-            this.closeBtn = this.shadowRoot.querySelector('button.close-btn');
-            this.tabs = this.shadowRoot.querySelectorAll('button.tab');
+            this.$shadowRoot = $(this.shadowRoot);
+            this.$toggleButton = this.$shadowRoot.find('#toggle-button');
+            this.$panel = this.$shadowRoot.find('#panel');
+            this.$closeBtn = this.$shadowRoot.find('button.close-btn');
+            this.$tabs = this.$shadowRoot.find('button.tab');
 
-            this.closeBtn.addEventListener('click', () => this.toggleConsole());
-            this.toggleButton.addEventListener('click', () => this.toggleConsole());
+            this.$logContainer = this.$shadowRoot.find('#log-container');
+            this.$infoContainer = this.$shadowRoot.find('#info-container');
 
-            this.tabs.forEach(tab => tab.addEventListener('click', e => this.switchTab(e)));
+            this.$closeBtn.click(() => this.toggleDevStudio());
+            this.$toggleButton.click(() => this.toggleDevStudio());
+
+            this.$tabs.click(e => this.switchTab(e));
         }
 
-        toggleConsole() {
+        toggleDevStudio() {
             this.isVisible = !this.isVisible;
 
             if (this.isVisible) {
-                this.panel.style.transform = 'translateY(0)';
-                this.panel.style.opacity = '1';
-                this.toggleButton.style.display = 'none';
+                this.$panel.css('transform', 'translateY(0)');
+                this.$panel.css('opacity', '1');
+                this.$toggleButton.css('display', 'none');
             } else {
-                this.panel.style.transform = 'translateY(100%)';
-                this.panel.style.opacity = '0';
-                this.toggleButton.style.display = 'flex';
+                this.$panel.css('transform', 'translateY(100%)');
+                this.$panel.css('opacity', '0');
+                this.$toggleButton.css('display', 'flex');
             }
         }
 
         switchTab(event) {
             const selectedTab = event.target.dataset.tab;
-            this.tabs.forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.tab === selectedTab);
+            this.$tabs.each(function () {
+                this.classList.toggle('active', this.dataset.tab === selectedTab);
             });
 
             // For now, just clear or keep logs on console tab, and show placeholder on info tab
             if (selectedTab === 'console') {
-                this.logContainer.style.display = 'block';
-                if (this.infoDiv) this.infoDiv.style.display = 'none';
+                this.$logContainer.addClass('active');
+                this.$infoContainer.removeClass('active');
             } else if (selectedTab === 'info') {
-
-                // Lazy create info div
-                if (!this.infoDiv) {
-                    this.infoDiv = document.createElement('div');
-                    this.infoDiv.textContent = 'Information tab content goes here.';
-                    this.infoDiv.style.padding = '10px';
-                    this.infoDiv.style.color = '#ddd';
-                    this.infoDiv.style.height = '100%';
-                    this.infoDiv.style.overflowY = 'auto';
-                    this.logContainer.after(this.infoDiv);
-                }
-
-                this.logContainer.style.display = 'none';
-                this.infoDiv.style.display = 'block';
+                this.$logContainer.removeClass('active');
+                this.$infoContainer.addClass('active');
             }
         }
 
@@ -128,10 +131,8 @@
                         info: 'lightblue'
                     }[method];
 
-                    if (this.logContainer) {
-                        this.logContainer.appendChild(entry);
-                        this.logContainer.scrollTop = this.logContainer.scrollHeight;
-                    }
+                    this.$logContainer.append(entry);
+                    this.$logContainer.get(0).scrollTop = this.$logContainer.get(0).scrollHeight;
 
                     original.apply(console, args);
                 };
