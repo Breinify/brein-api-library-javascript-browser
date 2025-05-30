@@ -21,7 +21,7 @@
             this.isVisible = true;
 
             this.render();
-            this.hookConsole();
+            //this.hookConsole();
             this.toggleDevStudio();
         }
 
@@ -33,6 +33,8 @@
                 button.close-btn { background: transparent; border: none; color: #ccc; font-size: 18px; cursor: pointer; padding: 0 6px; user-select: none; }
                 button.close-btn:hover { color: white; }
                 #panel { position: fixed; bottom: 0; right: 0; width: 400px; height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff; background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px; display: flex; flex-direction: column; z-index: 999999; transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
+                #resize-handle { position: absolute; left: 0; top: 0; width: 6px; height: 100%; cursor: ew-resize; z-index: 1000001; }
+                #resize-handle:hover { background: rgba(255, 255, 255, 0.1); }
                 header { background: #111; padding: 6px 10px; display: flex; align-items: center; user-select: none; border-top-left-radius: 6px; color: #eee; }
                 header > .tabs { display: flex; gap: 10px; flex-grow: 1; }
                 header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; padding: 4px 8px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; }
@@ -47,6 +49,7 @@
                 ::-webkit-scrollbar-thumb:hover { background: #555; }
             </style>
             <div id="panel">
+                <div id="resize-handle"></div>
                 <div class="title">
                     <div style="flex-grow: 1; align-content: center;">Breinify DevStudio</div>
                     <button class="close-btn" title="Hide Breinify DevStudio">&#x2715;</button>
@@ -75,6 +78,36 @@
             this.$toggleButton.click(() => this.toggleDevStudio());
 
             this.$tabs.click(e => this.switchTab(e));
+
+            const $resizeHandle = this.$shadowRoot.find('#resize-handle')
+                .data('isResizing', false);
+            $resizeHandle.mousedown(e => {
+                $resizeHandle.data({
+                    isResizing: true,
+                    startX: e.clientX,
+                    startWidth: $resizeHandle.parent()[0].getBoundingClientRect().width
+                });
+
+                $('body').css('user-select', 'none');
+                e.preventDefault();
+            });
+            $(document).on('mouseup blur', e => {
+                if ($resizeHandle.data('isResizing') === true) {
+                    $resizeHandle.data('isResizing', false);
+                    $('body').css('user-select', '');
+                }
+            });
+            $(document).mousemove(e => {
+                if (!$resizeHandle.data('isResizing') === true) {
+                    return;
+                }
+
+                const startWidth = $resizeHandle.data('startWidth');
+                const dx = $resizeHandle.data('startX') - e.clientX;
+                const newWidth = Math.min(Math.max(startWidth + dx, 200), 1000);
+
+                $resizeHandle.parent().css('width', newWidth + 'px');
+            });
         }
 
         toggleDevStudio() {
