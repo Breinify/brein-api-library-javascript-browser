@@ -51,39 +51,8 @@
             }
 
             if (config.captureCartFetchEvents === true) {
-                this.originalFetch = window.fetch;
-
-                window.fetch = function () {
-                    const args = arguments;
-                    const url = args[0];
-
-                    if (typeof url !== 'string' || !url.startsWith('/cart/')) {
-                        return _self.originalFetch.apply(this, args);
-                    }
-
-                    return _self.originalFetch.apply(this, args).then(response => {
-                        // response.clone().json().then(data => _self._loadCart());
-
-                        _self._loadCart();
-                        return response;
-                    });
-                };
-
-                this.originalAjax = window.jQuery.ajax;
-                window.jQuery.ajax = function (settings) {
-
-                    // settings can be a string (url) or an object
-                    const url = typeof settings === 'string' ? settings : settings.url;
-
-                    if (typeof url !== 'string' || !url.startsWith('/cart/')) {
-                        return _self.originalAjax.apply(this, arguments);
-                    }
-
-                    // Call original ajax, then trigger your cart update logic on success
-                    return _self.originalAjax.call(this, settings).done(function () {
-                        _self._loadCart();
-                    });
-                };
+                this._bindFetch();
+                this._bindJQuery();
             }
 
             if ($.isArray(config.additionalData)) {
@@ -94,6 +63,56 @@
             }
 
             this.isSetup = true;
+        },
+
+        _bindJQuery: function(callback, waited) {
+            const _self = this;
+
+            if (!$.isFunction(window.jQuery) || !$.isFunction(window.jQuery.ajax)) {
+                waited = waited || 0;
+                setTimeout(function() {
+                    _self._bindJQuery(callback, waited + 50);
+                }, 50);
+
+                return;
+            }
+
+            this.originalAjax = window.jQuery.ajax;
+            window.jQuery.ajax = function (settings) {
+
+                // settings can be a string (url) or an object
+                const url = typeof settings === 'string' ? settings : settings.url;
+
+                if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                    return _self.originalAjax.apply(this, arguments);
+                }
+
+                // Call original ajax, then trigger your cart update logic on success
+                return _self.originalAjax.call(this, settings).done(function () {
+                    _self._loadCart();
+                });
+            };
+        },
+
+        _bindFetch: function() {
+            const _self = this;
+
+            this.originalFetch = window.fetch;
+            window.fetch = function () {
+                const args = arguments;
+                const url = args[0];
+
+                if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                    return _self.originalFetch.apply(this, args);
+                }
+
+                return _self.originalFetch.apply(this, args).then(response => {
+                    // response.clone().json().then(data => _self._loadCart());
+
+                    _self._loadCart();
+                    return response;
+                });
+            };
         },
 
         getToken: function () {
