@@ -459,6 +459,10 @@
 
                 return;
             }
+            // do not assign twice to elements that are evaluated already
+            else if ($el.attr('data-' + this.marker.activate) === 'evaluated') {
+                return;
+            }
 
             const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
