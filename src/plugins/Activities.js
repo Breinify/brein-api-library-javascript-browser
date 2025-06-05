@@ -275,6 +275,7 @@
 
     const defaultObserverOption = {
         settings: {
+            setupEvenIfEvaluated: false,
             bindDataByTag: false,
             evaluateOnSetup: false,
             onActivation: function (settings, eventData, user, tags) {
@@ -459,12 +460,13 @@
 
                 return;
             }
-            // do not assign twice to elements that are evaluated already
-            else if ($el.attr('data-' + this.marker.activate) === 'evaluated') {
+
+            const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
+            if (normalizedSettings.setupEvenIfEvaluated !== true &&
+                $el.attr('data-' + this.marker.activate) === 'evaluated') {
                 return;
             }
 
-            const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
             let currentData = activityDomObserver.readElementData($el);
