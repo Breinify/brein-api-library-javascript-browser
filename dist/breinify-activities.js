@@ -275,7 +275,6 @@
 
     const defaultObserverOption = {
         settings: {
-            setupEvenIfEvaluated: false,
             bindDataByTag: false,
             evaluateOnSetup: false,
             onActivation: function (settings, eventData, user, tags) {
@@ -462,16 +461,18 @@
             }
 
             const normalizedSettings = activityDomObserver.normalizeSettings(observerType, settings);
-            if (normalizedSettings.setupEvenIfEvaluated !== true &&
-                $el.attr('data-' + this.marker.activate) === 'evaluated') {
-                return;
-            }
-
             const normalizedData = activityDomObserver.normalizeData(observerType, settings, data);
 
+            // get any data currently attached
             let currentData = activityDomObserver.readElementData($el);
             if (!$.isArray(currentData)) {
                 currentData = [];
+            }
+
+            // check if this observer is already attached (based on the id)
+            const id = Breinify.UTL.isNonEmptyString(normalizedSettings.id);
+            if (id !== null && currentData.some(d => $.isPlainObject(d.settings.id) && d.settings.id === id)) {
+                return;
             }
 
             currentData.push({
