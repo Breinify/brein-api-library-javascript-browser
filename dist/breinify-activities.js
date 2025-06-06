@@ -487,7 +487,12 @@
                 $el.data(this.marker.elementData, currentData);
             }
 
-            $el.attr('data-' + this.marker.activate, 'true');
+            // check the current marker on the element
+            const attrObserverActive = 'data-' + this.marker.activate;
+            const observerActive = Breinify.UTL.isNonEmptyString($el.attr(attrObserverActive));
+            if (observerActive === null) {
+                $el.attr('data-' + this.marker.activate, 'true');
+            }
 
             // evaluate directly (not on bound or observing dom-event) if needed
             if (normalizedSettings.evaluateOnSetup === true) {
@@ -633,13 +638,7 @@
                 const $selectedEls = $.isFunction(additionalMutationObserverSettings.onElementSelection) ? additionalMutationObserverSettings.onElementSelection($el) : $el;
 
                 $selectedEls.each(function () {
-                    const $selectedEl = $(this);
-                    const observerActive = $selectedEl.attr('data-' + _self.marker.activate);
-
-                    // check if the element is activated already, if so we do not need to do anything
-                    if (typeof observerActive !== 'string' || observerActive.trim() === '') {
-                        _self.setupObservableDomElement($selectedEl, observerType, settings, data);
-                    }
+                    _self.setupObservableDomElement($(this), observerType, settings, data);
                 });
             } else {
                 $el.find(selector).each(function () {
