@@ -317,8 +317,9 @@
              * <pre>
              * {
              *   action: 'open',        // a name of the action caused by the click
-             *   element: 'img',        // a name to identify the widgets element more specific (ex. the tag type)
-             *   widgetType: 'open',    // a generalization for the widget, ex. popup
+             *   element: 'img',        // a name to identify the widgets element more specific (ex. the tag type),
+             *                             use Breinify.UTL.dom.getTagName($el)
+             *   widgetType: 'popup',    // a generalization for the widget, ex. popup
              * }
              * </pre>
              * If the click includes some split-testing we also add:
