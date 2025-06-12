@@ -20,7 +20,7 @@
                 module.ready = null;
             }
 
-            // set up the logic if it's defined
+            // set up the activation-logic if it's defined and set-up the check
             if ($.isPlainObject(configuration.activationLogic)) {
                 this.setupActivityLogic(configuration.activationLogic, module);
             }
@@ -48,12 +48,14 @@
 
         checkActivityLogic: function (logic) {
             const paths = $.isArray(logic.paths) ? logic.paths : [];
-            for (let i = 0; i < paths.length; i++) {
+            let isValidPage = paths.length === 0;
+
+            for (let i = 0; i < paths.length && isValidPage === false; i++) {
                 const path = $.isPlainObject(paths[i]) ? paths[i] : {};
                 const type = Breinify.UTL.isNonEmptyString(path.type);
 
                 if (type === 'ALL_PATHS') {
-                    return true;
+                    isValidPage = true;
                 }
 
                 const value = Breinify.UTL.isNonEmptyString(path.value);
@@ -61,19 +63,25 @@
                     console.warn('found invalid value that was not or an empty string');
                 } else if (type === 'STATIC_PATHS') {
                     if (value === window.location.pathname) {
-                        return true;
+                        isValidPage = true;
                     }
                 } else if (type === 'REGEX') {
                     if (new RegExp(type.value).test(window.location.pathname) === true) {
-                        return true;
+                        isValidPage = true;
                     }
                 } else {
                     console.warn('found undefined path type "' + path + '" in the activation logic, skipping');
                 }
             }
 
-            // add a snippet usage here
-            return false;
+            const snippet = Breinify.UTL.isNonEmptyString(logic.snippet);
+            if (snippet === null) {
+                return isValidPage;
+            } else if (isValidPage === true) {
+                return true; // TODO: return the snippet result
+            } else {
+                return false;
+            }
         }
     };
 
