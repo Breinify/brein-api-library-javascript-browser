@@ -78,7 +78,8 @@
     };
 
     const WebExperiences = {
-        setup: function (id, configuration, module) {
+
+        bootstrap: function (id, configuration, module) {
 
             // the module must be a valid object
             if (typeof module !== 'object') {
