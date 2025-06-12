@@ -12,7 +12,6 @@
     const $ = Breinify.UTL._jquery();
     const _private = {
         setup: function (configuration, module) {
-            console.log('using configuration', configuration);
 
             // ensure that we utilize the onChange method over the ready method
             if ($.isFunction(module.ready) && !$.isFunction(module.onChange)) {
