@@ -55,6 +55,7 @@
 
                 if (type === 'ALL_PATHS') {
                     isValidPage = true;
+                    break;
                 }
 
                 const value = Breinify.UTL.isNonEmptyString(path.value);
