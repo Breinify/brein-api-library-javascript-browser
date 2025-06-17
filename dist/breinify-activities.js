@@ -472,7 +472,7 @@
 
             // check if this observer is already attached (based on the id)
             const id = Breinify.UTL.isNonEmptyString(normalizedSettings.id);
-            if (id !== null && currentData.some(d => $.isPlainObject(d.settings.id) && d.settings.id === id)) {
+            if (id !== null && currentData.some(d => $.isPlainObject(d.settings) && d.settings.id === id)) {
                 return;
             }
 
