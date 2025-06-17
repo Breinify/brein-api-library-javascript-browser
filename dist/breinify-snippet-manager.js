@@ -10,12 +10,13 @@
     }
 
     const $ = Breinify.UTL._jquery();
-    const _private = {
-
-    };
+    const _private = {};
 
     const SnippetManager = {
 
+        registerSnippet: function (snippetId, snippet) {
+            console.log('registerSnippet' + snippetId, snippet);
+        }
     };
 
     // bind the module
