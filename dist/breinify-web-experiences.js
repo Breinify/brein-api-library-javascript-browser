@@ -19,7 +19,7 @@
                 module.ready = null;
             }
 
-            // set up the activation-logic if it's defined and set-up the check
+            // set up the activation-logic if it's defined and set up the check
             if ($.isPlainObject(configuration.activationLogic)) {
                 this.setupActivityLogic(configuration.activationLogic, module);
             }
@@ -78,6 +78,7 @@
             if (snippet === null) {
                 return isValidPage;
             } else if (isValidPage === true) {
+                console.log('apply snippet logic here', snippet);
                 return true; // TODO: return the snippet result
             } else {
                 return false;
