@@ -12,7 +12,11 @@
     // get dependencies
     const $ = Breinify.UTL._jquery();
 
-    // creates the actual countdown element
+    /**
+     * When using this plugin it adds a wrapper method as plugin, which adds the possibility to
+     * register the custom HTML element. This method can be called multiple times without issues
+     * (so whenever the plugin is retrieved).
+     */
     class UiCountdown extends HTMLElement {
 
         constructor() {
@@ -28,7 +32,8 @@
          * the actual rendering process.
          */
         connectedCallback() {
-            this.render();
+            // currently we do nothing and wait for the render method to be called explicitly
+            console.log('connectedCallback');
         }
 
         /**
@@ -42,9 +47,6 @@
             }
 
             this.settings = settings;
-            if (this.isConnected === true) {
-                this.render();
-            }
         }
 
         render() {
@@ -53,7 +55,7 @@
     }
 
     // bind the module
-    Breinify.plugins._add('UiCountdown', {
+    Breinify.plugins._add('uiCountdown', {
         register: function () {
             if (!window.customElements.get('br-ui-countdown')) {
                 window.customElements.define('br-ui-countdown', UiCountdown);
