@@ -13,16 +13,51 @@
     const $ = Breinify.UTL._jquery();
 
     // creates the actual countdown element
-    class UiCountdown {
-        constructor(settings) {
-            this.settings = $.isPlainObject(settings) ? settings : {};
+    class UiCountdown extends HTMLElement {
+
+        constructor() {
+            super();
+
+            // initialize default settings and attach a shadow DOM for style encapsulation
+            this.settings = {};
+            this.attachShadow({mode: 'open'});
+        }
+
+        /**
+         * This is the entry point, called when element is added to the DOM, this should trigger
+         * the actual rendering process.
+         */
+        connectedCallback() {
+            this.render();
+        }
+
+        /**
+         * This specifies or override the default settings.
+         * @param settings the settings to be applied/overridden
+         */
+        set config(settings) {
+
+            if (!$.isPlainObject(settings)) {
+                return;
+            }
+
+            this.settings = settings;
+            if (this.isConnected === true) {
+                this.render();
+            }
         }
 
         render() {
-            console.log(this.settings);
+            this.shadowRoot.innerHTML = `<pre>${JSON.stringify(this.settings, null, 2)}</pre>`;
         }
     }
 
     // bind the module
-    Breinify.plugins._add('UiCountdown', UiCountdown);
+    Breinify.plugins._add('UiCountdown', {
+        register: function () {
+            if (!window.customElements.get('br-ui-countdown')) {
+                window.customElements.define('br-ui-countdown', UiCountdown);
+            }
+        }
+    });
 })();
