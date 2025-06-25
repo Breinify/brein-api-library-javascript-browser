@@ -40,7 +40,7 @@
          * This specifies or override the default settings.
          * @param settings the settings to be applied/overridden
          */
-        set config(settings) {
+        config(settings) {
 
             if (!$.isPlainObject(settings)) {
                 return;
