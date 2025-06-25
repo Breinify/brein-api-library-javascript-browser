@@ -12,11 +12,17 @@
     // get dependencies
     const $ = Breinify.UTL._jquery();
 
-    // create the actual element
-    const UiCountdown = {
+    // creates the actual countdown element
+    class UiCountdown {
+        constructor(settings) {
+            this.settings = $.isPlainObject(settings) ? settings : {};
+        }
 
-    };
+        render() {
+            console.log(this.settings);
+        }
+    }
 
     // bind the module
-    Breinify.plugins._add('uiCountdown', UiCountdown);
+    Breinify.plugins._add('UiCountdown', UiCountdown);
 })();
