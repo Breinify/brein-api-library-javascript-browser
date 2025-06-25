@@ -99,7 +99,7 @@
                 try {
                     _self.checkModule(name, module);
                 } catch (e) {
-                    console.error('failed to check module: ' + name);
+                    console.error('failed to check module: ' + name, e);
                 }
             });
 
@@ -144,7 +144,7 @@
                     try {
                         _self.checkModule(name, module);
                     } catch (e) {
-                        console.error('failed to check module: ' + name);
+                        console.error('failed to check module: ' + name, e);
                     }
                 });
             } catch (e) {
