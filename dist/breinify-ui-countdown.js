@@ -120,9 +120,7 @@
 
             this.updateCountdown(); // initial render
             this.interval = setInterval(() => {
-                _self.updateCountdown();
-
-                if (Date.now() >= this.settings.experience.endTime) {
+                if (!_self.updateCountdown()) {
                     clearInterval(_self.interval);
                 }
             }, 1000);
@@ -145,6 +143,8 @@
             this.$shadowRoot.find('.time-hours').text(this.pad(hours));
             this.$shadowRoot.find('.time-minutes').text(this.pad(minutes));
             this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
+
+            return seconds > 0 || minutes > 0 || hours > 0 || days > 0;
         }
     }
 
