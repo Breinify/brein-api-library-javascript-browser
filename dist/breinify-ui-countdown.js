@@ -97,7 +97,7 @@
                 this.settings = $.extend(true, {
                     type: checkedType,
                     experience: {
-                        endTime: (new Date().getTime() / 1000) + (5 * 60)
+                        endTime: Math.floor(new Date().getTime() / 1000) + (5 * 60)
                     }
                 }, settings);
             } else {
