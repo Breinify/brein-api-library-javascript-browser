@@ -15,7 +15,7 @@
         '<style>' +
         ':host { --unit-height: 60px; }' +
         '.countdown-banner { background-color: #c63d3d; color: #f2f2f2; font-family: Arial, sans-serif; text-align: center; padding: 10px 0; }' +
-        '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; }' +
+        '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.time-block { flex: 0 0 auto; aspect-ratio: 1.5 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; }' +
         '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
@@ -28,7 +28,7 @@
         '</style>';
     const htmlTemplate = '' +
         '<div class="countdown-banner">' +
-        '  <div class="countdown-title">SUMMER TIME SALE ENDS IN:</div>' +
+        '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
         '      <div class="time-value">03</div><div class="time-label">Days</div>' +
@@ -109,6 +109,9 @@
         render() {
             this.$shadowRoot.prepend(cssStyle);
             this.$shadowRoot.append(htmlTemplate);
+
+            const $title = this.$shadowRoot.find('.countdown-title');
+            $title.text(this.settings.experience.message);
         }
     }
 
