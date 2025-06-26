@@ -18,13 +18,17 @@
      * (so whenever the plugin is retrieved).
      */
     class UiCountdown extends HTMLElement {
+        $shadowRoot = null
+        settings = null
 
         constructor() {
             super();
 
             // initialize default settings and attach a shadow DOM for style encapsulation
-            this.settings = {};
             this.attachShadow({mode: 'open'});
+
+            this.$shadowRoot = $(this.shadowRoot);
+            this.settings = {};
         }
 
         /**
@@ -67,7 +71,7 @@
         }
 
         render() {
-            this.shadowRoot.innerHTML = `<pre>${JSON.stringify(this.settings, null, 2)}</pre>`;
+            this.$shadowRoot.append(`<pre>${JSON.stringify(this.settings, null, 2)}</pre>`);
         }
     }
 
