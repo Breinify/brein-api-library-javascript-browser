@@ -25,25 +25,54 @@
         '@media (max-width: 500px) { ' +
         '  :root { --unit-height: 40px; } ' +
         '}' +
+        '' +
+        '    .countdown-timer.loading .time-value,\n' +
+        '    .countdown-timer.loading .time-label {\n' +
+        '      opacity: 0;\n' +
+        '    }\n' +
+        '   .skeleton {\n' +
+        '      display: none;\n' +
+        '      position: absolute;\n' +
+        '      top: 0;\n' +
+        '      left: 0;\n' +
+        '      width: 100%;\n' +
+        '      height: 100%;\n' +
+        '      background: linear-gradient(90deg, #ffffff22 25%, #ffffff66 50%, #ffffff22 75%);\n' +
+        '      background-size: 200% 100%;\n' +
+        '      animation: shimmer 1.2s infinite;\n' +
+        '      z-index: 1;\n' +
+        '      border-radius: 4px;\n' +
+        '    }\n' +
+        '    .countdown-timer.loading .skeleton {\n' +
+        '      display: block;\n' +
+        '    }' +
+        '    @keyframes shimmer {\n' +
+        '      0% {\n' +
+        '        background-position: 200% 0;\n' +
+        '      }\n' +
+        '      100% {\n' +
+        '        background-position: -200% 0;\n' +
+        '      }\n' +
+        '    }' +
         '</style>';
     const htmlTemplate = '' +
         '<div class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-days">00</div><div class="time-label">Days</div>' +
+        '      <div class="skeleton"></div><div class="time-value time-days">00</div><div class="time-label">Days</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
+        '      <div class="skeleton"></div><div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
+        '      <div class="skeleton"></div><div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
+        '      <div class="skeleton"></div><div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
         '    </div>' +
         '  </div>' +
         '  <div class="countdown-disclaimer"></div>' +
