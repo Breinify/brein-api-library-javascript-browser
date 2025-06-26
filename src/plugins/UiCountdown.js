@@ -163,19 +163,29 @@
 
             setTimeout(() => {
                 _self.startCounter();
-                _self.$shadowRoot.find('.countdown-timer').removeClass('loading');
             }, 2000);
         }
 
         startCounter() {
             const _self = this;
 
-            this.updateCountdown(); // initial render
+            this.updateCountdown();
+            this.hideLoading();
+
+            // start the interval to keep the countdown updating
             this.interval = setInterval(() => {
                 if (!_self.updateCountdown()) {
                     clearInterval(_self.interval);
                 }
             }, 1000);
+        }
+
+        showLoading() {
+            this.$shadowRoot.find('.countdown-timer').addClass('loading');
+        }
+
+        hideLoading() {
+            this.$shadowRoot.find('.countdown-timer').removeClass('loading');
         }
 
         pad(num) {
