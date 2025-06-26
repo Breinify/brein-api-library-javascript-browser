@@ -136,10 +136,10 @@
             const now = Math.floor(Date.now() / 1000);
             let diff = Math.max(0, this.settings.experience.endTime - now);
 
-            const seconds = Math.floor(diff / 1000) % 60;
-            const minutes = Math.floor(diff / (1000 * 60)) % 60;
-            const hours = Math.floor(diff / (1000 * 60 * 60)) % 24;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const seconds = Math.floor(diff) % 60;
+            const minutes = Math.floor(diff / 60) % 60;
+            const hours = Math.floor(diff / (60 * 60)) % 24;
+            const days = Math.floor(diff / (60 * 60 * 24));
 
             this.$shadowRoot.find('.time-days').text(this.pad(days));
             this.$shadowRoot.find('.time-hours').text(this.pad(hours));
