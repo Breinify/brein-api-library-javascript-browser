@@ -9,7 +9,7 @@
         return;
     }
 
-    // get dependencies
+    // get dependencies and some constants for the element (like template)
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
         '<style id="br-countdown-default">' +
@@ -72,15 +72,6 @@
         }
 
         /**
-         * This is the entry point, called when element is added to the DOM, this should trigger
-         * the actual rendering process.
-         */
-        connectedCallback() {
-            // currently we do nothing and wait for the render method to be called explicitly
-            console.log('connectedCallback');
-        }
-
-        /**
          * This specifies or override the default settings.
          *
          * @param type the type of the countdown to apply and validate the configuration for
@@ -114,8 +105,6 @@
         }
 
         render() {
-            const _self = this;
-
             this.$shadowRoot.prepend(cssStyle);
             this.$shadowRoot.append(htmlTemplate);
 
@@ -135,9 +124,30 @@
                 $disclaimer.text(disclaimer).show();
             }
 
+            // check the type of the countdown to decide next steps
+            if (this.settings.type === 'CAMPAIGN_BASED') {
+                this.handleCampaignBased();
+            } else if (this.settings.type === 'ONE_TIME') {
+                this.handleOneTime();
+            } else {
+                this.handleUnknown();
+            }
+        }
+
+        handleCampaignBased() {
+            const _self = this;
+
             setTimeout(() => {
                 _self.startCounter();
             }, 2000);
+        }
+
+        handleOneTime() {
+            this.startCounter();
+        }
+
+        handleUnknown() {
+            this.$shadowRoot.find('.countdown-banner').hide();
         }
 
         startCounter() {
@@ -162,10 +172,6 @@
             this.$shadowRoot.find('.countdown-timer').removeClass('loading');
         }
 
-        pad(num) {
-            return String(num).padStart(2, '0');
-        }
-
         updateCountdown() {
             const now = Math.floor(Date.now() / 1000);
             let diff = Math.max(0, this.settings.experience.endTime - now);
@@ -181,6 +187,10 @@
             this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
 
             return seconds > 0 || minutes > 0 || hours > 0 || days > 0;
+        }
+
+        pad(num) {
+            return String(num).padStart(2, '0');
         }
     }
 
