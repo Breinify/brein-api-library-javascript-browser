@@ -88,20 +88,44 @@
                 error = 'settings must be a valid object';
             }
 
-            if (error === null) {
-                this.settings = $.extend(true, {
-                    type: checkedType,
-                    experience: {
-                        endTime: Math.floor(new Date().getTime() / 1000) + (5 * 60)
-                    }
-                }, settings);
-            } else {
+            if (error !== null) {
                 error = new Error(error);
+            } else if (checkedType === 'CAMPAIGN_BASED') {
+                this.applyCampaignBasedSettings(checkedType, settings);
+            } else if (checkedType === 'ONE_TIME') {
+                this.applyOneTimeSettings(checkedType, settings);
+            } else {
+                this.applyUnknownSettings(checkedType, settings);
             }
 
             if ($.isFunction(callback)) {
                 callback(error, this.settings);
             }
+        }
+
+        applyCampaignBasedSettings(settings) {
+
+            // check if we have a token (otherwise we do nothing)
+            settings.experience.accessToken
+
+            this.settings = $.extend(true, {
+                experience: {},
+                type: 'CAMPAIGN_BASED'
+            }, settings);
+        }
+
+        applyOneTimeSettings(settings) {
+            this.settings = $.extend(true, {
+                experience: {},
+                type: 'ONE_TIME'
+            }, settings);
+        }
+
+        applyUnknownSettings(settings) {
+            this.settings = $.extend(true, {
+                experience: {},
+                type: 'UNKNOWN'
+            }, settings);
         }
 
         render() {
@@ -191,6 +215,14 @@
 
         pad(num) {
             return String(num).padStart(2, '0');
+        }
+
+        getStartTime() {
+            return Breinify.UTL.toInteger(this.settings.experience.startTime);
+        }
+
+        getEndTime() {
+            return Breinify.UTL.toInteger(this.settings.experience.endTime);
         }
     }
 
