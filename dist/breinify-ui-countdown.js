@@ -21,38 +21,17 @@
         '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
         '.time-label { font-size: calc(var(--unit-height) * 0.18); margin-top: 3px; text-transform: uppercase; }' +
         '.separator { width: 1px; background-color: rgba(255, 255, 255, 0.3); height: 70%; align-self: center; }' +
+        '.countdown-timer.loading .time-value, .countdown-timer.loading .time-label { opacity: 0; }' +
+        '.skeleton { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #ffffff22 25%, #ffffff10 50%, #ffffff22 75%); background-size: 100% 200%; animation: shimmer 4s linear infinite; z-index: 1; border-radius: 4px; }\n' +
+        '.countdown-timer.loading .skeleton { display: block; }' +
+        /* Shimmer for the loading animation */
+        '@keyframes shimmer { ' +
+        '  0% { background-position: 0 200%; }' +
+        '  100% { background-position: 0 -200%; }' +
+        '}' +
         /* Optional responsiveness */
         '@media (max-width: 500px) { ' +
         '  :root { --unit-height: 40px; } ' +
-        '}' +
-        '' +
-        '    .countdown-timer.loading .time-value,\n' +
-        '    .countdown-timer.loading .time-label {\n' +
-        '      opacity: 0;\n' +
-        '    }\n' +
-        '   .skeleton {\n' +
-        '      display: none;\n' +
-        '      position: absolute;\n' +
-        '      top: 0;\n' +
-        '      left: 0;\n' +
-        '      width: 100%;\n' +
-        '      height: 100%;\n' +
-        '      background: linear-gradient(180deg, #ffffff22 25%, #ffffff10 50%, #ffffff22 75%);\n' +
-        '      background-size: 100% 200%;\n' +
-        '      animation: shimmer 4s linear infinite;\n' +
-        '      z-index: 1;\n' +
-        '      border-radius: 4px;\n' +
-        '    }\n' +
-        '    .countdown-timer.loading .skeleton {\n' +
-        '      display: block;\n' +
-        '    }' +
-        '@keyframes shimmer {\n' +
-        '  0% {\n' +
-        '    background-position: 0 200%;\n' +
-        '  }\n' +
-        '  100% {\n' +
-        '    background-position: 0 -200%;\n' +
-        '  }\n' +
         '}' +
         '</style>';
     const htmlTemplate = '' +
