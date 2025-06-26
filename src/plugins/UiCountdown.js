@@ -214,6 +214,12 @@
         startCounter() {
             const _self = this;
 
+            /*
+             * If the update returns false, it means nothing needs to be updated anymore,
+             * so let's just return (the countdown is not visible at this point).
+             *
+             * If the update was successful
+             */
             if (this.updateCountdown()) {
                 this.hideLoading();
             } else {
@@ -240,7 +246,7 @@
         updateCountdown() {
             const now = this.now();
             const startTime = this.getStartTime();
-            if (startTime === null || startTime <= now) {
+            if (startTime === null || startTime > now) {
                 this.$shadowRoot.find('.countdown-banner').hide();
                 return true;
             }
