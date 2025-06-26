@@ -11,6 +11,42 @@
 
     // get dependencies
     const $ = Breinify.UTL._jquery();
+    const cssStyle = '' +
+        '<style>' +
+        ':root { --unit-height: 60px; }' +
+        '.countdown-banner { background-color: #c63d3d; color: #f2f2f2; font-family: Arial, sans-serif; text-align: center; padding: 10px 0; }' +
+        '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; }' +
+        '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
+        '.time-block { flex: 0 0 auto; aspect-ratio: 1.5 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; }' +
+        '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
+        '.time-label { font-size: calc(var(--unit-height) * 0.18); margin-top: 3px; text-transform: uppercase; }' +
+        '.separator { width: 1px; background-color: rgba(255, 255, 255, 0.3); height: 70%; align-self: center; }' +
+        /* Optional responsiveness */
+        '@media (max-width: 500px) { ' +
+        '  :root { --unit-height: 40px; } ' +
+        '}' +
+        '</style>';
+    const htmlTemplate = '' +
+        '<div class="countdown-banner">' +
+        '  <div class="countdown-title">SUMMER TIME SALE ENDS IN:</div>' +
+        '  <div class="countdown-timer">' +
+        '    <div class="time-block">' +
+        '      <div class="time-value">03</div><div class="time-label">Days</div>' +
+        '    </div>' +
+        '    <div class="separator"></div>' +
+        '    <div class="time-block">' +
+        '      <div class="time-value">72</div><div class="time-label">Hours</div>' +
+        '    </div>' +
+        '    <div class="separator"></div>' +
+        '    <div class="time-block">' +
+        '      <div class="time-value">30</div><div class="time-label">Minutes</div>' +
+        '    </div>' +
+        '    <div class="separator"></div>' +
+        '    <div class="time-block">' +
+        '      <div class="time-value">55</div><div class="time-label">Seconds</div>' +
+        '    </div>' +
+        '  </div>' +
+        '</div>';
 
     /**
      * When using this plugin it adds a wrapper method as plugin, which adds the possibility to
@@ -71,7 +107,8 @@
         }
 
         render() {
-            this.$shadowRoot.append(`<pre>${JSON.stringify(this.settings, null, 2)}</pre>`);
+            this.$shadowRoot.prepend(cssStyle);
+            this.$shadowRoot.append(htmlTemplate);
         }
     }
 
