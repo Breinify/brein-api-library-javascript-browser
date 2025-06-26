@@ -30,7 +30,7 @@
         '@media (max-width: 500px) { :host { --unit-height: 40px; } }' +
         '</style>';
     const htmlTemplate = '' +
-        '<div class="countdown-banner">' +
+        '<div style="display:none" class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer loading">' +
         '    <div class="time-block">' +
@@ -79,24 +79,34 @@
          * @param callback a function called when the configuration is successfully loaded or failed
          */
         config(type, settings, callback) {
-            let error = null;
+            const _self = this;
+
+            callback = $.isFunction(callback) ? callback : () => null;
 
             const checkedType = Breinify.UTL.isNonEmptyString(type);
             if (checkedType === null) {
-                error = 'the specified type "' + type + "' is invalid";
+                callback(new Error('the specified type "' + type + '" is invalid'), null);
+                return;
             } else if (!$.isPlainObject(settings)) {
-                error = 'settings must be a valid object';
+                callback(new Error('settings must be a valid object'), null);
+                return;
             }
 
-            callback = $.isFunction(callback) ? callback : () => null;
-            if (error !== null) {
-                callback(new Error(error), null);
-            } else if (checkedType === 'CAMPAIGN_BASED') {
-                this.applyCampaignBasedSettings(settings, callback);
+            // wrap the callback to do some general check on the final results
+            const callbackWrapper = function(error) {
+                if (error === null) {
+                    callback(null, _self.settings);
+                } else {
+                    callback(error, null);
+                }
+            };
+
+            if (checkedType === 'CAMPAIGN_BASED') {
+                this.applyCampaignBasedSettings(settings, callbackWrapper);
             } else if (checkedType === 'ONE_TIME') {
-                this.applyOneTimeSettings(settings, callback);
+                this.applyOneTimeSettings(settings, callbackWrapper);
             } else {
-                this.applyUnknownSettings(settings, callback);
+                this.applyUnknownSettings(settings, callbackWrapper);
             }
         }
 
@@ -204,13 +214,17 @@
         startCounter() {
             const _self = this;
 
-            this.updateCountdown();
-            this.hideLoading();
+            if (this.updateCountdown()) {
+                this.hideLoading();
+            } else {
+                return;
+            }
 
             // start the interval to keep the countdown updating
             this.interval = setInterval(() => {
                 if (!_self.updateCountdown()) {
                     clearInterval(_self.interval);
+                    _self.$shadowRoot.find('.countdown-banner').fadeOut();
                 }
             }, 1000);
         }
@@ -224,7 +238,13 @@
         }
 
         updateCountdown() {
-            const now = Math.floor(Date.now() / 1000);
+            const now = this.now();
+            const startTime = this.getStartTime();
+            if (startTime === null || startTime <= now) {
+                this.$shadowRoot.find('.countdown-banner').hide();
+                return true;
+            }
+
             let diff = Math.max(0, this.settings.experience.endTime - now);
 
             const seconds = Math.floor(diff) % 60;
@@ -237,7 +257,12 @@
             this.$shadowRoot.find('.time-minutes').text(this.pad(minutes));
             this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
 
-            return seconds > 0 || minutes > 0 || hours > 0 || days > 0;
+            if (seconds > 0 || minutes > 0 || hours > 0 || days > 0) {
+                this.$shadowRoot.find('.countdown-banner').show();
+                return true;
+            } else {
+                return false;
+            }
         }
 
         pad(num) {
@@ -250,6 +275,10 @@
 
         getEndTime() {
             return Breinify.UTL.toInteger(this.settings.experience.endTime);
+        }
+
+        now() {
+            return Math.floor(Date.now() / 1000);
         }
     }
 
