@@ -44,12 +44,26 @@
          * @param callback a function called when the configuration is successfully loaded or failed
          */
         config(type, settings, callback) {
+            let error = null;
 
-            if (!$.isPlainObject(settings)) {
-                return;
+            const checkedType = Breinify.UTL.isNonEmptyString(type);
+            if (checkedType === null) {
+                error = 'the specified type "' + type + "' is invalid";
+            } else if (!$.isPlainObject(settings)) {
+                error = 'settings must be a valid object';
             }
 
-            this.settings = settings;
+            if (error === null) {
+                this.settings = $.extend({
+                    type: checkedType
+                }, settings);
+            } else {
+                error = new Error(error);
+            }
+
+            if ($.isFunction(callback)) {
+                callback(error, this.settings);
+            }
         }
 
         render() {
