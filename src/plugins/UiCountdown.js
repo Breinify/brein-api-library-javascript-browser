@@ -37,23 +37,23 @@
         '      left: 0;\n' +
         '      width: 100%;\n' +
         '      height: 100%;\n' +
-        '      background: linear-gradient(90deg, #ffffff22 25%, #ffffff66 50%, #ffffff22 75%);\n' +
-        '      background-size: 200% 100%;\n' +
-        '      animation: shimmer 1.2s infinite;\n' +
+        '      background: linear-gradient(180deg, #ffffff22 25%, #ffffff10 50%, #ffffff22 75%);\n' +
+        '      background-size: 100% 200%;\n' +
+        '      animation: shimmer 4s linear infinite;\n' +
         '      z-index: 1;\n' +
         '      border-radius: 4px;\n' +
         '    }\n' +
         '    .countdown-timer.loading .skeleton {\n' +
         '      display: block;\n' +
         '    }' +
-        '    @keyframes shimmer {\n' +
-        '      0% {\n' +
-        '        background-position: 200% 0;\n' +
-        '      }\n' +
-        '      100% {\n' +
-        '        background-position: -200% 0;\n' +
-        '      }\n' +
-        '    }' +
+        '@keyframes shimmer {\n' +
+        '  0% {\n' +
+        '    background-position: 0 200%;\n' +
+        '  }\n' +
+        '  100% {\n' +
+        '    background-position: 0 -200%;\n' +
+        '  }\n' +
+        '}' +
         '</style>';
     const htmlTemplate = '' +
         '<div class="countdown-banner">' +
