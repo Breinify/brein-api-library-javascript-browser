@@ -58,7 +58,7 @@
     const htmlTemplate = '' +
         '<div class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
-        '  <div class="countdown-timer">' +
+        '  <div class="countdown-timer loading">' +
         '    <div class="time-block">' +
         '      <div class="skeleton"></div><div class="time-value time-days">00</div><div class="time-label">Days</div>' +
         '    </div>' +
