@@ -38,9 +38,12 @@
 
         /**
          * This specifies or override the default settings.
+         *
+         * @param type the type of the countdown to apply and validate the configuration for
          * @param settings the settings to be applied/overridden
+         * @param callback a function called when the configuration is successfully loaded or failed
          */
-        config(settings) {
+        config(type, settings, callback) {
 
             if (!$.isPlainObject(settings)) {
                 return;
