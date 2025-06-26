@@ -13,7 +13,7 @@
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
         '<style>' +
-        ':root { --unit-height: 60px; }' +
+        ':host { --unit-height: 60px; }' +
         '.countdown-banner { background-color: #c63d3d; color: #f2f2f2; font-family: Arial, sans-serif; text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
