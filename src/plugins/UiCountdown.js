@@ -12,7 +12,7 @@
     // get dependencies
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
-        '<style>' +
+        '<style id="br-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2 }' +
         '.countdown-banner { background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
@@ -46,6 +46,7 @@
         '      <div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
         '    </div>' +
         '  </div>' +
+        '  <div class="countdown-disclaimer"></div>' +
         '</div>';
 
     /**
@@ -115,8 +116,21 @@
             this.$shadowRoot.prepend(cssStyle);
             this.$shadowRoot.append(htmlTemplate);
 
+            const title = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
             const $title = this.$shadowRoot.find('.countdown-title');
-            $title.text(this.settings.experience.message);
+            if (title === null) {
+                $title.hide();
+            } else {
+                $title.text(title).show();
+            }
+
+            const disclaimer = Breinify.UTL.isNonEmptyString(this.settings.experience.disclaimer);
+            const $disclaimer = this.$shadowRoot.find('.countdown-disclaimer');
+            if (disclaimer == null) {
+                $disclaimer.hide();
+            } else {
+                $disclaimer.text(this.settings.experience.disclaimer).show();
+            }
 
             this.updateCountdown(); // initial render
             this.interval = setInterval(() => {
