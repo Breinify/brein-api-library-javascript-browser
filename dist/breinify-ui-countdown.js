@@ -13,8 +13,8 @@
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
         '<style>' +
-        ':host { --unit-height: 60px; }' +
-        '.countdown-banner { background-color: #c63d3d; color: #f2f2f2; font-family: Arial, sans-serif; text-align: center; padding: 10px 0; }' +
+        ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2 }' +
+        '.countdown-banner { background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.time-block { flex: 0 0 auto; aspect-ratio: 1.5 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; }' +
