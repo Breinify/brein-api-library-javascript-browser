@@ -96,7 +96,9 @@
             if (error === null) {
                 this.settings = $.extend({
                     type: checkedType,
-                    endTime: (new Date().getTime() / 1000) + (5 * 60)
+                    experience: {
+                        endTime: (new Date().getTime() / 1000) + (5 * 60)
+                    }
                 }, settings);
             } else {
                 error = new Error(error);
