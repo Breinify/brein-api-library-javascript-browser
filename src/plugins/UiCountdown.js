@@ -31,19 +31,19 @@
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-days">03</div><div class="time-label">Days</div>' +
+        '      <div class="time-value time-days">00</div><div class="time-label">Days</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-hours">72</div><div class="time-label">Hours</div>' +
+        '      <div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-minutes">30</div><div class="time-label">Minutes</div>' +
+        '      <div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value time-seconds">55</div><div class="time-label">Seconds</div>' +
+        '      <div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
         '    </div>' +
         '  </div>' +
         '</div>';
@@ -108,11 +108,22 @@
         }
 
         render() {
+            const _self = this;
+
             this.$shadowRoot.prepend(cssStyle);
             this.$shadowRoot.append(htmlTemplate);
 
             const $title = this.$shadowRoot.find('.countdown-title');
             $title.text(this.settings.experience.message);
+
+            this.updateCountdown(); // initial render
+            this.interval = setInterval(() => {
+                _self.updateCountdown();
+
+                if (Date.now() >= this.settings.experience.endTime) {
+                    clearInterval(_self.interval);
+                }
+            }, 1000);
         }
 
         pad(num) {

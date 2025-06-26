@@ -31,19 +31,19 @@
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
-        '      <div class="time-value">03</div><div class="time-label">Days</div>' +
+        '      <div class="time-value time-days">00</div><div class="time-label">Days</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value">72</div><div class="time-label">Hours</div>' +
+        '      <div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value">30</div><div class="time-label">Minutes</div>' +
+        '      <div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="time-value">55</div><div class="time-label">Seconds</div>' +
+        '      <div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
         '    </div>' +
         '  </div>' +
         '</div>';
@@ -95,7 +95,8 @@
 
             if (error === null) {
                 this.settings = $.extend({
-                    type: checkedType
+                    type: checkedType,
+                    endTime: (new Date().getTime() / 1000) + (5 * 60)
                 }, settings);
             } else {
                 error = new Error(error);
@@ -107,11 +108,41 @@
         }
 
         render() {
+            const _self = this;
+
             this.$shadowRoot.prepend(cssStyle);
             this.$shadowRoot.append(htmlTemplate);
 
             const $title = this.$shadowRoot.find('.countdown-title');
             $title.text(this.settings.experience.message);
+
+            this.updateCountdown(); // initial render
+            this.interval = setInterval(() => {
+                _self.updateCountdown();
+
+                if (Date.now() >= this.settings.experience.endTime) {
+                    clearInterval(_self.interval);
+                }
+            }, 1000);
+        }
+
+        pad(num) {
+            return String(num).padStart(2, '0');
+        }
+
+        updateCountdown() {
+            const now = Date.now();
+            let diff = Math.max(0, this.settings.experience.endTime - now);
+
+            const seconds = Math.floor(diff / 1000) % 60;
+            const minutes = Math.floor(diff / (1000 * 60)) % 60;
+            const hours = Math.floor(diff / (1000 * 60 * 60)) % 24;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            this.$shadowRoot.find('.time-days').text(this.pad(days));
+            this.$shadowRoot.find('.time-hours').text(this.pad(hours));
+            this.$shadowRoot.find('.time-minutes').text(this.pad(minutes));
+            this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
         }
     }
 
