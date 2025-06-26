@@ -133,7 +133,7 @@
         }
 
         updateCountdown() {
-            const now = Date.now();
+            const now = Math.floor(Date.now() / 1000);
             let diff = Math.max(0, this.settings.experience.endTime - now);
 
             const seconds = Math.floor(diff / 1000) % 60;
