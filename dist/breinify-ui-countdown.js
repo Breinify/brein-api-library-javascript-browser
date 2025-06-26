@@ -94,7 +94,7 @@
             }
 
             if (error === null) {
-                this.settings = $.extend({
+                this.settings = $.extend(true, {
                     type: checkedType,
                     experience: {
                         endTime: (new Date().getTime() / 1000) + (5 * 60)
