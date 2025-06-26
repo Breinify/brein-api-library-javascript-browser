@@ -88,44 +88,71 @@
                 error = 'settings must be a valid object';
             }
 
+            callback = $.isFunction(callback) ? callback : () => null;
             if (error !== null) {
-                error = new Error(error);
+                callback(new Error(error), null);
             } else if (checkedType === 'CAMPAIGN_BASED') {
-                this.applyCampaignBasedSettings(checkedType, settings);
+                this.applyCampaignBasedSettings(settings, callback);
             } else if (checkedType === 'ONE_TIME') {
-                this.applyOneTimeSettings(checkedType, settings);
+                this.applyOneTimeSettings(settings, callback);
             } else {
-                this.applyUnknownSettings(checkedType, settings);
-            }
-
-            if ($.isFunction(callback)) {
-                callback(error, this.settings);
+                this.applyUnknownSettings(settings, callback);
             }
         }
 
-        applyCampaignBasedSettings(settings) {
+        applyCampaignBasedSettings(settings, callback) {
+            const _self = this;
 
-            // check if we have a token (otherwise we do nothing)
-            settings.experience.accessToken
+            /*
+             * For a campaign based counter, we need msid in the params to fire the request,
+             * otherwise we just consider that the hit is not from a campaign and can stop.
+             */
+            const brMsId = Breinify.UTL.loc.param('br-msid');
+            if (brMsId === null) {
+                return;
+            }
 
             this.settings = $.extend(true, {
                 experience: {},
                 type: 'CAMPAIGN_BASED'
             }, settings);
+
+            // check if we have a token (otherwise we do nothing and just return)
+            const accessToken = Breinify.UTL.isNonEmptyString(this.settings.experience.accessToken);
+            if (accessToken === null) {
+                callback(new Error('the needed accessToken is missing'), null);
+                return;
+            }
+
+            // utilize the token to resolve the information attached
+            Breinify.UTL.internal.token(accessToken, {
+                msid: brMsId
+            }, function (error, response) {
+                if (error == null) {
+                    console.log(response);
+                    callback(null, _self.settings);
+                } else {
+                    callback(error, false);
+                }
+            }, 30000);
         }
 
-        applyOneTimeSettings(settings) {
+        applyOneTimeSettings(settings, callback) {
             this.settings = $.extend(true, {
                 experience: {},
                 type: 'ONE_TIME'
             }, settings);
+
+            callback(null, this.settings);
         }
 
-        applyUnknownSettings(settings) {
+        applyUnknownSettings(settings, callback) {
             this.settings = $.extend(true, {
                 experience: {},
                 type: 'UNKNOWN'
             }, settings);
+
+            callback(null, this.settings);
         }
 
         render() {
