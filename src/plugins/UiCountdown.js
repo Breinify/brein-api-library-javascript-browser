@@ -244,10 +244,12 @@
         }
 
         updateCountdown() {
+            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+
             const now = this.now();
             const startTime = this.getStartTime();
             if (startTime === null || startTime > now) {
-                this.$shadowRoot.find('.countdown-banner').hide();
+                $countdownBanner.hide();
                 return true;
             }
 
@@ -264,7 +266,9 @@
             this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
 
             if (seconds > 0 || minutes > 0 || hours > 0 || days > 0) {
-                this.$shadowRoot.find('.countdown-banner').show();
+                if (!$countdownBanner.is(':visible')) {
+                    $countdownBanner.fadeIn();
+                }
                 return true;
             } else {
                 return false;
