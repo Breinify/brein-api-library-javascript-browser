@@ -129,7 +129,7 @@
             if (disclaimer == null) {
                 $disclaimer.hide();
             } else {
-                $disclaimer.text(this.settings.experience.disclaimer).show();
+                $disclaimer.text(disclaimer).show();
             }
 
             this.updateCountdown(); // initial render
