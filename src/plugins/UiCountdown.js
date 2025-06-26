@@ -13,14 +13,14 @@
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
         '<style id="br-countdown-default">' +
-        ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-sepearator: rgba(255, 255, 255, 0.3); }' +
+        ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
         '.countdown-banner { background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.time-block { position: relative; flex: 0 0 auto; aspect-ratio: 1.5 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; }' +
         '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
         '.time-label { font-size: calc(var(--unit-height) * 0.18); margin-top: 3px; text-transform: uppercase; }' +
-        '.separator { width: 1px; background-color: --color-separator; height: 70%; align-self: center; }' +
+        '.separator { width: 1px; background-color: var(--color-separator); height: 70%; align-self: center; }' +
         '.countdown-timer.loading .time-value, .countdown-timer.loading .time-label { opacity: 0; }' +
         '.skeleton { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #ffffff22 25%, #ffffff10 50%, #ffffff22 75%); background-size: 100% 200%; animation: shimmer 4s linear infinite; z-index: 1; border-radius: 4px; }\n' +
         '.countdown-timer.loading .skeleton { display: block; }' +
