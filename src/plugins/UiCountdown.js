@@ -149,15 +149,172 @@
             };
 
             if (checkedType === 'CAMPAIGN_BASED') {
-                this.applyCampaignBasedSettings(settings, callbackWrapper);
+                this._applyCampaignBasedSettings(settings, callbackWrapper);
             } else if (checkedType === 'ONE_TIME') {
-                this.applyOneTimeSettings(settings, callbackWrapper);
+                this._applyOneTimeSettings(settings, callbackWrapper);
             } else {
-                this.applyUnknownSettings(settings, callbackWrapper);
+                this._applyUnknownSettings(settings, callbackWrapper);
             }
         }
 
-        applyCampaignBasedSettings(settings, callback) {
+        render() {
+
+            // if this is not connected we utilize the position information and attach it
+            if (this._ensureConnected() === false) {
+                return;
+            }
+
+            // add any additional styles
+            this._applyStyle();
+
+            // modify the template based on the settings and add the content
+            this._applyHtml();
+            this._applyContent();
+
+            // apply type specific settings to the countdown
+            if (this.settings.type === 'CAMPAIGN_BASED') {
+                this.startCounter();
+            } else if (this.settings.type === 'ONE_TIME') {
+                this.startCounter();
+            } else {
+                this.$shadowRoot.find('.countdown-banner').hide();
+            }
+        }
+
+        startCounter() {
+            const _self = this;
+
+            /*
+             * If the update returns false, it means nothing needs to be updated anymore,
+             * so let's just return (the countdown is not visible at this point).
+             *
+             * If the update was successful
+             */
+            if (this._updateCountdown(true)) {
+                this.hideLoading();
+            } else {
+                return;
+            }
+
+            // start the interval to keep the countdown updating
+            this.interval = new AccurateInterval(() => {
+                if (!_self._updateCountdown(false)) {
+                    _self.interval.stop();
+                    _self.$shadowRoot.find('.countdown-banner').fadeOut();
+                }
+            }).start();
+        }
+
+        showLoading() {
+            this.$shadowRoot.find('.countdown-timer').addClass('loading');
+        }
+
+        hideLoading() {
+            this.$shadowRoot.find('.countdown-timer').removeClass('loading');
+        }
+
+        getStartTime() {
+            return Breinify.UTL.toInteger(this.settings.experience.startTime);
+        }
+
+        getEndTime() {
+            return Breinify.UTL.toInteger(this.settings.experience.endTime);
+        }
+
+        now() {
+            return Math.floor(Date.now() / 1000);
+        }
+
+        _updateCountdown(firstCheck) {
+            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+
+            const now = this.now();
+            const startTime = this.getStartTime();
+            if (startTime === null || startTime > now) {
+                $countdownBanner.hide();
+                return true;
+            }
+
+            let diff = Math.max(0, this.settings.experience.endTime - now);
+
+            const seconds = Math.floor(diff) % 60;
+            const minutes = Math.floor(diff / 60) % 60;
+            const hours = Math.floor(diff / (60 * 60)) % 24;
+            const days = Math.floor(diff / (60 * 60 * 24));
+
+            this.$shadowRoot.find('.time-days').text(this._pad(days));
+            this.$shadowRoot.find('.time-hours').text(this._pad(hours));
+            this.$shadowRoot.find('.time-minutes').text(this._pad(minutes));
+            this.$shadowRoot.find('.time-seconds').text(this._pad(seconds));
+
+            if (seconds <= 0 && minutes <= 0 && hours <= 0 && days <= 0) {
+                return false;
+            } else if ($countdownBanner.is(':visible')) {
+                // nothing to do, it's already there
+            } else if (firstCheck === true) {
+                $countdownBanner.show();
+            } else {
+                $countdownBanner.fadeIn();
+            }
+
+            return true;
+        }
+
+        _applyStyle() {
+
+            // add the default style and ensure there is nothing configured right now
+            if (this.$shadowRoot.find('#br-style-countdown-default').length === 0) {
+                this.$shadowRoot.prepend(cssStyle);
+            }
+            this.$shadowRoot.find('#br-style-countdown-configured').remove();
+
+            const selectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors) ? this.settings.style.selectors : [];
+            const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
+                .filter(entry => $.isPlainObject(entry))
+                .map(entry => Object.entries(entry)
+                    .map(([key, value]) => `${key} { ${value} }`)
+                    .join('')
+                )
+                .join(''));
+
+            if (additionalStyle !== null) {
+                this.$shadowRoot.find('#br-style-countdown-default')
+                    .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
+            }
+        }
+
+        _applyHtml() {
+            this.$shadowRoot.find('.countdown-banner').remove();
+
+            const url = Breinify.UTL.isNonEmptyString(this.settings.experience.url);
+            const containerType = url === null ? 'div' : 'a';
+            const finalHtmlTemplate = htmlTemplate.replaceAll('a-or-div', containerType)
+            this.$shadowRoot.append(finalHtmlTemplate);
+
+            if (url !== null) {
+                this.$shadowRoot.find('.countdown-banner').attr('href', url);
+            }
+        }
+
+        _applyContent() {
+            const title = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
+            const $title = this.$shadowRoot.find('.countdown-title');
+            if (title === null) {
+                $title.hide();
+            } else {
+                $title.text(title).show();
+            }
+
+            const disclaimer = Breinify.UTL.isNonEmptyString(this.settings.experience.disclaimer);
+            const $disclaimer = this.$shadowRoot.find('.countdown-disclaimer');
+            if (disclaimer == null) {
+                $disclaimer.hide();
+            } else {
+                $disclaimer.text(disclaimer).show();
+            }
+        }
+
+        _applyCampaignBasedSettings(settings, callback) {
             const _self = this;
 
             /*
@@ -187,13 +344,67 @@
             }, function (error, response) {
                 if (error !== null) {
                     callback(error, false);
-                } else if (_self.checkCampaignBasedResponse(response)) {
+                } else if (_self._checkCampaignBasedResponse(response)) {
                     callback(null, _self.settings);
                 }
             }, 30000);
         }
 
-        checkCampaignBasedResponse(response) {
+        _applyOneTimeSettings(settings, callback) {
+            this.settings = $.extend(true, {
+                experience: {},
+                type: 'ONE_TIME'
+            }, settings);
+
+            callback(null, this.settings);
+        }
+
+        _applyUnknownSettings(settings, callback) {
+            this.settings = $.extend(true, {
+                experience: {},
+                type: 'UNKNOWN'
+            }, settings);
+
+            callback(null, this.settings);
+        }
+
+        _pad(num) {
+            return String(num).padStart(2, '0');
+        }
+
+        _ensureConnected() {
+            if (this.isConnected === true) {
+                return true;
+            }
+
+            const position = $.isPlainObject(this.settings.position) ? this.settings.position : null;
+            if (position == null) {
+                return false;
+            }
+
+            // determine the operation to utilize, it is needed
+            const operation = Breinify.UTL.isNonEmptyString(position.operation);
+            if (operation === null) {
+                return false;
+            }
+
+            // determine the anchor, it is needed but evaluated within the utility method
+            let $anchor;
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+            if (snippet === null && selector === null) {
+                $anchor = null;
+            } else if (selector !== null) {
+                $anchor = $(selector);
+            } else if (snippet !== null) {
+                $anchor = null
+            }
+
+            // now attach the element and if successful move on (otherwise return)
+            return Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this));
+        }
+
+        _checkCampaignBasedResponse(response) {
             if (!$.isPlainObject(response)) {
                 return false;
             }
@@ -216,204 +427,6 @@
 
             this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData);
             return true;
-        }
-
-        applyOneTimeSettings(settings, callback) {
-            this.settings = $.extend(true, {
-                experience: {},
-                type: 'ONE_TIME'
-            }, settings);
-
-            callback(null, this.settings);
-        }
-
-        applyUnknownSettings(settings, callback) {
-            this.settings = $.extend(true, {
-                experience: {},
-                type: 'UNKNOWN'
-            }, settings);
-
-            callback(null, this.settings);
-        }
-
-        render() {
-
-            // if this is not connected we utilize the position information and attach it
-            if (this.isConnected === false) {
-                const position = $.isPlainObject(this.settings.position) ? this.settings.position : null;
-                if (position == null) {
-                    return;
-                }
-
-                // determine the operation to utilize, it is needed
-                const operation = Breinify.UTL.isNonEmptyString(position.operation);
-                if (operation === null) {
-                    return;
-                }
-
-                // determine the anchor, it is needed but evaluated within the utility method
-                let $anchor;
-                const selector = Breinify.UTL.isNonEmptyString(position.selector);
-                const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
-                if (snippet === null && selector === null) {
-                    $anchor = null;
-                } else if (selector !== null) {
-                    $anchor = $(selector);
-                } else if (snippet !== null) {
-                    $anchor = null
-                }
-
-                // now attach the element and if successful move on (otherwise return)
-                if (Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this)) === false) {
-                    return;
-                }
-            }
-
-            this.$shadowRoot.prepend(cssStyle);
-
-            // add any additional styles
-            const selectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors) ? this.settings.style.selectors : [];
-            const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
-                .filter(entry => $.isPlainObject(entry))
-                .map(entry => Object.entries(entry)
-                    .map(([key, value]) => `${key} { ${value} }`)
-                    .join('')
-                )
-                .join(''));
-            if (additionalStyle !== null) {
-                this.$shadowRoot.find('#br-style-countdown-default')
-                    .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
-            }
-
-            // modify the template based on the settings
-            const url = Breinify.UTL.isNonEmptyString(this.settings.experience.url);
-            const containerType = url === null ? 'div' : 'a';
-            const finalHtmlTemplate = htmlTemplate.replaceAll('a-or-div', containerType)
-            this.$shadowRoot.append(finalHtmlTemplate);
-
-            if (url !== null) {
-                this.$shadowRoot.find('.countdown-banner').attr('href', url);
-            }
-
-            const title = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
-            const $title = this.$shadowRoot.find('.countdown-title');
-            if (title === null) {
-                $title.hide();
-            } else {
-                $title.text(title).show();
-            }
-
-            const disclaimer = Breinify.UTL.isNonEmptyString(this.settings.experience.disclaimer);
-            const $disclaimer = this.$shadowRoot.find('.countdown-disclaimer');
-            if (disclaimer == null) {
-                $disclaimer.hide();
-            } else {
-                $disclaimer.text(disclaimer).show();
-            }
-
-            // check the type of the countdown to decide next steps
-            if (this.settings.type === 'CAMPAIGN_BASED') {
-                this.handleCampaignBased();
-            } else if (this.settings.type === 'ONE_TIME') {
-                this.handleOneTime();
-            } else {
-                this.handleUnknown();
-            }
-        }
-
-        handleCampaignBased() {
-            this.startCounter();
-        }
-
-        handleOneTime() {
-            this.startCounter();
-        }
-
-        handleUnknown() {
-            this.$shadowRoot.find('.countdown-banner').hide();
-        }
-
-        startCounter() {
-            const _self = this;
-
-            /*
-             * If the update returns false, it means nothing needs to be updated anymore,
-             * so let's just return (the countdown is not visible at this point).
-             *
-             * If the update was successful
-             */
-            if (this.updateCountdown(true)) {
-                this.hideLoading();
-            } else {
-                return;
-            }
-
-            // start the interval to keep the countdown updating
-            this.interval = new AccurateInterval(() => {
-                if (!_self.updateCountdown(false)) {
-                    _self.interval.stop();
-                    _self.$shadowRoot.find('.countdown-banner').fadeOut();
-                }
-            }).start();
-        }
-
-        showLoading() {
-            this.$shadowRoot.find('.countdown-timer').addClass('loading');
-        }
-
-        hideLoading() {
-            this.$shadowRoot.find('.countdown-timer').removeClass('loading');
-        }
-
-        updateCountdown(firstCheck) {
-            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
-
-            const now = this.now();
-            const startTime = this.getStartTime();
-            if (startTime === null || startTime > now) {
-                $countdownBanner.hide();
-                return true;
-            }
-
-            let diff = Math.max(0, this.settings.experience.endTime - now);
-
-            const seconds = Math.floor(diff) % 60;
-            const minutes = Math.floor(diff / 60) % 60;
-            const hours = Math.floor(diff / (60 * 60)) % 24;
-            const days = Math.floor(diff / (60 * 60 * 24));
-
-            this.$shadowRoot.find('.time-days').text(this.pad(days));
-            this.$shadowRoot.find('.time-hours').text(this.pad(hours));
-            this.$shadowRoot.find('.time-minutes').text(this.pad(minutes));
-            this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
-
-            if (seconds <= 0 && minutes <= 0 && hours <= 0 && days <= 0) {
-                return false;
-            } else if ($countdownBanner.is(':visible')) {
-                // nothing to do, it's already there
-            } else if (firstCheck === true) {
-                $countdownBanner.show();
-            } else {
-                $countdownBanner.fadeIn();
-            }
-
-            return true;
-        }
-
-        pad(num) {
-            return String(num).padStart(2, '0');
-        }
-
-        getStartTime() {
-            return Breinify.UTL.toInteger(this.settings.experience.startTime);
-        }
-
-        getEndTime() {
-            return Breinify.UTL.toInteger(this.settings.experience.endTime);
-        }
-
-        now() {
-            return Math.floor(Date.now() / 1000);
         }
     }
 
