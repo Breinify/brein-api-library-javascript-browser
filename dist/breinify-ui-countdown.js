@@ -56,9 +56,7 @@
     class AccurateInterval {
 
         constructor(callback) {
-            this.callback = $.isFunction(callback) ? callback : () => {
-            };
-            this.startTime = null;
+            this.callback = $.isFunction(callback) ? callback : () => null;
             this.timerId = null;
             this.stopped = true;
         }
@@ -66,26 +64,25 @@
         start() {
             if (this.stopped === false) {
                 return this;
+            } else {
+                this.stopped = false;
             }
-
-            this.startTime = Date.now();
-            this.stopped = false;
 
             const tick = () => {
                 if (this.stopped === true) {
                     return;
                 }
+                
+                // execute with the exact delay to the next second
+                this.timerId = window.setTimeout(() => {
+                    if (this.stopped === true) {
+                        return;
+                    }
 
-                const now = Date.now();
-                const drift = now - this.startTime;
-                const secondsElapsed = Math.floor(drift / 1000);
-
-                this.callback(secondsElapsed);
-
-                const nextTick = this.startTime + (secondsElapsed + 1) * 1000;
-                const delay = nextTick - Date.now();
-
-                this.timerId = window.setTimeout(tick, delay);
+                    // fire the callback exactly on full second and run the next tick
+                    this.callback();
+                    tick();
+                }, 1000 - (Date.now() % 1000));
             };
 
             tick();
