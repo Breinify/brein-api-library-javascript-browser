@@ -238,7 +238,16 @@
 
         render() {
             this.$shadowRoot.prepend(cssStyle);
-            this.$shadowRoot.append(htmlTemplate.replaceAll('a-or-div', 'a'));
+
+            // modify the template based on the settings
+            const url = Breinify.UTL.isNonEmptyString(this.settings.experience.url);
+            const containerType = url === null ? 'div' : 'a';
+            const finalHtmlTemplate = htmlTemplate.replaceAll('a-or-div', containerType)
+            this.$shadowRoot.append(finalHtmlTemplate);
+
+            if (url !== null) {
+                this.$shadowRoot.find('.countdown-banner').attr('href', url);
+            }
 
             const title = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
             const $title = this.$shadowRoot.find('.countdown-title');
