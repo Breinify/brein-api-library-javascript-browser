@@ -263,6 +263,7 @@
                     $anchor = null
                 }
 
+                // now attach the element and if successful move on (otherwise return)
                 if (Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this)) === false) {
                     return;
                 }
