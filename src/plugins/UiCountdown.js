@@ -93,7 +93,7 @@
             }
 
             // wrap the callback to do some general check on the final results
-            const callbackWrapper = function(error) {
+            const callbackWrapper = function (error) {
                 if (error === null) {
                     callback(null, _self.settings);
                 } else {
@@ -147,7 +147,27 @@
         }
 
         checkCampaignBasedResponse(response) {
-            console.log(response);
+            if (!$.isPlainObject(response)) {
+                return false;
+            }
+
+            // check that we have valid data in the response
+            let campaignData = response['com.brein.common.microservice.data.CampaignData'];
+            campaignData = $.isArray(campaignData) && campaignData.length > 0 ? campaignData[0] : null;
+            let promotionsData = response['com.brein.common.microservice.data.PromotionsData'];
+            promotionsData = $.isArray(promotionsData) && promotionsData.length > 0 ? promotionsData[0] : null;
+            if (!$.isPlainObject(campaignData) || !$.isPlainObject(promotionsData)) {
+                return false;
+            }
+
+            // check if the campaign-type is valid
+            const campaignType = Breinify.UTL.isNonEmptyString(campaignData.campaignType);
+            const validCampaignTypes = $.isArray(this.settings.experience.campaignTypes) ? this.settings.experience.campaignTypes : null;
+            if (validCampaignTypes !== null && $.inArray(validCampaignTypes, campaignType) === -1) {
+                return false;
+            }
+
+            this.settings = $.extend(true, {}, this.settings, response);
             return true;
         }
 
