@@ -167,7 +167,7 @@
                 return false;
             }
 
-            this.settings = $.extend(true, {}, this.settings, response);
+            this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData);
             return true;
         }
 
