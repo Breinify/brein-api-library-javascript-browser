@@ -56,7 +56,8 @@
     class AccurateInterval {
 
         constructor(callback) {
-            this.callback = $.isFunction(callback) ? callback : () => {};
+            this.callback = $.isFunction(callback) ? callback : () => {
+            };
             this.startTime = null;
             this.timerId = null;
             this.stopped = true;
@@ -292,7 +293,7 @@
              *
              * If the update was successful
              */
-            if (this.updateCountdown()) {
+            if (this.updateCountdown(true)) {
                 this.hideLoading();
             } else {
                 return;
@@ -300,7 +301,7 @@
 
             // start the interval to keep the countdown updating
             this.interval = new AccurateInterval(() => {
-                if (!_self.updateCountdown()) {
+                if (!_self.updateCountdown(false)) {
                     _self.interval.stop();
                     _self.$shadowRoot.find('.countdown-banner').fadeOut();
                 }
@@ -315,7 +316,7 @@
             this.$shadowRoot.find('.countdown-timer').removeClass('loading');
         }
 
-        updateCountdown() {
+        updateCountdown(firstCheck) {
             const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
 
             const now = this.now();
@@ -337,14 +338,17 @@
             this.$shadowRoot.find('.time-minutes').text(this.pad(minutes));
             this.$shadowRoot.find('.time-seconds').text(this.pad(seconds));
 
-            if (seconds > 0 || minutes > 0 || hours > 0 || days > 0) {
-                if (!$countdownBanner.is(':visible')) {
-                    $countdownBanner.fadeIn();
-                }
-                return true;
-            } else {
+            if (seconds <= 0 && minutes <= 0 && hours <= 0 && days <= 0) {
                 return false;
+            } else if ($countdownBanner.is(':visible')) {
+                // nothing to do, it's already there
+            } else if (firstCheck === true) {
+                $countdownBanner.show();
+            } else {
+                $countdownBanner.fadeIn();
             }
+
+            return true;
         }
 
         pad(num) {
