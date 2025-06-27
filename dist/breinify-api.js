@@ -17100,7 +17100,8 @@ dependencyScope.jQuery = $;;
             determineElementType: function() { return null; },
             addModification: function() {},
             removeModification: function() {},
-            addClassChangeObserver: function() {}
+            addClassChangeObserver: function() {},
+            attachByOperation: function() { return false; },
         },
         google: {
             addDataLayerEventListener: function() { return; }
