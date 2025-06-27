@@ -148,7 +148,6 @@
                 }
             };
 
-            //test
             if (checkedType === 'CAMPAIGN_BASED') {
                 this._applyCampaignBasedSettings(settings, callbackWrapper);
             } else if (checkedType === 'ONE_TIME') {
