@@ -27,7 +27,7 @@
         '.countdown-timer.loading .skeleton { display: block; }' +
         /* Shimmer for the loading animation */
         '@keyframes shimmer { 0% { background-position: 0 200%; } 100% { background-position: 0 -200%; } }' +
-        /* Optional responsiveness */
+        /* Responsiveness: For 500px there is not enough space for any more than 40px */
         '@media (max-width: 500px) { :host { --unit-height: 40px !important; } }' +
         '</style>';
     const htmlTemplate = '' +
@@ -240,8 +240,7 @@
             this.$shadowRoot.prepend(cssStyle);
 
             // add any additional styles
-            const style = $.isPlainObject(this.settings.style) ? this.settings.style : {};
-            const selectors = $.isArray(style.selectors) ? style.selectors : [];
+            const selectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors) ? this.settings.style.selectors : [];
             const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
                 .filter(entry => $.isPlainObject(entry))
                 .map(entry => Object.entries(entry)
