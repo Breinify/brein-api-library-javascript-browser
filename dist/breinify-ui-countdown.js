@@ -138,13 +138,17 @@
             Breinify.UTL.internal.token(accessToken, {
                 msid: brMsId
             }, function (error, response) {
-                if (error == null) {
-                    console.log('token-response: ', response);
-                    callback(null, _self.settings);
-                } else {
+                if (error !== null) {
                     callback(error, false);
+                } else if (_self.checkCampaignBasedResponse(response)) {
+                    callback(null, _self.settings);
                 }
             }, 30000);
+        }
+
+        checkCampaignBasedResponse(response) {
+            console.log(response);
+            return true;
         }
 
         applyOneTimeSettings(settings, callback) {
