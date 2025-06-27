@@ -14,7 +14,7 @@
     const cssStyle = '' +
         '<style id="br-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
-        '.countdown-banner { user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
+        '.countdown-banner { display: block; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.countdown-disclaimer { padding: calc(var(--unit-height) * 0.1) 0; font-size: calc(var(--unit-height) * 0.18); }' +
@@ -31,7 +31,7 @@
         '@media (max-width: 500px) { :host { --unit-height: 40px; } }' +
         '</style>';
     const htmlTemplate = '' +
-        '<div style="display:none" class="countdown-banner">' +
+        '<a-or-div style="display:none" class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer loading">' +
         '    <div class="time-block">' +
@@ -51,7 +51,7 @@
         '    </div>' +
         '  </div>' +
         '  <div class="countdown-disclaimer"></div>' +
-        '</div>';
+        '</a-or-div>';
 
     class AccurateInterval {
 
@@ -238,7 +238,7 @@
 
         render() {
             this.$shadowRoot.prepend(cssStyle);
-            this.$shadowRoot.append(htmlTemplate);
+            this.$shadowRoot.append(htmlTemplate.replaceAll('a-or-div', 'a'));
 
             const title = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
             const $title = this.$shadowRoot.find('.countdown-title');
