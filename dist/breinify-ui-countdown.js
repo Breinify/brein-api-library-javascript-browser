@@ -269,11 +269,7 @@
         }
 
         handleCampaignBased() {
-            const _self = this;
-
-            setTimeout(() => {
-                _self.startCounter();
-            }, 2000);
+            this.startCounter();
         }
 
         handleOneTime() {
