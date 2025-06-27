@@ -959,7 +959,7 @@
                 operation = BreinifyUtil.isNonEmptyString(operation);
                 if (operation === null) {
                     return false;
-                } else if ($anchor.length !== 1) {
+                } else if (!($anchor instanceof $) || $anchor.length !== 1) {
                     return false;
                 } else {
                     operation = operation.trim().toLowerCase()
