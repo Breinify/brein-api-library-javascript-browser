@@ -53,6 +53,53 @@
         '  <div class="countdown-disclaimer"></div>' +
         '</div>';
 
+    class AccurateInterval {
+
+        constructor(callback) {
+            this.callback = $.isFunction(callback) ? callback : () => {};
+            this.startTime = null;
+            this.timerId = null;
+            this.stopped = true;
+        }
+
+        start() {
+            if (this.stopped === false) {
+                return;
+            }
+
+            this.startTime = Date.now();
+            this.stopped = false;
+
+            const tick = () => {
+                if (this.stopped === true) {
+                    return;
+                }
+
+                const now = Date.now();
+                const drift = now - this.startTime;
+                const secondsElapsed = Math.floor(drift / 1000);
+
+                this.callback(secondsElapsed);
+
+                const nextTick = this.startTime + (secondsElapsed + 1) * 1000;
+                const delay = nextTick - Date.now();
+
+                this.timerId = window.setTimeout(tick, delay);
+            };
+
+            tick();
+        }
+
+        stop() {
+            this.stopped = true;
+
+            if (this.timerId !== null) {
+                window.clearTimeout(this.timerId);
+                this.timerId = null;
+            }
+        }
+    }
+
     /**
      * When using this plugin it adds a wrapper method as plugin, which adds the possibility to
      * register the custom HTML element. This method can be called multiple times without issues
@@ -252,12 +299,12 @@
             }
 
             // start the interval to keep the countdown updating
-            this.interval = setInterval(() => {
+            this.interval = new AccurateInterval(() => {
                 if (!_self.updateCountdown()) {
-                    clearInterval(_self.interval);
+                    _self.interval.stop();
                     _self.$shadowRoot.find('.countdown-banner').fadeOut();
                 }
-            }, 1000);
+            });
         }
 
         showLoading() {
