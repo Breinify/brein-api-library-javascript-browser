@@ -65,7 +65,7 @@
 
         start() {
             if (this.stopped === false) {
-                return;
+                return this;
             }
 
             this.startTime = Date.now();
@@ -89,6 +89,7 @@
             };
 
             tick();
+            return this;
         }
 
         stop() {
@@ -301,7 +302,7 @@
                     _self.interval.stop();
                     _self.$shadowRoot.find('.countdown-banner').fadeOut();
                 }
-            });
+            }).start();
         }
 
         showLoading() {
