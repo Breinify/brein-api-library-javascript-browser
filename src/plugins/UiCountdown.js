@@ -14,10 +14,10 @@
     const cssStyle = '' +
         '<style id="br-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
-        '.countdown-banner { background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
+        '.countdown-banner { user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
-        '.countdown-disclaimer { padding: calc(var(--unit-height) * 0.1) 0; font-size: calc(var(--unit-height) * 0.18); pointer-events: none; }' +
+        '.countdown-disclaimer { padding: calc(var(--unit-height) * 0.1) 0; font-size: calc(var(--unit-height) * 0.18); }' +
         '.time-block { position: relative; flex: 0 0 auto; aspect-ratio: 1.5 / 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; }' +
         '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
         '.time-label { font-size: calc(var(--unit-height) * 0.18); margin-top: 3px; text-transform: uppercase; }' +
@@ -72,7 +72,7 @@
                 if (this.stopped === true) {
                     return;
                 }
-                
+
                 // execute with the exact delay to the next second
                 this.timerId = window.setTimeout(() => {
                     if (this.stopped === true) {
