@@ -163,7 +163,7 @@
             // check if the campaign-type is valid
             const campaignType = Breinify.UTL.isNonEmptyString(campaignData.campaignType);
             const validCampaignTypes = $.isArray(this.settings.experience.campaignTypes) ? this.settings.experience.campaignTypes : null;
-            if (validCampaignTypes !== null && $.inArray(validCampaignTypes, campaignType) === -1) {
+            if (validCampaignTypes !== null && $.inArray(campaignType, validCampaignTypes) === -1) {
                 return false;
             }
 
