@@ -28,7 +28,7 @@
         /* Shimmer for the loading animation */
         '@keyframes shimmer { 0% { background-position: 0 200%; } 100% { background-position: 0 -200%; } }' +
         /* Optional responsiveness */
-        '@media (max-width: 500px) { :host { --unit-height: 40px; } }' +
+        '@media (max-width: 500px) { :host { --unit-height: 40px !important; } }' +
         '</style>';
     const htmlTemplate = '' +
         '<a-or-div style="display:none" class="countdown-banner">' +
