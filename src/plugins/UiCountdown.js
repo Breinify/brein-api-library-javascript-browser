@@ -237,6 +237,37 @@
         }
 
         render() {
+
+            // if this is not connected we utilize the position information and attach it
+            if (this.isConnected === false) {
+                const position = $.isPlainObject(this.settings.position) ? this.settings.position : null;
+                if (position == null) {
+                    return;
+                }
+
+                // determine the operation to utilize, it is needed
+                const operation = Breinify.UTL.isNonEmptyString(position.operation);
+                if (operation === null) {
+                    return;
+                }
+
+                // determine the anchor, it is needed but evaluated within the utility method
+                let $anchor;
+                const selector = Breinify.UTL.isNonEmptyString(position.selector);
+                const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+                if (snippet === null && selector === null) {
+                    $anchor = null;
+                } else if (selector !== null) {
+                    $anchor = $(selector);
+                } else if (snippet !== null) {
+                    $anchor = null
+                }
+
+                if (Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this)) === false) {
+                    return;
+                }
+            }
+
             this.$shadowRoot.prepend(cssStyle);
 
             // add any additional styles

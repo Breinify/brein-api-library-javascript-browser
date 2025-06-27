@@ -953,6 +953,34 @@
 
             addClickObserver: function (selector, name, callback) {
                 _private.clickObserver.add(selector, name, callback);
+            },
+
+            attachByOperation: function (operation, $anchor, $el) {
+                operation = BreinifyUtil.isNonEmptyString(operation);
+                if (operation === null) {
+                    return false;
+                } else if ($anchor.length !== 1) {
+                    return false;
+                } else {
+                    operation = operation.trim().toLowerCase()
+                }
+
+                // determine the operation
+                if (operation === 'replace') {
+                    operation = 'replaceWith';
+                } else if ($.inArray(operation, ['before', 'after', 'prepend', 'append']) === -1) {
+                    return false;
+                } else {
+                    // we have an operation which is valid and does not need renaming
+                }
+
+                // if we made it here, we have a valid operator and can execute it on the anchor, if available
+                if ($.isFunction($anchor[operation])) {
+                    $anchor[operation]($el);
+                    return true;
+                } else {
+                    return false;
+                }
             }
         },
 
