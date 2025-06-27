@@ -12,7 +12,7 @@
     // get dependencies and some constants for the element (like template)
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
-        '<style id="br-countdown-default">' +
+        '<style id="br-style-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
         '.countdown-banner { display: block; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
@@ -238,6 +238,21 @@
 
         render() {
             this.$shadowRoot.prepend(cssStyle);
+
+            // add any additional styles
+            const style = $.isPlainObject(this.settings.style) ? this.settings.style : {};
+            const selectors = $.isArray(style.selectors) ? style.selectors : [];
+            const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
+                .filter(entry => $.isPlainObject(entry))
+                .map(entry => Object.entries(entry)
+                    .map(([key, value]) => `${key} { ${value} }`)
+                    .join('')
+                )
+                .join(''));
+            if (additionalStyle !== null) {
+                this.$shadowRoot.find('#br-style-countdown-default')
+                    .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
+            }
 
             // modify the template based on the settings
             const url = Breinify.UTL.isNonEmptyString(this.settings.experience.url);
