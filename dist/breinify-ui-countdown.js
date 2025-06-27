@@ -139,7 +139,7 @@
                 msid: brMsId
             }, function (error, response) {
                 if (error == null) {
-                    console.log(response);
+                    console.log('token-response: ', response);
                     callback(null, _self.settings);
                 } else {
                     callback(error, false);
