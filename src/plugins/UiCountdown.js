@@ -52,13 +52,13 @@
         countdownById: {},
 
         update: function (el, status, value, settings) {
-            if (Breinify.UTL.isNonEmptyString(el.id) === null) {
+            if (Breinify.UTL.isNonEmptyString(el.uuid) === null) {
                 return;
             }
 
             // const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
             // current settings
-            let current = this.countdownById[el.id];
+            let current = this.countdownById[el.uuid];
             current = $.isPlainObject(current) ? current : {};
 
             // check if there is an actual change
@@ -67,7 +67,7 @@
             }
 
             // update the settings
-            this.countdownById[el.id] = {
+            this.countdownById[el.uuid] = {
                 el: el,
                 status: status,
                 value: value,
@@ -84,9 +84,10 @@
             }
 
             // if we made it so far, all countdowns are in final state, so run resolution strategy
-            for (const [id, entry] of Object.entries(this.countdownById)) {
-                console.log(id, entry);
-                console.log(id, entry.settings);
+            for (const [uuid, entry] of Object.entries(this.countdownById)) {
+                console.log(uuid, entry);
+                console.log(uuid, entry.settings);
+                console.log(uuid, entry.el.settings);
             }
         }
     };
@@ -149,9 +150,12 @@
     class UiCountdown extends HTMLElement {
         $shadowRoot = null
         settings = null
+        uuid = null
 
         constructor() {
             super();
+
+            this.uuid = Breinify.UTL.uuid();
 
             // initialize default settings and attach a shadow DOM for style encapsulation
             this.attachShadow({mode: 'open'});
@@ -193,11 +197,7 @@
                 }
             };
 
-            // we have a countdown, so let's set the status
-            let id = Breinify.UTL.isNonEmptyString(this.id);
-            this.id = id === null ? Breinify.UTL.uuid() : id;
             this._updateStatus('initializing', 'configuration');
-
             if (checkedType === 'CAMPAIGN_BASED') {
                 this._applyCampaignBasedSettings(settings, callbackWrapper);
             } else if (checkedType === 'ONE_TIME') {
