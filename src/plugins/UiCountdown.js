@@ -74,8 +74,9 @@
             }
         }
     };
+
     setTimeout(function () {
-        console.log('allCountdownStatus', allCountdownStatus);
+        // console.log('allCountdownStatus', allCountdownStatus);
     }, 1000);
 
     class AccurateInterval {
