@@ -84,17 +84,12 @@
             }
 
             // if we made it so far, all countdowns are in final state, so run resolution strategy
-            for (const [uuid, entry] of Object.entries(this.countdownById)) {
-                console.log(uuid, entry);
-                console.log(uuid, entry.settings);
-                console.log(uuid, entry.el.settings);
+            const evaluationContext = {};
+            for (const entry of Object.values(this.countdownById)) {
+                entry.el.evaluateResolutionStrategy(evaluationContext, entry.settings);
             }
         }
     };
-
-    setTimeout(function () {
-        // console.log('allCountdownStatus', allCountdownStatus);
-    }, 1000);
 
     class AccurateInterval {
 
@@ -195,14 +190,14 @@
                  * handled first, i.e., if there are three countdowns on the highest level
                  * all three will register themselves (via status) first.
                  */
-                setTimeout(function() {
+                window.queueMicrotask(() => {
                     if (error === null) {
                         callback(null, _self.settings);
                     } else {
                         _self._updateStatus('failed', 'configuration');
                         callback(error, null);
                     }
-                }, 0);
+                });
             };
 
             this._updateStatus('initializing', 'configuration');
@@ -230,8 +225,9 @@
          * Some strategies need to know the "decisions" of all the currently available counter.
          * Thus, the function is executed on any decision change in regard to visibility.
          */
-        evaluateResolutionStrategy() {
-
+        evaluateResolutionStrategy(evaluationContext, statusSettings) {
+            console.log('status-settings', statusSettings);
+            console.log('context', evaluationContext);
         }
 
 
