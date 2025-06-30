@@ -48,6 +48,11 @@
         '  <div class="countdown-disclaimer"></div>' +
         '</a-or-div>';
 
+    const allCountdownStatus = {};
+    setTimeout(function() {
+        console.log('allCountdownStatus', allCountdownStatus);
+    }, 1000);
+
     class AccurateInterval {
 
         constructor(callback) {
@@ -143,6 +148,11 @@
                 }
             };
 
+            // we have a countdown, so let's set the status
+            let id = Breinify.UTL.isNonEmptyString(this.id);
+            this.id = id === null ? Breinify.UTL.uuid() : id;
+            this._updateStatus('preparing');
+
             if (checkedType === 'CAMPAIGN_BASED') {
                 this._applyCampaignBasedSettings(settings, callbackWrapper);
             } else if (checkedType === 'ONE_TIME') {
@@ -150,6 +160,12 @@
             } else {
                 this._applyUnknownSettings(settings, callbackWrapper);
             }
+        }
+
+        _updateStatus(status) {
+            allCountdownStatus[this.id] = {
+                status: status
+            };
         }
 
         /**
@@ -234,12 +250,15 @@
                  * check for visibility in regard to the resolution-strategy.
                  */
                 if (firstCheck === true) {
-
+                    this._updateStatus('visible');
                 }
             } else if (fadeIn === true) {
-                this.$shadowRoot.find('.countdown-banner').fadeIn();
+                this.$shadowRoot.find('.countdown-banner').fadeIn(400, () => {
+                    this._updateStatus('visible');
+                });
             } else {
                 this.$shadowRoot.find('.countdown-banner').show();
+                this._updateStatus('visible');
             }
         }
 
@@ -253,10 +272,11 @@
                  * check for visibility in regard to the resolution-strategy.
                  */
                 if (firstCheck === true) {
-
+                    this._updateStatus('hidden');
                 }
             } else {
                 this.$shadowRoot.find('.countdown-banner').hide();
+                this._updateStatus('hidden');
             }
         }
 
