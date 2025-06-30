@@ -188,7 +188,8 @@
              * If the update returns false, it means nothing needs to be updated anymore,
              * so let's just return (the countdown is not visible at this point).
              *
-             * If the update was successful
+             * If the update was successful, we just hide any eventual loading area and
+             * move on with the start of the countdown.
              */
             if (this._updateCountdown(true)) {
                 this.hideLoading();
