@@ -22,32 +22,27 @@
         '.time-value { font-size: calc(var(--unit-height) * 0.6); font-weight: bold; line-height: 1; }' +
         '.time-label { font-size: calc(var(--unit-height) * 0.18); margin-top: 3px; text-transform: uppercase; }' +
         '.separator { width: 1px; background-color: var(--color-separator); height: 70%; align-self: center; }' +
-        '.countdown-timer.loading .time-value, .countdown-timer.loading .time-label { opacity: 0; }' +
-        '.skeleton { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #ffffff22 25%, #ffffff10 50%, #ffffff22 75%); background-size: 100% 200%; animation: shimmer 4s linear infinite; z-index: 1; border-radius: 4px; }\n' +
-        '.countdown-timer.loading .skeleton { display: block; }' +
-        /* Shimmer for the loading animation */
-        '@keyframes shimmer { 0% { background-position: 0 200%; } 100% { background-position: 0 -200%; } }' +
         /* Responsiveness: For 500px there is not enough space for any more than 40px */
         '@media (max-width: 500px) { :host { --unit-height: 40px !important; } }' +
         '</style>';
     const htmlTemplate = '' +
         '<a-or-div style="display:none" class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
-        '  <div class="countdown-timer loading">' +
+        '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
-        '      <div class="skeleton"></div><div class="time-value time-days">00</div><div class="time-label">Days</div>' +
+        '      <div class="time-value time-days">00</div><div class="time-label">Days</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="skeleton"></div><div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
+        '      <div class="time-value time-hours">00</div><div class="time-label">Hours</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="skeleton"></div><div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
+        '      <div class="time-value time-minutes">00</div><div class="time-label">Minutes</div>' +
         '    </div>' +
         '    <div class="separator"></div>' +
         '    <div class="time-block">' +
-        '      <div class="skeleton"></div><div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
+        '      <div class="time-value time-seconds">00</div><div class="time-label">Seconds</div>' +
         '    </div>' +
         '  </div>' +
         '  <div class="countdown-disclaimer"></div>' +
@@ -157,6 +152,22 @@
             }
         }
 
+        /**
+         * Currently we support three strategies:
+         * <ul>
+         *     <li><code>DO_NOT_SHOW</code></li>
+         *     <li><code>ALWAYS_SHOW</code></li>
+         *     <li><code>FIRST_COME_FIRST_SERVE</code></li>
+         * </ul>
+         *
+         * Some strategies need to know the "decisions" of all the currently available counter.
+         * Thus, the function is executed on any decision change in regard to visibility.
+         */
+        evaluateResolutionStrategy() {
+
+        }
+
+
         render() {
 
             // if this is not connected we utilize the position information and attach it
@@ -177,7 +188,7 @@
             } else if (this.settings.type === 'ONE_TIME') {
                 this.startCounter();
             } else {
-                this.$shadowRoot.find('.countdown-banner').hide();
+                this._hideCountdown();
             }
         }
 
@@ -186,14 +197,9 @@
 
             /*
              * If the update returns false, it means nothing needs to be updated anymore,
-             * so let's just return (the countdown is not visible at this point).
-             *
-             * If the update was successful, we just hide any eventual loading area and
-             * move on with the start of the countdown.
+             * so let's just return (the countdown it is not visible at this point).
              */
-            if (this._updateCountdown(true)) {
-                this.hideLoading();
-            } else {
+            if (this._updateCountdown(true) === false) {
                 return;
             }
 
@@ -204,14 +210,6 @@
                     _self.$shadowRoot.find('.countdown-banner').fadeOut();
                 }
             }).start();
-        }
-
-        showLoading() {
-            this.$shadowRoot.find('.countdown-timer').addClass('loading');
-        }
-
-        hideLoading() {
-            this.$shadowRoot.find('.countdown-timer').removeClass('loading');
         }
 
         getStartTime() {
@@ -226,13 +224,49 @@
             return Math.floor(Date.now() / 1000);
         }
 
+        _showCountdown(firstCheck, fadeIn) {
+            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+
+            if ($countdownBanner.is(':visible') === true) {
+
+                /*
+                 * The status of visibility may not have changed, but we need to trigger a
+                 * check for visibility in regard to the resolution-strategy.
+                 */
+                if (firstCheck === true) {
+
+                }
+            } else if (fadeIn === true) {
+                this.$shadowRoot.find('.countdown-banner').fadeIn();
+            } else {
+                this.$shadowRoot.find('.countdown-banner').show();
+            }
+        }
+
+        _hideCountdown(firstCheck) {
+            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+
+            if ($countdownBanner.is(':visible') === false) {
+
+                /*
+                 * The status of visibility may not have changed, but we need to trigger a
+                 * check for visibility in regard to the resolution-strategy.
+                 */
+                if (firstCheck === true) {
+
+                }
+            } else {
+                this.$shadowRoot.find('.countdown-banner').hide();
+            }
+        }
+
         _updateCountdown(firstCheck) {
             const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
 
             const now = this.now();
             const startTime = this.getStartTime();
             if (startTime === null || startTime > now) {
-                $countdownBanner.hide();
+                this._hideCountdown();
                 return true;
             }
 
@@ -253,9 +287,9 @@
             } else if ($countdownBanner.is(':visible')) {
                 // nothing to do, it's already there
             } else if (firstCheck === true) {
-                $countdownBanner.show();
+                this._showCountdown(firstCheck, false);
             } else {
-                $countdownBanner.fadeIn();
+                this._showCountdown(firstCheck, true);
             }
 
             return true;
