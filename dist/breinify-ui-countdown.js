@@ -189,12 +189,20 @@
 
             // wrap the callback to do some general check on the final results
             const callbackWrapper = function (error) {
-                if (error === null) {
-                    callback(null, _self.settings);
-                } else {
-                    _self._updateStatus('failed', 'configuration');
-                    callback(error, null);
-                }
+
+                /*
+                 * Apply a timeout here, so that all other configuration calls will be
+                 * handled first, i.e., if there are three countdowns on the highest level
+                 * all three will register themselves (via status) first.
+                 */
+                setTimeout(function() {
+                    if (error === null) {
+                        callback(null, _self.settings);
+                    } else {
+                        _self._updateStatus('failed', 'configuration');
+                        callback(error, null);
+                    }
+                }, 0);
             };
 
             this._updateStatus('initializing', 'configuration');
