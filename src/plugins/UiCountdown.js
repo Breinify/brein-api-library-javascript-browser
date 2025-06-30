@@ -158,6 +158,8 @@
 
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
+
+            this._updateStatus('initializing', 'constructed');
         }
 
         /**
