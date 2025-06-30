@@ -61,6 +61,11 @@
             let current = this.countdownById[id];
             current = $.isPlainObject(current) ? current : {};
 
+            // check if there is an actual change
+            if (current.status === status && current.value === value) {
+                return;
+            }
+
             // update the settings
             this.countdownById[id] = {
                 status: status,
