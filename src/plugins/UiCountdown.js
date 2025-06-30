@@ -51,14 +51,14 @@
     const allCountdownStatus = {
         countdownById: {},
 
-        update: function(id, status, value, settings) {
-            if (Breinify.UTL.isNonEmptyString(id) === null) {
+        update: function (el, status, value, settings) {
+            if (Breinify.UTL.isNonEmptyString(el.id) === null) {
                 return;
             }
 
             // const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
             // current settings
-            let current = this.countdownById[id];
+            let current = this.countdownById[el.id];
             current = $.isPlainObject(current) ? current : {};
 
             // check if there is an actual change
@@ -67,15 +67,26 @@
             }
 
             // update the settings
-            this.countdownById[id] = {
+            this.countdownById[el.id] = {
+                el: el,
                 status: status,
                 value: value,
                 settings: $.isPlainObject(settings) ? settings : {}
             };
 
-            // determine the current status and fire the resolution strategy
-            for (const [key, value] of Object.entries(this.countdownById)) {
-                console.log(key, value);
+            // determine if all are finished, and determine resolution strategy
+            for (const cd of Object.values(this.countdownById)) {
+
+                // the status 'failed', 'ignored', and 'rendering' is considered final
+                if (cd.status === 'initializing') {
+                    return;
+                }
+            }
+
+            // if we made it so far, all countdowns are in final state, so run resolution strategy
+            for (const [id, entry] of Object.entries(this.countdownById)) {
+                console.log(id, entry);
+                console.log(id, entry.settings);
             }
         }
     };
@@ -195,7 +206,7 @@
         }
 
         _updateStatus(status, value, settings) {
-            allCountdownStatus.update(this.id, status, value, settings);
+            allCountdownStatus.update(this, status, value, settings);
         }
 
         /**
