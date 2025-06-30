@@ -14,7 +14,7 @@
     const cssStyle = '' +
         '<style id="br-style-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
-        '.countdown-banner { display: block; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
+        '.countdown-banner { display: none; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.countdown-disclaimer { padding: calc(var(--unit-height) * 0.1) 0; font-size: calc(var(--unit-height) * 0.18); }' +
@@ -48,8 +48,33 @@
         '  <div class="countdown-disclaimer"></div>' +
         '</a-or-div>';
 
-    const allCountdownStatus = {};
-    setTimeout(function() {
+    const allCountdownStatus = {
+        countdownById: {},
+
+        update: function(id, status, value, settings) {
+            if (Breinify.UTL.isNonEmptyString(id) === null) {
+                return;
+            }
+
+            // const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+            // current settings
+            let current = this.countdownById[id];
+            current = $.isPlainObject(current) ? current : {};
+
+            // update the settings
+            this.countdownById[id] = {
+                status: status,
+                value: value,
+                settings: $.isPlainObject(settings) ? settings : {}
+            };
+
+            // determine the current status and fire the resolution strategy
+            for (const [key, value] of Object.entries(this.countdownById)) {
+                console.log(key, value);
+            }
+        }
+    };
+    setTimeout(function () {
         console.log('allCountdownStatus', allCountdownStatus);
     }, 1000);
 
@@ -144,6 +169,7 @@
                 if (error === null) {
                     callback(null, _self.settings);
                 } else {
+                    _self._updateStatus('failed', 'configuration');
                     callback(error, null);
                 }
             };
@@ -151,7 +177,7 @@
             // we have a countdown, so let's set the status
             let id = Breinify.UTL.isNonEmptyString(this.id);
             this.id = id === null ? Breinify.UTL.uuid() : id;
-            this._updateStatus('preparing');
+            this._updateStatus('initializing', 'configuration');
 
             if (checkedType === 'CAMPAIGN_BASED') {
                 this._applyCampaignBasedSettings(settings, callbackWrapper);
@@ -162,10 +188,8 @@
             }
         }
 
-        _updateStatus(status) {
-            allCountdownStatus[this.id] = {
-                status: status
-            };
+        _updateStatus(status, value, settings) {
+            allCountdownStatus.update(this.id, status, value, settings);
         }
 
         /**
@@ -240,44 +264,14 @@
             return Math.floor(Date.now() / 1000);
         }
 
-        _showCountdown(firstCheck, fadeIn) {
-            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
-
-            if ($countdownBanner.is(':visible') === true) {
-
-                /*
-                 * The status of visibility may not have changed, but we need to trigger a
-                 * check for visibility in regard to the resolution-strategy.
-                 */
-                if (firstCheck === true) {
-                    this._updateStatus('visible');
-                }
-            } else if (fadeIn === true) {
-                this.$shadowRoot.find('.countdown-banner').fadeIn(400, () => {
-                    this._updateStatus('visible');
-                });
-            } else {
-                this.$shadowRoot.find('.countdown-banner').show();
-                this._updateStatus('visible');
-            }
+        _showCountdown(fadeIn) {
+            this._updateStatus('rendering', 'visible', {
+                fadeIn: fadeIn === true
+            });
         }
 
-        _hideCountdown(firstCheck) {
-            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
-
-            if ($countdownBanner.is(':visible') === false) {
-
-                /*
-                 * The status of visibility may not have changed, but we need to trigger a
-                 * check for visibility in regard to the resolution-strategy.
-                 */
-                if (firstCheck === true) {
-                    this._updateStatus('hidden');
-                }
-            } else {
-                this.$shadowRoot.find('.countdown-banner').hide();
-                this._updateStatus('hidden');
-            }
+        _hideCountdown() {
+            this._updateStatus('rendering', 'hidden');
         }
 
         _updateCountdown(firstCheck) {
@@ -307,9 +301,9 @@
             } else if ($countdownBanner.is(':visible')) {
                 // nothing to do, it's already there
             } else if (firstCheck === true) {
-                this._showCountdown(firstCheck, false);
+                this._showCountdown(false);
             } else {
-                this._showCountdown(firstCheck, true);
+                this._showCountdown(true);
             }
 
             return true;
@@ -378,6 +372,7 @@
              */
             const brMsId = Breinify.UTL.loc.param('br-msid');
             if (brMsId === null) {
+                this._updateStatus('ignored', 'missing-msid');
                 return;
             }
 
