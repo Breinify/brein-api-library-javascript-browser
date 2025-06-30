@@ -396,6 +396,8 @@
                     callback(error, false);
                 } else if (_self._checkCampaignBasedResponse(response)) {
                     callback(null, _self.settings);
+                } else {
+                    _self._updateStatus('ignored', 'invalid-msid');
                 }
             }, 30000);
         }
