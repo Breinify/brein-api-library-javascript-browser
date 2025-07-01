@@ -304,11 +304,6 @@
                 return;
             }
 
-            console.log('settings', this.settings);
-            console.log('status-overall-info', overallInfo);
-            console.log('status-settings', statusSettings);
-            console.log('context', evaluationContext);
-
             let strategy = $.isPlainObject(this.settings) && $.isPlainObject(this.settings.experience) ? Breinify.UTL.isNonEmptyString(this.settings.experience.resolutionStrategyMultiple) : null;
             if (strategy === 'DO_NOT_SHOW') {
                 /*
