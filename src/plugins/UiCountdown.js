@@ -688,12 +688,20 @@
 
             // set the default information for the widget and action
             tags.widgetType = 'countdown';
-            tags.widget = null; // set name when available
+            tags.widget = null; // set name of web-experience when available
             tags.actionType = 'link';
             tags.action = 'open url';
 
             // set some campaign information
             tags.campaignWebExId = Breinify.UTL.isNonEmptyString(this.settings.webExVersionId);
+
+            // add some infos about the actual used link (href)
+            const anchor = this.$shadowRoot.find('a');
+            tags.elementType = elementName + ' (a)';
+            tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
+
+            // some experience specific information (could also be retrieved via the webExId)
+            tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
 
             // add the split-test info if any split-test
             if ($.isPlainObject(this.settings.splitTestData)) {
@@ -705,14 +713,8 @@
                 tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
             }
 
-            // add some infos about the actual used link (href)
-            const anchor = this.$shadowRoot.find('a');
-            tags.elementType = elementName + ' (a)';
-            tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
-
-            // some experience specific information (could also be retrieved via the webExId)
-            tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
-
+            // Breinify.plugins.activities.generic(type, {}, tags);
+            // Breinify.plugins.activities.scheduleDelayedActivity({}, type, tags, 60000);
             console.log('build activity tags', tags);
         }
     }
