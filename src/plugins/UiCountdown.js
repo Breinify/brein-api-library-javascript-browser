@@ -109,23 +109,32 @@
             const uuidsToShow = this._evaluateContext(evaluationContext);
 
             // iterate over each element we have and apply the result
+            const fadeIns = [];
+            const fadeOuts = [];
             for (const [id, entry] of Object.entries(this.countdownById)) {
                 if (entry.status !== 'rendering') {
                     // do nothing, we don't want to show or work with this element
-                } else if ($.inArray(id, uuidsToShow) > -1) {
+                    continue;
+                }
+
+                const $el = entry.el.$shadowRoot.find('.countdown-banner');
+                if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
-                        entry.el.$shadowRoot.find('.countdown-banner').fadeIn();
+                        fadeIns.push($el.fadeIn().promise());
                     } else {
-                        entry.el.$shadowRoot.find('.countdown-banner').show();
+                        $el.show();
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
-                        entry.el.$shadowRoot.find('.countdown-banner').fadeOut();
+                        fadeOuts.push($el.fadeOut().promise());
                     } else {
-                        entry.el.$shadowRoot.find('.countdown-banner').hide();
+                        $el.hide();
                     }
                 }
             }
+
+            // synchronize the fadeIn and fadeOut, wait for fadeOuts then run fadeIns
+            $.when(...fadeOuts).then(() =>  $.when(...fadeIns));
         },
 
         _evaluateContext: function (context) {
