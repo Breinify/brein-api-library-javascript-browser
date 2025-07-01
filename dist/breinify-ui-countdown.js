@@ -299,7 +299,8 @@
 
                     Breinify.plugins.splitTests.retrieveSplitTest(splitTestName, splitTestToken, {
                         sessionId: user.getSessionId(),
-                        browserId: user.getBrowserId()
+                        browserId: user.getBrowserId(),
+                        splitTestName: splitTestName
                     }, splitTestStorage, function (error, data) {
                         if (error !== null || !$.isPlainObject(data)) {
                             return;
