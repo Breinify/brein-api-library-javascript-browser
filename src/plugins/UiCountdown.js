@@ -132,6 +132,7 @@
                         }));
                     } else {
                         $el.show();
+                        this._sendActivity('renderedElement');
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
