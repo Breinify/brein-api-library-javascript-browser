@@ -545,7 +545,11 @@
 
                 const usedHref = Breinify.UTL.isNonEmptyString($countdownBanner.attr('href'));
                 const usedUrl = usedHref === null ? null : new URL(usedHref, window.location.href);
-                if (usedHref !== null && usedUrl.hostname !== window.location.hostname) {
+                const isDifferentDomain = usedHref !== null && usedUrl.hostname !== window.location.hostname;
+
+                const isInIframe = window.self !== window.top;
+
+                if (isDifferentDomain || isInIframe) {
                     $countdownBanner.attr('target', '_blank');
                 }
 
