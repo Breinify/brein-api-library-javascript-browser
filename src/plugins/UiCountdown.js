@@ -139,7 +139,7 @@
             const maxWeight = Math.max(...weights.map(([_, weight]) => weight));
 
             // step 3: filter entries with max weight
-            const maxWeightedEntries = weighted.filter(entry => entry.weight === maxWeight);
+            const maxWeightedEntries = weights.filter(entry => entry.weight === maxWeight);
 
             // step 4: sort by id and take the first one
             maxWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
