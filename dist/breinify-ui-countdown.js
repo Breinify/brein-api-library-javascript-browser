@@ -319,7 +319,7 @@
                  * the evaluation of the weight happens afterward.
                  */
                 let endTime = this.getEndTime();
-                endTime = endTime < this.now() ? null : endTime;
+                endTime = endTime <= this.now() ? null : endTime;
                 if (endTime === null) {
                     evaluationContext.noShow.push(this.uuid);
                 } else {
