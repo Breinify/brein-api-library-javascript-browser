@@ -288,7 +288,7 @@
         evaluateResolutionStrategy(overallInfo, evaluationContext, statusSettings) {
 
             // first check the general overall status of this
-            if ($.inArray(this.uuid, overallInfo.renderVisible) !== -1) {
+            if ($.inArray(this.uuid, overallInfo.renderVisible) === -1) {
                 return;
             }
 
