@@ -314,7 +314,7 @@
                         }
 
                         const splitTestData = $.isPlainObject(data.splitTestData) ? data.splitTestData : {};
-                        if (splitTestData.isControl === true) {
+                        if (splitTestData.isControlGroup === true) {
                             _self._updateStatus('ignored', 'control-group');
                         } else {
                             window.queueMicrotask(finalizeCallback);
