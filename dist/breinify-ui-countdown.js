@@ -136,19 +136,19 @@
             const weights = Object.entries(weighted);
 
             // step 2: find the highest weight
-            const maxWeight = Math.max(...weights.map(([_, weight]) => weight));
+            const minWeight = Math.min(...weights.map(([_, weight]) => weight));
 
-            // step 3: filter entries with max weight
-            const maxWeightedEntries = weights.filter(([_, weight]) => weight === maxWeight);
+            // step 3: filter entries with min weight
+            const minWeightedEntries = weights.filter(([_, weight]) => weight === minWeight);
 
-            // step 4: sort by id and take the first one
-            maxWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
+            // step 4: sort by id and find the one to render
+            minWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
 
             // select the one uuid we will show form the weighted once
-            const [maxUuid] = maxWeightedEntries[0];
+            const [minUuid] = minWeightedEntries[0];
 
             // we are done, return the result as an array
-            return [maxUuid];
+            return [minUuid];
         }
     };
 
@@ -280,7 +280,7 @@
          * <ul>
          *     <li><code>DO_NOT_SHOW</code></li>
          *     <li><code>ALWAYS_SHOW</code></li>
-         *     <li><code>FIRST_COME_FIRST_SERVE</code></li>
+         *     <li><code>FIRST_EXPIRING_ONLY</code></li>
          * </ul>
          *
          * Some strategies need to know the "decisions" of all the currently available counter.
@@ -313,12 +313,18 @@
                  * rule defined, it will show.
                  */
                 evaluationContext.noShow.push(this.uuid);
-            } else if (strategy === 'FIRST_COME_FIRST_SERVE') {
+            } else if (strategy === 'FIRST_EXPIRING_ONLY') {
                 /*
                  * We have a weight assigned (everyone will have the weight 0 having this rule),
                  * the evaluation of the weight happens afterward.
                  */
-                evaluationContext.weighted[this.uuid] = 0;
+                let endTime = this.getEndTime();
+                endTime = endTime < this.now() ? null : endTime;
+                if (endTime === null) {
+                    evaluationContext.noShow.push(this.uuid);
+                } else {
+                    evaluationContext.weighted[this.uuid] = endTime;
+                }
             } else { // if (strategy === 'ALWAYS_SHOW') {
                 /*
                  * The strategy says to always show this one, so that is applied - the countdown
