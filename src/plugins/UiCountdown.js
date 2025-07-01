@@ -10,6 +10,7 @@
     }
 
     // get dependencies and some constants for the element (like template)
+    const elementName = 'br-ui-countdown';
     const $ = Breinify.UTL._jquery();
     const cssStyle = '' +
         '<style id="br-style-countdown-default">' +
@@ -252,21 +253,22 @@
         /**
          * This specifies or override the default settings.
          *
-         * @param type the type of the countdown to apply and validate the configuration for
          * @param settings the settings to be applied/overridden
          * @param callback a function called when the configuration is successfully loaded or failed
          */
-        config(type, settings, callback) {
+        config(settings, callback) {
             const _self = this;
 
             callback = $.isFunction(callback) ? callback : () => null;
 
-            const checkedType = Breinify.UTL.isNonEmptyString(type);
-            if (checkedType === null) {
-                callback(new Error('the specified type "' + type + '" is invalid'), null);
-                return;
-            } else if (!$.isPlainObject(settings)) {
+            if (!$.isPlainObject(settings)) {
                 callback(new Error('settings must be a valid object'), null);
+                return;
+            }
+
+            const checkedType = Breinify.UTL.isNonEmptyString(settings.type);
+            if (checkedType === null) {
+                callback(new Error('the specified type "' + settings.type + '" is invalid'), null);
                 return;
             }
 
@@ -576,8 +578,7 @@
             }
 
             this.settings = $.extend(true, {
-                experience: {},
-                type: 'CAMPAIGN_BASED'
+                experience: {}
             }, settings);
 
             // check if we have a token (otherwise we do nothing and just return)
@@ -603,8 +604,7 @@
 
         _applyOneTimeSettings(settings, callback) {
             this.settings = $.extend(true, {
-                experience: {},
-                type: 'ONE_TIME'
+                experience: {}
             }, settings);
 
             callback(null, this.settings);
@@ -612,9 +612,10 @@
 
         _applyUnknownSettings(settings, callback) {
             this.settings = $.extend(true, {
-                experience: {},
+                experience: {}
+            }, settings, {
                 type: 'UNKNOWN'
-            }, settings);
+            });
 
             callback(null, this.settings);
         }
@@ -682,14 +683,45 @@
 
         _sendActivity(type) {
             console.log('sending ' + type, this.settings);
+
+            const tags = {};
+
+            // set the default information for the widget and action
+            tags.widgetType = 'countdown';
+            tags.widget = null; // set name when available
+            tags.actionType = 'link';
+            tags.action = 'open url';
+
+            // set some campaign information
+            tags.campaignWebExId = Breinify.UTL.isNonEmptyString(this.settings.webExVersionId);
+
+            // add the split-test info if any split-test
+            if ($.isPlainObject(this.settings.splitTestData)) {
+                tags.groupType = this.settings.splitTestData.isControl === true ? 'control' : 'test';
+                tags.group = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.groupDecision);
+
+                const test = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.testName);
+                const instance = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.selectedInstance);
+                tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
+            }
+
+            // add some infos about the actual used link (href)
+            const anchor = this.$shadowRoot.find('a');
+            tags.elementType = elementName + ' (a)';
+            tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
+
+            // some experience specific information (could also be retrieved via the webExId)
+            tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
+
+            console.log('build activity tags', tags);
         }
     }
 
     // bind the module
     Breinify.plugins._add('uiCountdown', {
         register: function () {
-            if (!window.customElements.get('br-ui-countdown')) {
-                window.customElements.define('br-ui-countdown', UiCountdown);
+            if (!window.customElements.get(elementName)) {
+                window.customElements.define(elementName, UiCountdown);
             }
         }
     });
