@@ -97,7 +97,9 @@
             }
 
             // if we made it so far, all countdowns are in final state, so run resolution strategy
-            const evaluationContext = {};
+            const evaluationContext = {
+                show: []
+            };
             for (const entry of Object.values(this.countdownById)) {
                 entry.el.evaluateResolutionStrategy(overallInfo, evaluationContext, entry.settings);
             }
@@ -239,6 +241,19 @@
          * Thus, the function is executed on any decision change in regard to visibility.
          */
         evaluateResolutionStrategy(overallInfo, evaluationContext, statusSettings) {
+
+            // first check the general overall status of this
+            if ($.inArray(this.uuid, overallInfo.renderVisible) !== -1) {
+                return;
+            }
+
+            // next we need to check if there are even multiple elements to show, otherwise just show
+            const nrOfVisibleCountdowns = overallInfo.renderVisible.length;
+            if (nrOfVisibleCountdowns <= 1) {
+                evaluationContext.show.push(this.uuid);
+                return;
+            }
+
             console.log('settings', this.settings);
             console.log('status-overall-info', overallInfo);
             console.log('status-settings', statusSettings);
