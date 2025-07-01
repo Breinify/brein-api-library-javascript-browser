@@ -542,7 +542,7 @@
             if (url !== null) {
                 const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
                 $countdownBanner.attr('href', url);
-                $countdownBanner.click(() => this._sendActivity('clickedElement'));
+                $countdownBanner.click(event => this._sendActivity('clickedElement', event));
             }
         }
 
@@ -681,24 +681,35 @@
             return true;
         }
 
-        _sendActivity(type) {
-            console.log('sending ' + type, this.settings);
-
+        _sendActivity(type, event) {
             const tags = {};
 
             // set the default information for the widget and action
             tags.widgetType = 'countdown';
             tags.widget = null; // set name of web-experience when available
-            tags.actionType = 'link';
-            tags.action = 'open url';
+
+            let scheduleActivity;
+            if (type === 'clickedElement') {
+                tags.actionType = 'link';
+                tags.action = 'open url';
+
+                // add some infos about the actual used link (href)
+                const anchor = this.$shadowRoot.find('a');
+                tags.elementType = elementName + ' (a)';
+                tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
+
+                scheduleActivity = !(event.metaKey || event.ctrlKey || event.which === 2);
+            } else if (type === 'renderedElement') {
+                tags.actionType = 'rendered';
+                tags.action = 'show countdown';
+
+                tags.elementType = elementName;
+
+                scheduleActivity = false;
+            }
 
             // set some campaign information
             tags.campaignWebExId = Breinify.UTL.isNonEmptyString(this.settings.webExVersionId);
-
-            // add some infos about the actual used link (href)
-            const anchor = this.$shadowRoot.find('a');
-            tags.elementType = elementName + ' (a)';
-            tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
 
             // some experience specific information (could also be retrieved via the webExId)
             tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
@@ -713,9 +724,11 @@
                 tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
             }
 
-            // Breinify.plugins.activities.generic(type, {}, tags);
-            // Breinify.plugins.activities.scheduleDelayedActivity({}, type, tags, 60000);
-            console.log('build activity tags', tags);
+            if (scheduleActivity === true) {
+                Breinify.plugins.activities.scheduleDelayedActivity({}, type, tags, 60000);
+            } else {
+                Breinify.plugins.activities.generic(type, {}, tags);
+            }
         }
     }
 
