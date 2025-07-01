@@ -75,11 +75,24 @@
             };
 
             // determine if all are finished, and determine resolution strategy
+            const overallInfo = {
+                noShow: [],
+                renderVisible: [],
+                renderHidden: []
+            };
             for (const cd of Object.values(this.countdownById)) {
 
                 // the status 'failed', 'ignored', and 'rendering' is considered final
                 if (cd.status === 'initializing') {
                     return;
+                } else if (cd.status !== 'rendering') {
+                    overallInfo.noShow.push(cd.uuid);
+                } else if (cd.value === 'visible') {
+                    overallInfo.renderVisible.push(cd.uuid);
+                } else if (cd.value === 'hidden') {
+                    overallInfo.renderHidden.push(cd.uuid);
+                } else {
+                    overallInfo.noShow.push(cd.uuid);
                 }
             }
 
@@ -230,7 +243,14 @@
             console.log('status-settings', statusSettings);
             console.log('context', evaluationContext);
 
+            let strategy = $.isPlainObject(this.settings) && $.isPlainObject(this.settings.experience) ? Breinify.UTL.isNonEmptyString(this.settings.experience.resolutionStrategyMultiple) : null;
+            if (strategy === 'DO_NOT_SHOW') {
 
+            } else if (strategy === 'FIRST_COME_FIRST_SERVE') {
+
+            } else { // if (strategy === 'ALWAYS_SHOW') {
+
+            }
         }
 
         render() {
