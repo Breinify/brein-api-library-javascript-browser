@@ -278,6 +278,7 @@
                  */
                 const finalizeCallback = () => {
                     if (error === null) {
+                        console.log('settings', _self.settings);
                         callback(null, _self.settings);
                     } else {
                         _self._updateStatus('failed', 'configuration');
