@@ -98,6 +98,7 @@
             // if we made it so far, all countdowns are in final state, so run resolution strategy
             const evaluationContext = {
                 show: [],
+                noShow: [],
                 weighted: {}
             };
             for (const entry of Object.values(this.countdownById)) {
@@ -306,10 +307,23 @@
 
             let strategy = $.isPlainObject(this.settings) && $.isPlainObject(this.settings.experience) ? Breinify.UTL.isNonEmptyString(this.settings.experience.resolutionStrategyMultiple) : null;
             if (strategy === 'DO_NOT_SHOW') {
-                evaluationContext.weighted[this.uuid] = 0
+                /*
+                 * This settings means to not show, if there are multiple countdowns. If all counters
+                 * have this value set, none is shown in that case (as configured). If one has any other
+                 * rule defined, it will show.
+                 */
+                evaluationContext.noShow.push(this.uuid);
             } else if (strategy === 'FIRST_COME_FIRST_SERVE') {
-                evaluationContext.weighted[this.uuid] = .5;
+                /*
+                 * We have a weight assigned (everyone will have the weight 0 having this rule),
+                 * the evaluation of the weight happens afterward.
+                 */
+                evaluationContext.weighted[this.uuid] = 0;
             } else { // if (strategy === 'ALWAYS_SHOW') {
+                /*
+                 * The strategy says to always show this one, so that is applied - the countdown
+                 * will always be shown.
+                 */
                 evaluationContext.show.push(this.uuid);
             }
         }
