@@ -124,12 +124,14 @@
                 const $el = entry.el.$shadowRoot.find('.countdown-banner');
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
+                        console.log('fading in');
                         fadeIns.push(() => $el.fadeIn().promise());
                     } else {
                         $el.show();
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
+                        console.log('fading out');
                         fadeOuts.push(() => $el.fadeOut().promise());
                     } else {
                         $el.hide();
