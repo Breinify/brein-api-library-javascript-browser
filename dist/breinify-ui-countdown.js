@@ -542,6 +542,13 @@
             if (url !== null) {
                 const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
                 $countdownBanner.attr('href', url);
+
+                const usedHref = Breinify.UTL.isNonEmptyString($countdownBanner.attr('href'));
+                const usedUrl = usedHref === null ? null : new URL(usedHref, window.location.href);
+                if (usedHref !== null && usedUrl.hostname !== window.location.hostname) {
+                    $countdownBanner.attr('target', '_blank');
+                }
+
                 $countdownBanner.click(event => this._sendActivity('clickedElement', event));
             }
         }
@@ -694,11 +701,14 @@
                 tags.action = 'open url';
 
                 // add some infos about the actual used link (href)
-                const anchor = this.$shadowRoot.find('a');
+                const $anchor = this.$shadowRoot.find('a');
                 tags.elementType = elementName + ' (a)';
-                tags.description = Breinify.UTL.isNonEmptyString(anchor.attr('href'));
+                tags.description = Breinify.UTL.isNonEmptyString($anchor.attr('href'));
 
-                scheduleActivity = !(event.metaKey || event.ctrlKey || event.which === 2);
+                const target = Breinify.UTL.isNonEmptyString($anchor.attr('target'));
+                const opensInNewTab = target === '_blank' || target === 'new';
+
+                scheduleActivity = !opensInNewTab && !(event.metaKey || event.ctrlKey || event.which === 2);
             } else if (type === 'renderedElement') {
                 tags.actionType = 'rendered';
                 tags.action = 'show countdown';
