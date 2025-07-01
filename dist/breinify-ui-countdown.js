@@ -86,13 +86,13 @@
                 if (cd.status === 'initializing') {
                     return;
                 } else if (cd.status !== 'rendering') {
-                    overallInfo.noShow.push(cd.uuid);
+                    overallInfo.noShow.push(cd.el.uuid);
                 } else if (cd.value === 'visible') {
-                    overallInfo.renderVisible.push(cd.uuid);
+                    overallInfo.renderVisible.push(cd.el.uuid);
                 } else if (cd.value === 'hidden') {
-                    overallInfo.renderHidden.push(cd.uuid);
+                    overallInfo.renderHidden.push(cd.el.uuid);
                 } else {
-                    overallInfo.noShow.push(cd.uuid);
+                    overallInfo.noShow.push(cd.el.uuid);
                 }
             }
 
