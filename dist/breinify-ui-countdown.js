@@ -320,6 +320,7 @@
                         if (splitTestData.isControlGroup === true) {
                             _self._updateStatus('ignored', 'control-group');
                         } else {
+                            _self.settings.splitTestData = splitTestData;
                             window.queueMicrotask(finalizeCallback);
                         }
                     });
