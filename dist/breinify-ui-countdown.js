@@ -271,18 +271,50 @@
             const callbackWrapper = function (error) {
 
                 /*
-                 * Apply a timeout here, so that all other configuration calls will be
-                 * handled first, i.e., if there are three countdowns on the highest level
-                 * all three will register themselves (via status) first.
+                 * Run this function always in `window.queueMicrotask`, so that all other
+                 * configuration calls will be handled first, i.e., if there are three
+                 * countdowns on the highest level all three will register themselves
+                 * (via status) first.
                  */
-                window.queueMicrotask(() => {
+                const finalizeCallback = () => {
                     if (error === null) {
                         callback(null, _self.settings);
                     } else {
                         _self._updateStatus('failed', 'configuration');
                         callback(error, null);
                     }
-                });
+                };
+
+                /*
+                 * Check if we have a split-test and run it if there, otherwise proceed
+                 * as usual.
+                 */
+                const splitTest = _self.settings.splitTest;
+                const splitTestToken = Breinify.UTL.isNonEmptyString(splitTest.token);
+                const splitTestName = Breinify.UTL.isNonEmptyString(splitTest.splitTestName);
+
+                if (splitTestToken !== null && splitTestName !== null) {
+                    const user = Breinify.UTL.user;
+                    const splitTestStorage = 'br-ctd-' + splitTestName;
+
+                    Breinify.plugins.splitTests.retrieveSplitTest(splitTestName, splitTestToken, {
+                        sessionId: user.getSessionId(),
+                        browserId: user.getBrowserId()
+                    }, splitTestStorage, function (error, data) {
+                        if (error !== null || !$.isPlainObject(data)) {
+                            return;
+                        }
+
+                        const group = Breinify.UTL.isNonEmptyString(data.group);
+                        if (group === null) {
+                            return;
+                        }
+
+                        window.queueMicrotask(finalizeCallback);
+                    });
+                } else {
+                    window.queueMicrotask(finalizeCallback);
+                }
             };
 
             this._updateStatus('initializing', 'configuration');
