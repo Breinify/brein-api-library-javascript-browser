@@ -127,7 +127,9 @@
                 const $el = entry.el.$shadowRoot.find('.countdown-banner');
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
-                        fadeIns.push(() => $el.fadeIn().promise());
+                        fadeIns.push(() => $el.fadeIn().promise().then(() => {
+                            this._sendActivity('renderedElement');
+                        }));
                     } else {
                         $el.show();
                     }
@@ -173,6 +175,10 @@
 
             // we are done, return the result as an array
             return [minUuid];
+        },
+
+        _sendActivity: function (type) {
+            console.log('sending ' + type, this.settings);
         }
     };
 
@@ -534,7 +540,9 @@
             this.$shadowRoot.append(finalHtmlTemplate);
 
             if (url !== null) {
-                this.$shadowRoot.find('.countdown-banner').attr('href', url);
+                const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+                $countdownBanner.attr('href', url);
+                $countdownBanner.click(() => this._sendActivity('clickedElement'));
             }
         }
 
