@@ -310,6 +310,8 @@
                             return;
                         }
 
+                        console.log(data);
+
                         window.queueMicrotask(finalizeCallback);
                     });
                 } else {
