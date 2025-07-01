@@ -177,7 +177,8 @@
 
             // keep the result locally (it will not change within the session)
             this.cachedResult = $.extend(true, {}, {
-                lastUpdated: new Date().getTime()
+                lastUpdated: new Date().getTime(),
+                isControl: this.checkControl(response)
             }, response);
 
             // store the result in the local-storage if a storage is provided
@@ -204,6 +205,28 @@
 
             // store the additional data of the split-test for the instance
             Breinify.UTL.user.replaceSplitTestData(this.testName, splitTestData);
+        },
+
+        checkControl: function (response) {
+
+            // we follow some logic to determine if the current group is considered the control group
+            const splitTestData = $.isPlainObject(response) && $.isPlainObject(response.splitTestData) ? response.splitTestData : {};
+            if (splitTestData.isControlGroup === true) {
+                return true;
+            } else if (splitTestData.isControlGroup === false) {
+                return false;
+            }
+
+            // next let's see the name of the group
+            const group = Breinify.UTL.isNonEmptyString(splitTestData.groupDecision);
+            if (group !== null && group.toLowerCase() === 'control') {
+                return true;
+            } else if (group !== null && group.toLowerCase() === 'breinify') {
+                return false;
+            }
+
+            // if we reached so far, we do not know and return null as undefined result
+            return null;
         },
 
         determineStorageKey: function () {

@@ -303,17 +303,22 @@
                         splitTestName: splitTestName
                     }, splitTestStorage, function (error, data) {
                         if (error !== null || !$.isPlainObject(data)) {
+                            _self._updateStatus('failed', 'split-test');
                             return;
                         }
 
                         const group = Breinify.UTL.isNonEmptyString(data.group);
                         if (group === null) {
+                            _self._updateStatus('ignored', 'no-group');
                             return;
                         }
 
-                        console.log(data);
-
-                        window.queueMicrotask(finalizeCallback);
+                        const splitTestData = $.isPlainObject(data.splitTestData) ? data.splitTestData : {};
+                        if (splitTestData.isControl === true) {
+                            _self._updateStatus('ignored', 'control-group');
+                        } else {
+                            window.queueMicrotask(finalizeCallback);
+                        }
                     });
                 } else {
                     window.queueMicrotask(finalizeCallback);
