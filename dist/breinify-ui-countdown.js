@@ -105,26 +105,49 @@
             }
 
             // if we have more than one to show, we just show (weighted are ignored)
-            if (evaluationContext.show.length > 0) {
-                for (const entry of Object.values(this.countdownById)) {
-                    if ($.inArray(entry.uuid, evaluationContext.show) > -1) {
-                        entry.el.$shadowRoot.find('.countdown-banner').show();
-                    }
+            const uuidsToShow = this._evaluateContext();
+
+            // iterate over each element we have and apply the result
+            for (const [id, entry] of Object.entries(this.countdownById)) {
+                if (entry.status !== 'rendering') {
+                    // do nothing, we don't want to show or work with this element
+                } else if ($.inArray(id, uuidsToShow) > -1) {
+                    entry.el.$shadowRoot.find('.countdown-banner').show();
+                } else {
+                    entry.el.$shadowRoot.find('.countdown-banner').hide();
                 }
-            } else if (evaluationContext.weighted.length > 0) {
-
-                // step 1: convert object to array of entries
-                const weights = Object.entries(evaluationContext.weighted);
-
-                // step 2: find the highest weight
-                const maxWeight = Math.max(...weights.map(([_, weight]) => weight));
-
-                // step 3: filter entries with max weight
-                const maxWeightedEntries = evaluationContext.weighted.filter(entry => entry.weight === maxWeight);
-
-                // step 4: sort by id and take the first one
-                maxWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
             }
+        },
+
+        _evaluateContext: function (context) {
+            if (context.show.length > 0) {
+                return context.show;
+            } else if (context.weighted.length > 0) {
+                return this._evaluateWeightedContext(context.weighted);
+            } else {
+                return [];
+            }
+        },
+
+        _evaluateWeightedContext: function (weighted) {
+
+            // step 1: convert object to array of entries
+            const weights = Object.entries(weighted);
+
+            // step 2: find the highest weight
+            const maxWeight = Math.max(...weights.map(([_, weight]) => weight));
+
+            // step 3: filter entries with max weight
+            const maxWeightedEntries = weighted.filter(entry => entry.weight === maxWeight);
+
+            // step 4: sort by id and take the first one
+            maxWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
+
+            // select the one uuid we will show form the weighted once
+            const [maxUuid] = maxWeightedEntries[0];
+
+            // we are done, return the result as an array
+            return [maxUuid];
         }
     };
 
