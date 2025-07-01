@@ -105,7 +105,7 @@
             }
 
             // if we have more than one to show, we just show (weighted are ignored)
-            const uuidsToShow = this._evaluateContext();
+            const uuidsToShow = this._evaluateContext(evaluationContext);
 
             // iterate over each element we have and apply the result
             for (const [id, entry] of Object.entries(this.countdownById)) {
