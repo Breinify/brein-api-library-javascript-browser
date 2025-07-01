@@ -113,7 +113,11 @@
                 if (entry.status !== 'rendering') {
                     // do nothing, we don't want to show or work with this element
                 } else if ($.inArray(id, uuidsToShow) > -1) {
-                    entry.el.$shadowRoot.find('.countdown-banner').show();
+                    if (entry.settings.fadeIn === true) {
+                        entry.el.$shadowRoot.find('.countdown-banner').fadeIn();
+                    } else {
+                        entry.el.$shadowRoot.find('.countdown-banner').show();
+                    }
                 } else {
                     entry.el.$shadowRoot.find('.countdown-banner').hide();
                 }
