@@ -128,11 +128,11 @@
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
                         fadeIns.push(() => $el.fadeIn().promise().then(() => {
-                            entry.settings.el._sendActivity('renderedElement');
+                            entry.el._sendActivity('renderedElement');
                         }));
                     } else {
                         $el.show();
-                        entry.settings.el._sendActivity('renderedElement');
+                        entry.el._sendActivity('renderedElement');
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
