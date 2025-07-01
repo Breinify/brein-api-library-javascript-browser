@@ -119,7 +119,11 @@
                         entry.el.$shadowRoot.find('.countdown-banner').show();
                     }
                 } else {
-                    entry.el.$shadowRoot.find('.countdown-banner').hide();
+                    if (entry.settings.fadeOut === true) {
+                        entry.el.$shadowRoot.find('.countdown-banner').fadeOut();
+                    } else {
+                        entry.el.$shadowRoot.find('.countdown-banner').hide();
+                    }
                 }
             }
         },
@@ -378,7 +382,7 @@
             this.interval = new AccurateInterval(() => {
                 if (!_self._updateCountdown(false)) {
                     _self.interval.stop();
-                    _self.$shadowRoot.find('.countdown-banner').fadeOut();
+                    _self._hideCountdown(true);
                 }
             }).start();
         }
@@ -401,8 +405,10 @@
             });
         }
 
-        _hideCountdown() {
-            this._updateStatus('rendering', 'hidden');
+        _hideCountdown(fadeOut) {
+            this._updateStatus('rendering', 'hidden', {
+                fadeOut: fadeOut === true
+            });
         }
 
         _updateCountdown(firstCheck) {
