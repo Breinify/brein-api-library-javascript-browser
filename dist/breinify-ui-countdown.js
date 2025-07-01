@@ -108,7 +108,11 @@
             // if we have more than one to show, we just show (weighted are ignored)
             const uuidsToShow = this._evaluateContext(evaluationContext);
 
-            // iterate over each element we have and apply the result
+            /*
+             * Iterate over each element we have and apply the result,
+             * any fading will be collected to be synchronized (first
+             * fadeOut, then fadeIn).
+             */
             const fadeIns = [];
             const fadeOuts = [];
             for (const [id, entry] of Object.entries(this.countdownById)) {
@@ -120,13 +124,13 @@
                 const $el = entry.el.$shadowRoot.find('.countdown-banner');
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
-                        fadeIns.push($el.fadeIn().promise());
+                        fadeIns.push(() => $el.fadeIn().promise());
                     } else {
                         $el.show();
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
-                        fadeOuts.push($el.fadeOut().promise());
+                        fadeOuts.push(() => $el.fadeOut().promise());
                     } else {
                         $el.hide();
                     }
@@ -134,7 +138,7 @@
             }
 
             // synchronize the fadeIn and fadeOut, wait for fadeOuts then run fadeIns
-            $.when(...fadeOuts).then(() =>  $.when(...fadeIns));
+            $.when(...fadeOuts.map(fn => fn())).then(() => $.when(...fadeIns.map(fn => fn())));
         },
 
         _evaluateContext: function (context) {
