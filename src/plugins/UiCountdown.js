@@ -128,11 +128,11 @@
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
                         fadeIns.push(() => $el.fadeIn().promise().then(() => {
-                            this._sendActivity('renderedElement');
+                            entry.settings.el._sendActivity('renderedElement');
                         }));
                     } else {
                         $el.show();
-                        this._sendActivity('renderedElement');
+                        entry.settings.el._sendActivity('renderedElement');
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
@@ -176,10 +176,6 @@
 
             // we are done, return the result as an array
             return [minUuid];
-        },
-
-        _sendActivity: function (type) {
-            console.log('sending ' + type, this.settings);
         }
     };
 
@@ -681,6 +677,10 @@
 
             this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData);
             return true;
+        }
+
+        _sendActivity(type) {
+            console.log('sending ' + type, this.settings);
         }
     }
 
