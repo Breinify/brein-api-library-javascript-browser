@@ -312,7 +312,7 @@
                  * rule defined, it will show.
                  */
                 evaluationContext.noShow.push(this.uuid);
-            } else if (strategy === 'FIRST_EXPIRING_ONLY') {
+            } else if (strategy === 'FIRST_EXPIRING_ONLY' || strategy === 'FIRST_COME_FIRST_SERVE') {
                 /*
                  * We have a weight assigned (everyone will have the weight 0 having this rule),
                  * the evaluation of the weight happens afterward.
