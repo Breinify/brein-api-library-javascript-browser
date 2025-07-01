@@ -226,10 +226,12 @@
          * Thus, the function is executed on any decision change in regard to visibility.
          */
         evaluateResolutionStrategy(evaluationContext, statusSettings) {
+            console.log('settings', this.settings);
             console.log('status-settings', statusSettings);
             console.log('context', evaluationContext);
-        }
 
+
+        }
 
         render() {
 
