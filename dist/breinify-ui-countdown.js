@@ -99,7 +99,7 @@
             // if we made it so far, all countdowns are in final state, so run resolution strategy
             const evaluationContext = {};
             for (const entry of Object.values(this.countdownById)) {
-                entry.el.evaluateResolutionStrategy(evaluationContext, entry.settings);
+                entry.el.evaluateResolutionStrategy(overallInfo, evaluationContext, entry.settings);
             }
         }
     };
@@ -238,8 +238,9 @@
          * Some strategies need to know the "decisions" of all the currently available counter.
          * Thus, the function is executed on any decision change in regard to visibility.
          */
-        evaluateResolutionStrategy(evaluationContext, statusSettings) {
+        evaluateResolutionStrategy(overallInfo, evaluationContext, statusSettings) {
             console.log('settings', this.settings);
+            console.log('status-overall-info', overallInfo);
             console.log('status-settings', statusSettings);
             console.log('context', evaluationContext);
 
