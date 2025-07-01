@@ -289,8 +289,14 @@
          *
          * Some strategies need to know the "decisions" of all the currently available counter.
          * Thus, the function is executed on any decision change in regard to visibility.
+         *
+         * @param overallInfo the overall information determined by the wrapping framework,
+         * containing the uuids of rendered (visible) countdowns
+         * @param evaluationContext the evaluation context, which allows to assign an <code>uuid</code> to the
+         * <code>show</code> array, the <code>>weighted</code> object (<code>uuid</code> assigned a
+         * <code>weight</code>), or <code>noShow</code> array
          */
-        evaluateResolutionStrategy(overallInfo, evaluationContext, statusSettings) {
+        evaluateResolutionStrategy(overallInfo, evaluationContext) {
 
             // first check the general overall status of this
             if ($.inArray(this.uuid, overallInfo.renderVisible) === -1) {
@@ -312,7 +318,7 @@
                  * rule defined, it will show.
                  */
                 evaluationContext.noShow.push(this.uuid);
-            } else if (strategy === 'FIRST_EXPIRING_ONLY' || strategy === 'FIRST_COME_FIRST_SERVE') {
+            } else if (strategy === 'FIRST_EXPIRING_ONLY') {
                 /*
                  * We have a weight assigned (everyone will have the weight 0 having this rule),
                  * the evaluation of the weight happens afterward.
