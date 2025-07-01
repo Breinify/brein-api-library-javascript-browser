@@ -123,7 +123,7 @@
         _evaluateContext: function (context) {
             if (context.show.length > 0) {
                 return context.show;
-            } else if (context.weighted.length > 0) {
+            } else if (Object.values(context.weighted).length > 0) {
                 return this._evaluateWeightedContext(context.weighted);
             } else {
                 return [];
