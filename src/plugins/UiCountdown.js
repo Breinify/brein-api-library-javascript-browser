@@ -290,8 +290,8 @@
                  * as usual.
                  */
                 const splitTest = _self.settings.splitTest;
-                const splitTestToken = Breinify.UTL.isNonEmptyString(splitTest.token);
-                const splitTestName = Breinify.UTL.isNonEmptyString(splitTest.splitTestName);
+                const splitTestToken = $.isPlainObject(splitTest) ? Breinify.UTL.isNonEmptyString(splitTest.token) : null;
+                const splitTestName = $.isPlainObject(splitTest) ? Breinify.UTL.isNonEmptyString(splitTest.splitTestName) : null;
 
                 if (splitTestToken !== null && splitTestName !== null) {
                     const user = Breinify.UTL.user;
