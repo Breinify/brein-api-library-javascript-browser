@@ -56,7 +56,6 @@
                 return;
             }
 
-            // const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
             // current settings
             let current = this.countdownById[el.uuid];
             current = $.isPlainObject(current) ? current : {};
@@ -98,10 +97,33 @@
 
             // if we made it so far, all countdowns are in final state, so run resolution strategy
             const evaluationContext = {
-                show: []
+                show: [],
+                weighted: {}
             };
             for (const entry of Object.values(this.countdownById)) {
                 entry.el.evaluateResolutionStrategy(overallInfo, evaluationContext, entry.settings);
+            }
+
+            // if we have more than one to show, we just show (weighted are ignored)
+            if (evaluationContext.show.length > 0) {
+                for (const entry of Object.values(this.countdownById)) {
+                    if ($.inArray(entry.uuid, evaluationContext.show) > -1) {
+                        entry.el.$shadowRoot.find('.countdown-banner').show();
+                    }
+                }
+            } else if (evaluationContext.weighted.length > 0) {
+
+                // step 1: convert object to array of entries
+                const weights = Object.entries(evaluationContext.weighted);
+
+                // step 2: find the highest weight
+                const maxWeight = Math.max(...weights.map(([_, weight]) => weight));
+
+                // step 3: filter entries with max weight
+                const maxWeightedEntries = evaluationContext.weighted.filter(entry => entry.weight === maxWeight);
+
+                // step 4: sort by id and take the first one
+                maxWeightedEntries.sort(([uuid1], [uuid2]) => uuid1.localeCompare(uuid2));
             }
         }
     };
@@ -261,11 +283,11 @@
 
             let strategy = $.isPlainObject(this.settings) && $.isPlainObject(this.settings.experience) ? Breinify.UTL.isNonEmptyString(this.settings.experience.resolutionStrategyMultiple) : null;
             if (strategy === 'DO_NOT_SHOW') {
-
+                evaluationContext.weighted[this.uuid] = 0
             } else if (strategy === 'FIRST_COME_FIRST_SERVE') {
-
+                evaluationContext.weighted[this.uuid] = .5;
             } else { // if (strategy === 'ALWAYS_SHOW') {
-
+                evaluationContext.show.push(this.uuid);
             }
         }
 
