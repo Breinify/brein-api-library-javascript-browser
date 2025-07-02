@@ -697,7 +697,7 @@
 
             // set the default information for the widget and action
             tags.widgetType = 'countdown';
-            tags.widget = null; // set name of web-experience when available
+            tags.widget = Breinify.UTL.isNonEmptyString(this.settings.campaignName);
 
             let scheduleActivity;
             if (type === 'clickedElement') {
