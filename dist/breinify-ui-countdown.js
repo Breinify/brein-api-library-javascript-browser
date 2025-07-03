@@ -114,6 +114,9 @@
             // if we have more than one to show, we just show (weighted are ignored)
             const uuidsToShow = this._evaluateContext(evaluationContext);
 
+            console.log('evaluationContext', evaluationContext);
+            console.log('uuidsToShow', uuidsToShow);
+
             /*
              * Iterate over each element we have and apply the result,
              * any fading will be collected to be synchronized (first
@@ -437,9 +440,11 @@
 
             /*
              * If the update returns false, it means nothing needs to be updated anymore,
-             * so let's just return (the countdown it is not visible at this point).
+             * so let's just return (the countdown it is not visible at this point, we still
+             * call hide to trigger an update if needed, i.e., from configured -> rendered).
              */
             if (this._updateCountdown(true) === false) {
+                _self._hideCountdown(false);
                 return;
             }
 
