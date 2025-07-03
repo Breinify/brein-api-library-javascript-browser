@@ -274,6 +274,7 @@
 
             // wrap the callback to do some general check on the final results
             const callbackWrapper = function (error) {
+                console.log('using settings', _self.settings);
 
                 /*
                  * Run this function always in `window.queueMicrotask`, so that all other
