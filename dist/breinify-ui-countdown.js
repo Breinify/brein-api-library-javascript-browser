@@ -77,6 +77,8 @@
                 settings: $.isPlainObject(settings) ? settings : {}
             };
 
+            console.log('countdownById', this.countdownById);
+
             // determine if all are finished, and determine resolution strategy
             const overallInfo = {
                 noShow: [],
