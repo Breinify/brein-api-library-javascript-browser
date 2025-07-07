@@ -190,15 +190,17 @@
             // let's see if the video is started the first time
             let firstStart = this.startedVideoIds[videoId];
             if (typeof firstStart === 'boolean') {
-                // we know the result nothing to do
+                if (event.data === window.YT.PlayerState.ENDED) {
+
+                    // on end we have to remove the starting flag
+                    delete this.startedVideoIds[videoId];
+                    firstStart = false;
+                } else {
+                    // we know the result nothing to do
+                }
             } else if (event.data === window.YT.PlayerState.PLAYING) {
                 this.startedVideoIds[videoId] = false;
                 firstStart = true;
-            } else if (event.data === window.YT.PlayerState.ENDED) {
-
-                // on end we have to remove the starting flag
-                delete this.startedVideoIds[videoId];
-                firstStart = false;
             } else {
                 firstStart = false;
             }
