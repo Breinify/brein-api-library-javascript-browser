@@ -301,6 +301,20 @@
         }
     };
 
+    const defaultRenderedObserverOption = {
+        observer: 'rendered',
+        settings: {
+            activityType: 'renderedElement',
+            scheduleActivities: null,
+            onBeforeActivitySent: function (settings, eventData, user, tags) {
+            },
+            onActivitySent: function (settings, eventData, user, tags) {
+            },
+            onAfterActivitySent: function (settings, eventData, user, tags) {
+            }
+        }
+    };
+
     const defaultClickObserverOption = {
         observer: 'click',
         settings: {
@@ -772,6 +786,8 @@
                 this.activateClickObserver($el, settings, data);
             } else if (observer.observe === defaultSubmitObserverOption.observer) {
                 this.activateSubmitObserver($el, settings, data);
+            } else if (observer.observe === defaultRenderedObserverOption.observer) {
+                console.log('rendered', settings, data);
             }
         },
 
