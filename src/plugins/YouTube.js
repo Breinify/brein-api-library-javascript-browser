@@ -154,8 +154,8 @@
             let currentDuration = player.getCurrentTime();
             let totalDuration = player.getDuration();
 
-            totalDuration = typeof totalDuration === 'number' ? totalDuration.toFixed(2) : 0;
-            currentDuration = typeof currentDuration === 'number' ? currentDuration.toFixed(2) : 0;
+            totalDuration = typeof totalDuration === 'number' ? Breinify.UTL.toNumber(totalDuration.toFixed(2)) : 0;
+            currentDuration = typeof currentDuration === 'number' ? Breinify.UTL.toNumber(currentDuration.toFixed(2)) : 0;
 
             const percentage = totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4));
 
@@ -192,7 +192,7 @@
             if (typeof firstStart === 'boolean') {
                 if (event.data === window.YT.PlayerState.ENDED) {
 
-                    // on end we have to remove the starting flag
+                    // on end, we have to remove the starting flag
                     delete this.startedVideoIds[videoId];
                     firstStart = false;
                 } else {
