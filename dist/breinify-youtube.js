@@ -9,9 +9,9 @@
         return;
     }
 
-    var $ = Breinify.UTL._jquery();
+    const $ = Breinify.UTL._jquery();
 
-    var internal = {
+    const internal = {
         frequencyInMs: 1000,
         initialized: false,
         type: null,
@@ -30,7 +30,7 @@
             }
 
             // set the listener
-            var _self = this;
+            const _self = this;
             window[this.listenerName] = function (event) {
                 _self.youTubeEventHandler(event);
             };
@@ -40,15 +40,14 @@
         },
 
         stopTimelineRecording: function (arg, triggerCheck) {
-            var _self = this;
-            var videoIds = $.isArray(arg) ? arg : [arg];
+            const videoIds = $.isArray(arg) ? arg : [arg];
 
-            var results = {};
-            for (var i = 0; i < videoIds.length; i++) {
-                var videoId = videoIds[i];
+            const results = {};
+            for (let i = 0; i < videoIds.length; i++) {
+                const videoId = videoIds[i];
 
                 // clear the handler
-                var handler = this.playObserver[videoId];
+                const handler = this.playObserver[videoId];
                 window.clearInterval(handler);
 
                 // trigger check once if asked too
@@ -57,7 +56,7 @@
                 }
 
                 // get the last result
-                var recording = this.getTimelineRecording(videoId);
+                const recording = this.getTimelineRecording(videoId);
 
                 // cleanup the data
                 delete this.playTimelines[videoId];
@@ -79,12 +78,12 @@
         },
 
         startTimelineRecording: function (arg) {
-            var _self = this;
-            var videoIds = $.isArray(arg) ? arg : [arg];
+            const _self = this;
+            const videoIds = $.isArray(arg) ? arg : [arg];
 
-            var activatedVideoIds = [];
-            for (var i = 0; i < videoIds.length; i++) {
-                var videoId = videoIds[i];
+            const activatedVideoIds = [];
+            for (let i = 0; i < videoIds.length; i++) {
+                const videoId = videoIds[i];
                 if ($.isPlainObject(this.playTimelines[videoId])) {
                     continue;
                 }
@@ -108,12 +107,12 @@
         },
 
         getTimelineRecording: function (videoId) {
-            var recording = this.playTimelines[videoId];
+            const recording = this.playTimelines[videoId];
             return $.isPlainObject(recording) ? recording : null;
         },
 
         checkVideoStatus: function (videoId) {
-            var player = this.getPlayerByVideoId(videoId);
+            const player = this.getPlayerByVideoId(videoId);
 
             // if we have an invalid player, wait until it gets valid
             if (!$.isFunction(player.getPlayerState)) {
@@ -121,13 +120,13 @@
             }
 
             // make sure the video is actually started
-            var state = player.getPlayerState();
+            const state = player.getPlayerState();
             if (state === YT.PlayerState.UNSTARTED) {
                 return;
             }
 
-            var now = new Date().getTime();
-            var last = this.playTimelines[videoId].video;
+            const now = new Date().getTime();
+            let last = this.playTimelines[videoId].video;
             last = $.isPlainObject(last) ? last : {
                 start: now,
                 currentState: YT.PlayerState.UNSTARTED
@@ -139,7 +138,7 @@
             }
 
             // get some player and playtime specific information
-            var data = this.getVideoStats(player);
+            const data = this.getVideoStats(player);
 
             // create the instance to store
             this.playTimelines[videoId].timeline.push(data.percentage);
@@ -150,14 +149,14 @@
         },
 
         getVideoStats: function (player) {
-            var state = player.getPlayerState();
-            var currentDuration = player.getCurrentTime();
-            var totalDuration = player.getDuration();
+            const state = player.getPlayerState();
+            let currentDuration = player.getCurrentTime();
+            let totalDuration = player.getDuration();
 
             totalDuration = typeof totalDuration === 'number' ? totalDuration.toFixed(2) : 0;
             currentDuration = typeof currentDuration === 'number' ? currentDuration.toFixed(2) : 0;
 
-            var percentage = totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4));
+            const percentage = totalDuration === 0 ? 0 : Math.min(1.0, (currentDuration / totalDuration).toFixed(4));
 
             return {
                 videoId: this.getVideoIdByPlayer(player),
@@ -172,23 +171,23 @@
 
         youTubeEventHandler: function (event) {
 
-            var videoId = this.getVideoIdByPlayer(event.target);
+            const videoId = this.getVideoIdByPlayer(event.target);
             if (videoId === null) {
                 return;
             }
 
-            var $el = this.getElementByVideoId(videoId);
+            const $el = this.getElementByVideoId(videoId);
             if ($el === null) {
                 return;
             }
 
-            var handlers = this.videoIdHandler[videoId];
+            const handlers = this.videoIdHandler[videoId];
             if (!$.isArray(handlers)) {
                 return;
             }
 
             // let's see if the video is started the first time
-            var firstStart = this.startedVideoIds[videoId];
+            let firstStart = this.startedVideoIds[videoId];
             if (typeof firstStart === 'boolean') {
                 // we know the result nothing to do
             } else if (event.data === YT.PlayerState.PLAYING) {
@@ -199,12 +198,12 @@
             }
 
             // generate the data
-            var data = $.extend(this.getVideoStats(event.target), {
+            const data = $.extend(this.getVideoStats(event.target), {
                 firstStart: firstStart
             });
 
             // trigger each handler
-            for (var i = 0; i < handlers.length; i++) {
+            for (let i = 0; i < handlers.length; i++) {
                 handlers[i](videoId, $el, event, data);
             }
         },
@@ -214,13 +213,13 @@
                 return null;
             }
 
-            var id = $el.attr('id');
+            const id = $el.attr('id');
             if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
-            var player = YT.get(id);
-            var videoId = this.getVideoIdByPlayer(player);
+            const player = YT.get(id);
+            const videoId = this.getVideoIdByPlayer(player);
 
             // if there is no videoId available, we do not have a valid element
             if (videoId === null) {
@@ -246,21 +245,21 @@
                 return null;
             }
 
-            var elementId = this.videoIdToElementIdMapper[videoId];
-            var $el = $('#' + elementId);
+            const elementId = this.videoIdToElementIdMapper[videoId];
+            const $el = $('#' + elementId);
 
             return $el.length === 1 ? $el : null;
         },
 
         getPlayerByVideoId: function (videoId) {
-            var $el = this.getElementByVideoId(videoId);
+            const $el = this.getElementByVideoId(videoId);
 
-            var id = $el.attr('id');
+            const id = $el.attr('id');
             if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
-            var player = YT.get(id);
+            const player = YT.get(id);
             if (typeof player === 'object') {
                 return player;
             } else {
@@ -269,12 +268,12 @@
         },
 
         getVideoIdByElement: function ($el) {
-            var id = $el.attr('id');
+            const id = $el.attr('id');
             if (typeof id !== 'string' || id.trim() === '') {
                 return null;
             }
 
-            var player = YT.get(id);
+            const player = YT.get(id);
             if (typeof player === 'object') {
                 return this.getVideoIdByPlayer(player);
             } else {
@@ -287,9 +286,8 @@
                 return null;
             }
 
-            var videoData = player.getVideoData();
-
-            var videoId = $.isPlainObject(videoData) ? videoData.video_id : null;
+            const videoData = player.getVideoData();
+            const videoId = $.isPlainObject(videoData) ? videoData.video_id : null;
             if (typeof videoId === 'string') {
                 return videoId;
             } else {
@@ -298,7 +296,7 @@
         }
     };
 
-    var YouTube = {
+    const YouTube = {
 
         init: function () {
             return internal.init();
@@ -344,12 +342,11 @@
         },
 
         isObservable: function($iFrames, callback) {
-            var _self = this;
+            const _self = this;
 
             $iFrames.each(function (idx) {
-                var $iFrame = $(this);
-
-                var videoId = _self.getVideoIdByElement($iFrame);
+                const $iFrame = $(this);
+                const videoId = _self.getVideoIdByElement($iFrame);
                 if (videoId === null) {
                     setTimeout(function() {
                         _self.isObservable($iFrame, callback);
@@ -361,12 +358,12 @@
         },
 
         observeElements: function ($iFrames, handler) {
-            var videoIds = [];
+            const videoIds = [];
 
             // make sure we are initialized and activate the observation
             if (this.init()) {
                 $iFrames.each(function (idx) {
-                    var videoId = internal.bindYouTubeObserver($(this), handler);
+                    const videoId = internal.bindYouTubeObserver($(this), handler);
                     if (videoId !== null) {
                         videoIds.push(videoId);
                     }
