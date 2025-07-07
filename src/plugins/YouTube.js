@@ -194,6 +194,11 @@
             } else if (event.data === window.YT.PlayerState.PLAYING) {
                 this.startedVideoIds[videoId] = false;
                 firstStart = true;
+            } else if (event.data === window.YT.PlayerState.ENDED) {
+
+                // on end we have to remove the starting flag
+                delete this.startedVideoIds[videoId];
+                firstStart = false;
             } else {
                 firstStart = false;
             }
