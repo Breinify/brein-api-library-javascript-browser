@@ -25,7 +25,7 @@
         init: function () {
             if (this.initialized === true) {
                 return true;
-            } else if (typeof YT !== 'object' || typeof YT.Player !== 'function') {
+            } else if (typeof YT !== 'object' || typeof window.YT.Player !== 'function') {
                 return false;
             }
 
@@ -121,7 +121,7 @@
 
             // make sure the video is actually started
             const state = player.getPlayerState();
-            if (state === YT.PlayerState.UNSTARTED) {
+            if (state === window.YT.PlayerState.UNSTARTED) {
                 return;
             }
 
@@ -129,11 +129,11 @@
             let last = this.playTimelines[videoId].video;
             last = $.isPlainObject(last) ? last : {
                 start: now,
-                currentState: YT.PlayerState.UNSTARTED
+                currentState: window.YT.PlayerState.UNSTARTED
             };
 
             // if the video was already ended we do not have to record anything further
-            if (state === YT.PlayerState.ENDED && last.currentState === YT.PlayerState.ENDED) {
+            if (state === window.YT.PlayerState.ENDED && last.currentState === window.YT.PlayerState.ENDED) {
                 return;
             }
 
@@ -190,7 +190,7 @@
             let firstStart = this.startedVideoIds[videoId];
             if (typeof firstStart === 'boolean') {
                 // we know the result nothing to do
-            } else if (event.data === YT.PlayerState.PLAYING) {
+            } else if (event.data === window.YT.PlayerState.PLAYING) {
                 this.startedVideoIds[videoId] = false;
                 firstStart = true;
             } else {
@@ -218,7 +218,7 @@
                 return null;
             }
 
-            const player = YT.get(id);
+            const player = window.YT.get(id);
             const videoId = this.getVideoIdByPlayer(player);
 
             // if there is no videoId available, we do not have a valid element
@@ -259,7 +259,7 @@
                 return null;
             }
 
-            const player = YT.get(id);
+            const player = window.YT.get(id);
             if (typeof player === 'object') {
                 return player;
             } else {
@@ -273,7 +273,7 @@
                 return null;
             }
 
-            const player = YT.get(id);
+            const player = window.YT.get(id);
             if (typeof player === 'object') {
                 return this.getVideoIdByPlayer(player);
             } else {
@@ -307,18 +307,18 @@
         },
 
         isPlaying: function (event) {
-            return event.data === YT.PlayerState.PLAYING;
+            return event.data === window.YT.PlayerState.PLAYING;
         },
 
         isHalted: function (event) {
-            return event.data === YT.PlayerState.BUFFERING ||
-                event.data === YT.PlayerState.CUED ||
-                event.data === YT.PlayerState.PAUSED ||
-                event.data === YT.PlayerState.UNSTARTED;
+            return event.data === window.YT.PlayerState.BUFFERING ||
+                event.data === window.YT.PlayerState.CUED ||
+                event.data === window.YT.PlayerState.PAUSED ||
+                event.data === window.YT.PlayerState.UNSTARTED;
         },
 
         isEnded: function (event) {
-            return event.data === YT.PlayerState.ENDED;
+            return event.data === window.YT.PlayerState.ENDED;
         },
 
         isInitialized: function () {
