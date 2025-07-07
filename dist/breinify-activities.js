@@ -701,6 +701,10 @@
 
             if (observerType === defaultClickObserverOption.observer) {
                 return $.extend(true, {}, defaultObserverOption.settings, defaultClickObserverOption.settings, settings);
+            } else if (observerType === defaultSubmitObserverOption.observer) {
+                return $.extend(true, {}, defaultObserverOption.settings, defaultSubmitObserverOption.settings, settings);
+            } else if (observerType === defaultRenderedObserverOption.observer) {
+                return $.extend(true, {}, defaultObserverOption.settings, defaultRenderedObserverOption.settings, settings);
             } else {
                 return $.extend(true, {}, defaultObserverOption.settings, settings);
             }
@@ -865,7 +869,6 @@
                 event: event,
                 defaultOpenInNewTab: openInNewTab,
                 defaultWillReloadPage: willReloadPage,
-                scheduleActivity: false,
                 overriddenScheduleActivities: false
             };
 
