@@ -32,6 +32,14 @@
             return true;
         },
 
+        resetVideoId: function(videoId) {
+            delete this.videoIdToElementIdMapper[videoId];
+            delete this.videoIdHandler[videoId];
+            delete this.startedVideoIds[videoId];
+            delete this.playTimelines[videoId];
+            delete this.playObserver[videoId];
+        },
+
         stopTimelineRecording: function (arg, triggerCheck) {
             const videoIds = $.isArray(arg) ? arg : [arg];
 
@@ -297,6 +305,10 @@
 
         init: function () {
             return internal.init();
+        },
+
+        resetVideoId: function(videoId) {
+            internal.resetVideoId(videoId);
         },
 
         isTimelineRecorded: function (videoId) {
