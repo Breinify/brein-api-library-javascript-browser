@@ -787,8 +787,20 @@
             } else if (observer.observe === defaultSubmitObserverOption.observer) {
                 this.activateSubmitObserver($el, settings, data);
             } else if (observer.observe === defaultRenderedObserverOption.observer) {
-                console.log('rendered', settings, data);
+                this.handleRendered($el, settings, data);
             }
+        },
+
+        handleRendered: function ($el, settings, data) {
+            const activityType = typeof settings.activityType === 'string' && settings.activityType !== '' ? settings.activityType : defaultRenderedObserverOption.settings.activityType;
+            const eventData = {
+                $el: $el,
+                defaultOpenInNewTab: false,
+                defaultWillReloadPage: false,
+                overriddenScheduleActivities: false
+            };
+
+            this.handleEvent(activityType, eventData, $el, settings, data);
         },
 
         activateSubmitObserver: function ($el, settings, data) {
