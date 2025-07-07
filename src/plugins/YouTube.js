@@ -15,7 +15,6 @@
         frequencyInMs: 1000,
         initialized: false,
         type: null,
-        listenerName: 'YT_VIDEO_STARTED_BRE_LISTENER',
         videoIdToElementIdMapper: {},
         videoIdHandler: {},
         startedVideoIds: {},
@@ -28,12 +27,6 @@
             } else if (typeof YT !== 'object' || typeof window.YT.Player !== 'function') {
                 return false;
             }
-
-            // set the listener
-            const _self = this;
-            window[this.listenerName] = function (event) {
-                _self.youTubeEventHandler(event);
-            };
 
             this.initialized = true;
             return true;
@@ -209,6 +202,8 @@
         },
 
         bindYouTubeObserver: function ($el, handler) {
+            const _self = this;
+
             if (!$.isFunction(handler)) {
                 return null;
             }
@@ -234,7 +229,9 @@
             else {
                 this.videoIdHandler[videoId] = [handler];
                 this.videoIdToElementIdMapper[videoId] = id;
-                player.addEventListener('onStateChange', this.listenerName);
+                player.addEventListener('onStateChange', function (event) {
+                    _self.youTubeEventHandler(event);
+                });
 
                 return videoId;
             }
