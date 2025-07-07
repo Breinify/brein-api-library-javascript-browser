@@ -361,7 +361,7 @@
                         _self.isObservable($iFrame, callback);
                     }, 50);
                 } else {
-                    callback($iFrame);
+                    callback($iFrame, videoId);
                 }
             });
         },
