@@ -865,6 +865,7 @@
                 event: event,
                 defaultOpenInNewTab: openInNewTab,
                 defaultWillReloadPage: willReloadPage,
+                scheduleActivity: false,
                 overriddenScheduleActivities: false
             };
 
