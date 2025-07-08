@@ -713,7 +713,7 @@
 
             // style is a little bit more complex to extend, so we do that now
             const settingsHaveSelectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors);
-            const wedHaveSelectors = $.isPlainObject(webExperienceData.style.style) && $.isArray(webExperienceData.style.selectors);
+            const wedHaveSelectors = $.isPlainObject(webExperienceData.style) && $.isArray(webExperienceData.style.selectors);
 
             if (settingsHaveSelectors && wedHaveSelectors) {
                 this.settings.style.selectors = this.settings.style.selectors.concat(webExperienceData.style.selectors);
