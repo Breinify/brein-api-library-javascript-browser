@@ -689,7 +689,7 @@
                 const durationInSec = Breinify.UTL.toInteger(this.settings.experience.displayWindowValue);
                 window.localStorage.setItem(storageKey, JSON.stringify({
                     time: Date.now(),
-                    ttl: durationInSec,
+                    ttl: durationInSec * 1000,
                     renew: false,
                     response: response
                 }));
@@ -802,6 +802,10 @@
 
             // combine the experience information, everything can be overridden/extended there
             this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData, webExperienceData.experience);
+
+            // let's check any defined widgetIds
+            // if ($.isArray(this.settings.experience.widgetIds) && $.inArray(this.settings.experience.widgetIds)) {
+            // }
 
             // style is a little bit more complex to extend, so we do that now
             const settingsHaveSelectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors);
