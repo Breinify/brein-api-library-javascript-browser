@@ -702,7 +702,26 @@
             console.log('promotionsData', promotionsData);
             console.log('webExperienceData', webExperienceData);
 
-            this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData);
+            // check the web-experience's identifier to match this one (if any is selected/defined)
+            const expectedWebExperienceId = Breinify.UTL.isNonEmptyString(webExperienceData.webExperienceId);
+            if (expectedWebExperienceId !== null && this.settings.webExId !== expectedWebExperienceId) {
+                return false;
+            }
+
+            this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData,
+                $.isPlainObject(webExperienceData.experience) ? webExperienceData.experience : {});
+
+            // style is a little bit more complex to extend, so we do that now
+            if ($.isArray(this.settings.style) && $.isArray(webExperienceData.style)) {
+                this.settings.style = this.settings.style.concat(webExperienceData.style);
+            } else if ($.isArray(webExperienceData.style)) {
+                this.settings.style = webExperienceData.style;
+            } else if ($.isArray(this.settings.style)) {
+                // do nothing
+            } else {
+                this.settings.style = null;
+            }
+
             return true;
         }
 
