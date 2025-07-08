@@ -644,10 +644,13 @@
                     data = $.isPlainObject(data) ? data : {};
 
                     if (data.time + data.ttl < Date.now()) {
-                        window.localStorage.removeItem(storageKey);
 
+                        // the information is expired, remove it
+                        window.localStorage.removeItem(storageKey);
                         data = null;
                     } else if (data.renew === true) {
+
+                        // the information is valid and should be "renewed"
                         window.localStorage.setItem(storageKey, JSON.stringify({
                             time: Date.now(),
                             ttl: data.ttl,
@@ -657,6 +660,8 @@
 
                         data = data.response;
                     } else {
+
+                        // we have valid information, which will expire after the ttl
                         data = data.response;
                     }
                 }
