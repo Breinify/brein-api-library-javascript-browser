@@ -685,6 +685,8 @@
             campaignData = $.isArray(campaignData) && campaignData.length > 0 ? campaignData[0] : null;
             let promotionsData = response['com.brein.common.microservice.data.PromotionsData'];
             promotionsData = $.isArray(promotionsData) && promotionsData.length > 0 ? promotionsData[0] : null;
+            let webExperienceData = response['com.brein.common.microservice.data.WebExperienceData'];
+            webExperienceData = $.isArray(webExperienceData) && webExperienceData.length > 0 ? webExperienceData[0] : {};
             if (!$.isPlainObject(campaignData) || !$.isPlainObject(promotionsData)) {
                 return false;
             }
@@ -695,6 +697,10 @@
             if (validCampaignTypes !== null && $.inArray(campaignType, validCampaignTypes) === -1) {
                 return false;
             }
+
+            // apply any additional web-experience settings
+            console.log('promotionsData', promotionsData);
+            console.log('webExperienceData', webExperienceData);
 
             this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData);
             return true;
