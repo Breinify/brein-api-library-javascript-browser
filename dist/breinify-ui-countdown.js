@@ -712,11 +712,14 @@
                 $.isPlainObject(webExperienceData.experience) ? webExperienceData.experience : {});
 
             // style is a little bit more complex to extend, so we do that now
-            if ($.isArray(this.settings.style) && $.isArray(webExperienceData.style)) {
-                this.settings.style = this.settings.style.concat(webExperienceData.style);
-            } else if ($.isArray(webExperienceData.style)) {
+            const settingsHaveSelectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors);
+            const wedHaveSelectors = $.isPlainObject(webExperienceData.style.style) && $.isArray(webExperienceData.style.selectors);
+
+            if (settingsHaveSelectors && wedHaveSelectors) {
+                this.settings.style.selectors = this.settings.style.selectors.concat(webExperienceData.style.selectors);
+            } else if (wedHaveSelectors) {
                 this.settings.style = webExperienceData.style;
-            } else if ($.isArray(this.settings.style)) {
+            } else if (settingsHaveSelectors) {
                 // do nothing
             } else {
                 this.settings.style = null;
