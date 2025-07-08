@@ -586,19 +586,23 @@
         _applyCampaignBasedSettings(settings, callback) {
             const _self = this;
 
+            // make sure we have an experience information
+            this.settings = $.extend(true, {
+                experience: {}
+            }, settings);
+
             /*
              * For a campaign based counter, we need msid in the params to fire the request,
              * otherwise we just consider that the hit is not from a campaign and can stop.
              */
             const brMsId = Breinify.UTL.loc.param('br-msid');
             if (brMsId === null) {
-                this._updateStatus('ignored', 'missing-msid');
+                if (this._retrieveCampaignBasedSettings(callback) === false) {
+                    this._updateStatus('ignored', 'missing-msid');
+                }
+
                 return;
             }
-
-            this.settings = $.extend(true, {
-                experience: {}
-            }, settings);
 
             // check if we have a token (otherwise we do nothing and just return)
             const accessToken = Breinify.UTL.isNonEmptyString(this.settings.experience.accessToken);
@@ -615,10 +619,97 @@
                     callback(error, false);
                 } else if (_self._checkCampaignBasedResponse(response)) {
                     callback(null, _self.settings);
+                } else if (_self._retrieveCampaignBasedSettings(callback) === true) {
+                    // done the callback is called within the retrieval if true is returned
                 } else {
                     _self._updateStatus('ignored', 'invalid-msid');
                 }
             }, 30000);
+        }
+
+        _retrieveCampaignBasedSettings(callback) {
+            const storageKey = this._getStorageKey();
+            try {
+                let data = null;
+
+                // we check the different possible storage
+                const sessionSettings = Breinify.UTL.isNonEmptyString(window.sessionStorage.getItem(storageKey));
+                if (sessionSettings !== null) {
+                    data = JSON.parse(sessionSettings);
+                }
+
+                const localSettings = Breinify.UTL.isNonEmptyString(window.localStorage.getItem(storageKey));
+                if (localSettings !== null) {
+                    data = JSON.parse(localSettings);
+                    data = $.isPlainObject(data) ? data : {};
+
+                    if (data.time + data.ttl < Date.now()) {
+                        window.localStorage.removeItem(storageKey);
+
+                        data = null;
+                    } else if (data.renew === true) {
+                        window.localStorage.setItem(storageKey, JSON.stringify({
+                            time: Date.now(),
+                            ttl: data.ttl,
+                            renew: true,
+                            response: data.response
+                        }));
+
+                        data = data.response;
+                    } else {
+                        data = data.response;
+                    }
+                }
+
+                // utilize the check to ensure the data is valid and should be used
+                if (this._checkCampaignBasedResponse(data)) {
+                    callback(null, this.settings);
+                    return true;
+                } else {
+                    return false;
+                }
+            } catch (error) {
+                return false;
+            }
+        }
+
+        _storeCampaignBasedSettings(response) {
+            const storageKey = this._getStorageKey();
+
+            let type = Breinify.UTL.isNonEmptyString(this.settings.experience.displayWindowDuration);
+            if (type === 'ONE_TIME_VISIBILITY') {
+                window.sessionStorage.removeItem(storageKey);
+                window.localStorage.removeItem(storageKey);
+            } else if (type === 'TIME_LIMITED_VISIBILITY') {
+                const durationInSec = Breinify.UTL.toInteger(this.settings.experience.displayWindowValue);
+                window.localStorage.setItem(storageKey, JSON.stringify({
+                    time: Date.now(),
+                    ttl: durationInSec,
+                    renew: false,
+                    response: response
+                }));
+                window.sessionStorage.removeItem(storageKey);
+            } else if (type === 'PER_TAB_SESSION_VISIBILITY') {
+                // store in sessionStorage
+                window.sessionStorage.setItem(storageKey, JSON.stringify(response));
+                window.localStorage.removeItem(storageKey);
+            }
+            // default: ACTIVE_BROWSING_SESSION_VISIBILITY
+            else {
+
+                // store in localStorage, update on each retrieval and remove if older than 30min
+                window.localStorage.setItem(storageKey, JSON.stringify({
+                    time: Date.now(),
+                    ttl: 30 * 60 * 1000,
+                    renew: false,
+                    response: response
+                }));
+                window.sessionStorage.removeItem(storageKey);
+            }
+        }
+
+        _getStorageKey() {
+            return 'br-wed-' + this.settings.webExId;
         }
 
         _applyOneTimeSettings(settings, callback) {
@@ -698,18 +789,14 @@
                 return false;
             }
 
-            // apply any additional web-experience settings
-            console.log('promotionsData', promotionsData);
-            console.log('webExperienceData', webExperienceData);
-
             // check the web-experience's identifier to match this one (if any is selected/defined)
             const expectedWebExperienceId = Breinify.UTL.isNonEmptyString(webExperienceData.webExperienceId);
             if (expectedWebExperienceId !== null && this.settings.webExId !== expectedWebExperienceId) {
                 return false;
             }
 
-            this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData,
-                $.isPlainObject(webExperienceData.experience) ? webExperienceData.experience : {});
+            // combine the experience information, everything can be overridden/extended there
+            this.settings.experience = $.extend(true, {}, this.settings.experience, promotionsData, webExperienceData.experience);
 
             // style is a little bit more complex to extend, so we do that now
             const settingsHaveSelectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors);
@@ -732,6 +819,9 @@
             } else {
                 this.settings.style = null;
             }
+
+            // apply any DisplayDuration if any is set
+            this._storeCampaignBasedSettings(response);
 
             return true;
         }
