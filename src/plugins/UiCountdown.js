@@ -718,7 +718,15 @@
             if (settingsHaveSelectors && wedHaveSelectors) {
                 this.settings.style.selectors = this.settings.style.selectors.concat(webExperienceData.style.selectors);
             } else if (wedHaveSelectors) {
-                this.settings.style = webExperienceData.style;
+
+                // make sure we have the style object and remove any selectors
+                if ($.isPlainObject(this.settings.style)) {
+                    delete this.settings.style.selectors;
+                } else {
+                    this.settings.style = {};
+                }
+
+                this.settings.style = $.extend(true, {}, this.settings.style, webExperienceData.style);
             } else if (settingsHaveSelectors) {
                 // do nothing
             } else {
