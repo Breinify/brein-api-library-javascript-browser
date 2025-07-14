@@ -346,6 +346,10 @@
 
             getToken: function () {
                 return shopifyCart.getToken();
+            },
+
+            getCurrentCart: function() {
+                return $.extend(true, {}, shopifyCart.currentCart);
             }
         }
     };
