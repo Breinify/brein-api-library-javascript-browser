@@ -994,7 +994,10 @@
                * the activity sent.
                */
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
-            const willReloadPage = event.target instanceof HTMLAnchorElement;
+
+            // the click could have been within a shadow-dom
+            const actualTarget = event.data?.actualTarget ?? event.target;
+            const willReloadPage = actualTarget instanceof HTMLAnchorElement;
             const activityType = option.activity.type;
 
             settings = $.extend(true, {

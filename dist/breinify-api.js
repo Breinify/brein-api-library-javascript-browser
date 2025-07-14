@@ -13231,7 +13231,7 @@ dependencyScope.jQuery = $;;
 
             _delegatedRegistry: {},
 
-            _addDelegatedEvent(type, selector, handler) {
+            _addDelegatedEvent(type, selector, data, handler) {
                 const key = `${type}_${selector}`;
                 if (this._delegatedRegistry[key]) return;
 
@@ -13251,7 +13251,11 @@ dependencyScope.jQuery = $;;
                 const listener = (event) => {
                     const match = event.composedPath?.().find(el => el.matches?.(selector));
                     if (match) {
-                        event.data = { selector };
+                        event.data = $.extend(true, {
+                            actualTarget: match,
+                            selector: selector
+                        }, data);
+
                         handler.call(match, event);
                     }
                 };
@@ -13328,7 +13332,7 @@ dependencyScope.jQuery = $;;
 
                 // and bind it
                 // $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
-                this._addDelegatedEvent('click', selector, existingClickObserver.handler);
+                this._addDelegatedEvent('click', selector, {selector}, existingClickObserver.handler);
             }
         },
 
