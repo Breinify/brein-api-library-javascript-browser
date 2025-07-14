@@ -13229,6 +13229,37 @@ dependencyScope.jQuery = $;;
                 allowMultiFire: false
             },
 
+            _delegatedRegistry: {},
+
+            _addDelegatedEvent(type, selector, handler) {
+                const key = `${type}_${selector}`;
+                if (this._delegatedRegistry[key]) return;
+
+                // ensure support of composedPath on event (old browser like IE11 and old Safari only)
+                if (!Event.prototype.composedPath) {
+                    Event.prototype.composedPath = function () {
+                        let path = [], el = this.target;
+                        while (el) {
+                            path.push(el);
+                            el = el.parentNode || el.host;
+                        }
+                        path.push(document, window);
+                        return path;
+                    };
+                }
+
+                const listener = (event) => {
+                    const match = event.composedPath?.().find(el => el.matches?.(selector));
+                    if (match) {
+                        event.data = { selector };
+                        handler.call(match, event);
+                    }
+                };
+
+                this._delegatedRegistry[key] = listener;
+                document.addEventListener(type, listener);
+            },
+
             add: function (selector, name, settings, callback) {
                 const _self = this;
 
@@ -13296,7 +13327,8 @@ dependencyScope.jQuery = $;;
                 };
 
                 // and bind it
-                $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
+                // $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
+                this._addDelegatedEvent('click', selector, existingClickObserver.handler);
             }
         },
 
