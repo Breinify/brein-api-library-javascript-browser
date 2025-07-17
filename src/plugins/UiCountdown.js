@@ -533,6 +533,9 @@
                 )
                 .join(''));
 
+            // check for snippets
+            //Breinify.plugins.snippetMana
+
             if (additionalStyle !== null) {
                 this.$shadowRoot.find('#br-style-countdown-default')
                     .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');

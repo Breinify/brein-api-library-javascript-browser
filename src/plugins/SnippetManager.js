@@ -21,7 +21,7 @@
         },
         get: function (id) {
             const snippet = this.snippets[id];
-            return $.isPlainObject(snippet) ? snippet : null;
+            return typeof snippet === 'undefined' ? null : snippet;
         }
     };
 
