@@ -77,8 +77,6 @@
                 settings: $.isPlainObject(settings) ? settings : {}
             };
 
-            console.log('countdownById', this.countdownById);
-
             // determine if all are finished, and determine resolution strategy
             const overallInfo = {
                 noShow: [],
@@ -113,9 +111,6 @@
 
             // if we have more than one to show, we just show (weighted are ignored)
             const uuidsToShow = this._evaluateContext(evaluationContext);
-
-            console.log('evaluationContext', evaluationContext);
-            console.log('uuidsToShow', uuidsToShow);
 
             /*
              * Iterate over each element we have and apply the result,
@@ -279,7 +274,6 @@
 
             // wrap the callback to do some general check on the final results
             const callbackWrapper = function (error) {
-                console.log('using settings', _self.settings);
 
                 /*
                  * Run this function always in `window.queueMicrotask`, so that all other
