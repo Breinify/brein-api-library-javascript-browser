@@ -533,19 +533,24 @@
                 )
                 .join(''));
 
+            let snippetSelector = '#br-style-countdown-default';
+            if (additionalStyle !== null) {
+                this.$shadowRoot.find('#br-style-countdown-default')
+                    .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
+                snippetSelector= '.br-style-countdown-configured';
+            }
+
             // check for snippets
             const snippetId = $.isPlainObject(this.settings.style) ? Breinify.UTL.isNonEmptyString(this.settings.style.snippet) : null;
             if (snippetId !== null && Breinify.plugins._isAdded('snippetManager')) {
                 const snippet = Breinify.UTL.isNonEmptyString(Breinify.plugins.snippetManager.getSnippet(snippetId));
                 if (snippet !== null) {
-                    additionalStyle = (additionalStyle === null ? '' : additionalStyle) + snippet;
+                    try {
+                        this.$shadowRoot.find(snippetSelector).after($(snippet));
+                    } catch (e) {
+                        // invalid snippet
+                    }
                 }
-            }
-
-
-            if (additionalStyle !== null) {
-                this.$shadowRoot.find('#br-style-countdown-default')
-                    .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
             }
         }
 
