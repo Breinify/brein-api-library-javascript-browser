@@ -525,7 +525,7 @@
             this.$shadowRoot.find('#br-style-countdown-configured').remove();
 
             const selectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors) ? this.settings.style.selectors : [];
-            const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
+            let additionalStyle = Breinify.UTL.isNonEmptyString(selectors
                 .filter(entry => $.isPlainObject(entry))
                 .map(entry => Object.entries(entry)
                     .map(([key, value]) => `${key} { ${value} }`)
@@ -534,7 +534,14 @@
                 .join(''));
 
             // check for snippets
-            //Breinify.plugins.snippetMana
+            const snippetId = $.isPlainObject(this.settings.style) ? Breinify.UTL.isNonEmptyString(this.settings.style.snippet) : null;
+            if (snippetId !== null && Breinify.plugins._isAdded('snippetManager')) {
+                const snippet = Breinify.UTL.isNonEmptyString(Breinify.plugins.snippetManager.getSnippet(snippetId));
+                if (snippet !== null) {
+                    additionalStyle = (additionalStyle === null ? '' : additionalStyle) + snippet;
+                }
+            }
+
 
             if (additionalStyle !== null) {
                 this.$shadowRoot.find('#br-style-countdown-default')

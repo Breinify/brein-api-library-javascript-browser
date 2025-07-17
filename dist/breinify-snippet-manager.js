@@ -21,7 +21,13 @@
         },
         get: function (id) {
             const snippet = this.snippets[id];
-            return typeof snippet === 'undefined' ? null : snippet;
+            if (typeof snippet === 'string') {
+                return Breinify.UTL.isNonEmptyString(snippet);
+            } else if ($.isFunction(snippet)) {
+                return snippet;
+            } else {
+                return null;
+            }
         }
     };
 
