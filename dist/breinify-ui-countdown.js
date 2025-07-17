@@ -537,7 +537,7 @@
             if (additionalStyle !== null) {
                 this.$shadowRoot.find('#br-style-countdown-default')
                     .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
-                snippetSelector= '.br-style-countdown-configured';
+                snippetSelector= '#br-style-countdown-configured';
             }
 
             // check for snippets
@@ -552,9 +552,6 @@
                     }
                 }
             }
-
-
-
         }
 
         _applyHtml() {
