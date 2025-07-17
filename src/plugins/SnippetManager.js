@@ -10,12 +10,28 @@
     }
 
     const $ = Breinify.UTL._jquery();
-    const _private = {};
+    const _private = {
+        snippets: {},
+
+        register: function (snippetId, snippet) {
+            const currentSnippet = this.snippets[snippetId];
+            this.snippets[snippetId] = snippet;
+
+            return $.isPlainObject(currentSnippet) ? currentSnippet : null;
+        },
+        get: function (id) {
+            const snippet = this.snippets[id];
+            return $.isPlainObject(snippet) ? snippet : null;
+        }
+    };
 
     const SnippetManager = {
 
         registerSnippet: function (snippetId, snippet) {
-            console.log('registerSnippet' + snippetId, snippet);
+            _private.register(snippetId, snippet);
+        },
+        getSnippet: function (snippetId) {
+            return _private.get(snippetId);
         }
     };
 
