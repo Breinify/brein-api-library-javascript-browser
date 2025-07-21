@@ -239,6 +239,7 @@
                     isEmpty: true,
                     size: 0,
                     quantity: 0,
+                    subTotal: 0,
                     items: {},
                     additionalData: {}
                 };
@@ -247,6 +248,7 @@
                     isEmpty: true,
                     size: 0,
                     quantity: 0,
+                    subTotal: 0,
                     items: {},
                     additionalData: {}
                 };
@@ -296,6 +298,10 @@
                 const cartAttr = this.additionalData[i];
                 this.currentCart.additionalData[cartAttr] = data[cartAttr];
             }
+
+            // add the information about pricing
+            const subTotalCents = Number(data?.items_subtotal_price);
+            this.currentCart.subTotal = Number.isFinite(subTotalCents) ? Math.round(subTotalCents) / 100 : 0;
 
             return this.currentCart;
         }
