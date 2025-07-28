@@ -77,10 +77,20 @@
             const snippet = Breinify.UTL.isNonEmptyString(logic.snippet);
             if (snippet === null) {
                 return isValidPage;
-            } else if (isValidPage === true) {
-                console.log('apply snippet logic here', snippet);
-                return true; // TODO: return the snippet result
-            } else {
+            } else if (isValidPage === false) {
+                return false;
+            }
+
+            // check if we have a snippet, if one is defined and we cannot find it we return false as fallback
+            const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippet);
+            if (!$.isFunction(activationSnippet)) {
+                return false;
+            }
+
+            try {
+                return activationSnippet() === true;
+            } catch (e) {
+                console.error('[breinify] error occurred while executing activationSnippet: ', e)
                 return false;
             }
         }
