@@ -193,18 +193,20 @@
         _loadCart: function () {
             const _self = this;
 
-            // determine the root
+            /// determine the root
             const root = $.isPlainObject(window.Shopify) &&
             $.isPlainObject(window.Shopify.routes) &&
             typeof window.Shopify.routes.root === 'string' ? window.Shopify.routes.root : '/';
 
-            return $.getJSON(root + 'cart.js', function (cart) {
-
-                // parse the retrieved token and keep it
-                _self.loadedToken = _self.parseToken(cart.token);
-
-                // determine any changes and inform notifiers
-                _self._checkCartChanges(cart);
+            return new Promise((resolve, reject) => {
+                $.getJSON(root + 'cart.js')
+                    .done(function (cart) {
+                        _self.loadedToken = _self.parseToken(cart.token);
+                        return _self._checkCartChanges(cart);
+                    })
+                    .fail(function (xhr, status, err) {
+                        reject(err);
+                    });
             });
         },
 
@@ -274,6 +276,12 @@
                     const observer = this.cartObservers[i];
                     observer(addedItems, removedItems, newCart);
                 }
+            }
+
+            return {
+                addedItems: addedItems,
+                removedItems: removedItems,
+                cart: newCart
             }
         },
 
