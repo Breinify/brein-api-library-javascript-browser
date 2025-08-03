@@ -183,10 +183,10 @@
             }
         },
 
-        afterCartRequest: function(url) {
+        afterCartRequest: function(url, err, cart) {
             for (let i = 0; i < this.afterCartObservers.length; i++) {
                 const observer = this.afterCartObservers[i];
-                observer(url);
+                observer(url, err, cart);
             }
         },
 
