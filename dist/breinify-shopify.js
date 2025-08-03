@@ -104,8 +104,8 @@
                 return _self.originalAjax.call(this, settings).done(function () {
                     const maybePromise = _self._loadCart();
                     if (maybePromise && typeof maybePromise.then === 'function') {
-                        maybePromise.then((cart) => {
-                            _self.afterCartRequest(url, null, cart);
+                        maybePromise.then(cartInfo => {
+                            _self.afterCartRequest(url, null, cartInfo);
                         }).catch((err) => {
                             _self.afterCartRequest(url, err, null);
                         });
@@ -183,10 +183,10 @@
             }
         },
 
-        afterCartRequest: function(url, err, cart) {
+        afterCartRequest: function(url, err, cartInfo) {
             for (let i = 0; i < this.afterCartObservers.length; i++) {
                 const observer = this.afterCartObservers[i];
-                observer(url, err, cart);
+                observer(url, err, cartInfo);
             }
         },
 
