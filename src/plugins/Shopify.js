@@ -35,7 +35,7 @@
             // add the observers for changes
             if ($.isArray(config.beforeCartObservers)) {
                 for (let i = 0; i < config.beforeCartObservers.length; i++) {
-                    this.addCartObserver(config.beforeCartObservers[i]);
+                    this.addBeforeCartObserver(config.beforeCartObservers[i]);
                 }
             }
             if ($.isArray(config.cartObservers)) {
@@ -45,7 +45,7 @@
             }
             if ($.isArray(config.afterCartObservers)) {
                 for (let i = 0; i < config.afterCartObservers.length; i++) {
-                    this.addCartObserver(config.afterCartObservers[i]);
+                    this.addAfterCartObserver(config.afterCartObservers[i]);
                 }
             }
 
@@ -102,8 +102,14 @@
                 // Call original ajax, then trigger your cart update logic on success
                 _self.beforeCartRequest(url);
                 return _self.originalAjax.call(this, settings).done(function () {
-                    _self._loadCart();
-                    _self.afterCartRequest(url);
+                    const maybePromise = _self._loadCart();
+                    if (maybePromise && typeof maybePromise.then === 'function') {
+                        maybePromise.then(() => {
+                            _self.afterCartRequest(url);
+                        });
+                    } else {
+                        _self.afterCartRequest(url);
+                    }
                 });
             };
         },
@@ -120,11 +126,18 @@
                     return _self.originalFetch.apply(this, args);
                 }
 
+                _self.beforeCartRequest(url);
                 return _self.originalFetch.apply(this, args).then(response => {
-                    // response.clone().json().then(data => _self._loadCart());
-
-                    _self._loadCart();
-                    return response;
+                    const maybePromise = _self._loadCart();
+                    if (maybePromise && typeof maybePromise.then === 'function') {
+                        return maybePromise.then(() => {
+                            _self.afterCartRequest(url);
+                            return response;
+                        });
+                    } else {
+                        _self.afterCartRequest(url);
+                        return response;
+                    }
                 });
             };
         },
@@ -186,7 +199,7 @@
             $.isPlainObject(window.Shopify.routes) &&
             typeof window.Shopify.routes.root === 'string' ? window.Shopify.routes.root : '/';
 
-            $.getJSON(root + 'cart.js', function (cart) {
+            return $.getJSON(root + 'cart.js', function (cart) {
 
                 // parse the retrieved token and keep it
                 _self.loadedToken = _self.parseToken(cart.token);
