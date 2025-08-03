@@ -19,7 +19,9 @@
         originalFetch: null,
         additionalData: [],
         additionalItemData: [],
-        observers: [],
+        cartObservers: [],
+        beforeCartObservers: [],
+        afterCartObservers: [],
 
         setup: function (config) {
 
@@ -31,9 +33,19 @@
             const _self = this;
 
             // add the observers for changes
-            if ($.isArray(config.observers)) {
-                for (let i = 0; i < config.observers.length; i++) {
-                    this.addObserver(config.observers[i]);
+            if ($.isArray(config.beforeCartObservers)) {
+                for (let i = 0; i < config.beforeCartObservers.length; i++) {
+                    this.addCartObserver(config.beforeCartObservers[i]);
+                }
+            }
+            if ($.isArray(config.cartObservers)) {
+                for (let i = 0; i < config.cartObservers.length; i++) {
+                    this.addCartObserver(config.cartObservers[i]);
+                }
+            }
+            if ($.isArray(config.afterCartObservers)) {
+                for (let i = 0; i < config.afterCartObservers.length; i++) {
+                    this.addCartObserver(config.afterCartObservers[i]);
                 }
             }
 
@@ -88,8 +100,10 @@
                 }
 
                 // Call original ajax, then trigger your cart update logic on success
+                _self.beforeCartRequest(url);
                 return _self.originalAjax.call(this, settings).done(function () {
                     _self._loadCart();
+                    _self.afterCartRequest(url);
                 });
             };
         },
@@ -132,9 +146,35 @@
             }
         },
 
-        addObserver: function (observer) {
+        addCartObserver: function (observer) {
             if ($.isFunction(observer)) {
-                this.observers.push(observer);
+                this.cartObservers.push(observer);
+            }
+        },
+
+        addBeforeCartObserver: function (observer) {
+            if ($.isFunction(observer)) {
+                this.beforeCartObservers.push(observer);
+            }
+        },
+
+        addAfterCartObserver: function (observer) {
+            if ($.isFunction(observer)) {
+                this.afterCartObservers.push(observer);
+            }
+        },
+
+        beforeCartRequest: function(url) {
+            for (let i = 0; i < this.beforeCartObservers.length; i++) {
+                const observer = this.beforeCartObservers[i];
+                observer(url);
+            }
+        },
+
+        afterCartRequest: function(url) {
+            for (let i = 0; i < this.afterCartObservers.length; i++) {
+                const observer = this.afterCartObservers[i];
+                observer(url);
             }
         },
 
@@ -218,9 +258,8 @@
             // notify observers about the changes (if any)
             if (removedItems.length > 0 || addedItems.length > 0) {
 
-                for (let i = 0; i < this.observers.length; i++) {
-                    const observer = this.observers[i];
-
+                for (let i = 0; i < this.cartObservers.length; i++) {
+                    const observer = this.cartObservers[i];
                     observer(addedItems, removedItems, newCart);
                 }
             }
@@ -335,13 +374,21 @@
                 refreshRateInMs: cartRefreshRateInMs,
                 additionalData: additionalData,
                 additionalItemData: additionalItemData,
-                observers: cartObservers
+                cartObservers: cartObservers
             });
         },
 
         cart: {
             onCartChange: function (observer) {
-                shopifyCart.addObserver(observer);
+                shopifyCart.addCartObserver(observer);
+            },
+
+            beforeCartChange: function (observer) {
+                shopifyCart.addBeforeCartObserver(observer);
+            },
+
+            afterCartChange: function (observer) {
+                shopifyCart.addAfterCartObserver(observer);
             },
 
             bindLookUpToken: function (lookUp) {
