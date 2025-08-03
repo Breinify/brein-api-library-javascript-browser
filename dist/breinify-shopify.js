@@ -202,7 +202,8 @@
                 $.getJSON(root + 'cart.js')
                     .done(function (cart) {
                         _self.loadedToken = _self.parseToken(cart.token);
-                        return _self._checkCartChanges(cart);
+                        const result = _self._checkCartChanges(cart);
+                        resolve(result);
                     })
                     .fail(function (xhr, status, err) {
                         reject(err);
