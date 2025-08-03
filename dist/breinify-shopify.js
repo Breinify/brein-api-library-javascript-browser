@@ -383,11 +383,11 @@
                 shopifyCart.addCartObserver(observer);
             },
 
-            beforeCartChange: function (observer) {
+            beforeCartRequest: function (observer) {
                 shopifyCart.addBeforeCartObserver(observer);
             },
 
-            afterCartChange: function (observer) {
+            afterCartRequest: function (observer) {
                 shopifyCart.addAfterCartObserver(observer);
             },
 
