@@ -256,9 +256,11 @@
                 module.findRequirements = function ($container, data) {
 
                     const selectedRecommenders = _private._findRequirements(configOnChange, $container, data);
+                    if (!$.isArray(selectedRecommenders) || selectedRecommenders.length === 0) {
+                        return false;
+                    }
 
                     console.log(selectedRecommenders);
-
                     return {
                         activityLogic: config.activityLogic,
                         recommenders: selectedRecommenders
