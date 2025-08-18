@@ -13,7 +13,23 @@
     const ALLOWED_POSITIONS = ['before', 'after', 'prepend', 'append', 'replace', 'externalRender'];
 
     const _private = {
-        handle: async function (webExId, singleConfig) {
+        handle: async function (webExId, recommendations) {
+            const results = await Promise.all(
+                recommendations.map(recommendation =>
+                    Promise.resolve()
+                        .then(() => _private._handle(webExId, recommendation))
+                        .catch(err => {
+                            // handle/log error, and decide what to return
+                            console.error(err);
+                            return null; // or some fallback
+                        })
+                )
+            );
+
+            console.log(results);
+        },
+
+        _handle: async function (webExId, singleConfig) {
             const config = {};
 
             if (!$.isPlainObject(singleConfig)) {
@@ -34,6 +50,8 @@
              *  - add: modifications (data.modify <-- singleConfig.modifyData)
              *  - add: styles
              */
+
+            return config;
         },
 
         _createPosition: function (position) {
@@ -153,12 +171,14 @@
         },
         handle: function (webExId, config) {
             const recommendations = $.isArray(config.recommendations) ? config.recommendations : [];
-            recommendations.forEach(function (recommendation) {
-                Promise.resolve()
-                    .then(() => _private.handle(webExId, recommendation))
-                    .catch(err => { /* handle/log */
-                    });
-            });
+            if (recommendations.length === 0) {
+                return;
+            }
+
+            Promise.resolve()
+                .then(() => _private.handle(webExId, recommendations))
+                .catch(err => { /* handle/log */
+                });
         }
     });
 })();
