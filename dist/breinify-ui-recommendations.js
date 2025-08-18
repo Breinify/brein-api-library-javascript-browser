@@ -205,16 +205,71 @@
                     recommendationForItems: recommendationForItems
                 }
             };
-        }
+        },
+
+        _findRequirements: function (configOnChange, $container, data) {
+            console.log($container);
+            console.log(data);
+
+            return configOnChange;
+        },
     };
 
     // bind the plugin
     Breinify.plugins._add('uiRecommendations', {
-        register: function () {
+        register: function (module, webExId, config) {
+            const _self = this;
 
-        },
-        findRequirements: function (configOnChange, $container, data) {
-            return configOnChange;
+            /*
+             * In the case that we have the rendering behavior configured to be "onChange" we need to observe the dom-tree
+             * via findRequirements. The detection of the path change is not enough in that case, and we need to render
+             * on "every" requirement fulfillment.
+             */
+            const configOnLoad = [];
+            const configOnChange = [];
+
+            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
+            for (const rec of recs) {
+                const position = $.isPlainObject(rec) && $.isPlainObject(rec.position) ? rec.position : {};
+
+                let behavior = Breinify.UTL.isNonEmptyString(position.renderingBehavior);
+                behavior = behavior === null ? null : behavior.toLowerCase();
+
+                if (behavior === 'onchange' || behavior === 'on_change') {
+                    configOnChange.push(rec);
+                } else {
+                    configOnLoad.push(rec);
+                }
+            }
+
+            /*
+             * It would be very untypical to have mixed renders, since on-change rendering can only happen for one
+             * element, the one that observes the change (or a group of elements observing the same change.
+             */
+            if (configOnChange.length > 0 && configOnLoad.length > 0) {
+                // TODO: decide what this would mean and how to handle it correctly
+            } else if (configOnLoad.length > 0) {
+                module.onChange = function () {
+                    _self.handle(webExId, configOnLoad);
+                }
+            } else {
+                module.findRequirements = function ($container, data) {
+
+                    const selectedRecommenders = _private._findRequirements(configOnChange, $container, data);
+
+                    console.log(selectedRecommenders);
+
+                    return {
+                        activityLogic: config.activityLogic,
+                        recommenders: selectedRecommenders
+                    };
+                };
+                module.onChange = function (data) {
+                    console.log('passed data', data);
+
+                    _self.handle(webExId, data);
+                }
+            }
         },
         handle: function (webExId, config) {
             const recommendations = $.isArray(config.recommendations) ? config.recommendations : [];
