@@ -216,7 +216,7 @@
             };
         },
 
-        _findRequirements: function (recs, $container, data) {
+        _findRequirements: function (webExId, recs, $container, data) {
 
             // we only care about specific events, so filter early
             if (!$.isPlainObject(data) ||
@@ -231,8 +231,14 @@
                 // check if the selected element is affected by this change
                 const func = this._createPositionSelector(rec.position);
                 const $el = func();
-
-                if ($el.length > 0 && $container.closest($el).length > 0) {
+                if ($el.length === 0) {
+                    // continue;
+                } else if ($el.data('br-marked-for-' + webExId) === 'true') {
+                    // continue
+                } else if (!$container.is($el) && $container.has($el).length === 0) {
+                    // continue;
+                } else {
+                    $el.data('br-marked-for-' + webExId, 'true');
                     selectedRecs.push(rec);
                 }
             }
@@ -285,7 +291,7 @@
             } else {
                 module.findRequirements = function ($container, data) {
 
-                    const selectedRecommenders = _private._findRequirements(configOnChange, $container, data);
+                    const selectedRecommenders = _private._findRequirements(webExId, configOnChange, $container, data);
                     if (!$.isArray(selectedRecommenders) || selectedRecommenders.length === 0) {
                         return false;
                     }
