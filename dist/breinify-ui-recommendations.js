@@ -10,6 +10,7 @@
     }
 
     const $ = Breinify.UTL._jquery();
+    const ALLOWED_POSITIONS = ['before', 'after', 'prepend', 'append', 'replace', 'externalRender'];
 
     const _private = {
         handle: async function (webExId, singleConfig) {
@@ -22,20 +23,53 @@
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
             config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
-            config.position = null;
+            config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = null;
 
             /*
              * TODO:
-             *  - add: bindings (bindings.selector <-- singleConfig.
+             *  - add: bindings (bindings.selector <-- singleConfig)
              *  - add: modifications (data.modify <-- singleConfig.modifyData)
              *  - add: styles
              */
         },
 
-        _createTemplates: function(templates) {
+        _createPosition: function (position) {
+            if (!$.isPlainObject(position)) {
+                return null;
+            }
+
+            let operation = Breinify.UTL.isNonEmptyString(position.operation);
+            if (operation === null) {
+                return null;
+            }
+
+            operation = operation.toLowerCase();
+            if (ALLOWED_POSITIONS.indexOf(operation) === -1) {
+                return null;
+            }
+
+            // determine the right position
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+
+            let func = null;
+            if (selector === null && snippet === null) {
+                return null;
+            } else if (selector !== null) {
+                func = function () {
+                    return $(selector);
+                };
+            } else {
+                func = Breinify.plugins.snippetManager.getSnippet(containerSnippetId);
+            }
+
+            return $.isFunction(func) ? {[operation]: func} : null;
+        },
+
+        _createTemplates: function (templates) {
             if (!$.isPlainObject(templates)) {
                 return null;
             }
