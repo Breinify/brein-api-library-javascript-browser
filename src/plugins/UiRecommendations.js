@@ -42,7 +42,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = {};
+            config.process = this._createProcess(webExId, singleConfig.process);
 
             /*
              * TODO:
@@ -52,6 +52,35 @@
              */
 
             return config;
+        },
+
+        _createProcess: function (webExId, config) {
+            if (!$.isPlainObject(config)) {
+                return {};
+            }
+
+            const resolvedProcesses = Object.fromEntries(
+                Object.entries(config).flatMap(([key, snippetId]) => {
+                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                    return func == null ? [] : [[key, func]];
+                })
+            );
+
+            // we need to change the activity handling, to add in the additional data
+            let createActivityFunc = null;
+            if ($.isFunction(resolvedProcesses.createActivity)) {
+                createActivityFunc = resolvedProcesses.createActivity;
+            }
+
+            resolvedProcesses.createActivity = function (event, settings) {
+                if ($.isFunction(createActivityFunc)) {
+                    createActivityFunc.call(this, event, settings);
+                }
+
+                settings.activityTags.campaignWebExId = webExId;
+            }
+
+            return resolvedProcesses;
         },
 
         _createPosition: function (position) {
@@ -124,8 +153,10 @@
             }
 
             return Object.fromEntries(
-                Object.entries(placeholders).map(([key, snippetId]) =>
-                    [key, Breinify.plugins.snippetManager.getSnippet(snippetId)])
+                Object.entries(config).flatMap(([key, snippetId]) => {
+                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                    return func == null ? [] : [[key, func]];
+                })
             );
         },
 
