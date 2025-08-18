@@ -55,16 +55,18 @@
         },
 
         _createProcess: function (webExId, config) {
-            if (!$.isPlainObject(config)) {
-                return {};
-            }
 
-            const resolvedProcesses = Object.fromEntries(
-                Object.entries(config).flatMap(([key, snippetId]) => {
-                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
-                    return func == null ? [] : [[key, func]];
-                })
-            );
+            let resolvedProcesses;
+            if ($.isPlainObject(config)) {
+                resolvedProcesses = Object.fromEntries(
+                    Object.entries(config).flatMap(([key, snippetId]) => {
+                        const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                        return func == null ? [] : [[key, func]];
+                    })
+                );
+            } else {
+                resolvedProcesses = {};
+            }
 
             // we need to change the activity handling, to add in the additional data
             let createActivityFunc = null;
