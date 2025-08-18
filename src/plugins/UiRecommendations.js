@@ -101,21 +101,30 @@
             }
 
             // determine the right position
+            const func = this._createPositionSelector(position);
+            return $.isFunction(func) ? {[operation]: func} : {};
+        },
+
+        _createPositionSelector: function (position) {
+            if (!$.isPlainObject(position)) {
+                return null;
+            }
+
             const selector = Breinify.UTL.isNonEmptyString(position.selector);
             const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
 
             let func = null;
             if (selector === null && snippet === null) {
-                return {};
+                return null;
             } else if (selector !== null) {
                 func = function () {
                     return $(selector);
                 };
             } else {
-                func = Breinify.plugins.snippetManager.getSnippet(containerSnippetId);
+                func = Breinify.plugins.snippetManager.getSnippet(snippet);
             }
 
-            return $.isFunction(func) ? {[operation]: func} : {};
+            return func;
         },
 
         _createTemplates: function (templates) {
@@ -193,7 +202,7 @@
                 recommendationForItems = null;
             }
 
-            // TODO: add additional parameters and recForItems
+            // TODO: add additional parameters
             // --> additionalParameters   (snippet)
             return {
                 payload: {
@@ -207,11 +216,32 @@
             };
         },
 
-        _findRequirements: function (configOnChange, $container, data) {
+        _findRequirements: function (recs, $container, data) {
+
+            // we only care about specific events, so filter early
+            if (!$.isPlainObject(data) ||
+                data.type === 'attribute-change' ||
+                data.type === 'removed-element') {
+                return false;
+            }
+
+            const selectedRecs = [];
+            for (const rec of recs) {
+
+                // check if the selected element is affected by this change
+                const func = this._createPositionSelector(rec.position);
+                const $el = func();
+
+                if ($el.length > 0 && $container.closest($el).length > 0) {
+                    selectedRecs.push(rec);
+                }
+            }
+
             console.log($container);
             console.log(data);
+            console.log(selectedRecs);
 
-            return configOnChange;
+            return selectedRecs;
         },
     };
 
