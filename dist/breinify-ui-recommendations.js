@@ -181,17 +181,29 @@
             let queryLabel = Breinify.UTL.isNonEmptyString(recommender.queryLabel);
             queryLabel = queryLabel === null ? namedRec : queryLabel;
 
+            let recommendationForItems = null;
+            const recForItemsSnippetId = Breinify.UTL.isNonEmptyString(recommender.itemsForRecommendation);
+            if (recForItemsSnippetId !== null) {
+                const func = Breinify.plugins.snippetManager.getSnippet(recForItemsSnippetId);
+                recommendationForItems = await func();
+            }
+
+            // make sure we have a valid type
+            if (!$.isArray(recommendationForItems)) {
+                recommendationForItems = null;
+            }
+
             // TODO: add additional parameters and recForItems
             // --> additionalParameters   (snippet)
             // --> itemsForRecommendation (snippet)
             return {
                 payload: {
                     recommendationQueryName: queryLabel,
-                    namedRecommendations: [namedRec]
+                    namedRecommendations: [namedRec],
                     // recommendationAdditionalParameters: {
                     //     additionalOtherParameters: {}
                     // },
-                    // recommendationForItems: null
+                    recommendationForItems: recommendationForItems
                 }
             };
         }
