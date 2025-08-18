@@ -210,7 +210,7 @@
 
             Promise.resolve()
                 .then(() => _private.handle(webExId, recommendations))
-                .catch(err => { /* handle/log */
+                .catch(err => {
                 });
         }
     });
