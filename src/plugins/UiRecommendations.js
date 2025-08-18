@@ -233,6 +233,9 @@
                 const $el = func();
                 if ($el.length === 0) {
                     // continue;
+                } else if ($el.find('.' + Breinify.plugins.recommendations.marker.container).length > 0 ||
+                    $el.hasClass(Breinify.plugins.recommendations.marker.container)) {
+                    // continue;
                 } else if ($el.data('br-marked-for-' + webExId) === 'true') {
                     // continue
                 } else if (!$container.is($el) && $container.has($el).length === 0) {
