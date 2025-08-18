@@ -195,7 +195,6 @@
 
             // TODO: add additional parameters and recForItems
             // --> additionalParameters   (snippet)
-            // --> itemsForRecommendation (snippet)
             return {
                 payload: {
                     recommendationQueryName: queryLabel,
@@ -213,6 +212,9 @@
     Breinify.plugins._add('uiRecommendations', {
         register: function () {
 
+        },
+        findRequirements: function (configOnChange, $container, data) {
+            return configOnChange;
         },
         handle: function (webExId, config) {
             const recommendations = $.isArray(config.recommendations) ? config.recommendations : [];
