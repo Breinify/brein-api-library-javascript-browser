@@ -56,17 +56,17 @@
 
         _createPosition: function (position) {
             if (!$.isPlainObject(position)) {
-                return null;
+                return {};
             }
 
             let operation = Breinify.UTL.isNonEmptyString(position.operation);
             if (operation === null) {
-                return null;
+                return {};
             }
 
             operation = operation.toLowerCase();
             if (ALLOWED_POSITIONS.indexOf(operation) === -1) {
-                return null;
+                return {};
             }
 
             // determine the right position
@@ -75,7 +75,7 @@
 
             let func = null;
             if (selector === null && snippet === null) {
-                return null;
+                return {};
             } else if (selector !== null) {
                 func = function () {
                     return $(selector);
@@ -84,12 +84,12 @@
                 func = Breinify.plugins.snippetManager.getSnippet(containerSnippetId);
             }
 
-            return $.isFunction(func) ? {[operation]: func} : null;
+            return $.isFunction(func) ? {[operation]: func} : {};
         },
 
         _createTemplates: function (templates) {
             if (!$.isPlainObject(templates)) {
-                return null;
+                return {};
             }
 
             const containerSnippetId = Breinify.UTL.isNonEmptyString(templates.container);
@@ -103,12 +103,12 @@
 
         _createSplitTestsSettings: function (splitTestControl) {
             if (!$.isPlainObject(splitTestControl)) {
-                return null;
+                return {};
             }
 
             const containerSelector = Breinify.UTL.isNonEmptyString(splitTestControl.selector);
             if (containerSelector === null) {
-                return null;
+                return {};
             }
 
             return {
@@ -120,7 +120,7 @@
 
         _createPlaceholders: function (placeholders) {
             if (!$.isPlainObject(placeholders)) {
-                return null;
+                return {};
             }
 
             return Object.fromEntries(
@@ -140,7 +140,7 @@
 
         _createPayload: async function (recommender) {
             if (!$.isPlainObject(recommender)) {
-                return null;
+                return {};
             }
 
             // check if we have to load anything async
