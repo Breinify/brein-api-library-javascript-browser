@@ -9,13 +9,122 @@
         return;
     }
 
-    // bind the module
+    const $ = Breinify.UTL._jquery();
+
+    const _private = {
+        handle: async function (webExId, singleConfig) {
+            const config = {};
+
+            if (!$.isPlainObject(singleConfig)) {
+                return;
+            }
+
+            config.recommender = await this._createPayload(singleConfig.recommender);
+            config.activity = this._createActivitySettings(singleConfig);
+            config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
+            config.position = null;
+            config.placeholders = this._createPlaceholders(singleConfig.placeholders);
+            config.templates = this._createTemplates(singleConfig.templates);
+            config.process = null;
+
+            /*
+             * TODO:
+             *  - add: bindings (bindings.selector <-- singleConfig.
+             *  - add: modifications (data.modify <-- singleConfig.modifyData)
+             *  - add: styles
+             */
+        },
+
+        _createTemplates: function(templates) {
+            if (!$.isPlainObject(templates)) {
+                return null;
+            }
+
+            const containerSnippetId = Breinify.UTL.isNonEmptyString(templates.container);
+            const itemSnippetId = Breinify.UTL.isNonEmptyString(templates.item);
+
+            return {
+                container: Breinify.plugins.snippetManager.getSnippet(containerSnippetId),
+                item: Breinify.plugins.snippetManager.getSnippet(itemSnippetId)
+            };
+        },
+
+        _createSplitTestsSettings: function (splitTestControl) {
+            if (!$.isPlainObject(splitTestControl)) {
+                return null;
+            }
+
+            const containerSelector = Breinify.UTL.isNonEmptyString(splitTestControl.selector);
+            if (containerSelector === null) {
+                return null;
+            }
+
+            return {
+                control: {
+                    containerSelector: containerSelector
+                }
+            };
+        },
+
+        _createPlaceholders: function (placeholders) {
+            if (!$.isPlainObject(placeholders)) {
+                return null;
+            }
+
+            return Object.fromEntries(
+                Object.entries(placeholders).map(([key, snippetId]) =>
+                    [key, Breinify.plugins.snippetManager.getSnippet(snippetId)])
+            );
+        },
+
+        _createActivitySettings: function (config) {
+            let activityType = $.isPlainObject(config) ? Breinify.UTL.isNonEmptyString(config.activityType) : null;
+            activityType = activityType === null ? 'clickedRecommendation' : activityType;
+
+            return {
+                type: activityType
+            };
+        },
+
+        _createPayload: async function (recommender) {
+            if (!$.isPlainObject(recommender)) {
+                return null;
+            }
+
+            // check if we have to load anything async
+            const namedRec = Breinify.UTL.isNonEmptyString(recommender.preconfiguredRecommendation);
+            let queryLabel = Breinify.UTL.isNonEmptyString(recommender.queryLabel);
+            queryLabel = queryLabel === null ? namedRec : queryLabel;
+
+            // TODO: add additional parameters and recForItems
+            // --> additionalParameters   (snippet)
+            // --> itemsForRecommendation (snippet)
+            return {
+                payload: {
+                    recommendationQueryName: queryLabel,
+                    namedRecommendations: [namedRec]
+                    // recommendationAdditionalParameters: {
+                    //     additionalOtherParameters: {}
+                    // },
+                    // recommendationForItems: null
+                }
+            };
+        }
+    };
+
+    // bind the plugin
     Breinify.plugins._add('uiRecommendations', {
         register: function () {
 
         },
-        handle: function(webExId, config) {
-
+        handle: function (webExId, config) {
+            const recommendations = $.isArray(config.recommendations) ? config.recommendations : [];
+            recommendations.forEach(function (recommendation) {
+                Promise.resolve()
+                    .then(() => _private.handle(webExId, recommendation))
+                    .catch(err => { /* handle/log */
+                    });
+            });
         }
     });
 })();
