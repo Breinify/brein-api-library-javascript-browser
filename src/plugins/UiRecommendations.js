@@ -247,9 +247,11 @@
                 console.log($container);
                 console.log(data);
                 console.log(selectedRecs);
-            }
 
-            return selectedRecs;
+                return selectedRecs;
+            } else {
+                return false;
+            }
         },
     };
 
@@ -300,8 +302,8 @@
 
                     console.log(selectedRecommenders);
                     return {
-                        activityLogic: config.activityLogic,
-                        recommenders: selectedRecommenders
+                        activationLogic: config.activationLogic,
+                        recommendations: selectedRecommenders
                     };
                 };
                 module.onChange = function (data) {
