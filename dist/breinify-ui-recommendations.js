@@ -243,9 +243,11 @@
                 }
             }
 
-            console.log($container);
-            console.log(data);
-            console.log(selectedRecs);
+            if (selectedRecs.length > 0) {
+                console.log($container);
+                console.log(data);
+                console.log(selectedRecs);
+            }
 
             return selectedRecs;
         },
