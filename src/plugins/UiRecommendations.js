@@ -42,7 +42,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = null;
+            config.process = {};
 
             /*
              * TODO:
