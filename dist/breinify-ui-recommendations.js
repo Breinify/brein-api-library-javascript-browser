@@ -155,7 +155,7 @@
             }
 
             return Object.fromEntries(
-                Object.entries(config).flatMap(([key, snippetId]) => {
+                Object.entries(placeholders).flatMap(([key, snippetId]) => {
                     const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
                     return func == null ? [] : [[key, func]];
                 })
