@@ -26,7 +26,7 @@
                 )
             );
 
-            console.log(results);
+            Breinify.plugins.recommendations.render(results);
         },
 
         _handle: async function (webExId, singleConfig) {
