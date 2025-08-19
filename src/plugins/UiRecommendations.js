@@ -44,6 +44,8 @@
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, singleConfig.process);
 
+            console.log(singleConfig.style);
+
             /*
              * TODO:
              *  - add: bindings (bindings.selector <-- singleConfig)
