@@ -315,7 +315,10 @@
                 // TODO: decide what this would mean and how to handle it correctly
             } else if (configOnLoad.length > 0) {
                 module.onChange = function () {
-                    _self.handle(webExId, configOnLoad);
+                    _self.handle(webExId, {
+                        activationLogic: config.activationLogic,
+                        recommendations: configOnLoad
+                    });
                 }
             } else {
                 module.findRequirements = function ($container, data) {
