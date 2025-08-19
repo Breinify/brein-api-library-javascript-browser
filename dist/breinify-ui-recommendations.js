@@ -69,7 +69,18 @@
             }
 
             const css = Breinify.plugins.snippetManager.getSnippet(snippetId);
-            console.log(css);
+            const $css = $(css);
+            let id = Breinify.UTL.isNonEmptyString($css.attr('id'));
+            if (id === null) {
+                id = 'br-' + snippetId;
+                $css.attr('id', id);
+            }
+
+            const $body = $('body');
+            const $existingCss = $body.find('#' + id);
+            if ($existingCss.length === 0) {
+                $body.prepend($css);
+            }
         },
 
         _createProcess: function (webExId, config) {
