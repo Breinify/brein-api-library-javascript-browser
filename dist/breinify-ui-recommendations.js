@@ -44,6 +44,7 @@
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, singleConfig.process);
 
+            this._applyStyle(singleConfig.style);
             console.log(singleConfig.style);
 
             /*
@@ -54,6 +55,21 @@
              */
 
             return config;
+        },
+
+        _applyStyle: function(config) {
+            if (!$.isPlainObject(config)) {
+                return;
+            }
+
+            // we do not support any changes via selectors currently, so we only check the snippet
+            const snippetId = Breinify.UTL.isNonEmptyString(config.snippet);
+            if (snippetId === null) {
+                return;
+            }
+
+            const css = Breinify.plugins.snippetManager.getSnippet(snippetId);
+            console.log(css);
         },
 
         _createProcess: function (webExId, config) {
