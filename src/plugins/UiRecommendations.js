@@ -43,15 +43,12 @@
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, singleConfig.process);
-
             this._applyStyle(singleConfig.style);
-            console.log(singleConfig.style);
 
             /*
              * TODO:
              *  - add: bindings (bindings.selector <-- singleConfig)
              *  - add: modifications (data.modify <-- singleConfig.modifyData)
-             *  - add: styles
              */
 
             return config;
@@ -276,10 +273,6 @@
             }
 
             if (selectedRecs.length > 0) {
-                console.log($container);
-                console.log(data);
-                console.log(selectedRecs);
-
                 return selectedRecs;
             } else {
                 return false;
@@ -332,15 +325,12 @@
                         return false;
                     }
 
-                    console.log(selectedRecommenders);
                     return {
                         activationLogic: config.activationLogic,
                         recommendations: selectedRecommenders
                     };
                 };
                 module.onChange = function (data) {
-                    console.log('passed data', data);
-
                     _self.handle(webExId, data);
                 }
             }
