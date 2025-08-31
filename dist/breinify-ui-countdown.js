@@ -128,18 +128,22 @@
                 const $el = entry.el.$shadowRoot.find('.countdown-banner');
                 if ($.inArray(id, uuidsToShow) > -1) {
                     if (entry.settings.fadeIn === true) {
-                        fadeIns.push(() => $el.fadeIn().promise().then(() => {
-                            entry.el._sendActivity('renderedElement');
-                        }));
+                        fadeIns.push(() => $el
+                            .stop(true, true)
+                            .css('display', 'block')
+                            .fadeIn()
+                            .promise().then(() => {
+                                entry.el._sendActivity('renderedElement');
+                            }));
                     } else {
-                        $el.show();
+                        $el.stop(true, true).css('display', 'block').show();
                         entry.el._sendActivity('renderedElement');
                     }
                 } else {
                     if (entry.settings.fadeOut === true) {
-                        fadeOuts.push(() => $el.fadeOut().promise());
+                        fadeOuts.push(() => $el.stop(true, true).fadeOut().promise());
                     } else {
-                        $el.hide();
+                        $el.stop(true, true).hide();
                     }
                 }
             }
@@ -531,7 +535,7 @@
             if (additionalStyle !== null) {
                 this.$shadowRoot.find('#br-style-countdown-default')
                     .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
-                snippetSelector= '#br-style-countdown-configured';
+                snippetSelector = '#br-style-countdown-configured';
             }
 
             // check for snippets
