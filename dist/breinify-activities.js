@@ -215,7 +215,7 @@
             }
         },
         localStorage: {
-            prefix: 'br-scheduled-activity-',
+            prefix: 'breinify-sa-data-',
 
             store: function (id, activityData) {
                 window.localStorage.setItem(this.prefix + id, JSON.stringify(activityData))
@@ -226,7 +226,7 @@
 
                 for (var i = 0, len = window.localStorage.length; i < len; ++i) {
                     let key = window.localStorage.key(i);
-                    if (!key.indexOf(this.prefix) === 0) {
+                    if (key.indexOf(this.prefix) !== 0) {
                         continue;
                     }
 
