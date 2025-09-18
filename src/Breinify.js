@@ -359,7 +359,7 @@
             }, parsedValue, overrides));
 
             // calculate a hash as unique identifier
-            let hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
+            let hashId = BreinifyUtil.md5(combinedValue.type + '|' + JSON.stringify(combinedValue.tags));
 
             // ensure initialization of the storage to keep information about the handling of this activity
             BreinifyUtil.storage.init({});
