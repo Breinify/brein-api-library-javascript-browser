@@ -16344,28 +16344,25 @@ dependencyScope.jQuery = $;;
 
             // calculate a hash as unique identifier
             let hashId = BreinifyUtil.md5(JSON.stringify(combinedValue));
-            if (BreinifyUtil.cookie.check(hashId)) {
+
+            // ensure initialization of the storage to keep information about the handling of this activity
+            BreinifyUtil.storage.init({});
+
+            // check if the handling already happened to avoid duplicate handling
+            const handledData = BreinifyUtil.storage.get(hashId);
+            if ($.isPlainObject(handledData) && handledData.handled === true) {
                 return;
             }
 
             /*
-             * Sends an activity to the Breinify server.
-             *
-             * @param user {object} the user-information
-             * @param type {string|null} the type of activity
-             * @param category {string|null} the category (can be null or undefined)
-             * @param description {string|null} the description for the activity
-             * @param tags {object} added the change to pass in tags
-             * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
-             * @param onReady {function|null} function to be executed after triggering the activity
+             * Store the handling (we do that even before it happened, since a failure would not be resolved by
+             * duplicate tries, and otherwise we may have a race in which things may be handled twice
              */
+            BreinifyUtil.storage.update(hashId, 60, {handled: true});
+
             let user = combinedValue.user;
             let activity = combinedValue.activity;
-            Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags, null, function () {
-
-                // mark it as successfully sent
-                BreinifyUtil.cookie.set(hashId, true);
-            });
+            Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags);
         },
 
         createUser: function (user, onSuccess) {
