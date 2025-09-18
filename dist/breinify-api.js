@@ -16349,16 +16349,22 @@ dependencyScope.jQuery = $;;
             BreinifyUtil.storage.init({});
 
             // check if the handling already happened to avoid duplicate handling
-            const handledData = BreinifyUtil.storage.get(hashId);
-            if ($.isPlainObject(handledData) && handledData.handled === true) {
+            let handledData = BreinifyUtil.storage.get('gp-data');
+            if ($.isPlainObject(handledData) &&
+                $.isPlainObject(handledData[hashId]) &&
+                handledData[hashId].handled === true) {
                 return;
+            } else {
+                const addedData = {};
+                addedData[hashId] = true;
+                handledData = $.extend(true, handledData, addedData);
             }
 
             /*
              * Store the handling (we do that even before it happened, since a failure would not be resolved by
              * duplicate tries, and otherwise we may have a race in which things may be handled twice
              */
-            BreinifyUtil.storage.update(hashId, 60, {handled: true});
+            BreinifyUtil.storage.update('gp-data', 60, handledData);
 
             let user = combinedValue.user;
             let activity = combinedValue.activity;
