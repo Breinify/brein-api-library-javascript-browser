@@ -16360,10 +16360,6 @@ dependencyScope.jQuery = $;;
                 handledData = $.extend(true, handledData, addedData);
             }
 
-            /*
-             * Store the handling (we do that even before it happened, since a failure would not be resolved by
-             * duplicate tries, and otherwise we may have a race in which things may be handled twice
-             */
             BreinifyUtil.storage.update('gp-data', 60, handledData);
 
             let user = combinedValue.user;
