@@ -33,5 +33,8 @@
     "uglify-save-license": "0.4.1",
     "main-bower-files": "2.13.3",
     "lodash": "4.17.21"
+  },
+  "overrides": {
+    "on-headers": "1.1.0"
   }
 }
