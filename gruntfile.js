@@ -2,9 +2,12 @@
  * This gruntfile is based on the project-gruntfile found at:
  *  https://github.com/Breinify/brein-javascript/tree/master/grunt/project-gruntfile.js
  *
- * Template Version: 1.0.2
+ * Template Version: 1.1.0
  *
  * Change Log:
+ *
+ * 1.1.0
+ *  - removed Jasmine from grunt build script (because of dependency issues)
  *
  * 1.0.2
  *  - added possibility to define a port for the server
@@ -53,8 +56,6 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-uglify');
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-string-replace');
-    //noinspection JSUnresolvedFunction
-    grunt.loadNpmTasks('grunt-contrib-jasmine');
     //noinspection JSUnresolvedFunction
     //grunt.loadNpmTasks('grunt-sync-json');
 
@@ -353,18 +354,6 @@ module.exports = function (grunt) {
                     {expand: true, cwd: 'src/plugins', src: 'Unsubscribe.js', dest: 'dist', rename: function(dest) { return dest + '/breinify-unsubscribe.js' } }
                 ]
             }
-        },
-
-        /*
-         * Task to test stuff with Jasmine
-         */
-        jasmine: {
-            test: {
-                src: ['dist/<%= pkg.name %>.js', 'dist/breinify-activities.js', 'dist/breinify-trigger.js', 'dist/breinify-recommendations.js', 'dist/breinify-alertme.js', 'dist/breinify-pickup.js', 'dist/breinify-sms.js', 'dist/breinify-ui-popup.js', 'dist/breinify-opt-status.js', 'dist/breinify-ui-validator.js'],
-                options: {
-                    specs: ['specs/**/*.js', '!specs/**/*.jquery.js']
-                }
-            }
         }
     });
 
@@ -432,17 +421,10 @@ module.exports = function (grunt) {
     });
 
     //noinspection JSUnresolvedFunction
-    grunt.registerTask('test', 'Tests the files using Jasmine', function () {
-
-        //noinspection JSUnresolvedVariable
-        grunt.task.run('dist', 'jasmine:test');
-    });
-
-    //noinspection JSUnresolvedFunction
     grunt.registerTask('publish', 'Publishes the package to npm', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('dist', 'jasmine:test');
+        grunt.task.run('dist');
     });
 
     //noinspection JSUnresolvedFunction
