@@ -20,6 +20,7 @@
     "on-headers": "1.1.0",
     "tar-fs": "3.1.1",
     "grunt": "1.5.3",
+    "tmp": "0.2.5",
     "grunt-bower-install-simple": "1.2.4",
     "grunt-contrib-clean": "1.1.0",
     "grunt-contrib-concat": "1.0.1",
