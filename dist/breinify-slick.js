@@ -19,6 +19,7 @@
             const startTimeInMs = new Date().getTime();
             const checkForSlick = this._determineCheckForSlick(settings);
             const maxWaitTimeInMs = this._determineMaxWaitTimeInMs(settings);
+            const maxTimInMs = startTimeInMs + maxWaitTimeInMs;
 
             // otherwise, we first wait for jQuery to see if it's there
             this._waitFor(maxWaitTimeInMs, function () {
@@ -35,7 +36,7 @@
                 }
                 // otherwise we wait for a potential slick and only load after
                 else {
-                    const remainingTimeInMs = new Date().getTime() - startTimeInMs;
+                    const remainingTimeInMs = Math.max(0, maxTimInMs - new Date().getTime());
                     _self._waitFor(remainingTimeInMs, function () {
                         return _self._hasWndSlick();
                     }, function (status) {
