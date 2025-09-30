@@ -146,8 +146,8 @@
             slickJs.type = "text/javascript";
             slickJs.src = "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js";
 
-            document.head.appendChild(slickCss);
-            document.body.appendChild(slickJs);
+            (document.head || document.documentElement).appendChild(slickCss);
+            (document.body || document.head || document.documentElement).appendChild(slickJs);
 
             // next we wait for slick to be available and call the callback, if there is one
             if (!$.isFunction(settings.onLoad)) {
