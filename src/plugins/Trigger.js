@@ -30,35 +30,47 @@
 
                 for (let i = 0; i < mutations.length; i++) {
                     const mutation = mutations[i];
-                    const attribute = mutation.attributeName;
 
-                    const addedNodes = mutations[i].addedNodes;
-                    const removedNodes = mutations[i].removedNodes;
-
-                    if (typeof attribute === 'string' && attribute.trim() !== '') {
-                        _self.handleDomChange($(mutation.target), {
-                            type: 'attribute-change',
-                            attribute: attribute
-                        });
+                    // attributes: only Elements have attributes
+                    if (mutation.type === 'attributes' && typeof mutation.attributeName === 'string' && mutation.attributeName.trim() !== '') {
+                        const $target = mutation.target && mutation.target.nodeType === 1 ? $(mutation.target) : null;
+                        if ($target !== null && $target.length === 1) {
+                            _self.handleDomChange($target, {
+                                type: 'attribute-change',
+                                attribute: mutation.attributeName
+                            });
+                        }
                     }
 
-                    for (let k = 0; k < addedNodes.length; k++) {
-                        const addedNode = addedNodes[k];
-                        _self.handleDomChange($(addedNode), {
-                            type: 'added-element'
-                        });
+                    // added elements
+                    const addedNodes = mutation.addedNodes;
+                    if (addedNodes && addedNodes.length > 0) {
+                        for (let k = 0; k < addedNodes.length; k++) {
+                            const addedNode = addedNodes[k];
+                            const $addedNode = addedNode && addedNode.nodeType === 1 ? $(addedNode) : null;
+                            if ($addedNode !== null && $addedNode.length === 1) {
+                                _self.handleDomChange($addedNode, { type: 'added-element' });
+                            }
+                        }
                     }
 
-                    for (let k = 0; k < removedNodes.length; k++) {
-                        const removedNode = removedNodes[k];
-                        _self.handleDomChange($(removedNode), {
-                            type: 'removed-element'
-                        });
+                    // removed elements
+                    const removedNodes = mutation.removedNodes;
+                    if (removedNodes && removedNodes.length > 0) {
+                        for (let k = 0; k < removedNodes.length; k++) {
+                            const removedNode = removedNodes[k];
+                            const $removedNode = removedNode && removedNode.nodeType === 1 ? $(removedNode) : null;
+
+                            if ($removedNode !== null && $removedNode.length > 0) {
+                                _self.handleDomChange($removedNode, { type: 'removed-element' });
+                            }
+                        }
                     }
                 }
             });
 
-            this.domTreeObserver.observe($('body').get(0), {
+            const target = document.body || document.documentElement;
+            this.domTreeObserver.observe(target, {
                 childList: true, // Observe changes to child nodes
                 attributes: true, // Observe changes to attributes
                 characterData: true, // Observe changes to text content
