@@ -335,7 +335,8 @@
         },
         recommender: null,
         activity: {
-            type: 'clickedRecommendation'
+            renderType: 'renderedRecommendation',
+            clickedType: 'clickedRecommendation'
         },
         bindings: {
             selector: 'a',
@@ -815,37 +816,61 @@
             });
         },
 
-        handleRendering: function (result, option) {
+        _handleRender: function (result, option, $container) {
             console.log('render', result);
             console.log(option);
 
-            // const activityTags = this.createRecommendationTags(recommendationData, recommendation, {});
-            // this._sendActivity(option, event, settings);
+            // determine the options to use
+            const renderOption = $.extend(true, {
+                activity: {
+                    type: defaultRenderOption.activity.renderType
+                }
+            }, defaultRenderOption, option);
+
+            // create the settings
+            const settings = {
+                isControl: $.isPlainObject(result) && $.isPlainObject(result.splitTestData) && result.isControl === true,
+                $recContainer: $container,
+                additionalEventData: {},
+                recommendationData: result,
+                option: renderOption
+            };
+
+            // create the event (and wrap it within the customer-event if available)
+            let event = {
+                bubbles: true,
+                cancelable: false,
+                detail: {}
+            };
+            if (typeof window.CustomEvent === 'function') {
+                event = new window.CustomEvent('renderedRecommendation', event);
+            }
+
+            settings.activityTags = this.createRecommendationTags(result, {}, {});
+            this._sendActivity(renderOption, event, settings);
         },
 
         _applyRecommendation: function (result, option) {
             const _self = this;
 
-            /*
-             * At this point we can consider that the recommendation is supposed
-             * to be handled. There may be settings avoiding the final rendering
-             * (which will be reflected in the tags)
-             */
-            this.handleRendering(result, option);
-
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
                 this._applyBindings(option, $container);
 
+                this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
             } else if (result.status.code === 7120) {
+
                 // the recommendation is supposed to be ignored, but there is no split-test
+                this._handleRender(result, option, null);
                 Renderer._process(option.process.finalize, option, result, null);
             } else {
 
                 // we have a normal recommendation call
                 this._renderRecommendation(option, result, function ($container) {
                     _self._applyBindings(option, $container);
+
+                    this._handleRender(result, option, $container);
                     Renderer._process(option.process.finalize, option, result, $container);
                 });
             }
@@ -1023,7 +1048,10 @@
             // the click could have been within a shadow-dom
             const actualTarget = event.data?.actualTarget ?? event.target;
             const willReloadPage = actualTarget instanceof HTMLAnchorElement;
-            const activityType = option.activity.type;
+
+            // by default, we assume a click event
+            let activityType = Breinify.UTL.isNonEmptyString(option.activity.type);
+            activityType = activityType === null ? option.activity.clickedType : activityType;
 
             settings = $.extend(true, {
                 additionalEventData: {

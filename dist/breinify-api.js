@@ -16180,7 +16180,7 @@ dependencyScope.jQuery = $;;
                 }
 
                 const mappedResults = Breinify.plugins.recommendations._mapResults(payload, recResults);
-                Breinify.plugins.recommendations.handleRendering(mappedResults, {});
+                Breinify.plugins.recommendations._handleRender(mappedResults, {}, null);
             }
 
             callback(data, errorText);
