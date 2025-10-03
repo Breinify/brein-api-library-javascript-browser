@@ -870,7 +870,7 @@
                 this._renderRecommendation(option, result, function ($container) {
                     _self._applyBindings(option, $container);
 
-                    this._handleRender(result, option, $container);
+                    _self._handleRender(result, option, $container);
                     Renderer._process(option.process.finalize, option, result, $container);
                 });
             }
