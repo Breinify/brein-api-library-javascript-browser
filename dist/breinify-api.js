@@ -16487,7 +16487,7 @@ dependencyScope.jQuery = $;;
         const recHandler = function (url, data, callback) {
             const meta = {};
 
-            // add some infos to the meta object
+            // add some infos to the meta instance
             meta.isRecommendationPlugin = false;
             if ($.isPlainObject(data)) {
                 // Case 1: recommendation is a single object
