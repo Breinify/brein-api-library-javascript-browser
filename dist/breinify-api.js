@@ -16165,8 +16165,8 @@ dependencyScope.jQuery = $;;
              * We also check if the recommendation plugin is loaded, for legacy purposes
              * to send rendered activities for system not yet using the plugin.
              */
-            if (Breinify.plugins._isAdded('recommendations') === true) {
-
+            if (meta.isRecommendationPlugin === false && Breinify.plugins._isAdded('recommendations') === true) {
+                Breinify.plugins.recommendations.handleRendering(data, {}, errorText);
             }
 
             callback(data, errorText);

@@ -815,6 +815,15 @@
             });
         },
 
+        handleRendering: function (result, option, error) {
+            console.log('render', result);
+            console.log('error', error);
+            console.log(option);
+
+            // const activityTags = this.createRecommendationTags(recommendationData, recommendation, {});
+            // this._sendActivity(option, event, settings);
+        },
+
         _applyRecommendation: function (result, option) {
             const _self = this;
 
@@ -823,10 +832,7 @@
              * to be handled. There may be settings avoiding the final rendering
              * (which will be reflected in the tags)
              */
-            console.log('render', result);
-            console.log(option);
-            // const activityTags = this.createRecommendationTags(recommendationData, recommendation, {});
-            // this._sendActivity(option, event, settings);
+            this.handleRendering(result, option);
 
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
