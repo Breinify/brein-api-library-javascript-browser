@@ -182,8 +182,21 @@
              * to send rendered activities for system not yet using the plugin.
              */
             if (meta.isRecommendationPlugin === false && Breinify.plugins._isAdded('recommendations') === true) {
-                const result = Breinify.plugins.recommendations._mapResults(meta.payload, data);
-                Breinify.plugins.recommendations.handleRendering(result, {}, errorText);
+                const recResults = $.isPlainObject(data) && $.isArray(data.results) ? data.results : [];
+
+                let payload;
+                if (!$.isPlainObject(meta.payload)) {
+                    payload = [];
+                } else if ($.isPlainObject(meta.payload.recommendation)) {
+                    payload = [meta.payload.recommendation];
+                } else if ($.isArray(meta.payload.recommendations)) {
+                    payload = meta.payload.recommendations;
+                } else {
+                    payload = [];
+                }
+
+                const mappedResults = Breinify.plugins.recommendations._mapResults(payload, recResults);
+                Breinify.plugins.recommendations.handleRendering(mappedResults, {});
             }
 
             callback(data, errorText);

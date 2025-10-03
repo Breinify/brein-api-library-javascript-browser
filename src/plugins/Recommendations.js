@@ -815,9 +815,8 @@
             });
         },
 
-        handleRendering: function (result, option, error) {
+        handleRendering: function (result, option) {
             console.log('render', result);
-            console.log('error', error);
             console.log(option);
 
             // const activityTags = this.createRecommendationTags(recommendationData, recommendation, {});
