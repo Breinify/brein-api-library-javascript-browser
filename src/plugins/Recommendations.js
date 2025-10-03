@@ -639,11 +639,24 @@
             }
         },
 
-        createClickedRecommendationTags: function(recommendationData, recommendation, additionalEventData) {
+        /**
+         * Determines the default knowledge for the activity-tags at this point,
+         * for Breinify a lot of knowledge can be applied already, additional
+         * knowledge may be applied within the createActivity process.
+         */
+        createRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
 
             return activityTags;
+        },
+
+        /**
+         * Determines the default knowledge for the activity-tags within
+         * a clicked recommendation activity.
+         */
+        createClickedRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
+            return this.createRecommendationTags(recommendationData, recommendation, additionalEventData);
         },
 
         _isCanceled: function (processId) {
@@ -805,6 +818,16 @@
         _applyRecommendation: function (result, option) {
             const _self = this;
 
+            /*
+             * At this point we can consider that the recommendation is supposed
+             * to be handled. There may be settings avoiding the final rendering
+             * (which will be reflected in the tags)
+             */
+            console.log('render', result);
+            console.log(option);
+            // const activityTags = this.createRecommendationTags(recommendationData, recommendation, {});
+            // this._sendActivity(option, event, settings);
+
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
                 this._applyBindings(option, $container);
@@ -885,10 +908,7 @@
              * for Breinify a lot of knowledge can be applied already, additional
              * knowledge may be applied within the createActivity process.
              */
-            const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
-            this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
-
-            settings.activityTags = activityTags;
+            settings.activityTags = this.createClickedRecommendationTags(recommendationData, recommendation, additionalEventData);
             this._sendActivity(option, event, settings);
         },
 
@@ -989,10 +1009,10 @@
         _sendActivity: function (option, event, settings) {
 
             /*
-               * Determine if the event had some key held to open in a new tab, if so we can
-               * sent the activity directly from the current tab. If not we need to schedule
-               * the activity sent.
-               */
+             * Determine if the event had some key held to open in a new tab, if so we can
+             * sent the activity directly from the current tab. If not we need to schedule
+             * the activity sent.
+             */
             const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
 
             // the click could have been within a shadow-dom
@@ -1422,7 +1442,7 @@
             return result.active;
         },
 
-        _mapAssets: function(recommendationResponse) {
+        _mapAssets: function (recommendationResponse) {
             if (!$.isArray(recommendationResponse.result)) {
                 return [];
             }
