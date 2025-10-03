@@ -654,6 +654,21 @@
 
         /**
          * Determines the default knowledge for the activity-tags within
+         * a rendered recommendation activity.
+         */
+        createRenderedRecommendationTags: function ($container, result) {
+            const activityTags = this.createRecommendationTags(result, {}, {});
+
+            activityTags.containerAvailable = $container !== null && $container.length > 0;
+            activityTags.status = result.status.code;
+            activityTags.rendered = activityTags.containerAvailable === true &&
+                result.status.code === 200;
+
+            return activityTags;
+        },
+
+        /**
+         * Determines the default knowledge for the activity-tags within
          * a clicked recommendation activity.
          */
         createClickedRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
@@ -844,7 +859,7 @@
                 event = new window.CustomEvent('renderedRecommendation', event);
             }
 
-            settings.activityTags = this.createRecommendationTags(result, {}, {});
+            settings.activityTags = this.createRenderedRecommendationTags($container, result);
             this._sendActivity(renderOption, event, settings);
         },
 
