@@ -16166,6 +16166,7 @@ dependencyScope.jQuery = $;;
              * to send rendered activities for system not yet using the plugin.
              */
             if (meta.isRecommendationPlugin === false && Breinify.plugins._isAdded('recommendations') === true) {
+                Breinify.plugins.recommendations._mapResults(payloads, data);
                 Breinify.plugins.recommendations.handleRendering(data, {}, errorText);
             }
 
@@ -16485,10 +16486,12 @@ dependencyScope.jQuery = $;;
         const postFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.post) ? wrapper.post : null;
 
         const recHandler = function (url, data, callback) {
-            const meta = {};
+            const meta = {
+                payload: data,
+                isRecommendationPlugin: false
+            };
 
             // add some infos to the meta instance
-            meta.isRecommendationPlugin = false;
             if ($.isPlainObject(data)) {
                 // Case 1: recommendation is a single object
                 if ($.isPlainObject(data.recommendation)) {
