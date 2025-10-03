@@ -16180,7 +16180,10 @@ dependencyScope.jQuery = $;;
                 }
 
                 const mappedResults = Breinify.plugins.recommendations._mapResults(payload, recResults);
-                Breinify.plugins.recommendations._handleRender(mappedResults, {}, null);
+                Object.keys(mappedResults).forEach(key => {
+                    Breinify.plugins.recommendations._handleRender(mappedResults[key], {}, null);
+                });
+
             }
 
             callback(data, errorText);
