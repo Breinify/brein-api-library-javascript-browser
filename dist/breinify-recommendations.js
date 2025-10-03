@@ -1101,7 +1101,7 @@
             }
 
             if (!$.isPlainObject(Breinify.plugins.activities)) {
-                // activities is not available
+                // "activities" is not available
             } else if (scheduleActivity === true) {
                 Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
             } else if (scheduleActivity === false) {

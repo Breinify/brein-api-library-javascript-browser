@@ -201,8 +201,9 @@
             let activityType = $.isPlainObject(config) ? Breinify.UTL.isNonEmptyString(config.activityType) : null;
             activityType = activityType === null ? 'clickedRecommendation' : activityType;
 
+            // we currently do not support the renderType mapping
             return {
-                type: activityType
+                clickedType: activityType
             };
         },
 

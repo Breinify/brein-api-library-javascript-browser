@@ -199,7 +199,6 @@
                 Object.keys(mappedResults).forEach(key => {
                     Breinify.plugins.recommendations._handleRender(mappedResults[key], {}, null);
                 });
-
             }
 
             callback(data, errorText);
