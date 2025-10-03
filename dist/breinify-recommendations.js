@@ -1199,6 +1199,13 @@
         _retrieveRecommendations: function (payloads, callback) {
             const _self = this;
 
+            // ensure we have the flag in the call mark as plugin related
+            if ($.isArray(payloads)) {
+                for (let i = 0; i < payloads.length; i++) {
+                    payloads[i].recommendationPlugin = true;
+                }
+            }
+
             // use the default endpoint
             Breinify.recommendation({}, payloads, function (data, errorText) {
                 if (typeof errorText === 'string') {

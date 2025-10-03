@@ -16152,13 +16152,21 @@ dependencyScope.jQuery = $;;
             Breinify.UTL.user.updateSplitTestData(splitTestData);
         },
 
-        handleRecommendationResponse: function (data, errorText, callback) {
+        handleRecommendationResponse: function (meta, data, errorText, callback) {
 
             // we check for split-tests and store the results in the localStorage
             try {
                 this.storeAdditionalData(data);
             } catch (e) {
                 // ignore the exception, we still want to handle the response
+            }
+
+            /*
+             * We also check if the recommendation plugin is loaded, for legacy purposes
+             * to send rendered activities for system not yet using the plugin.
+             */
+            if (Breinify.plugins._isAdded('recommendations') === true) {
+
             }
 
             callback(data, errorText);
@@ -16477,15 +16485,16 @@ dependencyScope.jQuery = $;;
         const postFunction = $.isPlainObject(wrapper) && $.isFunction(wrapper.post) ? wrapper.post : null;
 
         const recHandler = function (url, data, callback) {
+            const meta = {};
 
             // we utilize an internal callback to do some internal data-handling with the response
             let internalCallback = function (data, errorText) {
                 if (postFunction === null) {
-                    _privates.handleRecommendationResponse(data, errorText, callback);
+                    _privates.handleRecommendationResponse(meta, data, errorText, callback);
                 } else {
                     postFunction(data, errorText, function (execute) {
                         if (execute !== false) {
-                            _privates.handleRecommendationResponse(data, errorText, callback);
+                            _privates.handleRecommendationResponse(meta, data, errorText, callback);
                         }
                     });
                 }
