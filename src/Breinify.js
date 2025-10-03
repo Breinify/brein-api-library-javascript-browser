@@ -182,8 +182,8 @@
              * to send rendered activities for system not yet using the plugin.
              */
             if (meta.isRecommendationPlugin === false && Breinify.plugins._isAdded('recommendations') === true) {
-                Breinify.plugins.recommendations._mapResults(payloads, data);
-                Breinify.plugins.recommendations.handleRendering(data, {}, errorText);
+                const result = Breinify.plugins.recommendations._mapResults(meta.payload, data);
+                Breinify.plugins.recommendations.handleRendering(result, {}, errorText);
             }
 
             callback(data, errorText);
