@@ -817,8 +817,6 @@
         },
 
         _handleRender: function (result, option, $container) {
-            console.log('render', result);
-            console.log(option);
 
             // determine the options to use
             const renderOption = $.extend(true, {
