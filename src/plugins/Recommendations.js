@@ -26,10 +26,10 @@
             data: 'recommendation'
         },
         splitTest: {
-            defaultGroup: 'breinify',
+            defaultGroup: 'Breinify',
+            defaultTestGroup: 'Breinify',
+            defaultControlGroup: 'Control',
             defaultGroupType: 'none',
-            defaultTestGroup: 'breinify',
-            defaultControlGroup: 'control',
             testGroupType: 'test',
             controlGroupType: 'control'
         },
