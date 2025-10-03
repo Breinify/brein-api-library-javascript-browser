@@ -660,9 +660,9 @@
             const activityTags = this.createRecommendationTags(result, {}, {});
 
             activityTags.containerAvailable = $container === null ? null : $container.length > 0;
-            activityTags.status = result.status.code;
+            activityTags.status = Breinify.UTL.toInteger(result.status.code);
 
-            activityTags.expectedNrOfRecs = $.isPlainObject(result.payload) ? result.payload.expectedNumberOfRecommendations : null;
+            activityTags.expectedNrOfRecs = $.isPlainObject(result.payload) ? Breinify.UTL.toInteger(result.payload.expectedNumberOfRecommendations) : null;
             activityTags.retrievedNrOfRecs = $.isArray(result.recommendations) ? result.recommendations.length : 0;
             activityTags.rendered = activityTags.status === 200 &&
                 activityTags.retrievedNrOfRecs > 0 &&
