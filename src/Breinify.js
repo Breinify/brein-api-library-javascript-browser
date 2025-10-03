@@ -503,6 +503,19 @@
         const recHandler = function (url, data, callback) {
             const meta = {};
 
+            // add some infos to the meta instance
+            meta.isRecommendationPlugin = false;
+            if ($.isPlainObject(data)) {
+                // Case 1: recommendation is a single object
+                if ($.isPlainObject(data.recommendation)) {
+                    meta.isRecommendationPlugin = data.recommendation.recommendationPlugin === true;
+                }
+                // Case 2: recommendations is an array
+                if (meta.isRecommendationPlugin === false && $.isArray(data.recommendations)) {
+                    meta.isRecommendationPlugin = data.recommendations.some(rec => rec && rec.recommendationPlugin === true);
+                }
+            }
+
             // we utilize an internal callback to do some internal data-handling with the response
             let internalCallback = function (data, errorText) {
                 if (postFunction === null) {
