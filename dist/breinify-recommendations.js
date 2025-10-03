@@ -659,10 +659,14 @@
         createRenderedRecommendationTags: function ($container, result) {
             const activityTags = this.createRecommendationTags(result, {}, {});
 
-            activityTags.containerAvailable = $container !== null && $container.length > 0;
+            activityTags.containerAvailable = $container === null ? null : $container.length > 0;
             activityTags.status = result.status.code;
-            activityTags.rendered = activityTags.containerAvailable === true &&
-                result.status.code === 200;
+
+            activityTags.expectedNrOfRecs = $.isPlainObject(result.payload) ? result.payload.expectedNumberOfRecommendations : null;
+            activityTags.retrievedNrOfRecs = $.isArray(result.recommendations) ? result.recommendations.length : 0;
+            activityTags.rendered = activityTags.status === 200 &&
+                activityTags.retrievedNrOfRecs > 0 &&
+                (activityTags.containerAvailable === null || activityTags.containerAvailable === true);
 
             return activityTags;
         },
