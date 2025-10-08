@@ -92,6 +92,69 @@
                     _private.handleError(error, cb);
                 }
             }, 30000);
+        },
+
+        opt: function (user, optStatus, campaigns, additional, callback) {
+            const token = this.getConfig('tokenOpt', null)
+            if (_private.validateToken(token) === false) {
+                callback({success: false, failed: [], results: {}});
+                return;
+            }
+
+            // make sure we have a valid user
+            if (!$.isPlainObject(user)) {
+                callback({success: false, failed: [], results: {}});
+                return;
+            }
+
+            // get the entries and check if there are any
+            const userEntries = Object.entries(user);
+            if (userEntries.length === 0) {
+                callback({success: true, failed: [], results: {}});
+                return;
+            }
+
+            campaigns = $.isArray(campaigns) ? campaigns : [];
+            const optInCampaigns = optStatus === true ? campaigns : [];
+            const optOutCampaigns = optStatus === false ? campaigns : [];
+
+            additional = $.isPlainObject(campaigns) ? additional : {};
+
+            const results = {};
+            const failed = [];
+
+            // execute for each passed user
+            let remaining = userEntries.length;
+            for (const [channel, userId] of userEntries) {
+                Breinify.UTL.internal.token(token, {
+                    optInGeneral: optStatus === true,
+                    optInCampaigns: optInCampaigns,
+                    optOutGeneral: optStatus === false,
+                    optOutCampaigns: optOutCampaigns,
+                    deliveryChannel: channel,
+                    user: userId, // email, phone, depending on deliveryChannel
+                    additionalData: additional
+                }, function (error, response) {
+
+                    if (error !== null) {
+                        results[channel] = {
+                            error: error
+                        };
+
+                        failed.push(channel);
+                    } else {
+                        results[channel] = {
+                            response: response
+                        };
+                    }
+
+                    // check if we are done and have all responses
+                    remaining -= 1;
+                    if (remaining === 0) {
+                        callback({success: failed.length === 0, failed: failed, results: results});
+                    }
+                }, 30000);
+            }
         }
     };
 
