@@ -92,6 +92,19 @@
                     _private.handleError(error, cb);
                 }
             }, 30000);
+        },
+
+        opt: function() {
+            const token = this.getConfig('tokenOpt', null)
+            if (_private.validateToken(token) === false) {
+
+            }
+
+            Breinify.UTL.internal.token(token, {
+
+            }, function (error, response) {
+
+            }, 30000);
         }
     };
 
