@@ -45,7 +45,7 @@
 
     const OptStatus = {
 
-        tokens: function () {
+        _tokens: function () {
             return {
                 validateOptCode: this.getConfig('tokenValidateOptCode', null),
                 optViaCode: this.getConfig('tokenOptViaCode', null)
@@ -53,8 +53,8 @@
         },
 
         hasValidTokens: function () {
-            let validateOptCodeToken = this.tokens().validateOptCode;
-            let optViaCodeToken = this.tokens().optViaCode;
+            let validateOptCodeToken = this._tokens().validateOptCode;
+            let optViaCodeToken = this._tokens().optViaCode;
 
             return _private.validateToken(validateOptCodeToken) &&
                 _private.validateToken(optViaCodeToken);
@@ -65,7 +65,7 @@
         },
 
         validateOptCode: function (code, cb) {
-            let token = this.tokens().validateOptCode;
+            let token = this._tokens().validateOptCode;
             if (!_private.validateToken(token, cb)) {
                 return;
             }
@@ -80,7 +80,7 @@
         },
 
         optViaCode: function (code, cb, overrides) {
-            let token = this.tokens().optViaCode;
+            let token = this._tokens().optViaCode;
             if (!_private.validateToken(token, cb)) {
                 return;
             }
@@ -118,7 +118,7 @@
             const optInCampaigns = optStatus === true ? campaigns : [];
             const optOutCampaigns = optStatus === false ? campaigns : [];
 
-            additional = $.isPlainObject(campaigns) ? additional : {};
+            additional = $.isPlainObject(additional) ? additional : {};
 
             const results = {};
             const failed = [];
@@ -136,15 +136,19 @@
                     additionalData: additional
                 }, function (error, response) {
 
-                    if (error !== null) {
+                    if (error !== null || !$.isPlainObject(response)) {
                         results[channel] = {
                             error: error
                         };
 
                         failed.push(channel);
-                    } else {
+                    } else if (response.optInResponseCode === 200) {
                         results[channel] = {
                             response: response
+                        };
+                    } else {
+                        results[channel] = {
+                            error: 'response'
                         };
                     }
 
