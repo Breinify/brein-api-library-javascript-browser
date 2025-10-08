@@ -142,13 +142,13 @@
                         };
 
                         failed.push(channel);
-                    } else if (response.optInResponseCode === 200) {
+                    } else if (response.success === true) {
                         results[channel] = {
                             response: response
                         };
                     } else {
                         results[channel] = {
-                            error: 'response'
+                            error: 'unsuccessful response: ' + JSON.stringify(response)
                         };
                     }
 
