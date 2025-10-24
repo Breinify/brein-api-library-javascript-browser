@@ -1481,9 +1481,9 @@
                 }, recommendationResponse.additionalData.splitTestData);
             } else if (recommendationResponse.statusCode === 7120) {
 
-                // we are in the control group, but do not have any split-test data
+                // the recommendation is most likely just disabled
                 result.splitTestData = {
-                    active: true,
+                    active: false,
                     isTest: false,
                     isControl: false
                 };
