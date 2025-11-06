@@ -54,7 +54,7 @@
          * @param {string} condition.value - The value to test against.
          * @returns {boolean} true if condition matches, otherwise false.
          */
-        checkSearchParams = function(condition) {
+        checkSearchParams: function(condition) {
             if (!condition || !condition.param || !condition.operator) {
                 return false;
             }
