@@ -54,7 +54,7 @@
          * @param {string} condition.value - The value to test against.
          * @returns {boolean} true if condition matches, otherwise false.
          */
-        checkSearchParams: function(condition) {
+        checkSearchParams: function (condition) {
             if (!condition || !condition.param || !condition.operator) {
                 return false;
             }
@@ -117,14 +117,11 @@
             for (let i = 0; i < paths.length && isValidPage === false; i++) {
                 const path = $.isPlainObject(paths[i]) ? paths[i] : {};
                 const type = Breinify.UTL.isNonEmptyString(path.type);
+                const value = Breinify.UTL.isNonEmptyString(path.value);
 
                 if (type === 'ALL_PATHS') {
                     isValidPage = true;
-                    break;
-                }
-
-                const value = Breinify.UTL.isNonEmptyString(path.value);
-                if (value === null) {
+                } else if (value === null) {
                     console.warn('found invalid value that was not or an empty string');
                 } else if (type === 'STATIC_PATHS') {
                     if (value === window.location.pathname) {
