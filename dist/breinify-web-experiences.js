@@ -140,7 +140,7 @@
                     for (let j = 0; j < path.searchParameters.length && isValidPage === true; j++) {
 
                         // the parameters are AND concatenated so once we find one that is not fulfilled we can stop
-                        isValidPage = checkSearchParams(path.searchParameters[j]);
+                        isValidPage = this.checkSearchParams(path.searchParameters[j]);
                     }
                 }
             }
