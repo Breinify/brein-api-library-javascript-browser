@@ -45,6 +45,71 @@
             };
         },
 
+        /**
+         * Checks whether the current page's query parameters match the given rule.
+         *
+         * @param {Object} condition - The condition object.
+         * @param {string} condition.operator - One of: 'equals', 'contains', 'startsWith', 'endsWith', 'regex'.
+         * @param {string} condition.param - The query parameter name (case-insensitive).
+         * @param {string} condition.value - The value to test against.
+         * @returns {boolean} true if condition matches, otherwise false.
+         */
+        checkSearchParams = function(condition) {
+            if (!condition || !condition.param || !condition.operator) {
+                return false;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const targetName = condition.param.toLowerCase();
+
+            // collect all values for this param (case-insensitive)
+            const values = [];
+            for (const [key, val] of params.entries()) {
+                if (key.toLowerCase() === targetName) {
+                    values.push(val);
+                }
+            }
+
+            // if we could not find the parameter we are done
+            if (values.length === 0) {
+                return false;
+            }
+
+            const expected = condition.value ?? '';
+            let matcher;
+
+            // prepare matcher once (no re-creation per value)
+            switch (condition.operator) {
+                case 'equals':
+                    matcher = v => v === expected;
+                    break;
+                case 'contains':
+                    matcher = v => v.includes(expected);
+                    break;
+                case 'startsWith':
+                    matcher = v => v.startsWith(expected);
+                    break;
+                case 'endsWith':
+                    matcher = v => v.endsWith(expected);
+                    break;
+                case 'regex':
+                    try {
+                        const re = new RegExp(expected);
+                        matcher = v => re.test(v);
+                    } catch (err) {
+                        // invalid regex in checkSearchParams
+                        return false;
+                    }
+                    break;
+                default:
+                    // undefined operator, we should add it in
+                    return false;
+            }
+
+            // check if any value matches
+            return values.some(matcher);
+        },
+
         checkActivityLogic: function (logic) {
             const paths = $.isArray(logic.paths) ? logic.paths : [];
             let isValidPage = paths.length === 0;
@@ -72,6 +137,15 @@
                 } else {
                     console.warn('found undefined path type "' + path + '" in the activation logic, skipping');
                 }
+
+                // if we have a valid-page and search params, we need to evaluate these next
+                if (isValidPage === true && $.isArray(path.searchParameters) && path.searchParameters.length > 0) {
+                    for (let j = 0; j < path.searchParameters.length && isValidPage === true; j++) {
+
+                        // the parameters are AND concatenated so once we find one that is not fulfilled we can stop
+                        isValidPage = checkSearchParams(path.searchParameters[j]);
+                    }
+                }
             }
 
             const snippet = Breinify.UTL.isNonEmptyString(logic.snippet);
@@ -81,7 +155,7 @@
                 return false;
             }
 
-            // check if we have a snippet, if one is defined and we cannot find it we return false as fallback
+            // check if we have a snippet, if one is defined, and we cannot find it we return false as fallback
             const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippet);
             if (!$.isFunction(activationSnippet)) {
                 return false;
