@@ -865,6 +865,16 @@
 
             settings.activityTags = this.createRenderedRecommendationTags($container, result);
             this._sendActivity(renderOption, event, settings);
+            this._triggerEvent('renderedRecommendation', settings);
+        },
+
+        _triggerEvent: function (eventName, data) {
+
+            // trigger the Breinify ready event on both jQuery instances
+            $(document).trigger(eventName, data);
+            if (typeof window.$ === 'function' && typeof window.$.fn === 'function' && $ !== window.$) {
+                window.$(document).trigger(eventName, data);
+            }
         },
 
         _applyRecommendation: function (result, option) {
