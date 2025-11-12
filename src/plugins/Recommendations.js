@@ -1009,7 +1009,15 @@
                 }
             }
 
-            if (typeof recommendation.id === 'string') {
+            if (typeof recommendation.id !== 'string') {
+                return;
+            }
+
+            const type = Breinify.UTL.isNonEmptyString(recommendationData?.meta?.type);
+            if (type === 'com.brein.common.dto.CustomerAssetsDto') {
+                activityTags.assetIds = [];
+                activityTags.assetIds.push(recommendation.id);
+            } else {
                 activityTags.productIds = [];
                 activityTags.productIds.push(recommendation.id);
             }
