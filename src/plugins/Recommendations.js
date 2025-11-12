@@ -1015,9 +1015,16 @@
 
             const type = Breinify.UTL.isNonEmptyString(recommendationData?.meta?.type);
             if (type === 'com.brein.common.dto.CustomerAssetsDto') {
+                activityTags.recType = type;
                 activityTags.assetIds = [];
                 activityTags.assetIds.push(recommendation.id);
+            } else if (type === 'com.brein.common.dto.CustomerProductDto') {
+                activityTags.recType = type;
+                activityTags.productIds = [];
+                activityTags.productIds.push(recommendation.id);
             } else {
+
+                // by default, we still bind the data to productIds
                 activityTags.productIds = [];
                 activityTags.productIds.push(recommendation.id);
             }
