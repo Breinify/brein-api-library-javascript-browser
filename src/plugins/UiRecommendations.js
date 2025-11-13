@@ -310,7 +310,7 @@
 
             /*
              * It would be very untypical to have mixed renders, since on-change rendering can only happen for one
-             * element, the one that observes the change (or a group of elements observing the same change.
+             * element, the one that observes the change (or a group of elements observing the same change).
              */
             if (configOnChange.length > 0 && configOnLoad.length > 0) {
                 // TODO: decide what this would mean and how to handle it correctly
