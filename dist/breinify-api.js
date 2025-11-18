@@ -16040,7 +16040,7 @@ dependencyScope.jQuery = $;;
         },
 
         _$overload: function (pointer, args, context, wrapper) {
-            let regex = /function\s+(\w+)s*/;
+            let regex = /function\s+(\w+)\s*/;
             let types = [];
 
             // create a string to identify the structure of the signature
@@ -16053,7 +16053,31 @@ dependencyScope.jQuery = $;;
                     type = '([A-Za-z0-9_\\-]+)';
                     containsRegEx = true;
                 } else {
-                    type = regex.exec(arg.constructor.toString())[1];
+
+                    let ctor = arg.constructor;
+                    let name = 'Object';
+
+                    if (typeof ctor === 'function') {
+                        if (ctor.name && typeof ctor.name === 'string' && ctor.name.length > 0) {
+                            // preferred: use the constructor's name directly
+                            name = ctor.name;
+                        } else {
+                            // fallback: parse from function source, but guarded
+                            try {
+                                let match = regex.exec(ctor.toString());
+                                if (match && match[1]) {
+                                    name = match[1];
+                                }
+                            } catch (e) {
+                                // ignore and keep 'Object'
+                            }
+                        }
+                    } else {
+                        // non-function or weird constructor – treat it as a generic Object
+                        name = 'Object';
+                    }
+
+                    type = name;
                 }
 
                 types.push(type);
