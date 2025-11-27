@@ -35,7 +35,7 @@
                 window.customElements.define(elementName, UiSurvey);
             }
 
-            Breinify.plugins.webExperiences.attach(config, $('body'));
+            Breinify.plugins.webExperiences.attach(config, $('<' + elementName + '/>'));
 
             console.log(module);
             console.log(webExId);
