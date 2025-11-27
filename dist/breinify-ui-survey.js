@@ -10,6 +10,7 @@
     }
 
     const elementName = 'br-ui-survey';
+    const $ = Breinify.UTL._jquery();
 
     class UiSurvey extends HTMLElement {
         $shadowRoot = null
