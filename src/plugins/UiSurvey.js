@@ -98,7 +98,7 @@
             // Mobile image (optional, fallback to desktop)
             if (mobileUrl) {
                 $trigger.append($('<img src="' + mobileUrl + '" class="br-ui-survey-trigger-image" alt="Start survey"/>')
-                    .addClass('br-ui-survey-desktop'));
+                    .addClass('br-ui-survey-mobile'));
             }
 
             $trigger.on('click', (evt) => {
