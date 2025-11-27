@@ -35,8 +35,11 @@
             // first let's add the style snippet - if any
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
 
+            // next we need to create pages
+
             console.log(webExId);
             console.log(this.settings);
+            console.log(JSON.stringify(this.settings));
         }
     }
 
