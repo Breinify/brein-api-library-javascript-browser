@@ -27,12 +27,42 @@
             this.settings = {};
         }
 
+        /**
+         * Inject minimal default styles into the shadow root.
+         * These are intentionally neutral so the component works
+         * on any site without clashing with page styles.
+         */
+        _ensureBaseStyle() {
+            const styleId = 'br-ui-survey-style';
+            if (this.$shadowRoot.find("#" + styleId).length > 0) {
+                return;
+            }
+
+            this.$shadowRoot.append($(`<style id="' + styleId + '">
+                :host {
+                    display: block;
+                    box-sizing: border-box;
+                    font-family: inherit;
+                    color: inherit;
+                }
+
+                *, *::before, *::after { box-sizing: border-box; }
+
+                .br-ui-survey-root { width: 100%; }
+                .br-ui-survey-container {  width: 100%; }
+                .br-ui-survey-hidden { display: none !important; }
+            </style>`));
+        }
+
         render(webExId, settings) {
             this.settings = settings;
             this.uuid = webExId;
             this.$shadowRoot.empty();
 
-            // first let's add the style snippet - if any
+            // first add the base style
+            this._ensureBaseStyle();
+
+            // second let's add the style snippet - if any
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
 
             // next we need to create pages
