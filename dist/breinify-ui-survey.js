@@ -32,7 +32,7 @@
             this.uuid = webExId;
 
             console.log(webExId);
-            console.log(config);
+            console.log(this.settings);
         }
     }
 
