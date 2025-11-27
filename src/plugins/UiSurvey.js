@@ -20,11 +20,19 @@
         constructor() {
             super();
 
-            this.uuid = Breinify.UTL.uuid();
+            this.uuid = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
 
             this.attachShadow({mode: 'open'});
+        }
+
+        render(webExId, settings) {
+            this.settings = settings;
+            this.uuid = webExId;
+
+            console.log(webExId);
+            console.log(config);
         }
     }
 
@@ -37,19 +45,19 @@
 
             // check if we already have the element (just defensive)
             const id = 'br-survey-' + webExId;
-            if ($('#' + id).length > 0) {
-                return;
+            let $survey = $('#' + id);
+            if ($survey.length === 0) {
+
+                // otherwise we add the element and attach it, if successful we continue
+                $survey = $('<' + elementName + '/>').attr('id', id);
+                if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
+                    return;
+                }
             }
 
-            // otherwise we add the element and attach it, if successful we continue
-            const $survey = $('<' + elementName + '/>').attr('id', id);
-            if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
-                return;
-            }
-
-            console.log(module);
-            console.log(webExId);
-            console.log(config);
+            // get the actual DOM element
+            const survey = $survey.get(0);
+            survey.render(webExId, config);
         }
     });
 })();
