@@ -31,6 +31,9 @@
             this.settings = settings;
             this.uuid = webExId;
 
+            // first let's add the snippet - if any
+            Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
+
             console.log(webExId);
             console.log(this.settings);
         }

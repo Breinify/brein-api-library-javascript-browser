@@ -539,17 +539,7 @@
             }
 
             // check for snippets
-            const snippetId = $.isPlainObject(this.settings.style) ? Breinify.UTL.isNonEmptyString(this.settings.style.snippet) : null;
-            if (snippetId !== null && Breinify.plugins._isAdded('snippetManager')) {
-                const snippet = Breinify.UTL.isNonEmptyString(Breinify.plugins.snippetManager.getSnippet(snippetId));
-                if (snippet !== null) {
-                    try {
-                        this.$shadowRoot.find(snippetSelector).after($(snippet));
-                    } catch (e) {
-                        // invalid snippet
-                    }
-                }
-            }
+            Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot, snippetSelector);
         }
 
         _applyHtml() {

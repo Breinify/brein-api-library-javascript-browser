@@ -198,6 +198,26 @@
             Breinify.plugins.api.addModule(id, module);
         },
 
+        style(settings, $el, selector) {
+
+            const snippetId = $.isPlainObject(settings.style) ? Breinify.UTL.isNonEmptyString(settings.style.snippet) : null;
+            if (snippetId !== null && Breinify.plugins._isAdded('snippetManager')) {
+                const snippet = Breinify.UTL.isNonEmptyString(Breinify.plugins.snippetManager.getSnippet(snippetId));
+                if (snippet !== null) {
+                    try {
+                        selector = Breinify.UTL.isNonEmptyString(selector);
+                        if (selector === null) {
+                            $el.prepend($(snippet));
+                        } else {
+                            $el.find(selector).after($(snippet));
+                        }
+                    } catch (e) {
+                        // invalid snippet
+                    }
+                }
+            }
+        },
+
         attach: function(settings, $el) {
             const position = $.isPlainObject(settings) && $.isPlainObject(settings.position) ? settings.position : null;
             if (position == null) {
