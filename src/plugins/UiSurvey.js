@@ -45,13 +45,94 @@
                     font-family: inherit;
                     color: inherit;
                 }
-
+            
                 *, *::before, *::after { box-sizing: border-box; }
-
+            
                 .br-ui-survey-root { width: 100%; }
-                .br-ui-survey-container {  width: 100%; }
+                .br-ui-survey-container { width: 100%; }
                 .br-ui-survey-hidden { display: none !important; }
+            
+                /* -------------------------------------------------- */
+                /* Trigger banner styling (desktop + mobile)          */
+                /* -------------------------------------------------- */
+                .br-ui-survey-trigger {
+                    display: inline-block;
+                    cursor: pointer;
+                    width: 100%;
+                    max-width: 600px;
+                }
+            
+                .br-ui-survey-trigger img {
+                    display: block;
+                    width: 100%;
+                    height: auto;
+                    border: 0;
+                }
+            
+                .br-ui-survey-trigger__img--desktop { display: block; }
+                .br-ui-survey-trigger__img--mobile { display: none; }
+            
+                @media (max-width: 600px) {
+                    .br-ui-survey-trigger__img--desktop { display: none; }
+                    .br-ui-survey-trigger__img--mobile { display: block; }
+                }
             </style>`));
+        }
+
+        /**
+         * Creates the clickable trigger banner (desktop + mobile).
+         */
+        _createTrigger() {
+            const triggerCfg = (this.settings && this.settings.trigger) || {};
+
+            const desktopUrl = triggerCfg.bannerUrl;
+            const mobileUrl = triggerCfg.mobileBannerUrl || desktopUrl;
+
+            const $trigger = $('<div/>', {
+                class: 'br-ui-survey-trigger',
+                role: 'button',
+                tabindex: 0,
+                'aria-label': 'Start survey'
+            });
+
+            // Desktop image (required)
+            if (desktopUrl) {
+                $trigger.append(
+                    $('<img/>')
+                        .addClass('br-ui-survey-trigger__img--desktop')
+                        .attr('src', desktopUrl)
+                        .attr('alt', 'Start survey')
+                );
+            }
+
+            // Mobile image (optional, fallback to desktop)
+            if (mobileUrl) {
+                $trigger.append(
+                    $('<img/>')
+                        .addClass('br-ui-survey-trigger__img--mobile')
+                        .attr('src', mobileUrl)
+                        .attr('alt', 'Start survey')
+                );
+            }
+
+            const open = (evt) => {
+                if (evt.type === 'click' || evt.key === 'Enter' || evt.key === ' ') {
+                    evt.preventDefault();
+                    this._openSurvey();
+                }
+            };
+
+            $trigger.on('click', open);
+            $trigger.on('keydown', open);
+
+            return $trigger;
+        }
+
+        /**
+         * Opens the survey (placeholder for now).
+         */
+        _openSurvey() {
+            console.log('Survey trigger clicked:', this.uuid);
         }
 
         render(webExId, settings) {
@@ -65,8 +146,16 @@
             // second let's add the style snippet - if any
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
 
-            // next we need to create pages
+            // wrapper root
+            const $root = $('<div class="br-ui-survey-root"></div>');
 
+            // add trigger banner
+            const $trigger = this._createTrigger();
+            $root.append($trigger);
+
+            this.$shadowRoot.append($root);
+
+            // debug
             console.log(webExId);
             console.log(this.settings);
             console.log(JSON.stringify(this.settings));
