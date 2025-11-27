@@ -757,31 +757,7 @@
                 return true;
             }
 
-            const position = $.isPlainObject(this.settings.position) ? this.settings.position : null;
-            if (position == null) {
-                return false;
-            }
-
-            // determine the operation to utilize, it is needed
-            const operation = Breinify.UTL.isNonEmptyString(position.operation);
-            if (operation === null) {
-                return false;
-            }
-
-            // determine the anchor, it is needed but evaluated within the utility method
-            let $anchor;
-            const selector = Breinify.UTL.isNonEmptyString(position.selector);
-            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
-            if (snippet === null && selector === null) {
-                $anchor = null;
-            } else if (selector !== null) {
-                $anchor = $(selector);
-            } else if (snippet !== null) {
-                $anchor = null
-            }
-
-            // now attach the element and if successful move on (otherwise return)
-            return Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this));
+            return Breinify.plugins.webExperiences.attach(this.settings);
         }
 
         _checkCampaignBasedResponse(response) {
