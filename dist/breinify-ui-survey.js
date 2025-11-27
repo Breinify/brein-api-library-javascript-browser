@@ -62,19 +62,13 @@
                     max-width: 600px;
                 }
             
-                .br-ui-survey-trigger img {
-                    display: block;
-                    width: 100%;
-                    height: auto;
-                    border: 0;
-                }
-            
-                .br-ui-survey-trigger__img--desktop { display: block; }
-                .br-ui-survey-trigger__img--mobile { display: none; }
+                .br-ui-survey-trigger-image { width: 100%; height: auto; border: 0; }
+                .br-ui-survey-trigger-image.br-ui-survey-desktop { display: block; }
+                .br-ui-survey-trigger-image.br-ui-survey-mobile { display: none; }
             
                 @media (max-width: 600px) {
-                    .br-ui-survey-trigger__img--desktop { display: none; }
-                    .br-ui-survey-trigger__img--mobile { display: block; }
+                    .br-ui-survey-trigger-image.br-ui-survey-desktop { display: none; }
+                    .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
                 }
             </style>`));
         }
@@ -97,34 +91,22 @@
 
             // Desktop image (required)
             if (desktopUrl) {
-                $trigger.append(
-                    $('<img/>')
-                        .addClass('br-ui-survey-trigger__img--desktop')
-                        .attr('src', desktopUrl)
-                        .attr('alt', 'Start survey')
-                );
+                $trigger.append($('<img src="' + desktopUrl + '" class="br-ui-survey-trigger-image" alt="Start survey"/>')
+                    .addClass('br-ui-survey-desktop'));
             }
 
             // Mobile image (optional, fallback to desktop)
             if (mobileUrl) {
-                $trigger.append(
-                    $('<img/>')
-                        .addClass('br-ui-survey-trigger__img--mobile')
-                        .attr('src', mobileUrl)
-                        .attr('alt', 'Start survey')
-                );
+                $trigger.append($('<img src="' + mobileUrl + '" class="br-ui-survey-trigger-image" alt="Start survey"/>')
+                    .addClass('br-ui-survey-desktop'));
             }
 
-            const open = (evt) => {
+            $trigger.on('click', (evt) => {
                 if (evt.type === 'click' || evt.key === 'Enter' || evt.key === ' ') {
                     evt.preventDefault();
                     this._openSurvey();
                 }
-            };
-
-            $trigger.on('click', open);
-            $trigger.on('keydown', open);
-
+            });
             return $trigger;
         }
 
