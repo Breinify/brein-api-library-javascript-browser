@@ -20,11 +20,11 @@
         constructor() {
             super();
 
+            this.attachShadow({mode: 'open'});
+
             this.uuid = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
-
-            this.attachShadow({mode: 'open'});
         }
 
         render(webExId, settings) {
