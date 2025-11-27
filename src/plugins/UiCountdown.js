@@ -757,7 +757,7 @@
                 return true;
             }
 
-            return Breinify.plugins.webExperiences.attach(this.settings);
+            return Breinify.plugins.webExperiences.attach(this.settings, $(this));
         }
 
         _checkCampaignBasedResponse(response) {

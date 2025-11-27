@@ -198,7 +198,7 @@
             Breinify.plugins.api.addModule(id, module);
         },
 
-        attach: function(settings) {
+        attach: function(settings, $el) {
             const position = $.isPlainObject(settings) && $.isPlainObject(settings.position) ? settings.position : null;
             if (position == null) {
                 return false;
@@ -223,7 +223,7 @@
             }
 
             // now attach the element and if successful move on (otherwise return)
-            return Breinify.UTL.dom.attachByOperation(operation, $anchor, $(this));
+            return Breinify.UTL.dom.attachByOperation(operation, $anchor, $el);
         }
     };
 
