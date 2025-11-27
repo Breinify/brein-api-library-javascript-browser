@@ -59,7 +59,6 @@
                     display: inline-block;
                     cursor: pointer;
                     width: 100%;
-                    max-width: 600px;
                 }
             
                 .br-ui-survey-trigger-image { width: 100%; height: auto; border: 0; }
@@ -101,11 +100,14 @@
                     .addClass('br-ui-survey-mobile'));
             }
 
+            // TODO: need to add activity renderElement
+
             $trigger.on('click', (evt) => {
-                if (evt.type === 'click' || evt.key === 'Enter' || evt.key === ' ') {
-                    evt.preventDefault();
-                    this._openSurvey();
-                }
+
+                // TODO: need to add activity clickedElement
+
+                evt.preventDefault();
+                this._openSurvey();
             });
             return $trigger;
         }
@@ -137,7 +139,7 @@
 
             this.$shadowRoot.append($root);
 
-            // debug
+            // TODO: debug for now, remove when done
             console.log(webExId);
             console.log(this.settings);
             console.log(JSON.stringify(this.settings));
