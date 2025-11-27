@@ -38,7 +38,7 @@
                 return;
             }
 
-            this.$shadowRoot.append($(`<style id="' + styleId + '">
+            this.$shadowRoot.append($(`<style id="${styleId}">
                 :host {
                     display: block;
                     box-sizing: border-box;
