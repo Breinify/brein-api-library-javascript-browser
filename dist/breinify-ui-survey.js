@@ -35,7 +35,17 @@
                 window.customElements.define(elementName, UiSurvey);
             }
 
-            Breinify.plugins.webExperiences.attach(config, $('<' + elementName + '/>'));
+            // check if we already have the element (just defensive)
+            const id = 'br-survey-' + webExId;
+            if ($('#' + id).length > 0) {
+                return;
+            }
+
+            // otherwise we add the element and attach it, if successful we continue
+            const $survey = $('<' + elementName + '/>').attr('id', id);
+            if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
+                return;
+            }
 
             console.log(module);
             console.log(webExId);
