@@ -310,6 +310,8 @@
                     max-width: 60%;
                     white-space: normal;
                     text-align: left;
+                    /* reserve enough height so footer doesn't jump */
+                    min-height: 2.4em; /* tweak as needed for two lines */
                 }
                 
                 .br-survey-hint-title {
@@ -329,6 +331,11 @@
                     text-indent: 0;
                     white-space: normal;
                     line-height: var(--br-survey-line-height-tight);
+                }
+                
+                /* invisible, but preserves layout/height */
+                .br-survey-hint--hidden {
+                    visibility: hidden;
                 }
 
                 .br-survey-btn {
@@ -968,12 +975,14 @@
                 : null;
 
             // ------------------------------------------------------------
-            // Hint block: only for question pages, always visible there
+            // Hint block: always present to keep footer height stable
+            // - visible with content on question pages
+            // - invisible (but space reserved) on other pages
             // ------------------------------------------------------------
-            if (nodeType === "question") {
-                const hintEl = document.createElement("div");
-                hintEl.className = "br-survey-hint";
+            const hintEl = document.createElement("div");
+            hintEl.className = "br-survey-hint";
 
+            if (nodeType === "question") {
                 const titleEl = document.createElement("div");
                 titleEl.className = "br-survey-hint-title";
                 titleEl.textContent = "Tips:";
@@ -993,9 +1002,14 @@
                 hintEl.appendChild(titleEl);
                 hintEl.appendChild(list);
 
-                wrapper.appendChild(hintEl);
+                // push buttons to the right when hint is actually shown
                 wrapper.classList.add("br-survey-footer-controls--with-hint");
+            } else {
+                // keep same footprint but hide visually
+                hintEl.classList.add("br-survey-hint--hidden");
             }
+
+            wrapper.appendChild(hintEl);
 
             // ------------------------------------------------------------
             // Back button when we have history
