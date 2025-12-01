@@ -245,7 +245,7 @@
          */
         _ensureBaseStyle() {
             const styleId = 'br-ui-survey-style';
-            if (this.$shadowRoot.find("#" + styleId).length > 0) {
+            if (this.$shadowRoot.find('#' + styleId).length > 0) {
                 return;
             }
 
@@ -282,15 +282,27 @@
                     .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
                 }
                 
+                /* -------------------------------------------------- */
+                /* Question page + answers                            */
+                /* -------------------------------------------------- */
                 .br-ui-survey-page--question { display: flex; flex-direction: column; gap: 1rem; }
+                
+                .br-ui-survey-question__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+                
+                .br-ui-survey-question__answers {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    margin-top: 0.25rem;
+                }
                 
                 .br-ui-survey-question__answer { 
                     text-align: left; 
                     width: 100%; 
                     border-radius: 0.75rem; 
-                    border: 1px solid #ddd; 
-                    padding: 0.75rem 0.9rem; 
-                    background: #fff; 
+                    border: 1px solid #e1e1e1; 
+                    padding: 0.8rem 1rem; 
+                    background: #f9f9f9; 
                     cursor: pointer; 
                     font: inherit; 
                     display: flex;
@@ -300,17 +312,35 @@
                     /* neutralize default button look */
                     appearance: none;
                     -webkit-appearance: none;
-                    border-width: 1px;
                 }
-                .br-ui-survey-question__answer:hover { border-color: #ccc; background: #fafafa; }
-                .br-ui-survey-question__answer--selected { border-color: #333; background: #f0f0f0; }
+                
+                .br-ui-survey-question__answer:hover {
+                    border-color: #ccc;
+                    background: #ffffff;
+                    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+                    transform: translateY(-1px);
+                }
+                
+                .br-ui-survey-question__answer--selected {
+                    border-color: #333;
+                    background: #f3f3f3;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+                }
                 
                 .br-ui-survey-question__answer:focus-visible {
                     outline: 2px solid #333;
                     outline-offset: 2px;
                 }
                 
-                /* media + content unchanged, just repeated here for context */
+                .br-ui-survey-question__answer-title {
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    margin: 0 0 0.15rem;
+                }
+                
+                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
+                
+                /* media + content */
                 .br-ui-survey-question__answer-media {
                     flex: 0 0 72px;
                     border-radius: 0.6rem;
@@ -321,16 +351,23 @@
                     align-items: center;
                     justify-content: center;
                 }
+                
                 .br-ui-survey-question__answer-media img {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
                     display: block;
                 }
+                
                 .br-ui-survey-question__answer-content { flex: 1 1 auto; }
                 
-                .br-ui-survey-question__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
-                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
+                /* title-only answers (no image, no description) */
+                .br-ui-survey-question__answer--simple {
+                    align-items: center;
+                    min-height: 56px;
+                    padding-top: 0.7rem;
+                    padding-bottom: 0.7rem;
+                }
             </style>`));
         }
 
