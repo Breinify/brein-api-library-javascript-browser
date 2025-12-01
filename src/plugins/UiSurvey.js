@@ -296,7 +296,11 @@
                 }
 
                 .br-survey-footer-controls--with-hint {
-                    justify-content: space-between;
+                    justify-content: flex-end;
+                }
+
+                .br-survey-footer-controls--with-hint .br-survey-hint {
+                    margin-right: auto; /* push buttons to the right, keep their own gap */
                 }
 
                 .br-survey-hint {
@@ -304,6 +308,7 @@
                     color: #999;
                     line-height: var(--br-survey-line-height-tight);
                     max-width: 60%;
+                    white-space: pre-line;
                 }
 
                 .br-survey-btn {
@@ -841,11 +846,11 @@
 
             let hasHint = false;
 
-            // If we have a selection, show hint about double-tap
+            // If we have a selection, show hint about single/double tap
             if (selectedAnswerId !== null) {
                 const hintEl = document.createElement("div");
                 hintEl.className = "br-survey-hint";
-                hintEl.textContent = "Tip: Tap to select. Double-tap an answer to jump to the next question.";
+                hintEl.textContent = "Tips:\n- single to select answer\n- double tap to answer and go to next page";
                 wrapper.appendChild(hintEl);
                 hasHint = true;
             }
