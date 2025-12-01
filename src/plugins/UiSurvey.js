@@ -234,6 +234,11 @@
                 .br-survey-answer--has-description .br-survey-answer__title {
                     margin-bottom: 0.2em;
                 }
+                
+                /* reduce padding if an image exists */
+                .br-survey-answer--has-image {
+                    padding: 0.5em 1em 0.5em 0.5em;
+                }
 
                 .br-survey-answer__description {
                     font-size: 0.7em;
@@ -614,7 +619,6 @@
                     itemEl.className = "br-survey-answer";
 
                     if (!hasImage && !hasDescription) {
-                        // special styling for title-only answers
                         itemEl.classList.add("br-survey-answer--simple");
                     }
 
@@ -628,6 +632,8 @@
 
                     // optional media (image) on the left
                     if (hasImage) {
+                        itemEl.classList.add("br-survey-answer--has-image");
+
                         const mediaEl = document.createElement("div");
                         mediaEl.className = "br-survey-answer__media";
 
