@@ -231,6 +231,7 @@
             this.uuid = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
+            this._selectedAnswers = {};
 
             this._nodesById = {};
             this._edges = [];
@@ -254,6 +255,7 @@
                     box-sizing: border-box;
                     font-family: inherit;
                     color: inherit;
+                    --br-ui-survey-answer-aspect-ratio: 1 / 1;
                 }
             
                 *, *::before, *::after { box-sizing: border-box; }
@@ -293,7 +295,29 @@
                     background: #fff; 
                     cursor: pointer; 
                     font: inherit; 
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.75rem;
                 }
+                .br-ui-survey-question__answer:hover { border-color: #ccc; background: #fafafa; }
+                .br-ui-survey-question__answer--selected { border-color: #333; background: #f0f0f0; }
+                .br-ui-survey-question__answer-media {
+                    flex: 0 0 72px;
+                    border-radius: 0.45rem;
+                    overflow: hidden;
+                    background: #f2f2f2;
+                    aspect-ratio: var(--br-ui-survey-answer-aspect-ratio, 1 / 1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .br-ui-survey-question__answer-media img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                }
+                .br-ui-survey-question__answer-content { flex: 1 1 auto; }
             </style>`));
         }
 
@@ -403,6 +427,11 @@
             const questionText = Breinify.UTL.isNonEmptyString(data.question) || '';
             const answers = Array.isArray(data.answers) ? data.answers : [];
 
+            const nodeId = Breinify.UTL.isNonEmptyString(node.id);
+            const selectedAnswerId = nodeId !== null && this._selectedAnswers
+                ? this._selectedAnswers[nodeId]
+                : null;
+
             const container = document.createElement('div');
             container.className = 'br-ui-survey-page br-ui-survey-page--question';
 
@@ -420,26 +449,55 @@
                         return;
                     }
 
+                    const answerId = Breinify.UTL.isNonEmptyString(answer._id);
+                    const title = Breinify.UTL.isNonEmptyString(answer.title) || '';
+                    const desc = Breinify.UTL.isNonEmptyString(answer.description);
+                    const imageUrl = Breinify.UTL.isNonEmptyString(answer.resourceUrl);
+
                     const itemEl = document.createElement('button');
                     itemEl.type = 'button';
                     itemEl.className = 'br-ui-survey-question__answer';
 
-                    const title = Breinify.UTL.isNonEmptyString(answer.title) || '';
-                    const desc = Breinify.UTL.isNonEmptyString(answer.description);
+                    if (answerId !== null && selectedAnswerId !== null && answerId === selectedAnswerId) {
+                        itemEl.classList.add('br-ui-survey-question__answer--selected');
+                    }
+
+                    // optional media (image) on the left
+                    if (imageUrl !== null) {
+                        const mediaEl = document.createElement('div');
+                        mediaEl.className = 'br-ui-survey-question__answer-media';
+
+                        const imgEl = document.createElement('img');
+                        imgEl.src = imageUrl;
+                        imgEl.alt = title || '';
+                        mediaEl.appendChild(imgEl);
+
+                        itemEl.appendChild(mediaEl);
+                    }
+
+                    // content (title + description) on the right
+                    const contentEl = document.createElement('div');
+                    contentEl.className = 'br-ui-survey-question__answer-content';
 
                     const labelEl = document.createElement('div');
                     labelEl.className = 'br-ui-survey-question__answer-title';
                     labelEl.textContent = title;
-                    itemEl.appendChild(labelEl);
+                    contentEl.appendChild(labelEl);
 
                     if (desc !== null) {
                         const descEl = document.createElement('div');
                         descEl.className = 'br-ui-survey-question__answer-description';
                         descEl.textContent = desc;
-                        itemEl.appendChild(descEl);
+                        contentEl.appendChild(descEl);
                     }
 
-                    // NOTE: no selection handling yet – will be added later
+                    itemEl.appendChild(contentEl);
+
+                    // selection handling
+                    itemEl.addEventListener('click', () => {
+                        this._handleAnswerClick(nodeId, answerId, container, itemEl);
+                    });
+
                     listEl.appendChild(itemEl);
                 });
 
@@ -447,6 +505,31 @@
             }
 
             return container;
+        }
+
+        _handleAnswerClick(nodeId, answerId, container, clickedButton) {
+            if (nodeId === null || answerId === null) {
+                return;
+            }
+
+            if (!$.isPlainObject(this._selectedAnswers)) {
+                this._selectedAnswers = {};
+            }
+
+            this._selectedAnswers[nodeId] = answerId;
+
+            if (!container || !container.querySelectorAll) {
+                return;
+            }
+
+            const buttons = container.querySelectorAll('.br-ui-survey-question__answer');
+            buttons.forEach((btn) => {
+                if (btn === clickedButton) {
+                    btn.classList.add('br-ui-survey-question__answer--selected');
+                } else {
+                    btn.classList.remove('br-ui-survey-question__answer--selected');
+                }
+            });
         }
 
         _findFirstNodeId() {
@@ -482,6 +565,7 @@
             this._nodesById = {};
             this._edges = [];
             this._currentNodeId = null;
+            this._selectedAnswers = {};
 
             if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey)) {
                 return;
