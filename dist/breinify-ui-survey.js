@@ -372,29 +372,25 @@
                     background: #000;
                     border-color: #000;
                 }
-                
+
+                /* disabled state: softer color, no hover, not-allowed cursor */
                 .br-survey-btn--next:disabled,
                 .br-survey-btn--next[disabled] {
-                    background: #b6b6b6;      /* not too dark, not washed-out */
-                    border-color: #b6b6b6;
-                    color: #f2f2f2;
+                    background: #ddd;
+                    border-color: #ddd;
+                    color: #999;
                     cursor: not-allowed;
-                    pointer-events: none;     /* absolutely disables interaction */
-                    opacity: 0.7;             /* slight fade, but still readable */
-                    box-shadow: inset 0 0 3px rgba(0,0,0,0.22);  /* subtle “locked” feel */
-                }
-                
-                /* Prevents any accidental hover variants from higher specificity */
-                .br-survey-btn--next:disabled:hover,
-                .br-survey-btn--next[disabled]:hover,
-                .br-survey-btn--next:disabled:active,
-                .br-survey-btn--next[disabled]:active {
-                    background: #b6b6b6;
-                    border-color: #b6b6b6;
-                    color: #f2f2f2;
-                    box-shadow: inset 0 0 3px rgba(0,0,0,0.22);
+                    box-shadow: none;
+                    transform: none;
                 }
 
+                .br-survey-btn--next:disabled:hover,
+                .br-survey-btn--next[disabled]:hover {
+                    background: #ddd;
+                    border-color: #ddd;
+                    box-shadow: none;
+                    transform: none;
+                }
 
                 .br-survey-btn--back {
                     background: transparent;
@@ -530,6 +526,17 @@
             this._history = [];
 
             this._resetOnClose = true;
+
+            // history integration
+            this._historyIntegrationAttached = false;
+            this._boundPopStateHandler = null;
+        }
+
+        disconnectedCallback() {
+            if (this._boundPopStateHandler) {
+                window.removeEventListener("popstate", this._boundPopStateHandler);
+                this._boundPopStateHandler = null;
+            }
         }
 
         /**
@@ -614,6 +621,97 @@
             this._currentNodeId = null;
             this._selectedAnswers = {};
             this._history = [];
+        }
+
+        /**
+         * Ensure we are listening to popstate exactly once.
+         */
+        _ensureHistoryIntegration() {
+            if (this._historyIntegrationAttached) {
+                return;
+            }
+
+            this._historyIntegrationAttached = true;
+            this._boundPopStateHandler = (event) => this._onPopState(event);
+            window.addEventListener("popstate", this._boundPopStateHandler);
+        }
+
+        /**
+         * Push a history entry for the current node.
+         */
+        _pushHistoryStateForCurrentPage(isInitial) {
+            if (typeof window === "undefined" || !window.history) {
+                return;
+            }
+
+            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
+            const state = {
+                brUiSurvey: true,
+                webExId: this.uuid,
+                nodeId: nodeId
+            };
+
+            try {
+                window.history.pushState(state, "", window.location.href);
+            } catch (e) {
+                // eslint-disable-next-line no-console
+                console.warn("Unable to pushState for survey navigation:", e);
+            }
+        }
+
+        /**
+         * Handle browser Back/Forward.
+         */
+        _onPopState(event) {
+            const popup = document.querySelector(popupElementName);
+            const state = event.state;
+
+            // Case 1: This popstate belongs to some survey state
+            if (state && state.brUiSurvey === true) {
+                // If it belongs to another survey instance, ignore it
+                if (state.webExId !== this.uuid) {
+                    return;
+                }
+
+                const nodeId = Breinify.UTL.isNonEmptyString(state.nodeId);
+                if (!nodeId || !this._nodesById || !this._nodesById[nodeId]) {
+                    return;
+                }
+
+                // no-op if we're already on that page
+                if (this._currentNodeId === nodeId) {
+                    return;
+                }
+
+                if (Array.isArray(this._history) &&
+                    this._history.length > 0 &&
+                    this._history[this._history.length - 1] === nodeId) {
+                    // BACK: step back in our intra-survey history
+                    this._currentNodeId = this._history.pop();
+                } else if (this._currentNodeId) {
+                    // FORWARD: move forward from the current node
+                    this._history.push(this._currentNodeId);
+                    this._currentNodeId = nodeId;
+                } else {
+                    // Initial survey state for this instance (e.g., re-entering via Forward)
+                    this._currentNodeId = nodeId;
+                }
+
+                if (popup) {
+                    this._renderCurrentPage(popup);
+                    if (!popup.hasAttribute("open")) {
+                        popup.open();
+                    }
+                }
+
+                return;
+            }
+
+            // Case 2: We left survey history (state is null or not brUiSurvey)
+            if (popup && popup.hasAttribute("open")) {
+                popup.close();
+            }
+            this._resetSurveyState();
         }
 
         /**
@@ -786,6 +884,10 @@
 
             // render whatever we have as current node (or an error if missing)
             this._renderCurrentPage(popup);
+
+            // history integration
+            this._ensureHistoryIntegration();
+            this._pushHistoryStateForCurrentPage(true);
 
             // open the popup
             popup.open();
@@ -1083,7 +1185,10 @@
             const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
 
             if (nextNodeId !== null) {
-                // remember where we came from
+                // remember where we came from (intra-survey history)
+                if (!Array.isArray(this._history)) {
+                    this._history = [];
+                }
                 this._history.push(nodeId);
                 this._currentNodeId = nextNodeId;
 
@@ -1091,6 +1196,9 @@
                 if (popup) {
                     this._renderCurrentPage(popup);
                 }
+
+                // push new history entry so browser Back goes to previous page
+                this._pushHistoryStateForCurrentPage(false);
             } else {
                 // TODO: later this is a good place to fire "finalized survey" when end state is well-defined
                 // eslint-disable-next-line no-console
@@ -1099,16 +1207,10 @@
         }
 
         _goBack() {
-            if (!Array.isArray(this._history) || this._history.length === 0) {
-                return;
-            }
-
-            const previousNodeId = this._history.pop();
-            this._currentNodeId = previousNodeId;
-
-            const popup = document.querySelector(popupElementName);
-            if (popup) {
-                this._renderCurrentPage(popup);
+            if (typeof window !== "undefined" &&
+                window.history &&
+                typeof window.history.back === "function") {
+                window.history.back();
             }
         }
 
