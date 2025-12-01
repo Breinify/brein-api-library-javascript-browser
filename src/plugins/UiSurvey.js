@@ -311,6 +311,20 @@
                     white-space: pre-line;
                     text-align: left;
                 }
+                
+                .br-survey-hint-list {
+                    margin: 0;
+                    padding: 0 0 0 1.1em; /* indent bullet, not whole block */
+                    list-style: disc;
+                }
+                
+                .br-survey-hint-list li {
+                    margin: 0.15em 0;
+                    padding: 0;
+                    text-indent: 0;            /* ensure text aligns under first letter, not bullet */
+                    white-space: normal;       /* allow wrapping */
+                    line-height: var(--br-survey-line-height-tight);
+                }
 
                 .br-survey-btn {
                     padding: 0.45em 1em;
@@ -944,7 +958,7 @@
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
             const selectedAnswerId = nodeId !== null && this._selectedAnswers
-                ? this._selectedAnswers[nodeId]
+                ? Breinify.UTL.isNonEmptyString(this._selectedAnswers[nodeId])
                 : null;
 
             let hasHint = false;
@@ -953,8 +967,23 @@
             if (selectedAnswerId !== null) {
                 const hintEl = document.createElement("div");
                 hintEl.className = "br-survey-hint";
-                hintEl.textContent = "Tips:\n- single tap to select answer\n- double tap to select & answer";
+
+                // create UL list
+                const list = document.createElement("ul");
+                list.className = "br-survey-hint-list";
+
+                const li1 = document.createElement("li");
+                li1.textContent = "single tap to select";
+
+                const li2 = document.createElement("li");
+                li2.textContent = "double tap to select & answer";
+
+                list.appendChild(li1);
+                list.appendChild(li2);
+
+                hintEl.appendChild(list);
                 wrapper.appendChild(hintEl);
+
                 hasHint = true;
             }
 
