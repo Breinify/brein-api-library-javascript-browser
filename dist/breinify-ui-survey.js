@@ -13,48 +13,6 @@
     const popupElementName = "br-ui-survey-popup";
     const $ = Breinify.UTL._jquery();
 
-    // ------------------------------------------------------------
-    // History / back-button handling
-    // ------------------------------------------------------------
-    let activeSurveyInstance = null;
-    let popStateHandlerInstalled = false;
-
-    function isSurveyPopupOpen() {
-        const popup = document.querySelector(popupElementName);
-        return popup && popup.hasAttribute("open");
-    }
-
-    function handleSurveyPopState(/* event */) {
-        // no active survey or popup not open → do nothing, let normal history work
-        if (!activeSurveyInstance || !isSurveyPopupOpen()) {
-            return;
-        }
-
-        const survey = activeSurveyInstance;
-
-        // if there is survey history → go to previous question
-        if (Array.isArray(survey._history) && survey._history.length > 0) {
-            survey._goBackInternal();
-
-            // re-arm one survey history entry so the next Back stays inside survey
-            if (window.history && window.history.pushState) {
-                try {
-                    window.history.pushState({ brUiSurvey: true, webExId: survey.uuid }, "");
-                } catch (e) {
-                    // eslint-disable-next-line no-console
-                    console.warn("br-ui-survey: unable to pushState for back handling", e);
-                }
-            }
-        } else {
-            // first survey page → close popup
-            const popup = document.querySelector(popupElementName);
-            if (popup) {
-                popup.close();
-            }
-            activeSurveyInstance = null;
-        }
-    }
-
     class UiSurveyPopup extends HTMLElement {
 
         constructor() {
@@ -422,17 +380,6 @@
 
                 .br-survey-btn--back:hover {
                     background: #eee;
-                }
-
-                /* disabled state for buttons (esp. Next) */
-                .br-survey-btn[disabled],
-                .br-survey-btn[disabled]:hover {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                    background: #f3f3f3;
-                    border-color: #ddd;
-                    box-shadow: none;
-                    transform: none;
                 }
                 
                 /* ensure popup body scrolls smoothly */
@@ -805,10 +752,6 @@
                 if (this._resetOnClose) {
                     this._resetSurveyState();
                 }
-                // when popup closes, this survey is no longer "active" for back handling
-                if (activeSurveyInstance === this) {
-                    activeSurveyInstance = null;
-                }
                 popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
             };
             popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
@@ -823,30 +766,6 @@
 
             // open the popup
             popup.open();
-
-            // mark this survey as active for back handling
-            activeSurveyInstance = this;
-
-            // install global popstate handler once
-            if (!popStateHandlerInstalled &&
-                typeof window !== "undefined" &&
-                window.addEventListener &&
-                window.history &&
-                window.history.pushState) {
-
-                window.addEventListener("popstate", handleSurveyPopState);
-                popStateHandlerInstalled = true;
-            }
-
-            // push one history state so the first Back goes into survey instead of leaving page
-            if (window.history && window.history.pushState) {
-                try {
-                    window.history.pushState({ brUiSurvey: true, webExId: this.uuid }, "");
-                } catch (e) {
-                    // eslint-disable-next-line no-console
-                    console.warn("br-ui-survey: unable to pushState on open", e);
-                }
-            }
 
             // fire opened-event once popup and first page are visible
             this._fireOpenedEvent();
@@ -1039,7 +958,7 @@
 
         /**
          * Create footer controls (Back / Next) based on current node + state.
-         * Also shows a small hint, with stable height across pages.
+         * Also shows a small hint when an answer is selected.
          */
         _createFooterControls(node) {
             const wrapper = document.createElement("div");
@@ -1057,6 +976,8 @@
 
             // ------------------------------------------------------------
             // Hint block: always present to keep footer height stable
+            // - visible with content on question pages
+            // - invisible (but space reserved) on other pages
             // ------------------------------------------------------------
             const hintEl = document.createElement("div");
             hintEl.className = "br-survey-hint";
@@ -1109,7 +1030,7 @@
             }
 
             // ------------------------------------------------------------
-            // Next button only on question pages, disabled until selection
+            // Next button only when an answer is selected
             // ------------------------------------------------------------
             if (nodeType === "question") {
                 const btnNext = document.createElement("button");
@@ -1119,9 +1040,7 @@
                 btnNext.disabled = selectedAnswerId === null;
 
                 btnNext.addEventListener("click", () => {
-                    if (selectedAnswerId !== null) {
-                        this._goForward(nodeId, selectedAnswerId);
-                    }
+                    this._goForward(nodeId, selectedAnswerId);
                 });
 
                 wrapper.appendChild(btnNext);
@@ -1156,8 +1075,7 @@
             }
         }
 
-        // internal helper: actually move to previous survey node and re-render
-        _goBackInternal() {
+        _goBack() {
             if (!Array.isArray(this._history) || this._history.length === 0) {
                 return;
             }
@@ -1168,17 +1086,6 @@
             const popup = document.querySelector(popupElementName);
             if (popup) {
                 this._renderCurrentPage(popup);
-            }
-        }
-
-        /**
-         * Public back handler for UI.
-         * Uses browser history so that hardware / browser "Back"
-         * and the in-UI Back button behave the same.
-         */
-        _goBack() {
-            if (window.history && typeof window.history.back === "function") {
-                window.history.back();
             }
         }
 
