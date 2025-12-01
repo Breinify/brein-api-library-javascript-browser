@@ -106,7 +106,7 @@
                     }
 
                     .br-popup-footer {
-                        padding: 0.75em 1em;
+                        padding: 0.5em 1em;
                         border-top: 1px solid #eee;
                         display: flex;
                         align-items: center;
@@ -304,7 +304,7 @@
                 }
 
                 .br-survey-hint {
-                    font-size: 0.6em;
+                    font-size: 0.55em;
                     color: #999;
                     line-height: var(--br-survey-line-height-tight);
                     max-width: 60%;

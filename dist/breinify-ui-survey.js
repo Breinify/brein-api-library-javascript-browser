@@ -106,7 +106,7 @@
                     }
 
                     .br-popup-footer {
-                        padding: 0.75em 1em;
+                        padding: 0.5em 1em;
                         border-top: 1px solid #eee;
                         display: flex;
                         align-items: center;
@@ -304,11 +304,12 @@
                 }
 
                 .br-survey-hint {
-                    font-size: 0.6em;
+                    font-size: 0.55em;
                     color: #999;
                     line-height: var(--br-survey-line-height-tight);
                     max-width: 60%;
                     white-space: pre-line;
+                    text-align: left;
                 }
 
                 .br-survey-btn {
@@ -850,7 +851,7 @@
             if (selectedAnswerId !== null) {
                 const hintEl = document.createElement("div");
                 hintEl.className = "br-survey-hint";
-                hintEl.textContent = "Tips:\n- single to select answer\n- double tap to answer and go to next page";
+                hintEl.textContent = "Tips:\n- single tap to select answer\n- double tap to answer and go to next page";
                 wrapper.appendChild(hintEl);
                 hasHint = true;
             }
