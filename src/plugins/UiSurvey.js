@@ -334,6 +334,12 @@
                 .br-survey-btn--back:hover {
                     background: #eee;
                 }
+                
+                /* ensure popup body scrolls smoothly */
+                .br-popup-body {
+                    overflow-y: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
             `;
         }
 
@@ -354,7 +360,8 @@
                 this.setAttribute("open", "");
             }
 
-            // Focus the dialog for accessibility
+            document.body.classList.add("br-survey-scroll-lock");
+
             const dialog = this.shadowRoot.querySelector(".br-popup-dialog");
             if (dialog && typeof dialog.focus === "function") {
                 dialog.setAttribute("tabindex", "-1");
@@ -366,6 +373,8 @@
             if (this.hasAttribute("open")) {
                 this.removeAttribute("open");
             }
+
+            document.body.classList.remove("br-survey-scroll-lock");
 
             this.dispatchEvent(new CustomEvent("br-ui-survey:popup-closed", {
                 bubbles: true,
@@ -939,12 +948,21 @@
             }
 
             // check if we already have the element (just defensive)
-            const id = "br-survey-" + webExId;
-            let $survey = $("#" + id);
+            const webExElId = "br-survey-" + webExId;
+            const globalStyleId = "br-survey-global-style";
+            if ($('#' + globalStyleId).length === 0) {
+                $('body').prepend(`
+                  <style id="${globalStyleId}">
+                    .br-survey-scroll-lock { overflow: hidden !important; touch-action: none !important; overscroll-behavior: none !important; }
+                  </style>
+                `);
+            }
+
+            let $survey = $("#" + webExElId);
             if ($survey.length === 0) {
 
                 // otherwise we add the element and attach it, if successful we continue
-                $survey = $("<" + generalSurveyElementName + "/>").attr("id", id);
+                $survey = $("<" + generalSurveyElementName + "/>").attr("id", webExElId);
                 if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
                     return;
                 }
