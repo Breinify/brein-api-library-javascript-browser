@@ -179,6 +179,43 @@
                 cancelable: false
             }));
         }
+
+        /**
+         * Replace the popup body with arbitrary content.
+         */
+        setBodyContent(contentNode) {
+            const body = this.shadowRoot.querySelector('.br-ui-survey-popup__body');
+            if (!body) {
+                return;
+            }
+
+            // Clear current content
+            while (body.firstChild) {
+                body.removeChild(body.firstChild);
+            }
+
+            if (contentNode) {
+                body.appendChild(contentNode);
+            }
+        }
+
+        /**
+         * Replace the popup footer with arbitrary content.
+         */
+        setFooterContent(contentNode) {
+            const footer = this.shadowRoot.querySelector('.br-ui-survey-popup__footer');
+            if (!footer) {
+                return;
+            }
+
+            while (footer.firstChild) {
+                footer.removeChild(footer.firstChild);
+            }
+
+            if (contentNode) {
+                footer.appendChild(contentNode);
+            }
+        }
     }
 
     class UiSurvey extends HTMLElement {
@@ -194,6 +231,10 @@
             this.uuid = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
+
+            this._nodesById = {};
+            this._edges = [];
+            this._currentNodeId = null;
         }
 
         /**
@@ -237,6 +278,21 @@
                 @media (max-width: 600px) {
                     .br-ui-survey-trigger-image.br-ui-survey-desktop { display: none; }
                     .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
+                }
+                
+                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
+                .br-ui-survey-question__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+                .br-ui-survey-question__answers { display: flex; flex-direction: column; gap: 0.5rem; }
+                .br-ui-survey-page--question { display: flex; flex-direction: column; gap: 0.75rem; }
+                .br-ui-survey-question__answer { 
+                    text-align: left; 
+                    width: 100%; 
+                    border-radius: 0.5rem; 
+                    border: 1px solid #ddd; 
+                    padding: 0.5rem 0.75rem; 
+                    background: #fff; 
+                    cursor: pointer; 
+                    font: inherit; 
                 }
             </style>`));
         }
@@ -282,7 +338,7 @@
         }
 
         /**
-         * Opens the survey (placeholder for now).
+         * Opens the survey and renders the current page.
          */
         _openSurvey() {
 
@@ -294,12 +350,154 @@
                 document.body.appendChild(popup);
             }
 
-            // for now just open the blank popup
+            // determine current node if not yet set
+            if (this._currentNodeId === null) {
+                this._currentNodeId = this._findFirstNodeId();
+            }
+
+            // render whatever we have as current node (or an error if missing)
+            this._renderCurrentPage(popup);
+
+            // open the popup
             popup.open();
 
             // debug for now
             // eslint-disable-next-line no-console
-            console.log('Survey trigger clicked:', this.uuid);
+            console.log('Survey trigger clicked:', this.uuid, 'currentNodeId:', this._currentNodeId);
+        }
+
+        _renderCurrentPage(popup) {
+            if (!popup || typeof popup.setBodyContent !== 'function') {
+                return;
+            }
+
+            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
+            const node = nodeId !== null && this._nodesById ? this._nodesById[nodeId] : null;
+
+            let contentNode;
+
+            if (!$.isPlainObject(node)) {
+                const fallback = document.createElement('div');
+                fallback.className = 'br-ui-survey-page br-ui-survey-page--error';
+                fallback.textContent = 'The survey is not correctly configured.';
+                contentNode = fallback;
+            } else if (node.type === 'question') {
+                contentNode = this._createQuestionPage(node);
+            } else {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'br-ui-survey-page br-ui-survey-page--unsupported';
+                placeholder.textContent = 'This step type is not yet supported.';
+                contentNode = placeholder;
+            }
+
+            popup.setBodyContent(contentNode);
+
+            if (typeof popup.setFooterContent === 'function') {
+                // footer will stay empty for now – navigation comes later
+                popup.setFooterContent(null);
+            }
+        }
+
+        _createQuestionPage(node) {
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const questionText = Breinify.UTL.isNonEmptyString(data.question) || '';
+            const answers = Array.isArray(data.answers) ? data.answers : [];
+
+            const container = document.createElement('div');
+            container.className = 'br-ui-survey-page br-ui-survey-page--question';
+
+            const titleEl = document.createElement('h2');
+            titleEl.className = 'br-ui-survey-question__title';
+            titleEl.textContent = questionText;
+            container.appendChild(titleEl);
+
+            if (answers.length > 0) {
+                const listEl = document.createElement('div');
+                listEl.className = 'br-ui-survey-question__answers';
+
+                answers.forEach((answer) => {
+                    if (!$.isPlainObject(answer)) {
+                        return;
+                    }
+
+                    const itemEl = document.createElement('button');
+                    itemEl.type = 'button';
+                    itemEl.className = 'br-ui-survey-question__answer';
+
+                    const title = Breinify.UTL.isNonEmptyString(answer.title) || '';
+                    const desc = Breinify.UTL.isNonEmptyString(answer.description);
+
+                    const labelEl = document.createElement('div');
+                    labelEl.className = 'br-ui-survey-question__answer-title';
+                    labelEl.textContent = title;
+                    itemEl.appendChild(labelEl);
+
+                    if (desc !== null) {
+                        const descEl = document.createElement('div');
+                        descEl.className = 'br-ui-survey-question__answer-description';
+                        descEl.textContent = desc;
+                        itemEl.appendChild(descEl);
+                    }
+
+                    // NOTE: no selection handling yet – will be added later
+                    listEl.appendChild(itemEl);
+                });
+
+                container.appendChild(listEl);
+            }
+
+            return container;
+        }
+
+        _findFirstNodeId() {
+
+            if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey) ||
+                !Array.isArray(this.settings.survey.nodes) || !Array.isArray(this._edges)) {
+                return null;
+            }
+
+            const nodes = this.settings.survey.nodes;
+
+            // find the start node in the nodes array
+            const startNode = nodes.find((n) => $.isPlainObject(n) && n.type === 'start');
+            if (!$.isPlainObject(startNode)) {
+                return null;
+            }
+
+            // make sure the node has an id
+            const startNodeId = Breinify.UTL.isNonEmptyString(startNode.id);
+            if (startNodeId === null) {
+                return null;
+            }
+
+            // find the first edge leaving the start node
+            const edge = this._edges.find((e) => $.isPlainObject(e) && e.source === startNodeId);
+
+            return $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.target) : null;
+        }
+
+        _loadStructureFromSettings() {
+
+            // prepare survey graph structures
+            this._nodesById = {};
+            this._edges = [];
+            this._currentNodeId = null;
+
+            if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey)) {
+                return;
+            }
+
+            if (Array.isArray(this.settings.survey.nodes)) {
+                this.settings.survey.nodes.forEach((node) => {
+                    if (node && node.id) {
+                        this._nodesById[node.id] = node;
+                    }
+                });
+            }
+
+            if (Array.isArray(this.settings.survey.edges)) {
+                this._edges = this.settings.survey.edges.slice();
+            }
         }
 
         render(webExId, settings) {
@@ -307,8 +505,9 @@
             this.uuid = webExId;
             this.$shadowRoot.empty();
 
-            // first add the base style
+            // first add the base style and load structure
             this._ensureBaseStyle();
+            this._loadStructureFromSettings();
 
             // second let's add the style snippet - if any
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
