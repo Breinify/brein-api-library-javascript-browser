@@ -42,6 +42,9 @@
                         inset: 0;
                         z-index: 2147483647; /* very high to be above most things */
                         font-family: inherit;
+                        /* base font-size for everything inside the popup */
+                        --br-ui-base-font-size: 20px;
+                        font-size: var(--br-ui-base-font-size);
                     }
 
                     :host([open]) { display: block; }
@@ -77,34 +80,34 @@
 
                     .br-popup-close {
                         position: absolute;
-                        top: 0.5rem;
-                        right: 0.5rem;
+                        top: 0.5em;
+                        right: 0.5em;
                         border: none;
                         background: transparent;
                         cursor: pointer;
-                        font-size: 1.25rem;
+                        font-size: 1.25em;
                         line-height: 1;
-                        padding: 0.25rem 0.5rem;
+                        padding: 0.25em 0.5em;
                     }
 
                     .br-popup-body {
-                        padding: 1rem 1.25rem 1.25rem;
+                        padding: 1em 1.25em 1.25em;
                         overflow: auto;
                     }
 
                     .br-popup-placeholder {
-                        font-size: 0.95rem;
+                        font-size: 0.95em;
                         color: #666;
                         text-align: center;
                     }
 
                     .br-popup-footer {
-                        padding: 0.75rem 1rem;
+                        padding: 0.75em 1em;
                         border-top: 1px solid #eee;
                         display: flex;
                         align-items: center;
                         justify-content: flex-end;
-                        gap: 0.5rem;
+                        gap: 0.5em;
                     }
 
                     @media (max-width: 640px) {
@@ -160,35 +163,35 @@
                 .br-survey-page--question {
                     display: flex;
                     flex-direction: column;
-                    gap: 1rem;
+                    gap: 1em;
                 }
 
                 .br-survey-question-title {
-                    font-size: 1.15rem;
+                    font-size: 1.15em;
                     font-weight: 600;
-                    margin: .75rem 0 0.5rem;
+                    margin: 0.75em 0 0.5em;
                 }
 
                 .br-survey-answers {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.75rem;
-                    margin-top: 0.25rem;
+                    gap: 0.75em;
+                    margin-top: 0.25em;
                 }
 
                 .br-survey-answer {
                     text-align: left;
                     width: 100%;
-                    border-radius: 0.9rem;
+                    border-radius: 0.9em;
                     border: 1px solid #e1e1e1;
-                    padding: 0.85rem 1rem;
+                    padding: 0.85em 1em;
                     background: #ffffff;
                     cursor: pointer;
                     font: inherit;
                     display: flex;
                     align-items: flex-start;
-                    gap: 1rem;
-                    min-height: 80px;
+                    gap: 1em;
+                    min-height: 4em;
                     appearance: none;
                     -webkit-appearance: none;
                     transition:
@@ -219,14 +222,14 @@
 
                 .br-survey-answer__title {
                     font-weight: 600;
-                    font-size: 1rem;
+                    font-size: 1em;
                     margin: 0;
                     line-height: 1.25;
                 }
 
                 /* add spacing only when a description exists */
                 .br-survey-answer--has-description .br-survey-answer__title {
-                    margin-bottom: 0.2rem;
+                    margin-bottom: 0.2em;
                 }
 
                 .br-survey-answer__description {
@@ -235,9 +238,9 @@
                 }
 
                 .br-survey-answer__media {
-                    flex: 0 0 80px;
-                    max-width: 80px;
-                    border-radius: 0.7rem;
+                    flex: 0 0 4em;
+                    max-width: 4em;
+                    border-radius: 0.7em;
                     overflow: hidden;
                     background: #f0f0f0;
                     aspect-ratio: var(--br-survey-answer-aspect-ratio, 1 / 1);
@@ -263,9 +266,9 @@
                 /* title-only answers (no image, no description) */
                 .br-survey-answer--simple {
                     align-items: center;
-                    min-height: 56px;
-                    padding-top: 0.7rem;
-                    padding-bottom: 0.7rem;
+                    min-height: 2.8em;
+                    padding-top: 0.7em;
+                    padding-bottom: 0.7em;
                 }
 
                 /* -------------------------------------------------- */
@@ -275,18 +278,18 @@
                     display: flex;
                     justify-content: flex-end;
                     align-items: center;
-                    gap: 0.5rem;
+                    gap: 0.5em;
                     width: 100%;
                 }
 
                 .br-survey-btn {
-                    padding: 0.45rem 1.0rem;
-                    border-radius: 0.45rem;
+                    padding: 0.45em 1em;
+                    border-radius: 0.45em;
                     border: 1px solid #ccc;
                     background: #f7f7f7;
                     cursor: pointer;
                     font: inherit;
-                    font-size: 0.9rem;
+                    font-size: 0.9em;
                     transition:
                         background 0.15s ease,
                         border-color 0.15s ease,
@@ -440,6 +443,9 @@
                     box-sizing: border-box;
                     font-family: inherit;
                     color: inherit;
+                    /* allow integrator to override if needed */
+                    --br-ui-base-font-size: 20px;
+                    font-size: var(--br-ui-base-font-size);
                 }
 
                 *, *::before, *::after { box-sizing: border-box; }
