@@ -568,6 +568,105 @@
         }
 
         /**
+         * Return an array of "page nodes" (currently just question nodes).
+         */
+        _getPageNodes() {
+            if (!$.isPlainObject(this.settings) ||
+                !$.isPlainObject(this.settings.survey) ||
+                !Array.isArray(this.settings.survey.nodes)) {
+                return [];
+            }
+
+            // for now we treat "question" as a page; can be extended later
+            return this.settings.survey.nodes.filter(function (n) {
+                return $.isPlainObject(n) && n.type === "question";
+            });
+        }
+
+        _getTotalPageCount() {
+            return this._getPageNodes().length;
+        }
+
+        _getPageIndex(nodeId) {
+            if (!nodeId) {
+                return -1;
+            }
+            const nodes = this._getPageNodes();
+            for (let i = 0; i < nodes.length; i++) {
+                const n = nodes[i];
+                if ($.isPlainObject(n) && n.id === nodeId) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        _getAnswerFromNode(node, answerId) {
+            if (!$.isPlainObject(node) ||
+                !$.isPlainObject(node.data) ||
+                !Array.isArray(node.data.answers) ||
+                !answerId) {
+                return null;
+            }
+
+            const answers = node.data.answers;
+            for (let i = 0; i < answers.length; i++) {
+                const a = answers[i];
+                if ($.isPlainObject(a) && a._id === answerId) {
+                    return a;
+                }
+            }
+            return null;
+        }
+
+        _fireRenderedEvent() {
+            this.dispatchEvent(new CustomEvent("br-ui-survey:rendered", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExId: this.uuid
+                }
+            }));
+        }
+
+        _fireOpenedEvent() {
+            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
+            const node = nodeId !== null && this._nodesById ? this._nodesById[nodeId] : null;
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:opened", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExId: this.uuid,
+                    nodeId: nodeId,
+                    pageType: node && node.type ? node.type : null,
+                    pageIndex: this._getPageIndex(nodeId),
+                    totalPages: this._getTotalPageCount()
+                }
+            }));
+        }
+
+        _fireAnswerSelectedEvent(nodeId, answerId) {
+            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
+            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
+            const answer = this._getAnswerFromNode(node, answerId);
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:answer-selected", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExId: this.uuid,
+                    nodeId: resolvedNodeId,
+                    pageType: node && node.type ? node.type : null,
+                    pageIndex: this._getPageIndex(resolvedNodeId),
+                    totalPages: this._getTotalPageCount(),
+                    answerId: answerId,
+                    answer: answer || null
+                }
+            }));
+        }
+
+        /**
          * Creates the clickable trigger banner (desktop + mobile).
          */
         _createTrigger() {
@@ -641,6 +740,9 @@
 
             // open the popup
             popup.open();
+
+            // fire opened-event once popup and first page are visible
+            this._fireOpenedEvent();
 
             // debug for now
             // eslint-disable-next-line no-console
@@ -851,7 +953,7 @@
             if (selectedAnswerId !== null) {
                 const hintEl = document.createElement("div");
                 hintEl.className = "br-survey-hint";
-                hintEl.textContent = "Tips:\n- single tap to select answer\n- double tap to answer and go to next page";
+                hintEl.textContent = "Tips:\n- single tap to select answer\n- double tap to select & answer";
                 wrapper.appendChild(hintEl);
                 hasHint = true;
             }
@@ -896,6 +998,9 @@
                 return;
             }
 
+            // fire "answer-selected" event tied to this page transition
+            this._fireAnswerSelectedEvent(nodeId, answerId);
+
             const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
 
             if (nextNodeId !== null) {
@@ -908,6 +1013,7 @@
                     this._renderCurrentPage(popup);
                 }
             } else {
+                // TODO: later this is a good place to fire "finalized survey" when end state is well-defined
                 // eslint-disable-next-line no-console
                 console.warn("No next edge found for", nodeId, answerId);
             }
@@ -1053,6 +1159,9 @@
             $root.append($trigger);
 
             this.$shadowRoot.append($root);
+
+            // fire "rendered" once banner is actually in the DOM
+            this._fireRenderedEvent();
 
             // TODO: debug for now, remove when done
             console.log(webExId);
