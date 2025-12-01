@@ -166,7 +166,7 @@
                 .br-survey-question-title {
                     font-size: 1.15rem;
                     font-weight: 600;
-                    margin: 0 0 0.5rem;
+                    margin: .75rem 0 0.5rem;
                 }
 
                 .br-survey-answers {
@@ -205,7 +205,8 @@
                     transform: translateY(-1px);
                 }
 
-                .br-survey-answer--selected {
+                .br-survey-answer--selected,
+                .br-survey-answer--selected:hover {
                     border-color: #333;
                     background: #f5f5f5;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
