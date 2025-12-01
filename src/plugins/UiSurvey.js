@@ -155,7 +155,11 @@
          */
         _ensurePageStyle() {
             return `
-                :host { --br-survey-answer-aspect-ratio: 1 / 1; }
+                :host {
+                    --br-survey-answer-aspect-ratio: 1 / 1;
+                    --br-survey-line-height-base: 1.4;
+                    --br-survey-line-height-tight: 1.2;
+                }
 
                 /* -------------------------------------------------- */
                 /* Question page + answers                            */
@@ -164,12 +168,14 @@
                     display: flex;
                     flex-direction: column;
                     gap: 1em;
+                    line-height: var(--br-survey-line-height-base);
                 }
 
                 .br-survey-question-title {
                     font-size: 1.15em;
                     font-weight: 600;
                     margin: 0.75em 0 0.5em;
+                    line-height: var(--br-survey-line-height-tight);
                 }
 
                 .br-survey-answers {
@@ -194,11 +200,8 @@
                     min-height: 4em;
                     appearance: none;
                     -webkit-appearance: none;
-                    transition:
-                        background 0.15s ease,
-                        border-color 0.15s ease,
-                        box-shadow 0.15s ease,
-                        transform 0.15s ease;
+                    line-height: var(--br-survey-line-height-base);
+                    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
                 }
 
                 .br-survey-answer:hover {
@@ -222,9 +225,9 @@
 
                 .br-survey-answer__title {
                     font-weight: 600;
-                    font-size: 1em;
+                    font-size: .9em;
                     margin: 0;
-                    line-height: 1.25;
+                    line-height: var(--br-survey-line-height-tight);
                 }
 
                 /* add spacing only when a description exists */
@@ -233,8 +236,9 @@
                 }
 
                 .br-survey-answer__description {
-                    font-size: 0.85em;
+                    font-size: 0.7em;
                     color: #666;
+                    line-height: var(--br-survey-line-height-base);
                 }
 
                 .br-survey-answer__media {
@@ -290,11 +294,8 @@
                     cursor: pointer;
                     font: inherit;
                     font-size: 0.9em;
-                    transition:
-                        background 0.15s ease,
-                        border-color 0.15s ease,
-                        box-shadow 0.15s ease,
-                        transform 0.15s ease;
+                    line-height: var(--br-survey-line-height-base);
+                    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
                 }
 
                 .br-survey-btn:hover {
