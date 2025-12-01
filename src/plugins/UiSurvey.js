@@ -62,6 +62,7 @@
                     }
 
                     .br-popup-dialog {
+                        position: relative;
                         pointer-events: auto;
                         max-width: 520px;
                         width: calc(100% - 2rem);
@@ -74,24 +75,10 @@
                         flex-direction: column;
                     }
 
-                    .br-popup-header {
-                        display: flex;
-                        align-items: center;
-                        justify-content: flex-end;
-                        padding: 0.5rem 0.75rem;
-                        border-bottom: 1px solid #eee;
-                    }
-                    
-                    .br-popup-footer {
-                        padding: 0.75rem 1rem;
-                        border-top: 1px solid #eee;
-                        display: flex;
-                        align-items: center;
-                        justify-content: flex-end;
-                        gap: 0.5rem;
-                    }
-
                     .br-popup-close {
+                        position: absolute;
+                        top: 0.5rem;
+                        right: 0.5rem;
                         border: none;
                         background: transparent;
                         cursor: pointer;
@@ -109,6 +96,15 @@
                         font-size: 0.95rem;
                         color: #666;
                         text-align: center;
+                    }
+
+                    .br-popup-footer {
+                        padding: 0.75rem 1rem;
+                        border-top: 1px solid #eee;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.5rem;
                     }
                     
                     @media (max-width: 640px) {
@@ -132,11 +128,9 @@
                 <div class="br-popup-backdrop" part="backdrop"></div>
                 <div class="br-popup-outer">
                     <div class="br-popup-dialog" role="dialog" aria-modal="true">
-                        <div class="br-popup-header">
-                            <button type="button" class="br-popup-close" aria-label="Close survey">
-                                &times;
-                            </button>
-                        </div>
+                        <button type="button" class="br-popup-close" aria-label="Close survey">
+                            &times;
+                        </button>
                         <div class="br-popup-body">
                             <div class="br-popup-placeholder">
                                 Survey content will appear here…
