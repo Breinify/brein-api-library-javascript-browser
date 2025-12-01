@@ -186,7 +186,7 @@
                     cursor: pointer;
                     font: inherit;
                     display: flex;
-                    align-items: flex-start;
+                    align-items: center;
                     gap: 1rem;
                     min-height: 80px;
                     appearance: none;

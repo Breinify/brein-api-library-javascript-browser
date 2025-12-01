@@ -186,16 +186,12 @@
                     cursor: pointer;
                     font: inherit;
                     display: flex;
-                    align-items: flex-start;
+                    align-items: center;
                     gap: 1rem;
                     min-height: 80px;
                     appearance: none;
                     -webkit-appearance: none;
-                    transition:
-                        background 0.15s ease,
-                        border-color 0.15s ease,
-                        box-shadow 0.15s ease,
-                        transform 0.15s ease;
+                    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
                 }
 
                 .br-survey-answer:hover {
