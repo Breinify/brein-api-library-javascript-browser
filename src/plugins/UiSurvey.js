@@ -530,6 +530,7 @@
             // history integration
             this._historyIntegrationAttached = false;
             this._boundPopStateHandler = null;
+            this._sessionId = null;
         }
 
         disconnectedCallback() {
@@ -621,6 +622,7 @@
             this._currentNodeId = null;
             this._selectedAnswers = {};
             this._history = [];
+            this._sessionId = null;
         }
 
         /**
@@ -637,9 +639,19 @@
         }
 
         /**
+         * Start a new survey session id, if none exists yet.
+         */
+        _ensureSessionId() {
+            if (this._sessionId) {
+                return;
+            }
+            this._sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 5);
+        }
+
+        /**
          * Push a history entry for the current node.
          */
-        _pushHistoryStateForCurrentPage(isInitial) {
+        _pushHistoryStateForCurrentPage() {
             if (typeof window === "undefined" || !window.history) {
                 return;
             }
@@ -648,7 +660,8 @@
             const state = {
                 brUiSurvey: true,
                 webExId: this.uuid,
-                nodeId: nodeId
+                nodeId: nodeId,
+                sessionId: this._sessionId
             };
 
             try {
@@ -673,6 +686,15 @@
                     return;
                 }
 
+                // If it is from an "old" session, ignore and make sure we're reset
+                if (!this._sessionId || !state.sessionId || state.sessionId !== this._sessionId) {
+                    if (popup && popup.hasAttribute("open")) {
+                        popup.close();
+                    }
+                    this._resetSurveyState();
+                    return;
+                }
+
                 const nodeId = Breinify.UTL.isNonEmptyString(state.nodeId);
                 if (!nodeId || !this._nodesById || !this._nodesById[nodeId]) {
                     return;
@@ -693,7 +715,7 @@
                     this._history.push(this._currentNodeId);
                     this._currentNodeId = nodeId;
                 } else {
-                    // Initial survey state for this instance (e.g., re-entering via Forward)
+                    // Initial survey state for this instance (e.g., entering via Forward)
                     this._currentNodeId = nodeId;
                 }
 
@@ -759,7 +781,7 @@
             const answers = node.data.answers;
             for (let i = 0; i < answers.length; i++) {
                 const a = answers[i];
-                if ($.isPlainObject(a) && a._id === answerId) {
+                if ($$.isPlainObject(a) && a._id === answerId) {
                     return a;
                 }
             }
@@ -882,12 +904,15 @@
                 this._currentNodeId = this._findFirstNodeId();
             }
 
+            // start a new session if needed
+            this._ensureSessionId();
+
             // render whatever we have as current node (or an error if missing)
             this._renderCurrentPage(popup);
 
             // history integration
             this._ensureHistoryIntegration();
-            this._pushHistoryStateForCurrentPage(true);
+            this._pushHistoryStateForCurrentPage();
 
             // open the popup
             popup.open();
@@ -1198,7 +1223,7 @@
                 }
 
                 // push new history entry so browser Back goes to previous page
-                this._pushHistoryStateForCurrentPage(false);
+                this._pushHistoryStateForCurrentPage();
             } else {
                 // TODO: later this is a good place to fire "finalized survey" when end state is well-defined
                 // eslint-disable-next-line no-console
@@ -1302,6 +1327,7 @@
             this._currentNodeId = null;
             this._selectedAnswers = {};
             this._history = [];
+            // do not touch _sessionId here: it is per "render config" not per structure
 
             if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey)) {
                 return;
