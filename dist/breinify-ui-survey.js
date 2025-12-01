@@ -982,29 +982,31 @@
             const hintEl = document.createElement("div");
             hintEl.className = "br-survey-hint";
 
+            const titleEl = document.createElement("div");
+            titleEl.className = "br-survey-hint-title";
+            titleEl.textContent = "Tips:";
+
+            const list = document.createElement("ul");
+            list.className = "br-survey-hint-list";
+
+            const li1 = document.createElement("li");
+            const li2 = document.createElement("li");
+
+            list.appendChild(li1);
+            list.appendChild(li2);
+
+            hintEl.appendChild(titleEl);
+            hintEl.appendChild(list);
+
             if (nodeType === "question") {
-                const titleEl = document.createElement("div");
-                titleEl.className = "br-survey-hint-title";
-                titleEl.textContent = "Tips:";
-
-                const list = document.createElement("ul");
-                list.className = "br-survey-hint-list";
-
-                const li1 = document.createElement("li");
                 li1.textContent = "single tap to select";
-
-                const li2 = document.createElement("li");
                 li2.textContent = "double tap to select & answer";
 
-                list.appendChild(li1);
-                list.appendChild(li2);
-
-                hintEl.appendChild(titleEl);
-                hintEl.appendChild(list);
-
-                // push buttons to the right when hint is actually shown
                 wrapper.classList.add("br-survey-footer-controls--with-hint");
             } else {
+                li1.textContent = "...";
+                li2.textContent = "...";
+
                 // keep same footprint but hide visually
                 hintEl.classList.add("br-survey-hint--hidden");
             }
