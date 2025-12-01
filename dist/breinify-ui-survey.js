@@ -1032,11 +1032,12 @@
             // ------------------------------------------------------------
             // Next button only when an answer is selected
             // ------------------------------------------------------------
-            if (selectedAnswerId !== null) {
+            if (nodeType === "question") {
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
                 btnNext.className = "br-survey-btn br-survey-btn--next";
                 btnNext.textContent = "Next";
+                btnNext.disabled = selectedAnswerId === null;
 
                 btnNext.addEventListener("click", () => {
                     this._goForward(nodeId, selectedAnswerId);
