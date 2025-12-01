@@ -372,6 +372,29 @@
                     background: #000;
                     border-color: #000;
                 }
+                
+                .br-survey-btn--next:disabled,
+                .br-survey-btn--next[disabled] {
+                    background: #b6b6b6;      /* not too dark, not washed-out */
+                    border-color: #b6b6b6;
+                    color: #f2f2f2;
+                    cursor: not-allowed;
+                    pointer-events: none;     /* absolutely disables interaction */
+                    opacity: 0.7;             /* slight fade, but still readable */
+                    box-shadow: inset 0 0 3px rgba(0,0,0,0.22);  /* subtle “locked” feel */
+                }
+                
+                /* Prevents any accidental hover variants from higher specificity */
+                .br-survey-btn--next:disabled:hover,
+                .br-survey-btn--next[disabled]:hover,
+                .br-survey-btn--next:disabled:active,
+                .br-survey-btn--next[disabled]:active {
+                    background: #b6b6b6;
+                    border-color: #b6b6b6;
+                    color: #f2f2f2;
+                    box-shadow: inset 0 0 3px rgba(0,0,0,0.22);
+                }
+
 
                 .br-survey-btn--back {
                     background: transparent;
