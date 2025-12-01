@@ -282,28 +282,38 @@
                     .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
                 }
                 
-                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
-                .br-ui-survey-question__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
-                .br-ui-survey-question__answers { display: flex; flex-direction: column; gap: 0.5rem; }
-                .br-ui-survey-page--question { display: flex; flex-direction: column; gap: 0.75rem; }
+                .br-ui-survey-page--question { display: flex; flex-direction: column; gap: 1rem; }
+                
                 .br-ui-survey-question__answer { 
                     text-align: left; 
                     width: 100%; 
-                    border-radius: 0.5rem; 
+                    border-radius: 0.75rem; 
                     border: 1px solid #ddd; 
-                    padding: 0.5rem 0.75rem; 
+                    padding: 0.75rem 0.9rem; 
                     background: #fff; 
                     cursor: pointer; 
                     font: inherit; 
                     display: flex;
                     align-items: flex-start;
-                    gap: 0.75rem;
+                    gap: 0.9rem;
+                    min-height: 72px;
+                    /* neutralize default button look */
+                    appearance: none;
+                    -webkit-appearance: none;
+                    border-width: 1px;
                 }
                 .br-ui-survey-question__answer:hover { border-color: #ccc; background: #fafafa; }
                 .br-ui-survey-question__answer--selected { border-color: #333; background: #f0f0f0; }
+                
+                .br-ui-survey-question__answer:focus-visible {
+                    outline: 2px solid #333;
+                    outline-offset: 2px;
+                }
+                
+                /* media + content unchanged, just repeated here for context */
                 .br-ui-survey-question__answer-media {
                     flex: 0 0 72px;
-                    border-radius: 0.45rem;
+                    border-radius: 0.6rem;
                     overflow: hidden;
                     background: #f2f2f2;
                     aspect-ratio: var(--br-ui-survey-answer-aspect-ratio, 1 / 1);
@@ -318,6 +328,9 @@
                     display: block;
                 }
                 .br-ui-survey-question__answer-content { flex: 1 1 auto; }
+                
+                .br-ui-survey-question__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
             </style>`));
         }
 
