@@ -20,6 +20,10 @@
 
             this.attachShadow({mode: "open"});
 
+            // configuration flags (set externally via UiSurvey)
+            this.closeOnBackgroundClick = false;
+            this.resetOnClose = true; // informational, actual reset is handled in UiSurvey
+
             // Initial static structure for the popup
             this._renderBase();
         }
@@ -348,11 +352,30 @@
             const closeBtn = this.shadowRoot.querySelector(".br-popup-close");
 
             if (backdrop) {
-                backdrop.addEventListener("click", () => this.close());
+                backdrop.addEventListener("click", () => {
+                    // desktop-only behavior as per requirement
+                    if (window.innerWidth && window.innerWidth <= 640) {
+                        return;
+                    }
+                    if (this._shouldCloseOnBackgroundClick()) {
+                        this.close();
+                    }
+                });
             }
             if (closeBtn) {
                 closeBtn.addEventListener("click", () => this.close());
             }
+        }
+
+        /**
+         * Decide if backdrop click should close the popup.
+         * Defaults to false unless explicitly overridden.
+         */
+        _shouldCloseOnBackgroundClick() {
+            if (typeof this.closeOnBackgroundClick === "boolean") {
+                return this.closeOnBackgroundClick;
+            }
+            return false;
         }
 
         open() {
@@ -439,6 +462,8 @@
             this._edges = [];
             this._currentNodeId = null;
             this._history = [];
+
+            this._resetOnClose = true;
         }
 
         /**
@@ -487,6 +512,52 @@
                     .br-survey-trigger-image.br-survey-trigger-mobile { display: block; }
                 }
             </style>`));
+        }
+
+        /**
+         * Helper to read popup.closeOnBackgroundClick from config.
+         * {
+         *   popup: {
+         *     closeOnBackgroundClick: boolean
+         *   }
+         * }
+         * default: false
+         */
+        _getCloseOnBackgroundClickSetting() {
+            if ($.isPlainObject(this.settings) &&
+                $.isPlainObject(this.settings.popup) &&
+                typeof this.settings.popup.closeOnBackgroundClick === "boolean") {
+                return this.settings.popup.closeOnBackgroundClick;
+            }
+            return false;
+        }
+
+        /**
+         * Helper to read popup.resetOnClose from config.
+         * {
+         *   popup: {
+         *     resetOnClose: boolean
+         *   }
+         * }
+         * default: true
+         */
+        _getResetOnCloseSetting() {
+            if ($.isPlainObject(this.settings) &&
+                $.isPlainObject(this.settings.popup) &&
+                typeof this.settings.popup.resetOnClose === "boolean") {
+                return this.settings.popup.resetOnClose;
+            }
+            return true;
+        }
+
+        /**
+         * Reset dynamic survey state for a new session.
+         * Keeps nodes/edges, resets position + selections.
+         */
+        _resetSurveyState() {
+            this._currentNodeId = null;
+            this._selectedAnswers = {};
+            this._history = [];
         }
 
         /**
@@ -539,6 +610,19 @@
                 popup = document.createElement(popupElementName);
                 document.body.appendChild(popup);
             }
+
+            // configure popup behavior from settings
+            popup.closeOnBackgroundClick = this._getCloseOnBackgroundClickSetting();
+            this._resetOnClose = this._getResetOnCloseSetting();
+
+            // listen for popup close to optionally reset state
+            const handleClosed = () => {
+                if (this._resetOnClose) {
+                    this._resetSurveyState();
+                }
+                popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
+            };
+            popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
 
             // determine current node if not yet set
             if (this._currentNodeId === null) {
