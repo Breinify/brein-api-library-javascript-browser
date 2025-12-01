@@ -293,8 +293,8 @@
                     background: #f7f7f7;
                     cursor: pointer;
                     font: inherit;
-                    font-size: 0.9em;
-                    line-height: var(--br-survey-line-height-base);
+                    font-size: 0.75em;
+                    line-height: var(--br-survey-line-height-tight);
                     transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
                 }
 
