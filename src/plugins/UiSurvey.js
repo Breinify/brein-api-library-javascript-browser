@@ -25,6 +25,7 @@
         }
 
         _renderBase() {
+
             // Only render once
             if (this.shadowRoot.childNodes.length > 0) {
                 return;
@@ -32,6 +33,9 @@
 
             this.shadowRoot.innerHTML = `
                 <style>
+                    /* -------------------------------------------------- */
+                    /* Popup chrome (backdrop, dialog)                    */
+                    /* -------------------------------------------------- */
                     :host {
                         display: none;
                         position: fixed;
@@ -39,15 +43,15 @@
                         z-index: 2147483647; /* very high to be above most things */
                         font-family: inherit;
                     }
-
+        
                     :host([open]) { display: block; }
-
+        
                     .br-ui-survey-popup__backdrop {
                         position: fixed;
                         inset: 0;
                         background: rgba(0, 0, 0, 0.45);
                     }
-
+        
                     .br-ui-survey-popup__outer {
                         position: fixed;
                         inset: 0;
@@ -56,7 +60,7 @@
                         justify-content: center;
                         pointer-events: none;
                     }
-
+        
                     .br-ui-survey-popup__dialog {
                         pointer-events: auto;
                         max-width: 520px;
@@ -69,7 +73,7 @@
                         display: flex;
                         flex-direction: column;
                     }
-
+        
                     .br-ui-survey-popup__header {
                         display: flex;
                         align-items: center;
@@ -86,7 +90,7 @@
                         justify-content: flex-end;
                         gap: 0.5rem;
                     }
-
+        
                     .br-ui-survey-popup__close-btn {
                         border: none;
                         background: transparent;
@@ -95,9 +99,9 @@
                         line-height: 1;
                         padding: 0.25rem 0.5rem;
                     }
-
+        
                     .br-ui-survey-popup__body { padding: 1rem 1.25rem 1.25rem; overflow: auto; }
-
+        
                     .br-ui-survey-popup__placeholder {
                         font-size: 0.95rem;
                         color: #666;
@@ -116,11 +120,12 @@
                             box-shadow: none;
                         }
                     
-                        /* overflow: auto -> ensure it scrolls nicely if content is long */
                         .br-ui-survey-popup__body { flex: 1 1 auto; overflow: auto; }
                     }
+        
+                    ${this._ensurePageStyle()}
                 </style>
-
+        
                 <div class="br-ui-survey-popup__backdrop" part="backdrop"></div>
                 <div class="br-ui-survey-popup__outer">
                     <div class="br-ui-survey-popup__dialog" role="dialog" aria-modal="true">
@@ -142,6 +147,119 @@
             `;
 
             this._bindBaseEvents();
+        }
+
+        /**
+         * Styles for the survey pages rendered inside the popup body.
+         * Any future page-related styling should go here.
+         */
+        _ensurePageStyle() {
+            return `
+                :host { --br-ui-survey-answer-aspect-ratio: 1 / 1; }
+        
+                .br-ui-survey-page--question {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                }
+        
+                .br-ui-survey-question__title {
+                    font-size: 1.15rem;
+                    font-weight: 600;
+                    margin: 0 0 0.5rem;
+                }
+        
+                .br-ui-survey-question__answers {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    margin-top: 0.25rem;
+                }
+        
+                .br-ui-survey-question__answer {
+                    text-align: left;
+                    width: 100%;
+                    border-radius: 0.9rem;
+                    border: 1px solid #e1e1e1;
+                    padding: 0.85rem 1rem;
+                    background: #ffffff;
+                    cursor: pointer;
+                    font: inherit;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 1rem;
+                    min-height: 80px;
+                    appearance: none;
+                    -webkit-appearance: none;
+                    transition:
+                        background 0.15s ease,
+                        border-color 0.15s ease,
+                        box-shadow 0.15s ease,
+                        transform 0.15s ease;
+                }
+        
+                .br-ui-survey-question__answer:hover {
+                    border-color: #d0d0d0;
+                    background: #fdfdfd;
+                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+                    transform: translateY(-1px);
+                }
+        
+                .br-ui-survey-question__answer--selected {
+                    border-color: #333;
+                    background: #f5f5f5;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                }
+        
+                .br-ui-survey-question__answer:focus-visible {
+                    outline: 2px solid #333;
+                    outline-offset: 2px;
+                }
+        
+                .br-ui-survey-question__answer-title {
+                    font-weight: 600;
+                    font-size: 1rem;
+                    margin: 0 0 0.2rem;
+                }
+        
+                .br-ui-survey-question__answer-description {
+                    font-size: 0.85em;
+                    color: #666;
+                }
+        
+                .br-ui-survey-question__answer-media {
+                    flex: 0 0 80px;
+                    max-width: 80px;
+                    border-radius: 0.7rem;
+                    overflow: hidden;
+                    background: #f0f0f0;
+                    aspect-ratio: var(--br-ui-survey-answer-aspect-ratio, 1 / 1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+        
+                .br-ui-survey-question__answer-media img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                }
+        
+                .br-ui-survey-question__answer-content {
+                    flex: 1 1 auto;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                }
+        
+                /* title-only answers (no image, no description) */
+                .br-ui-survey-question__answer--simple {
+                    align-items: center;
+                    min-height: 56px;
+                    padding-top: 0.7rem;
+                    padding-bottom: 0.7rem;
+                }`;
         }
 
         _bindBaseEvents() {
@@ -255,16 +373,14 @@
                     box-sizing: border-box;
                     font-family: inherit;
                     color: inherit;
-                    /* can be overridden from outside, e.g. 4 / 3, 16 / 9, 21 / 9 */
-                    --br-ui-survey-answer-aspect-ratio: 1 / 1;
                 }
-            
+        
                 *, *::before, *::after { box-sizing: border-box; }
-            
+        
                 .br-ui-survey-root { width: 100%; }
                 .br-ui-survey-container { width: 100%; }
                 .br-ui-survey-hidden { display: none !important; }
-            
+        
                 /* -------------------------------------------------- */
                 /* Trigger banner styling (desktop + mobile)          */
                 /* -------------------------------------------------- */
@@ -273,115 +389,14 @@
                     cursor: pointer;
                     width: 100%;
                 }
-            
+        
                 .br-ui-survey-trigger-image { width: 100%; height: auto; border: 0; }
                 .br-ui-survey-trigger-image.br-ui-survey-desktop { display: block; }
                 .br-ui-survey-trigger-image.br-ui-survey-mobile { display: none; }
-            
+        
                 @media (max-width: 600px) {
                     .br-ui-survey-trigger-image.br-ui-survey-desktop { display: none; }
                     .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
-                }
-                
-                /* -------------------------------------------------- */
-                /* Question page + answers                            */
-                /* -------------------------------------------------- */
-                .br-ui-survey-page--question { display: flex; flex-direction: column; gap: 1rem; }
-                
-                .br-ui-survey-question__title {
-                    font-size: 1.15rem;
-                    font-weight: 600;
-                    margin: 0 0 0.5rem;
-                }
-                
-                .br-ui-survey-question__answers {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.75rem;
-                    margin-top: 0.25rem;
-                }
-                
-                .br-ui-survey-question__answer { 
-                    text-align: left; 
-                    width: 100%; 
-                    border-radius: 0.9rem; 
-                    border: 1px solid #e1e1e1; 
-                    padding: 0.85rem 1rem; 
-                    background: #ffffff; 
-                    cursor: pointer; 
-                    font: inherit; 
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 1rem;
-                    min-height: 80px;
-                    appearance: none;
-                    -webkit-appearance: none;
-                    transition:
-                        background 0.15s ease,
-                        border-color 0.15s ease,
-                        box-shadow 0.15s ease,
-                        transform 0.15s ease;
-                }
-                
-                .br-ui-survey-question__answer:hover {
-                    border-color: #d0d0d0;
-                    background: #fdfdfd;
-                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
-                    transform: translateY(-1px);
-                }
-                
-                .br-ui-survey-question__answer--selected {
-                    border-color: #333;
-                    background: #f5f5f5;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-                }
-                
-                .br-ui-survey-question__answer:focus-visible {
-                    outline: 2px solid #333;
-                    outline-offset: 2px;
-                }
-                
-                .br-ui-survey-question__answer-title {
-                    font-weight: 600;
-                    font-size: 1rem;
-                    margin: 0 0 0.2rem;
-                }
-                
-                .br-ui-survey-question__answer-description { font-size: 0.85em; color: #666; }
-                
-                /* media + content */
-                .br-ui-survey-question__answer-media {
-                    flex: 0 0 80px;
-                    max-width: 80px;
-                    border-radius: 0.7rem;
-                    overflow: hidden;
-                    background: #f0f0f0;
-                    aspect-ratio: var(--br-ui-survey-answer-aspect-ratio, 1 / 1);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .br-ui-survey-question__answer-media img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    display: block;
-                }
-                
-                .br-ui-survey-question__answer-content {
-                    flex: 1 1 auto;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                }
-                
-                /* title-only answers (no image, no description) */
-                .br-ui-survey-question__answer--simple {
-                    align-items: center;
-                    min-height: 56px;
-                    padding-top: 0.7rem;
-                    padding-bottom: 0.7rem;
                 }
             </style>`));
         }
