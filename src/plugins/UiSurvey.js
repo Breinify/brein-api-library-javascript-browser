@@ -781,7 +781,7 @@
             const answers = node.data.answers;
             for (let i = 0; i < answers.length; i++) {
                 const a = answers[i];
-                if ($$.isPlainObject(a) && a._id === answerId) {
+                if ($.isPlainObject(a) && a._id === answerId) {
                     return a;
                 }
             }
