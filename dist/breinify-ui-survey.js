@@ -1,16 +1,16 @@
 "use strict";
 
 (function () {
-    if (typeof Breinify !== 'object') {
+    if (typeof Breinify !== "object") {
         return;
     }
     // make sure the plugin isn't loaded yet
-    else if (Breinify.plugins._isAdded('uiSurvey')) {
+    else if (Breinify.plugins._isAdded("uiSurvey")) {
         return;
     }
 
-    const generalSurveyElementName = 'br-ui-survey';
-    const popupElementName = 'br-ui-survey-popup';
+    const generalSurveyElementName = "br-ui-survey";
+    const popupElementName = "br-ui-survey-popup";
     const $ = Breinify.UTL._jquery();
 
     class UiSurveyPopup extends HTMLElement {
@@ -18,7 +18,7 @@
         constructor() {
             super();
 
-            this.attachShadow({mode: 'open'});
+            this.attachShadow({mode: "open"});
 
             // Initial static structure for the popup
             this._renderBase();
@@ -43,16 +43,16 @@
                         z-index: 2147483647; /* very high to be above most things */
                         font-family: inherit;
                     }
-        
+
                     :host([open]) { display: block; }
-        
-                    .br-ui-survey-popup__backdrop {
+
+                    .br-popup-backdrop {
                         position: fixed;
                         inset: 0;
                         background: rgba(0, 0, 0, 0.45);
                     }
-        
-                    .br-ui-survey-popup__outer {
+
+                    .br-popup-outer {
                         position: fixed;
                         inset: 0;
                         display: flex;
@@ -60,8 +60,8 @@
                         justify-content: center;
                         pointer-events: none;
                     }
-        
-                    .br-ui-survey-popup__dialog {
+
+                    .br-popup-dialog {
                         pointer-events: auto;
                         max-width: 520px;
                         width: calc(100% - 2rem);
@@ -73,8 +73,8 @@
                         display: flex;
                         flex-direction: column;
                     }
-        
-                    .br-ui-survey-popup__header {
+
+                    .br-popup-header {
                         display: flex;
                         align-items: center;
                         justify-content: flex-end;
@@ -82,7 +82,7 @@
                         border-bottom: 1px solid #eee;
                     }
                     
-                    .br-ui-survey-popup__footer {
+                    .br-popup-footer {
                         padding: 0.75rem 1rem;
                         border-top: 1px solid #eee;
                         display: flex;
@@ -90,8 +90,8 @@
                         justify-content: flex-end;
                         gap: 0.5rem;
                     }
-        
-                    .br-ui-survey-popup__close-btn {
+
+                    .br-popup-close {
                         border: none;
                         background: transparent;
                         cursor: pointer;
@@ -99,19 +99,22 @@
                         line-height: 1;
                         padding: 0.25rem 0.5rem;
                     }
-        
-                    .br-ui-survey-popup__body { padding: 1rem 1.25rem 1.25rem; overflow: auto; }
-        
-                    .br-ui-survey-popup__placeholder {
+
+                    .br-popup-body {
+                        padding: 1rem 1.25rem 1.25rem;
+                        overflow: auto;
+                    }
+
+                    .br-popup-placeholder {
                         font-size: 0.95rem;
                         color: #666;
                         text-align: center;
                     }
                     
                     @media (max-width: 640px) {
-                        .br-ui-survey-popup__outer { align-items: stretch; }
+                        .br-popup-outer { align-items: stretch; }
                     
-                        .br-ui-survey-popup__dialog {
+                        .br-popup-dialog {
                             width: 100%;
                             max-width: 100%;
                             height: 100%;
@@ -120,26 +123,26 @@
                             box-shadow: none;
                         }
                     
-                        .br-ui-survey-popup__body { flex: 1 1 auto; overflow: auto; }
+                        .br-popup-body { flex: 1 1 auto; overflow: auto; }
                     }
-        
+
                     ${this._ensurePageStyle()}
                 </style>
-        
-                <div class="br-ui-survey-popup__backdrop" part="backdrop"></div>
-                <div class="br-ui-survey-popup__outer">
-                    <div class="br-ui-survey-popup__dialog" role="dialog" aria-modal="true">
-                        <div class="br-ui-survey-popup__header">
-                            <button type="button" class="br-ui-survey-popup__close-btn" aria-label="Close survey">
+
+                <div class="br-popup-backdrop" part="backdrop"></div>
+                <div class="br-popup-outer">
+                    <div class="br-popup-dialog" role="dialog" aria-modal="true">
+                        <div class="br-popup-header">
+                            <button type="button" class="br-popup-close" aria-label="Close survey">
                                 &times;
                             </button>
                         </div>
-                        <div class="br-ui-survey-popup__body">
-                            <div class="br-ui-survey-popup__placeholder">
+                        <div class="br-popup-body">
+                            <div class="br-popup-placeholder">
                                 Survey content will appear here…
                             </div>
                         </div>
-                        <div class="br-ui-survey-popup__footer">
+                        <div class="br-popup-footer">
                             <!-- Navigation and CTA controls will go here -->
                         </div>
                     </div>
@@ -155,28 +158,31 @@
          */
         _ensurePageStyle() {
             return `
-                :host { --br-ui-survey-answer-aspect-ratio: 1 / 1; }
-        
-                .br-ui-survey-page--question {
+                :host { --br-survey-answer-aspect-ratio: 1 / 1; }
+
+                /* -------------------------------------------------- */
+                /* Question page + answers                            */
+                /* -------------------------------------------------- */
+                .br-survey-page--question {
                     display: flex;
                     flex-direction: column;
                     gap: 1rem;
                 }
-        
-                .br-ui-survey-question__title {
+
+                .br-survey-question-title {
                     font-size: 1.15rem;
                     font-weight: 600;
                     margin: 0 0 0.5rem;
                 }
-        
-                .br-ui-survey-question__answers {
+
+                .br-survey-answers {
                     display: flex;
                     flex-direction: column;
                     gap: 0.75rem;
                     margin-top: 0.25rem;
                 }
-        
-                .br-ui-survey-question__answer {
+
+                .br-survey-answer {
                     text-align: left;
                     width: 100%;
                     border-radius: 0.9rem;
@@ -197,102 +203,109 @@
                         box-shadow 0.15s ease,
                         transform 0.15s ease;
                 }
-        
-                .br-ui-survey-question__answer:hover {
+
+                .br-survey-answer:hover {
                     border-color: #d0d0d0;
                     background: #fdfdfd;
                     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
                     transform: translateY(-1px);
                 }
-        
-                .br-ui-survey-question__answer--selected {
+
+                .br-survey-answer--selected {
                     border-color: #333;
                     background: #f5f5f5;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
                 }
-        
-                .br-ui-survey-question__answer:focus-visible {
+
+                .br-survey-answer:focus-visible {
                     outline: 2px solid #333;
                     outline-offset: 2px;
                 }
-        
-                .br-ui-survey-question__answer-title {
+
+                .br-survey-answer__title {
                     font-weight: 600;
                     font-size: 1rem;
-                    margin: 0 0 0.2rem;
+                    margin: 0;
+                    line-height: 1.25;
                 }
-        
-                .br-ui-survey-question__answer-description {
+
+                /* add spacing only when a description exists */
+                .br-survey-answer--has-description .br-survey-answer__title {
+                    margin-bottom: 0.2rem;
+                }
+
+                .br-survey-answer__description {
                     font-size: 0.85em;
                     color: #666;
                 }
-        
-                .br-ui-survey-question__answer-media {
+
+                .br-survey-answer__media {
                     flex: 0 0 80px;
                     max-width: 80px;
                     border-radius: 0.7rem;
                     overflow: hidden;
                     background: #f0f0f0;
-                    aspect-ratio: var(--br-ui-survey-answer-aspect-ratio, 1 / 1);
+                    aspect-ratio: var(--br-survey-answer-aspect-ratio, 1 / 1);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                 }
-        
-                .br-ui-survey-question__answer-media img {
+
+                .br-survey-answer__media img {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
                     display: block;
                 }
-        
-                .br-ui-survey-question__answer-content {
+
+                .br-survey-answer__content {
                     flex: 1 1 auto;
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
                 }
-        
+
                 /* title-only answers (no image, no description) */
-                .br-ui-survey-question__answer--simple {
+                .br-survey-answer--simple {
                     align-items: center;
                     min-height: 56px;
                     padding-top: 0.7rem;
                     padding-bottom: 0.7rem;
-                }`;
+                }
+            `;
         }
 
         _bindBaseEvents() {
-            const backdrop = this.shadowRoot.querySelector('.br-ui-survey-popup__backdrop');
-            const closeBtn = this.shadowRoot.querySelector('.br-ui-survey-popup__close-btn');
+            const backdrop = this.shadowRoot.querySelector(".br-popup-backdrop");
+            const closeBtn = this.shadowRoot.querySelector(".br-popup-close");
 
             if (backdrop) {
-                backdrop.addEventListener('click', () => this.close());
+                backdrop.addEventListener("click", () => this.close());
             }
             if (closeBtn) {
-                closeBtn.addEventListener('click', () => this.close());
+                closeBtn.addEventListener("click", () => this.close());
             }
         }
 
         open() {
-            if (!this.hasAttribute('open')) {
-                this.setAttribute('open', '');
+            if (!this.hasAttribute("open")) {
+                this.setAttribute("open", "");
             }
 
             // Focus the dialog for accessibility
-            const dialog = this.shadowRoot.querySelector('.br-ui-survey-popup__dialog');
-            if (dialog && typeof dialog.focus === 'function') {
-                dialog.setAttribute('tabindex', '-1');
+            const dialog = this.shadowRoot.querySelector(".br-popup-dialog");
+            if (dialog && typeof dialog.focus === "function") {
+                dialog.setAttribute("tabindex", "-1");
                 dialog.focus();
             }
         }
 
         close() {
-            if (this.hasAttribute('open')) {
-                this.removeAttribute('open');
+            if (this.hasAttribute("open")) {
+                this.removeAttribute("open");
             }
 
-            this.dispatchEvent(new CustomEvent('br-ui-survey:popup-closed', {
+            this.dispatchEvent(new CustomEvent("br-ui-survey:popup-closed", {
                 bubbles: true,
                 cancelable: false
             }));
@@ -302,7 +315,7 @@
          * Replace the popup body with arbitrary content.
          */
         setBodyContent(contentNode) {
-            const body = this.shadowRoot.querySelector('.br-ui-survey-popup__body');
+            const body = this.shadowRoot.querySelector(".br-popup-body");
             if (!body) {
                 return;
             }
@@ -321,7 +334,7 @@
          * Replace the popup footer with arbitrary content.
          */
         setFooterContent(contentNode) {
-            const footer = this.shadowRoot.querySelector('.br-ui-survey-popup__footer');
+            const footer = this.shadowRoot.querySelector(".br-popup-footer");
             if (!footer) {
                 return;
             }
@@ -337,14 +350,14 @@
     }
 
     class UiSurvey extends HTMLElement {
-        $shadowRoot = null
-        settings = null
-        uuid = null
+        $shadowRoot = null;
+        settings = null;
+        uuid = null;
 
         constructor() {
             super();
 
-            this.attachShadow({mode: 'open'});
+            this.attachShadow({mode: "open"});
 
             this.uuid = null;
             this.$shadowRoot = $(this.shadowRoot);
@@ -362,8 +375,8 @@
          * on any site without clashing with page styles.
          */
         _ensureBaseStyle() {
-            const styleId = 'br-ui-survey-style';
-            if (this.$shadowRoot.find('#' + styleId).length > 0) {
+            const styleId = "br-ui-survey-style";
+            if (this.$shadowRoot.find("#" + styleId).length > 0) {
                 return;
             }
 
@@ -374,29 +387,29 @@
                     font-family: inherit;
                     color: inherit;
                 }
-        
+
                 *, *::before, *::after { box-sizing: border-box; }
-        
-                .br-ui-survey-root { width: 100%; }
-                .br-ui-survey-container { width: 100%; }
-                .br-ui-survey-hidden { display: none !important; }
-        
+
+                .br-survey-root { width: 100%; }
+                .br-survey-container { width: 100%; }
+                .br-survey-hidden { display: none !important; }
+
                 /* -------------------------------------------------- */
                 /* Trigger banner styling (desktop + mobile)          */
                 /* -------------------------------------------------- */
-                .br-ui-survey-trigger {
+                .br-survey-trigger {
                     display: inline-block;
                     cursor: pointer;
                     width: 100%;
                 }
-        
-                .br-ui-survey-trigger-image { width: 100%; height: auto; border: 0; }
-                .br-ui-survey-trigger-image.br-ui-survey-desktop { display: block; }
-                .br-ui-survey-trigger-image.br-ui-survey-mobile { display: none; }
-        
+
+                .br-survey-trigger-image { width: 100%; height: auto; border: 0; }
+                .br-survey-trigger-image.br-survey-trigger-desktop { display: block; }
+                .br-survey-trigger-image.br-survey-trigger-mobile { display: none; }
+
                 @media (max-width: 600px) {
-                    .br-ui-survey-trigger-image.br-ui-survey-desktop { display: none; }
-                    .br-ui-survey-trigger-image.br-ui-survey-mobile { display: block; }
+                    .br-survey-trigger-image.br-survey-trigger-desktop { display: none; }
+                    .br-survey-trigger-image.br-survey-trigger-mobile { display: block; }
                 }
             </style>`));
         }
@@ -410,28 +423,26 @@
             const desktopUrl = triggerCfg.bannerUrl;
             const mobileUrl = triggerCfg.mobileBannerUrl || desktopUrl;
 
-            const $trigger = $('<div/>', {
-                class: 'br-ui-survey-trigger',
-                role: 'button',
+            const $trigger = $("<div/>", {
+                class: "br-survey-trigger",
+                role: "button",
                 tabindex: 0,
-                'aria-label': 'Start survey'
+                "aria-label": "Start survey"
             });
 
             // Desktop image (required)
             if (desktopUrl) {
-                $trigger.append($('<img src="' + desktopUrl + '" class="br-ui-survey-trigger-image" alt="Start survey"/>')
-                    .addClass('br-ui-survey-desktop'));
+                $trigger.append($(`<img src="${desktopUrl}" class="br-survey-trigger-image br-survey-trigger-desktop" alt="Start survey"/>`));
             }
 
             // Mobile image (optional, fallback to desktop)
             if (mobileUrl) {
-                $trigger.append($('<img src="' + mobileUrl + '" class="br-ui-survey-trigger-image" alt="Start survey"/>')
-                    .addClass('br-ui-survey-mobile'));
+                $trigger.append($(`<img src="${mobileUrl}" class="br-survey-trigger-image br-survey-trigger-mobile" alt="Start survey"/>`));
             }
 
             // TODO: need to add activity renderElement
 
-            $trigger.on('click', (evt) => {
+            $trigger.on("click", (evt) => {
 
                 // TODO: need to add activity clickedElement
 
@@ -467,11 +478,11 @@
 
             // debug for now
             // eslint-disable-next-line no-console
-            console.log('Survey trigger clicked:', this.uuid, 'currentNodeId:', this._currentNodeId);
+            console.log("Survey trigger clicked:", this.uuid, "currentNodeId:", this._currentNodeId);
         }
 
         _renderCurrentPage(popup) {
-            if (!popup || typeof popup.setBodyContent !== 'function') {
+            if (!popup || typeof popup.setBodyContent !== "function") {
                 return;
             }
 
@@ -481,22 +492,22 @@
             let contentNode;
 
             if (!$.isPlainObject(node)) {
-                const fallback = document.createElement('div');
-                fallback.className = 'br-ui-survey-page br-ui-survey-page--error';
-                fallback.textContent = 'The survey is not correctly configured.';
+                const fallback = document.createElement("div");
+                fallback.className = "br-survey-page br-survey-page--error";
+                fallback.textContent = "The survey is not correctly configured.";
                 contentNode = fallback;
-            } else if (node.type === 'question') {
+            } else if (node.type === "question") {
                 contentNode = this._createQuestionPage(node);
             } else {
-                const placeholder = document.createElement('div');
-                placeholder.className = 'br-ui-survey-page br-ui-survey-page--unsupported';
-                placeholder.textContent = 'This step type is not yet supported.';
+                const placeholder = document.createElement("div");
+                placeholder.className = "br-survey-page br-survey-page--unsupported";
+                placeholder.textContent = "This step type is not yet supported.";
                 contentNode = placeholder;
             }
 
             popup.setBodyContent(contentNode);
 
-            if (typeof popup.setFooterContent === 'function') {
+            if (typeof popup.setFooterContent === "function") {
                 // footer will stay empty for now – navigation comes later
                 popup.setFooterContent(null);
             }
@@ -504,7 +515,7 @@
 
         _createQuestionPage(node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
-            const questionText = Breinify.UTL.isNonEmptyString(data.question) || '';
+            const questionText = Breinify.UTL.isNonEmptyString(data.question) || "";
             const answers = Array.isArray(data.answers) ? data.answers : [];
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
@@ -512,17 +523,17 @@
                 ? this._selectedAnswers[nodeId]
                 : null;
 
-            const container = document.createElement('div');
-            container.className = 'br-ui-survey-page br-ui-survey-page--question';
+            const container = document.createElement("div");
+            container.className = "br-survey-page br-survey-page--question";
 
-            const titleEl = document.createElement('h2');
-            titleEl.className = 'br-ui-survey-question__title';
+            const titleEl = document.createElement("h2");
+            titleEl.className = "br-survey-question-title";
             titleEl.textContent = questionText;
             container.appendChild(titleEl);
 
             if (answers.length > 0) {
-                const listEl = document.createElement('div');
-                listEl.className = 'br-ui-survey-question__answers';
+                const listEl = document.createElement("div");
+                listEl.className = "br-survey-answers";
 
                 answers.forEach((answer) => {
                     if (!$.isPlainObject(answer)) {
@@ -530,51 +541,55 @@
                     }
 
                     const answerId = Breinify.UTL.isNonEmptyString(answer._id);
-                    const title = Breinify.UTL.isNonEmptyString(answer.title) || '';
+                    const title = Breinify.UTL.isNonEmptyString(answer.title) || "";
                     const desc = Breinify.UTL.isNonEmptyString(answer.description);
                     const imageUrl = Breinify.UTL.isNonEmptyString(answer.resourceUrl);
 
                     const hasImage = imageUrl !== null;
                     const hasDescription = desc !== null;
 
-                    const itemEl = document.createElement('button');
-                    itemEl.type = 'button';
-                    itemEl.className = 'br-ui-survey-question__answer';
+                    const itemEl = document.createElement("button");
+                    itemEl.type = "button";
+                    itemEl.className = "br-survey-answer";
 
                     if (!hasImage && !hasDescription) {
                         // special styling for title-only answers
-                        itemEl.classList.add('br-ui-survey-question__answer--simple');
+                        itemEl.classList.add("br-survey-answer--simple");
+                    }
+
+                    if (hasDescription) {
+                        itemEl.classList.add("br-survey-answer--has-description");
                     }
 
                     if (answerId !== null && selectedAnswerId !== null && answerId === selectedAnswerId) {
-                        itemEl.classList.add('br-ui-survey-question__answer--selected');
+                        itemEl.classList.add("br-survey-answer--selected");
                     }
 
                     // optional media (image) on the left
                     if (hasImage) {
-                        const mediaEl = document.createElement('div');
-                        mediaEl.className = 'br-ui-survey-question__answer-media';
+                        const mediaEl = document.createElement("div");
+                        mediaEl.className = "br-survey-answer__media";
 
-                        const imgEl = document.createElement('img');
+                        const imgEl = document.createElement("img");
                         imgEl.src = imageUrl;
-                        imgEl.alt = title || '';
+                        imgEl.alt = title || "";
                         mediaEl.appendChild(imgEl);
 
                         itemEl.appendChild(mediaEl);
                     }
 
                     // content (title + description) on the right
-                    const contentEl = document.createElement('div');
-                    contentEl.className = 'br-ui-survey-question__answer-content';
+                    const contentEl = document.createElement("div");
+                    contentEl.className = "br-survey-answer__content";
 
-                    const labelEl = document.createElement('div');
-                    labelEl.className = 'br-ui-survey-question__answer-title';
+                    const labelEl = document.createElement("div");
+                    labelEl.className = "br-survey-answer__title";
                     labelEl.textContent = title;
                     contentEl.appendChild(labelEl);
 
                     if (hasDescription) {
-                        const descEl = document.createElement('div');
-                        descEl.className = 'br-ui-survey-question__answer-description';
+                        const descEl = document.createElement("div");
+                        descEl.className = "br-survey-answer__description";
                         descEl.textContent = desc;
                         contentEl.appendChild(descEl);
                     }
@@ -582,7 +597,7 @@
                     itemEl.appendChild(contentEl);
 
                     // selection handling
-                    itemEl.addEventListener('click', () => {
+                    itemEl.addEventListener("click", () => {
                         this._handleAnswerClick(nodeId, answerId, container, itemEl);
                     });
 
@@ -610,12 +625,12 @@
                 return;
             }
 
-            const buttons = container.querySelectorAll('.br-ui-survey-question__answer');
+            const buttons = container.querySelectorAll(".br-survey-answer");
             buttons.forEach((btn) => {
                 if (btn === clickedButton) {
-                    btn.classList.add('br-ui-survey-question__answer--selected');
+                    btn.classList.add("br-survey-answer--selected");
                 } else {
-                    btn.classList.remove('br-ui-survey-question__answer--selected');
+                    btn.classList.remove("br-survey-answer--selected");
                 }
             });
         }
@@ -630,7 +645,7 @@
             const nodes = this.settings.survey.nodes;
 
             // find the start node in the nodes array
-            const startNode = nodes.find((n) => $.isPlainObject(n) && n.type === 'start');
+            const startNode = nodes.find((n) => $.isPlainObject(n) && n.type === "start");
             if (!$.isPlainObject(startNode)) {
                 return null;
             }
@@ -685,7 +700,7 @@
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
 
             // wrapper root
-            const $root = $('<div class="br-ui-survey-root"></div>');
+            const $root = $('<div class="br-survey-root"></div>');
 
             // add trigger banner
             const $trigger = this._createTrigger();
@@ -700,7 +715,7 @@
         }
     }
 
-    Breinify.plugins._add('uiSurvey', {
+    Breinify.plugins._add("uiSurvey", {
         register: function (module, webExId, config) {
 
             if (!window.customElements.get(popupElementName)) {
@@ -712,12 +727,12 @@
             }
 
             // check if we already have the element (just defensive)
-            const id = 'br-survey-' + webExId;
-            let $survey = $('#' + id);
+            const id = "br-survey-" + webExId;
+            let $survey = $("#" + id);
             if ($survey.length === 0) {
 
                 // otherwise we add the element and attach it, if successful we continue
-                $survey = $('<' + generalSurveyElementName + '/>').attr('id', id);
+                $survey = $("<" + generalSurveyElementName + "/>").attr("id", id);
                 if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
                     return;
                 }
