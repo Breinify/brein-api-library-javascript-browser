@@ -189,7 +189,7 @@
                     cursor: pointer;
                     font: inherit;
                     display: flex;
-                    align-items: flex-start;
+                    align-items: center;
                     gap: 1em;
                     min-height: 4em;
                     appearance: none;
