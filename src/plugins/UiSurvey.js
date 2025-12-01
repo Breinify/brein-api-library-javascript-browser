@@ -9,8 +9,149 @@
         return;
     }
 
-    const elementName = 'br-ui-survey';
+    const generalSurveyElementName = 'br-ui-survey';
+    const popupElementName = 'br-ui-survey-popup';
     const $ = Breinify.UTL._jquery();
+
+    class UiSurveyPopup extends HTMLElement {
+
+        constructor() {
+            super();
+
+            this.attachShadow({mode: 'open'});
+
+            // Initial static structure for the popup
+            this._renderBase();
+        }
+
+        _renderBase() {
+            // Only render once
+            if (this.shadowRoot.childNodes.length > 0) {
+                return;
+            }
+
+            this.shadowRoot.innerHTML = `
+                <style>
+                    :host {
+                        display: none;
+                        position: fixed;
+                        inset: 0;
+                        z-index: 2147483647; /* very high to be above most things */
+                        font-family: inherit;
+                    }
+
+                    :host([open]) { display: block; }
+
+                    .br-ui-survey-popup__backdrop {
+                        position: fixed;
+                        inset: 0;
+                        background: rgba(0, 0, 0, 0.45);
+                    }
+
+                    .br-ui-survey-popup__outer {
+                        position: fixed;
+                        inset: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        pointer-events: none;
+                    }
+
+                    .br-ui-survey-popup__dialog {
+                        pointer-events: auto;
+                        max-width: 520px;
+                        width: calc(100% - 2rem);
+                        max-height: calc(100% - 4rem);
+                        background: #fff;
+                        border-radius: 12px;
+                        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    .br-ui-survey-popup__header {
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        padding: 0.5rem 0.75rem;
+                        border-bottom: 1px solid #eee;
+                    }
+
+                    .br-ui-survey-popup__close-btn {
+                        border: none;
+                        background: transparent;
+                        cursor: pointer;
+                        font-size: 1.25rem;
+                        line-height: 1;
+                        padding: 0.25rem 0.5rem;
+                    }
+
+                    .br-ui-survey-popup__body { padding: 1rem 1.25rem 1.25rem; overflow: auto; }
+
+                    .br-ui-survey-popup__placeholder {
+                        font-size: 0.95rem;
+                        color: #666;
+                        text-align: center;
+                    }
+                </style>
+
+                <div class="br-ui-survey-popup__backdrop" part="backdrop"></div>
+                <div class="br-ui-survey-popup__outer">
+                    <div class="br-ui-survey-popup__dialog" role="dialog" aria-modal="true">
+                        <div class="br-ui-survey-popup__header">
+                            <button type="button" class="br-ui-survey-popup__close-btn" aria-label="Close survey">
+                                &times;
+                            </button>
+                        </div>
+                        <div class="br-ui-survey-popup__body">
+                            <div class="br-ui-survey-popup__placeholder">
+                                Survey content will appear here…
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            this._bindBaseEvents();
+        }
+
+        _bindBaseEvents() {
+            const backdrop = this.shadowRoot.querySelector('.br-ui-survey-popup__backdrop');
+            const closeBtn = this.shadowRoot.querySelector('.br-ui-survey-popup__close-btn');
+
+            if (backdrop) {
+                backdrop.addEventListener('click', () => this.close());
+            }
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.close());
+            }
+        }
+
+        open() {
+            if (!this.hasAttribute('open')) {
+                this.setAttribute('open', '');
+            }
+
+            // Focus the dialog for accessibility
+            const dialog = this.shadowRoot.querySelector('.br-ui-survey-popup__dialog');
+            if (dialog && typeof dialog.focus === 'function') {
+                dialog.setAttribute('tabindex', '-1');
+                dialog.focus();
+            }
+        }
+
+        close() {
+            if (this.hasAttribute('open')) {
+                this.removeAttribute('open');
+            }
+
+            this.dispatchEvent(new CustomEvent('br-ui-survey:popup-closed', {
+                bubbles: true,
+                cancelable: false
+            }));
+        }
+    }
 
     class UiSurvey extends HTMLElement {
         $shadowRoot = null
@@ -116,6 +257,20 @@
          * Opens the survey (placeholder for now).
          */
         _openSurvey() {
+
+            // get or create a singleton popup element on <body>
+            let popup = document.querySelector(popupElementName);
+
+            if (!popup) {
+                popup = document.createElement(popupElementName);
+                document.body.appendChild(popup);
+            }
+
+            // for now just open the blank popup
+            popup.open();
+
+            // debug for now
+            // eslint-disable-next-line no-console
             console.log('Survey trigger clicked:', this.uuid);
         }
 
@@ -149,8 +304,12 @@
     Breinify.plugins._add('uiSurvey', {
         register: function (module, webExId, config) {
 
-            if (!window.customElements.get(elementName)) {
-                window.customElements.define(elementName, UiSurvey);
+            if (!window.customElements.get(popupElementName)) {
+                window.customElements.define(popupElementName, UiSurveyPopup);
+            }
+
+            if (!window.customElements.get(generalSurveyElementName)) {
+                window.customElements.define(generalSurveyElementName, UiSurvey);
             }
 
             // check if we already have the element (just defensive)
@@ -159,7 +318,7 @@
             if ($survey.length === 0) {
 
                 // otherwise we add the element and attach it, if successful we continue
-                $survey = $('<' + elementName + '/>').attr('id', id);
+                $survey = $('<' + generalSurveyElementName + '/>').attr('id', id);
                 if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
                     return;
                 }
