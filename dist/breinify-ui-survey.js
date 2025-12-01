@@ -20,9 +20,9 @@
 
             this.attachShadow({mode: "open"});
 
-            // configuration flags (set externally via UiSurvey)
-            this.closeOnBackgroundClick = false;
-            this.resetOnClose = true; // informational, actual reset is handled in UiSurvey
+            // configuration flags (set from UiSurvey via settings.popup)
+            this.closeOnBackgroundClick = false; // default behavior: don't close on background
+            this.resetOnClose = true;           // informational; actual reset is handled in UiSurvey
 
             // Initial static structure for the popup
             this._renderBase();
@@ -295,6 +295,17 @@
                     width: 100%;
                 }
 
+                .br-survey-footer-controls--with-hint {
+                    justify-content: space-between;
+                }
+
+                .br-survey-hint {
+                    font-size: 0.6em;
+                    color: #999;
+                    line-height: var(--br-survey-line-height-tight);
+                    max-width: 60%;
+                }
+
                 .br-survey-btn {
                     padding: 0.45em 1em;
                     border-radius: 0.45em;
@@ -353,7 +364,7 @@
 
             if (backdrop) {
                 backdrop.addEventListener("click", () => {
-                    // desktop-only behavior as per requirement
+                    // desktop-only behavior for background-close
                     if (window.innerWidth && window.innerWidth <= 640) {
                         return;
                     }
@@ -516,11 +527,6 @@
 
         /**
          * Helper to read popup.closeOnBackgroundClick from config.
-         * {
-         *   popup: {
-         *     closeOnBackgroundClick: boolean
-         *   }
-         * }
          * default: false
          */
         _getCloseOnBackgroundClickSetting() {
@@ -534,11 +540,6 @@
 
         /**
          * Helper to read popup.resetOnClose from config.
-         * {
-         *   popup: {
-         *     resetOnClose: boolean
-         *   }
-         * }
          * default: true
          */
         _getResetOnCloseSetting() {
@@ -756,9 +757,15 @@
 
                     itemEl.appendChild(contentEl);
 
-                    // selection handling
+                    // selection handling on single tap/click
                     itemEl.addEventListener("click", () => {
                         this._handleAnswerClick(nodeId, answerId, container, itemEl);
+                    });
+
+                    // double-tap / double-click to go forward immediately
+                    itemEl.addEventListener("dblclick", (evt) => {
+                        evt.preventDefault();
+                        this._handleAnswerDoubleClick(nodeId, answerId);
                     });
 
                     listEl.appendChild(itemEl);
@@ -794,7 +801,7 @@
                 }
             });
 
-            // update only the footer (to show Next) without re-rendering the body
+            // update only the footer (to show Next + hint) without re-rendering the body
             const popup = document.querySelector(popupElementName);
             if (popup && typeof popup.setFooterContent === "function") {
                 const node = this._nodesById[nodeId];
@@ -804,7 +811,20 @@
         }
 
         /**
+         * Double-tap handler: move to next step using the selected answer.
+         */
+        _handleAnswerDoubleClick(nodeId, answerId) {
+            if (nodeId === null || answerId === null) {
+                return;
+            }
+
+            // go forward directly, same as pressing "Next" for this answer
+            this._goForward(nodeId, answerId);
+        }
+
+        /**
          * Create footer controls (Back / Next) based on current node + state.
+         * Also shows a small hint when an answer is selected.
          */
         _createFooterControls(node) {
             const wrapper = document.createElement("div");
@@ -818,6 +838,17 @@
             const selectedAnswerId = nodeId !== null && this._selectedAnswers
                 ? this._selectedAnswers[nodeId]
                 : null;
+
+            let hasHint = false;
+
+            // If we have a selection, show hint about double-tap
+            if (selectedAnswerId !== null) {
+                const hintEl = document.createElement("div");
+                hintEl.className = "br-survey-hint";
+                hintEl.textContent = "Tip: Tap to select. Double-tap an answer to jump to the next question.";
+                wrapper.appendChild(hintEl);
+                hasHint = true;
+            }
 
             // Back button when we have history
             if (Array.isArray(this._history) && this._history.length > 0) {
@@ -845,6 +876,10 @@
                 });
 
                 wrapper.appendChild(btnNext);
+            }
+
+            if (hasHint) {
+                wrapper.classList.add("br-survey-footer-controls--with-hint");
             }
 
             return wrapper;
