@@ -106,10 +106,10 @@
                         justify-content: flex-end;
                         gap: 0.5rem;
                     }
-                    
+
                     @media (max-width: 640px) {
                         .br-popup-outer { align-items: stretch; }
-                    
+
                         .br-popup-dialog {
                             width: 100%;
                             max-width: 100%;
@@ -118,7 +118,7 @@
                             border-radius: 0;
                             box-shadow: none;
                         }
-                    
+
                         .br-popup-body { flex: 1 1 auto; overflow: auto; }
                     }
 
@@ -267,6 +267,64 @@
                     padding-top: 0.7rem;
                     padding-bottom: 0.7rem;
                 }
+
+                /* -------------------------------------------------- */
+                /* Footer controls                                    */
+                /* -------------------------------------------------- */
+                .br-survey-footer-controls {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    gap: 0.5rem;
+                    width: 100%;
+                }
+
+                .br-survey-btn {
+                    padding: 0.45rem 1.0rem;
+                    border-radius: 0.45rem;
+                    border: 1px solid #ccc;
+                    background: #f7f7f7;
+                    cursor: pointer;
+                    font: inherit;
+                    font-size: 0.9rem;
+                    transition:
+                        background 0.15s ease,
+                        border-color 0.15s ease,
+                        box-shadow 0.15s ease,
+                        transform 0.15s ease;
+                }
+
+                .br-survey-btn:hover {
+                    background: #ffffff;
+                    border-color: #999;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+                    transform: translateY(-0.5px);
+                }
+
+                .br-survey-btn:focus-visible {
+                    outline: 2px solid #333;
+                    outline-offset: 2px;
+                }
+
+                .br-survey-btn--next {
+                    background: #333;
+                    color: #fff;
+                    border-color: #333;
+                }
+
+                .br-survey-btn--next:hover {
+                    background: #000;
+                    border-color: #000;
+                }
+
+                .br-survey-btn--back {
+                    background: transparent;
+                    border-color: #bbb;
+                }
+
+                .br-survey-btn--back:hover {
+                    background: #eee;
+                }
             `;
         }
 
@@ -362,6 +420,7 @@
             this._nodesById = {};
             this._edges = [];
             this._currentNodeId = null;
+            this._history = [];
         }
 
         /**
@@ -503,8 +562,8 @@
             popup.setBodyContent(contentNode);
 
             if (typeof popup.setFooterContent === "function") {
-                // footer will stay empty for now – navigation comes later
-                popup.setFooterContent(null);
+                const footerNode = this._createFooterControls(node);
+                popup.setFooterContent(footerNode);
             }
         }
 
@@ -628,6 +687,142 @@
                     btn.classList.remove("br-survey-answer--selected");
                 }
             });
+
+            // update footer (show Next, etc.) immediately after selection
+            const popup = document.querySelector(popupElementName);
+            if (popup) {
+                this._renderCurrentPage(popup);
+            }
+        }
+
+        /**
+         * Create footer controls (Back / Next) based on current node + state.
+         */
+        _createFooterControls(node) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "br-survey-footer-controls";
+
+            if (!$.isPlainObject(node)) {
+                return wrapper;
+            }
+
+            const nodeId = Breinify.UTL.isNonEmptyString(node.id);
+            const selectedAnswerId = nodeId !== null && this._selectedAnswers
+                ? this._selectedAnswers[nodeId]
+                : null;
+
+            // Back button when we have history
+            if (Array.isArray(this._history) && this._history.length > 0) {
+                const btnBack = document.createElement("button");
+                btnBack.type = "button";
+                btnBack.className = "br-survey-btn br-survey-btn--back";
+                btnBack.textContent = "Back";
+
+                btnBack.addEventListener("click", () => {
+                    this._goBack();
+                });
+
+                wrapper.appendChild(btnBack);
+            }
+
+            // Next button only when an answer is selected
+            if (selectedAnswerId !== null) {
+                const btnNext = document.createElement("button");
+                btnNext.type = "button";
+                btnNext.className = "br-survey-btn br-survey-btn--next";
+                btnNext.textContent = "Next";
+
+                btnNext.addEventListener("click", () => {
+                    this._goForward(nodeId, selectedAnswerId);
+                });
+
+                wrapper.appendChild(btnNext);
+            }
+
+            return wrapper;
+        }
+
+        _goForward(nodeId, answerId) {
+            if (!nodeId || !answerId) {
+                return;
+            }
+
+            const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
+
+            if (nextNodeId !== null) {
+                // remember where we came from
+                this._history.push(nodeId);
+                this._currentNodeId = nextNodeId;
+
+                const popup = document.querySelector(popupElementName);
+                if (popup) {
+                    this._renderCurrentPage(popup);
+                }
+            } else {
+                // eslint-disable-next-line no-console
+                console.warn("No next edge found for", nodeId, answerId);
+            }
+        }
+
+        _goBack() {
+            if (!Array.isArray(this._history) || this._history.length === 0) {
+                return;
+            }
+
+            const previousNodeId = this._history.pop();
+            this._currentNodeId = previousNodeId;
+
+            const popup = document.querySelector(popupElementName);
+            if (popup) {
+                this._renderCurrentPage(popup);
+            }
+        }
+
+        /**
+         * Try to resolve next node id from edges + answer.
+         * Supports a few common edge shapes and falls back
+         * to "first edge from node" if nothing matches.
+         */
+        _getNextNodeIdFromAnswer(nodeId, answerId) {
+            if (!nodeId || !answerId || !Array.isArray(this._edges)) {
+                return null;
+            }
+
+            // 1) strict match on `answer`
+            let edge = this._edges.find((e) =>
+                $.isPlainObject(e) &&
+                e.source === nodeId &&
+                e.answer === answerId
+            );
+
+            // 2) common alternates: answerId / data.answerId / data.sourceAnswerId
+            if (!edge) {
+                edge = this._edges.find((e) => {
+                    if (!$.isPlainObject(e) || e.source !== nodeId) {
+                        return false;
+                    }
+                    if (e.answerId === answerId) {
+                        return true;
+                    }
+                    if ($.isPlainObject(e.data) &&
+                        (e.data.answerId === answerId || e.data.sourceAnswerId === answerId)) {
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            // 3) fallback: any outgoing edge from this node
+            if (!edge) {
+                edge = this._edges.find((e) =>
+                    $.isPlainObject(e) &&
+                    e.source === nodeId
+                );
+            }
+
+            return $.isPlainObject(edge)
+                ? Breinify.UTL.isNonEmptyString(edge.target)
+                : null;
         }
 
         _findFirstNodeId() {
@@ -664,6 +859,7 @@
             this._edges = [];
             this._currentNodeId = null;
             this._selectedAnswers = {};
+            this._history = [];
 
             if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey)) {
                 return;
