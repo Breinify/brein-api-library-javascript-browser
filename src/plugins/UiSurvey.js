@@ -782,7 +782,7 @@
 
         /**
          * Try to resolve next node id from edges + answer.
-         * Supports a few common edge shapes and falls back
+         * Supports common edge shapes and falls back
          * to "first edge from node" if nothing matches.
          */
         _getNextNodeIdFromAnswer(nodeId, answerId) {
@@ -790,31 +790,37 @@
                 return null;
             }
 
-            // 1) strict match on `answer`
-            let edge = this._edges.find((e) =>
-                $.isPlainObject(e) &&
-                e.source === nodeId &&
-                e.answer === answerId
-            );
-
-            // 2) common alternates: answerId / data.answerId / data.sourceAnswerId
-            if (!edge) {
-                edge = this._edges.find((e) => {
-                    if (!$.isPlainObject(e) || e.source !== nodeId) {
-                        return false;
-                    }
-                    if (e.answerId === answerId) {
-                        return true;
-                    }
-                    if ($.isPlainObject(e.data) &&
-                        (e.data.answerId === answerId || e.data.sourceAnswerId === answerId)) {
-                        return true;
-                    }
+            // Match any edge that:
+            // - comes from the current node AND
+            // - references this answer in one of the known fields
+            let edge = this._edges.find((e) => {
+                if (!$.isPlainObject(e) || e.source !== nodeId) {
                     return false;
-                });
-            }
+                }
 
-            // 3) fallback: any outgoing edge from this node
+                if (e.answer === answerId) {
+                    return true;
+                }
+                if (e.answerId === answerId) {
+                    return true;
+                }
+                if (e.sourceHandle === answerId) {
+                    return true;
+                }
+
+                if ($.isPlainObject(e.data)) {
+                    if (e.data.answerId === answerId) {
+                        return true;
+                    }
+                    if (e.data.sourceAnswerId === answerId) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+
+            // Fallback: any outgoing edge from this node
             if (!edge) {
                 edge = this._edges.find((e) =>
                     $.isPlainObject(e) &&
