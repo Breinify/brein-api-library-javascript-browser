@@ -308,21 +308,26 @@
                     color: #999;
                     line-height: var(--br-survey-line-height-tight);
                     max-width: 60%;
-                    white-space: pre-line;
+                    white-space: normal;
                     text-align: left;
+                }
+                
+                .br-survey-hint-title {
+                    font-weight: 600;
+                    margin: 0 0 0.15em;
                 }
                 
                 .br-survey-hint-list {
                     margin: 0;
-                    padding: 0 0 0 1.1em; /* indent bullet, not whole block */
+                    padding: 0 0 0 1.1em; /* indent bullets only */
                     list-style: disc;
                 }
                 
                 .br-survey-hint-list li {
-                    margin: 0.15em 0;
+                    margin: 0.1em 0;
                     padding: 0;
-                    text-indent: 0;            /* ensure text aligns under first letter, not bullet */
-                    white-space: normal;       /* allow wrapping */
+                    text-indent: 0;
+                    white-space: normal;
                     line-height: var(--br-survey-line-height-tight);
                 }
 
@@ -957,18 +962,22 @@
             }
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
+            const nodeType = Breinify.UTL.isNonEmptyString(node.type) || node.type || null;
             const selectedAnswerId = nodeId !== null && this._selectedAnswers
                 ? Breinify.UTL.isNonEmptyString(this._selectedAnswers[nodeId])
                 : null;
 
-            let hasHint = false;
-
-            // If we have a selection, show hint about single/double tap
-            if (selectedAnswerId !== null) {
+            // ------------------------------------------------------------
+            // Hint block: only for question pages, always visible there
+            // ------------------------------------------------------------
+            if (nodeType === "question") {
                 const hintEl = document.createElement("div");
                 hintEl.className = "br-survey-hint";
 
-                // create UL list
+                const titleEl = document.createElement("div");
+                titleEl.className = "br-survey-hint-title";
+                titleEl.textContent = "Tips:";
+
                 const list = document.createElement("ul");
                 list.className = "br-survey-hint-list";
 
@@ -981,13 +990,16 @@
                 list.appendChild(li1);
                 list.appendChild(li2);
 
+                hintEl.appendChild(titleEl);
                 hintEl.appendChild(list);
-                wrapper.appendChild(hintEl);
 
-                hasHint = true;
+                wrapper.appendChild(hintEl);
+                wrapper.classList.add("br-survey-footer-controls--with-hint");
             }
 
+            // ------------------------------------------------------------
             // Back button when we have history
+            // ------------------------------------------------------------
             if (Array.isArray(this._history) && this._history.length > 0) {
                 const btnBack = document.createElement("button");
                 btnBack.type = "button";
@@ -1001,7 +1013,9 @@
                 wrapper.appendChild(btnBack);
             }
 
+            // ------------------------------------------------------------
             // Next button only when an answer is selected
+            // ------------------------------------------------------------
             if (selectedAnswerId !== null) {
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
@@ -1013,10 +1027,6 @@
                 });
 
                 wrapper.appendChild(btnNext);
-            }
-
-            if (hasHint) {
-                wrapper.classList.add("br-survey-footer-controls--with-hint");
             }
 
             return wrapper;
