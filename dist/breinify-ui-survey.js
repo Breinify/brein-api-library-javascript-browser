@@ -103,6 +103,22 @@
                         color: #666;
                         text-align: center;
                     }
+                    
+                    @media (max-width: 640px) {
+                        .br-ui-survey-popup__outer { align-items: stretch; }
+                    
+                        .br-ui-survey-popup__dialog {
+                            width: 100%;
+                            max-width: 100%;
+                            height: 100%;
+                            max-height: 100%;
+                            border-radius: 0;
+                            box-shadow: none;
+                        }
+                    
+                        /* overflow: auto -> ensure it scrolls nicely if content is long */
+                        .br-ui-survey-popup__body { flex: 1 1 auto; overflow: auto; }
+                    }
                 </style>
 
                 <div class="br-ui-survey-popup__backdrop" part="backdrop"></div>
