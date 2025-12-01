@@ -467,16 +467,24 @@
                     const desc = Breinify.UTL.isNonEmptyString(answer.description);
                     const imageUrl = Breinify.UTL.isNonEmptyString(answer.resourceUrl);
 
+                    const hasImage = imageUrl !== null;
+                    const hasDescription = desc !== null;
+
                     const itemEl = document.createElement('button');
                     itemEl.type = 'button';
                     itemEl.className = 'br-ui-survey-question__answer';
+
+                    if (!hasImage && !hasDescription) {
+                        // special styling for title-only answers
+                        itemEl.classList.add('br-ui-survey-question__answer--simple');
+                    }
 
                     if (answerId !== null && selectedAnswerId !== null && answerId === selectedAnswerId) {
                         itemEl.classList.add('br-ui-survey-question__answer--selected');
                     }
 
                     // optional media (image) on the left
-                    if (imageUrl !== null) {
+                    if (hasImage) {
                         const mediaEl = document.createElement('div');
                         mediaEl.className = 'br-ui-survey-question__answer-media';
 
@@ -497,7 +505,7 @@
                     labelEl.textContent = title;
                     contentEl.appendChild(labelEl);
 
-                    if (desc !== null) {
+                    if (hasDescription) {
                         const descEl = document.createElement('div');
                         descEl.className = 'br-ui-survey-question__answer-description';
                         descEl.textContent = desc;
