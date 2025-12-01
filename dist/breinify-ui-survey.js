@@ -77,6 +77,15 @@
                         padding: 0.5rem 0.75rem;
                         border-bottom: 1px solid #eee;
                     }
+                    
+                    .br-ui-survey-popup__footer {
+                        padding: 0.75rem 1rem;
+                        border-top: 1px solid #eee;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.5rem;
+                    }
 
                     .br-ui-survey-popup__close-btn {
                         border: none;
@@ -108,6 +117,9 @@
                             <div class="br-ui-survey-popup__placeholder">
                                 Survey content will appear here…
                             </div>
+                        </div>
+                        <div class="br-ui-survey-popup__footer">
+                            <!-- Navigation and CTA controls will go here -->
                         </div>
                     </div>
                 </div>
