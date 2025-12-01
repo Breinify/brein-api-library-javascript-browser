@@ -186,7 +186,7 @@
                     cursor: pointer;
                     font: inherit;
                     display: flex;
-                    align-items: center;
+                    align-items: flex-start;
                     gap: 1rem;
                     min-height: 80px;
                     appearance: none;
@@ -688,10 +688,12 @@
                 }
             });
 
-            // update footer (show Next, etc.) immediately after selection
+            // update only the footer (to show Next) without re-rendering the body
             const popup = document.querySelector(popupElementName);
-            if (popup) {
-                this._renderCurrentPage(popup);
+            if (popup && typeof popup.setFooterContent === "function") {
+                const node = this._nodesById[nodeId];
+                const footerNode = this._createFooterControls(node);
+                popup.setFooterContent(footerNode);
             }
         }
 

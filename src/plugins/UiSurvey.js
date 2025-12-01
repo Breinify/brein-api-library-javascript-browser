@@ -186,12 +186,16 @@
                     cursor: pointer;
                     font: inherit;
                     display: flex;
-                    align-items: center;
+                    align-items: flex-start;
                     gap: 1rem;
                     min-height: 80px;
                     appearance: none;
                     -webkit-appearance: none;
-                    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+                    transition:
+                        background 0.15s ease,
+                        border-color 0.15s ease,
+                        box-shadow 0.15s ease,
+                        transform 0.15s ease;
                 }
 
                 .br-survey-answer:hover {
@@ -684,10 +688,12 @@
                 }
             });
 
-            // update footer (show Next, etc.) immediately after selection
+            // update only the footer (to show Next) without re-rendering the body
             const popup = document.querySelector(popupElementName);
-            if (popup) {
-                this._renderCurrentPage(popup);
+            if (popup && typeof popup.setFooterContent === "function") {
+                const node = this._nodesById[nodeId];
+                const footerNode = this._createFooterControls(node);
+                popup.setFooterContent(footerNode);
             }
         }
 
