@@ -291,14 +291,13 @@
                 .br-survey-page--recommendation {
                     display: flex;
                     flex-direction: column;
-                    gap: 1em;
                     line-height: var(--br-survey-line-height-base);
                 }
 
                 .br-survey-reco-subtitle {
                     font-size: 0.7em;
                     color: #777;
-                    margin: 0 0 0.5em;
+                    margin: 0 0 0.75em;
                 }
 
                 .br-survey-reco-grid {
@@ -1172,9 +1171,9 @@
          */
         _createRecommendationPage(node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
-            const titleText = Breinify.UTL.isNonEmptyString(data.title)
+            const titleText = Breinify.UTL.isNonEmptyString(data.searchingTitle)
                 || "Finding recommendations for you…";
-            const subtitleText = Breinify.UTL.isNonEmptyString(data.subtitle)
+            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchingSubtitle)
                 || "We are matching your answers with the best products.";
 
             const container = document.createElement("div");
