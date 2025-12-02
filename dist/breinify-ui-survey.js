@@ -23,12 +23,9 @@
             // configuration flags (set from UiSurvey via settings.popup)
             this.closeOnBackgroundClick = false; // default behavior: don't close on background
             this.resetOnClose = true;           // informational; actual reset is handled in UiSurvey
-
-            // Initial static structure for the popup
-            this._renderBase();
         }
 
-        _renderBase() {
+        render(settings) {
 
             // Only render once
             if (this.shadowRoot.childNodes.length > 0) {
@@ -149,6 +146,9 @@
                     </div>
                 </div>
             `;
+
+            // attach the configuration style to the popup (it's otherwise not available in the shadow-root)
+            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot));
 
             this._bindBaseEvents();
         }
@@ -989,6 +989,8 @@
             if (!popup) {
                 popup = document.createElement(popupElementName);
                 document.body.appendChild(popup);
+
+                popup.render(this.settings);
             }
 
             // configure popup behavior from settings
