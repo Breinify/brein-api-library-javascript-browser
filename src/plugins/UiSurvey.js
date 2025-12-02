@@ -32,8 +32,9 @@
                 return;
             }
 
+            const popupBaseStyleId = "br-survey-popup-style";
             this.shadowRoot.innerHTML = `
-                <style>
+                <style id="${popupBaseStyleId}">
                     /* -------------------------------------------------- */
                     /* Popup chrome (backdrop, dialog)                    */
                     /* -------------------------------------------------- */
@@ -148,7 +149,7 @@
             `;
 
             // attach the configuration style to the popup (it's otherwise not available in the shadow-root)
-            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot));
+            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot), '#' + popupBaseStyleId);
 
             this._bindBaseEvents();
         }
