@@ -1183,7 +1183,8 @@
             container.className = "br-survey-page br-survey-page--recommendation";
 
             const titleEl = document.createElement("h2");
-            titleEl.className = "br-survey-reco-title";
+            titleEl.classList.add("br-survey-page-title");
+            titleEl.classList.add("br-survey-reco-title");
             titleEl.textContent = titleText;
             container.appendChild(titleEl);
 
