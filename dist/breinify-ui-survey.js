@@ -285,6 +285,114 @@
                 }
 
                 /* -------------------------------------------------- */
+                /* Recommendation page + skeleton                     */
+                /* -------------------------------------------------- */
+                .br-survey-page--recommendation {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1em;
+                    line-height: var(--br-survey-line-height-base);
+                }
+
+                .br-survey-reco-title {
+                    font-size: 1.05em;
+                    font-weight: 600;
+                    margin: 0.75em 0 0.4em;
+                    line-height: var(--br-survey-line-height-tight);
+                }
+
+                .br-survey-reco-subtitle {
+                    font-size: 0.7em;
+                    color: #777;
+                    margin: 0 0 0.5em;
+                }
+
+                .br-survey-reco-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(8em, 1fr));
+                    gap: 0.75em;
+                }
+
+                .br-survey-skeleton-card {
+                    border-radius: 0.75em;
+                    border: 1px solid #eee;
+                    padding: 0.6em;
+                    background: #f9f9f9;
+                    overflow: hidden;
+                }
+
+                .br-survey-skeleton-thumb {
+                    width: 100%;
+                    aspect-ratio: 1 / 1;
+                    border-radius: 0.6em;
+                    background: linear-gradient(90deg, #f0f0f0 0%, #e6e6e6 50%, #f0f0f0 100%);
+                    background-size: 200% 100%;
+                    animation: br-survey-skeleton-pulse 1.4s ease-in-out infinite;
+                    margin-bottom: 0.5em;
+                }
+
+                .br-survey-skeleton-line {
+                    height: 0.55em;
+                    border-radius: 0.4em;
+                    background: linear-gradient(90deg, #f0f0f0 0%, #e6e6e6 50%, #f0f0f0 100%);
+                    background-size: 200% 100%;
+                    animation: br-survey-skeleton-pulse 1.4s ease-in-out infinite;
+                    margin-bottom: 0.35em;
+                }
+
+                .br-survey-skeleton-line--short {
+                    width: 60%;
+                }
+
+                .br-survey-skeleton-line--medium {
+                    width: 80%;
+                }
+
+                @keyframes br-survey-skeleton-pulse {
+                    0% {
+                        background-position: 200% 0;
+                    }
+                    100% {
+                        background-position: -200% 0;
+                    }
+                }
+
+                .br-survey-reco-card {
+                    border-radius: 0.75em;
+                    border: 1px solid #eee;
+                    padding: 0.6em;
+                    background: #fff;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.4em;
+                }
+
+                .br-survey-reco-card-thumb {
+                    width: 100%;
+                    aspect-ratio: 1 / 1;
+                    border-radius: 0.6em;
+                    background: #f2f2f2;
+                    overflow: hidden;
+                }
+
+                .br-survey-reco-card-thumb-inner {
+                    width: 100%;
+                    height: 100%;
+                    background: #ddd;
+                }
+
+                .br-survey-reco-card-title {
+                    font-size: 0.8em;
+                    font-weight: 600;
+                    margin: 0;
+                }
+
+                .br-survey-reco-card-meta {
+                    font-size: 0.7em;
+                    color: #777;
+                }
+
+                /* -------------------------------------------------- */
                 /* Footer controls                                    */
                 /* -------------------------------------------------- */
                 .br-survey-footer-controls {
@@ -942,6 +1050,8 @@
                 contentNode = fallback;
             } else if (node.type === "question") {
                 contentNode = this._createQuestionPage(node);
+            } else if (node.type === "recommendation") {
+                contentNode = this._createRecommendationPage(node);
             } else {
                 const placeholder = document.createElement("div");
                 placeholder.className = "br-survey-page br-survey-page--unsupported";
@@ -1059,6 +1169,140 @@
             }
 
             return container;
+        }
+
+        /**
+         * Create a recommendation page.
+         * Step 1: show skeleton
+         * Step 2 (fake async): replace with placeholder "results"
+         */
+        _createRecommendationPage(node) {
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const titleText = Breinify.UTL.isNonEmptyString(data.title)
+                || "Finding recommendations for you…";
+            const subtitleText = Breinify.UTL.isNonEmptyString(data.subtitle)
+                || "We are matching your answers with the best products.";
+
+            const container = document.createElement("div");
+            container.className = "br-survey-page br-survey-page--recommendation";
+
+            const titleEl = document.createElement("h2");
+            titleEl.className = "br-survey-reco-title";
+            titleEl.textContent = titleText;
+            container.appendChild(titleEl);
+
+            const subtitleEl = document.createElement("div");
+            subtitleEl.className = "br-survey-reco-subtitle";
+            subtitleEl.textContent = subtitleText;
+            container.appendChild(subtitleEl);
+
+            // skeleton grid
+            const grid = document.createElement("div");
+            grid.className = "br-survey-reco-grid";
+
+            const skeletonCardCount = 3;
+            for (let i = 0; i < skeletonCardCount; i++) {
+                const card = document.createElement("div");
+                card.className = "br-survey-skeleton-card";
+
+                const thumb = document.createElement("div");
+                thumb.className = "br-survey-skeleton-thumb";
+                card.appendChild(thumb);
+
+                const line1 = document.createElement("div");
+                line1.className = "br-survey-skeleton-line br-survey-skeleton-line--medium";
+                card.appendChild(line1);
+
+                const line2 = document.createElement("div");
+                line2.className = "br-survey-skeleton-line br-survey-skeleton-line--short";
+                card.appendChild(line2);
+
+                grid.appendChild(card);
+            }
+
+            container.appendChild(grid);
+
+            // Fake async "loading" – later this will become the real recommendation call
+            window.setTimeout(() => {
+                this._renderRecommendationResultsInto(container, node);
+            }, 800);
+
+            return container;
+        }
+
+        /**
+         * Replace the skeleton content with a placeholder "results" view.
+         * For now this is fake; later we can wire it to real recommendation data.
+         */
+        _renderRecommendationResultsInto(container, node) {
+            // If the container is no longer in the DOM (user navigated away), do nothing
+            if (!container || !container.isConnected) {
+                return;
+            }
+
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const preconfig = Breinify.UTL.isNonEmptyString(data.preconfiguredRecommendation)
+                || "Most Popular";
+            const queryLabel = Breinify.UTL.isNonEmptyString(data.queryLabel)
+                || "";
+
+            // Clear previous children (title/subtitle/skeleton)
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+
+            const titleEl = document.createElement("h2");
+            titleEl.className = "br-survey-reco-title";
+            titleEl.textContent = "Recommended for you";
+            container.appendChild(titleEl);
+
+            const subtitleParts = [];
+            if (preconfig) {
+                subtitleParts.push(preconfig);
+            }
+            if (queryLabel) {
+                subtitleParts.push("query: " + queryLabel);
+            }
+
+            const subtitleEl = document.createElement("div");
+            subtitleEl.className = "br-survey-reco-subtitle";
+            subtitleEl.textContent = subtitleParts.length > 0
+                ? subtitleParts.join(" • ")
+                : "Based on your answers, here are some suggestions.";
+            container.appendChild(subtitleEl);
+
+            const grid = document.createElement("div");
+            grid.className = "br-survey-reco-grid";
+
+            // For now, just show some placeholder "products"
+            const placeholderCount = 3;
+            for (let i = 0; i < placeholderCount; i++) {
+                const card = document.createElement("div");
+                card.className = "br-survey-reco-card";
+
+                const thumb = document.createElement("div");
+                thumb.className = "br-survey-reco-card-thumb";
+
+                const thumbInner = document.createElement("div");
+                thumbInner.className = "br-survey-reco-card-thumb-inner";
+                thumb.appendChild(thumbInner);
+
+                const title = document.createElement("div");
+                title.className = "br-survey-reco-card-title";
+                title.textContent = "Product " + (i + 1);
+
+                const meta = document.createElement("div");
+                meta.className = "br-survey-reco-card-meta";
+                meta.textContent = "Placeholder result from \"" + (preconfig || "recommendation") + "\"";
+
+                card.appendChild(thumb);
+                card.appendChild(title);
+                card.appendChild(meta);
+
+                grid.appendChild(card);
+            }
+
+            container.appendChild(grid);
         }
 
         _handleAnswerClick(nodeId, answerId, container, clickedButton) {
@@ -1180,7 +1424,7 @@
             }
 
             // ------------------------------------------------------------
-            // Next button only when an answer is selected
+            // Next button only when an answer is selected (for questions)
             // ------------------------------------------------------------
             if (nodeType === "question") {
                 const btnNext = document.createElement("button");
