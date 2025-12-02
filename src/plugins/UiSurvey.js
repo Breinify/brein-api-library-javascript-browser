@@ -385,11 +385,6 @@
                     margin: 0;
                 }
 
-                .br-survey-reco-card-meta {
-                    font-size: 0.7em;
-                    color: #777;
-                }
-
                 /* -------------------------------------------------- */
                 /* Footer controls                                    */
                 /* -------------------------------------------------- */
@@ -1256,7 +1251,6 @@
                         '    <div class="br-survey-reco-card-thumb-inner"><img src="%%image%%" alt="%%name%%"/></div>' +
                         '  </div>' +
                         '  <div class="br-survey-reco-card-title">%%name%%</div>' +
-                        '  <div class="br-survey-reco-card-meta">Placeholder result from "General: Most Popular"</div>' +
                         '</div>';
                 }
             }
@@ -1278,7 +1272,9 @@
                     payload: recPayload
                 },
                 process: {
-                    attachedContainer: function () {
+                    attachedContainer: function ($container, $itemContainer, data, option) {
+                        console.log(data);
+                        console.log(option);
                         $grid.empty();
                     }
                 }
