@@ -1316,7 +1316,9 @@
             }
 
             const placeholders =  {
-                priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c'
+                priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c',
+                percentageOffDisplay: 'f4a09a77-d1ac-45c2-be9f-f542a8665fd8',
+                percentageOff: '223021cb-cf95-4e5c-ba1e-1645d594f56d'
             }; // node.data.placeholders;
             return Object.fromEntries(
                 Object.entries(placeholders).flatMap(([key, snippetId]) => {
