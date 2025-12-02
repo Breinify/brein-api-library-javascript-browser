@@ -175,7 +175,7 @@
                     line-height: var(--br-survey-line-height-base);
                 }
 
-                .br-survey-question-title {
+                .br-survey-page-title {
                     font-size: 1.15em;
                     font-weight: 600;
                     margin: 0.75em 0 0.5em;
@@ -292,13 +292,6 @@
                     flex-direction: column;
                     gap: 1em;
                     line-height: var(--br-survey-line-height-base);
-                }
-
-                .br-survey-reco-title {
-                    font-size: 1.05em;
-                    font-weight: 600;
-                    margin: 0.75em 0 0.4em;
-                    line-height: var(--br-survey-line-height-tight);
                 }
 
                 .br-survey-reco-subtitle {
@@ -1083,7 +1076,8 @@
             container.className = "br-survey-page br-survey-page--question";
 
             const titleEl = document.createElement("h2");
-            titleEl.className = "br-survey-question-title";
+            titleEl.classList.add("br-survey-page-title");
+            titleEl.classList.add("br-survey-question-title");
             titleEl.textContent = questionText;
             container.appendChild(titleEl);
 
@@ -1251,13 +1245,13 @@
             // determine the product snippet to use
             let snippet = Breinify.plugins.snippetManager.getSnippet(itemSnippetId);
             if (snippet === null) {
-                snippet = function() {
+                snippet = function () {
                     return '' +
                         '<div class="br-survey-reco-card">' +
                         '  <div class="br-survey-reco-card-thumb">' +
                         '    <div class="br-survey-reco-card-thumb-inner"><img src="%%image%%" alt="%%name%%"/></div>' +
                         '  </div>' +
-                        '  <div class="br-survey-reco-card-title">%%name%%</div>' +
+                        '  <div class="br-survey-page-title br-survey-reco-card-title">%%name%%</div>' +
                         '  <div class="br-survey-reco-card-meta">Placeholder result from "General: Most Popular"</div>' +
                         '</div>';
                 }
@@ -1266,12 +1260,12 @@
             // fire it and handle the result
             Breinify.plugins.recommendations.render({
                 position: {
-                    append: function() {
+                    append: function () {
                         return $container;
                     }
                 },
                 templates: {
-                    container: function() {
+                    container: function () {
                         return $grid;
                     },
                     item: snippet
@@ -1280,7 +1274,7 @@
                     payload: recPayload
                 },
                 process: {
-                    attachedContainer: function() {
+                    attachedContainer: function () {
                         $grid.empty();
                     }
                 }
