@@ -1171,9 +1171,9 @@
          */
         _createRecommendationPage(node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
-            const titleText = Breinify.UTL.isNonEmptyString(data.searchingTitle)
+            const titleText = Breinify.UTL.isNonEmptyString(data.searchTitle)
                 || "Finding recommendations for you…";
-            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchingSubtitle)
+            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle)
                 || "We are matching your answers with the best products.";
 
             const container = document.createElement("div");
@@ -1259,7 +1259,8 @@
                 Breinify.UTL.isNonEmptyString(data.title) ||
                 "Here are some great picks we found for you";
             const defaultResultSubtitle =
-                Breinify.UTL.isNonEmptyString(data.subtitle);
+                Breinify.UTL.isNonEmptyString(data.subtitle) ||
+                "";
 
             // fire it and handle the result
             Breinify.plugins.recommendations.render({
@@ -1268,6 +1269,7 @@
                         return $container;
                     }
                 },
+                placeholders: this._createPlaceholders(node),
                 templates: {
                     container: function () {
                         return $grid;
@@ -1304,6 +1306,24 @@
                     }
                 }
             });
+        }
+
+        _createPlaceholders(node) {
+            if (!!$.isPlainObject(node) ||
+                !$.isPlainObject(node.data) ||
+                !$.isPlainObject(node.data.placeholders)) {
+                return {
+                    priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c'
+                };
+            }
+
+            const placeholders = node.data.placeholders;
+            return Object.fromEntries(
+                Object.entries(placeholders).flatMap(([key, snippetId]) => {
+                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                    return func == null ? [] : [[key, func]];
+                })
+            );
         }
 
         _handleAnswerClick(nodeId, answerId, container, clickedButton) {
