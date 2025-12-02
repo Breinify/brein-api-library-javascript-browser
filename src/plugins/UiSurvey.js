@@ -1253,7 +1253,7 @@
                         '  <div class="br-survey-reco-card-thumb">' +
                         '    <div class="br-survey-reco-card-thumb-inner"></div>' +
                         '  </div>' +
-                        '  <div class="br-survey-reco-card-title">%%productName%%</div>' +
+                        '  <div class="br-survey-reco-card-title">%%name%%</div>' +
                         '  <div class="br-survey-reco-card-meta">Placeholder result from "General: Most Popular"</div>' +
                         '</div>';
                 }
