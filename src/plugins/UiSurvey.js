@@ -1309,15 +1309,15 @@
         }
 
         _createPlaceholders(node) {
-            if (!!$.isPlainObject(node) ||
+            if (!$.isPlainObject(node) ||
                 !$.isPlainObject(node.data) ||
                 !$.isPlainObject(node.data.placeholders)) {
-                return {
-                    priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c'
-                };
+                // return {};
             }
 
-            const placeholders = node.data.placeholders;
+            const placeholders =  {
+                priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c'
+            }; // node.data.placeholders;
             return Object.fromEntries(
                 Object.entries(placeholders).flatMap(([key, snippetId]) => {
                     const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
