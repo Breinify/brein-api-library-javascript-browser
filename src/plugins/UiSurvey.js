@@ -1230,6 +1230,8 @@
 
             // attach the container
             popup.setBodyContent(container);
+            const $container = $(container);
+            const $grid = $container.find('.br-survey-reco-grid');
 
             // create the payload for the recommender
             const itemSnippetId = Breinify.UTL.isNonEmptyString(data.renderResultSnippet);
@@ -1261,12 +1263,12 @@
             Breinify.plugins.recommendations.render({
                 position: {
                     append: function() {
-                        return $(container);
+                        return $container;
                     }
                 },
                 templates: {
                     container: function() {
-                        return '<div></div>';
+                        return $grid;
                     },
                     item: snippet
                 },
@@ -1275,7 +1277,7 @@
                 },
                 process: {
                     attachedContainer: function() {
-                        $(container).empty();
+                        $grid.empty();
                     }
                 }
             });
