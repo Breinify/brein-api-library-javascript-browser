@@ -1285,12 +1285,12 @@
 
                         const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
                         const resolvedSubtitle = Breinify.UTL.isNonEmptyString(additional.subtitle) || defaultResultSubtitle;
-                        const $titleEl = $attachedContainer.find(".br-survey-page-title.br-survey-reco-title");
+                        const $titleEl = $container.find(".br-survey-page-title.br-survey-reco-title");
                         if ($titleEl.length) {
                             $titleEl.text(resolvedTitle);
                         }
 
-                        const $subtitleEl = $attachedContainer.find(".br-survey-reco-subtitle");
+                        const $subtitleEl = $container.find(".br-survey-reco-subtitle");
                         if ($subtitleEl.length) {
                             if (resolvedSubtitle === null) {
                                 $subtitleEl.text("").hide();
@@ -1300,7 +1300,7 @@
                         }
 
                         // remove skeleton cards; recommender will append items into $itemContainer / $grid
-                        $grid.empty();
+                        $attachedContainer.empty();
                     }
                 }
             });
