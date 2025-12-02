@@ -1041,25 +1041,23 @@
             const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
             const node = nodeId !== null && this._nodesById ? this._nodesById[nodeId] : null;
 
-            let contentNode;
-
             if (!$.isPlainObject(node)) {
                 const fallback = document.createElement("div");
                 fallback.className = "br-survey-page br-survey-page--error";
                 fallback.textContent = "The survey is not correctly configured.";
-                contentNode = fallback;
+                popup.setBodyContent(fallback);
             } else if (node.type === "question") {
-                contentNode = this._createQuestionPage(node);
+                const questionPage = this._createQuestionPage(node);
+                popup.setBodyContent(questionPage);
             } else if (node.type === "recommendation") {
-                contentNode = this._createRecommendationPage(node);
+                const recLoadingPage = this._createRecommendationPage(node);
+                this._requestRecommendations(popup, recLoadingPage, node);
             } else {
                 const placeholder = document.createElement("div");
                 placeholder.className = "br-survey-page br-survey-page--unsupported";
                 placeholder.textContent = "This step type is not yet supported.";
-                contentNode = placeholder;
+                popup.setBodyContent(placeholder);
             }
-
-            popup.setBodyContent(contentNode);
 
             if (typeof popup.setFooterContent === "function") {
                 const footerNode = this._createFooterControls(node);
@@ -1222,12 +1220,70 @@
 
             container.appendChild(grid);
 
-            // Fake async "loading" – later this will become the real recommendation call
+            return container;
+        }
+
+        _requestRecommendations(popup, container, node) {
+
+            // get the data to be used for the page
+            const data = $.isPlainObject(node.data) ? node.data : {};
+
+            // attach the container
+            popup.setBodyContent(container);
+
+            // create the payload for the recommender
+            const itemSnippetId = Breinify.UTL.isNonEmptyString(data.renderResultSnippet);
+            const preconfig = Breinify.UTL.isNonEmptyString(data.preconfiguredRecommendation);
+            const queryLabel = Breinify.UTL.isNonEmptyString(data.queryLabel) || preconfig;
+            const recPayload = {
+                recommendationQueryName: queryLabel,
+                namedRecommendations: [
+                    preconfig
+                ]
+            };
+
+            // determine the product snippet to use
+            let snippet = Breinify.plugins.snippetManager.getSnippet(itemSnippetId);
+            if (snippet === null) {
+                snippet = function() {
+                    return '' +
+                        '<div class="br-survey-reco-card">' +
+                        '  <div class="br-survey-reco-card-thumb">' +
+                        '    <div class="br-survey-reco-card-thumb-inner"></div>' +
+                        '  </div>' +
+                        '  <div class="br-survey-reco-card-title">%%productName%%</div>' +
+                        '  <div class="br-survey-reco-card-meta">Placeholder result from "General: Most Popular"</div>' +
+                        '</div>';
+                }
+            }
+
+            // fire it and handle the result
+            Breinify.plugins.recommendations.render({
+                position: {
+                    append: function() {
+                        return $(container);
+                    }
+                },
+                templates: {
+                    container: function() {
+                        return '<div></div>';
+                    },
+                    item: snippet
+                },
+                recommender: {
+                    payload: recPayload
+                },
+                process: {
+                    attachedContainer: function() {
+                        $(container).empty();
+                    }
+                }
+            });
+
             window.setTimeout(() => {
                 this._renderRecommendationResultsInto(container, node);
             }, 800);
 
-            return container;
         }
 
         /**
@@ -1235,6 +1291,7 @@
          * For now this is fake; later we can wire it to real recommendation data.
          */
         _renderRecommendationResultsInto(container, node) {
+
             // If the container is no longer in the DOM (user navigated away), do nothing
             if (!container || !container.isConnected) {
                 return;
