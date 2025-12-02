@@ -1254,6 +1254,13 @@
                 }
             }
 
+            // determine default title and subtitel
+            const defaultResultTitle =
+                Breinify.UTL.isNonEmptyString(data.title) ||
+                "Here are some great picks we found for you";
+            const defaultResultSubtitle =
+                Breinify.UTL.isNonEmptyString(data.subtitle);
+
             // fire it and handle the result
             Breinify.plugins.recommendations.render({
                 position: {
@@ -1271,9 +1278,28 @@
                     payload: recPayload
                 },
                 process: {
-                    attachedContainer: function ($container, $itemContainer, data, option) {
-                        console.log(data);
-                        console.log(option);
+                    attachedContainer: function ($attachedContainer, $itemContainer, recData, option) {
+
+                        // resolve title / subtitle from recData.additionalData → data → defaults
+                        const additional = recData && $.isPlainObject(recData.additionalData) ? recData.additionalData : {};
+
+                        const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
+                        const resolvedSubtitle = Breinify.UTL.isNonEmptyString(additional.subtitle) || defaultResultSubtitle;
+                        const $titleEl = $attachedContainer.find(".br-survey-page-title.br-survey-reco-title");
+                        if ($titleEl.length) {
+                            $titleEl.text(resolvedTitle);
+                        }
+
+                        const $subtitleEl = $attachedContainer.find(".br-survey-reco-subtitle");
+                        if ($subtitleEl.length) {
+                            if (resolvedSubtitle === null) {
+                                $subtitleEl.text("").hide();
+                            } else {
+                                $subtitleEl.text(resolvedSubtitle).show();
+                            }
+                        }
+
+                        // remove skeleton cards; recommender will append items into $itemContainer / $grid
                         $grid.empty();
                     }
                 }
