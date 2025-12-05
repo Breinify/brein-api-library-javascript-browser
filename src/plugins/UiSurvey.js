@@ -1254,13 +1254,9 @@
                 }
             }
 
-            // determine default title and subtitel
-            const defaultResultTitle =
-                Breinify.UTL.isNonEmptyString(data.title) ||
-                "Here are some great picks we found for you";
-            const defaultResultSubtitle =
-                Breinify.UTL.isNonEmptyString(data.subtitle) ||
-                "";
+            // determine default title and subtitle
+            const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) || "Here are some great picks we found for you";
+            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "";
 
             // fire it and handle the result
             Breinify.plugins.recommendations.render({
@@ -1311,17 +1307,12 @@
         _createPlaceholders(node) {
             if (!$.isPlainObject(node) ||
                 !$.isPlainObject(node.data) ||
-                !$.isPlainObject(node.data.placeholders)) {
-                // return {};
+                !$.isPlainObject(node.data.placeholdersSnippets)) {
+                return {};
             }
 
-            const placeholders =  {
-                priceInfo: '632a7b3d-fdbb-4b2e-851e-362b01ce684c',
-                percentageOffDisplay: 'f4a09a77-d1ac-45c2-be9f-f542a8665fd8',
-                percentageOff: '223021cb-cf95-4e5c-ba1e-1645d594f56d'
-            }; // node.data.placeholders;
             return Object.fromEntries(
-                Object.entries(placeholders).flatMap(([key, snippetId]) => {
+                Object.entries(node.data.placeholdersSnippets).flatMap(([key, snippetId]) => {
                     const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
                     return func == null ? [] : [[key, func]];
                 })
