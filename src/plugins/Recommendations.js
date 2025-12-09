@@ -1009,24 +1009,23 @@
                 }
             }
 
-            if (typeof recommendation.id !== 'string') {
-                return;
-            }
-
             const type = Breinify.UTL.isNonEmptyString(recommendationData?.meta?.type);
-            if (type === 'com.brein.common.dto.CustomerAssetsDto') {
-                activityTags.recType = type;
+            activityTags.recType = type;
+
+            const id = Breinify.UTL.isNonEmptyString(recommendation.id);
+            if (id === null) {
+                // nothing more to do
+            } else if (type === 'com.brein.common.dto.CustomerAssetsDto') {
                 activityTags.assetIds = [];
-                activityTags.assetIds.push(recommendation.id);
+                activityTags.assetIds.push(id);
             } else if (type === 'com.brein.common.dto.CustomerProductDto') {
-                activityTags.recType = type;
                 activityTags.productIds = [];
-                activityTags.productIds.push(recommendation.id);
+                activityTags.productIds.push(id);
             } else {
 
                 // by default, we still bind the data to productIds
                 activityTags.productIds = [];
-                activityTags.productIds.push(recommendation.id);
+                activityTags.productIds.push(id);
             }
         },
 
