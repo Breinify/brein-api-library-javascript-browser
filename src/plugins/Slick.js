@@ -11,9 +11,16 @@
 
     const $ = Breinify.UTL._jquery();
     const _private = {
+        _isSetup: false,
         defMaxWaitTimeInMs: 2500,
 
         setup: function (settings) {
+
+            // do not set up twice, otherwise things may be loaded multiple times
+            if (this._isSetup === true) {
+                return;
+            }
+
             const _self = this;
 
             const startTimeInMs = new Date().getTime();
@@ -46,6 +53,8 @@
                     });
                 }
             });
+
+            this._isSetup = true;
         },
 
         apply: function ($el, slickConfig) {
@@ -62,7 +71,7 @@
             });
         },
 
-        refresh: function($el) {
+        refresh: function ($el) {
             const _self = this;
 
             this._waitFor(15000, function () {
@@ -142,12 +151,27 @@
             slickCss.rel = "stylesheet";
             slickCss.href = "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css";
 
+            let slickThemeCss = null;
+            if (settings.useTheme === true) {
+                let theme = Breinify.UTL.isNonEmptyString(settings.theme);
+                theme = theme === null ? "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick-theme.css" : theme;
+
+                slickThemeCss = document.createElement("link");
+                slickThemeCss.type = "text/css";
+                slickThemeCss.rel = "stylesheet";
+                slickThemeCss.href = theme;
+            }
+
             const slickJs = document.createElement("script");
             slickJs.type = "text/javascript";
             slickJs.src = "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js";
 
             (document.head || document.documentElement).appendChild(slickCss);
             (document.body || document.head || document.documentElement).appendChild(slickJs);
+            
+            if (slickThemeCss !== null) {
+                (document.head || document.documentElement).appendChild(slickThemeCss);
+            }
 
             // next we wait for slick to be available and call the callback, if there is one
             if (!$.isFunction(settings.onLoad)) {
@@ -165,14 +189,22 @@
     };
 
     const Slick = {
+        deferSetup: function () {
+            return true;
+        },
 
         setup: function () {
-
             let maxWaitTimeInMs = this.getConfig('maxWaitTimeInMs', null);
             maxWaitTimeInMs = typeof maxWaitTimeInMs === 'number' && maxWaitTimeInMs < 30000 ? Math.max(-1, maxWaitTimeInMs) : _private.defMaxWaitTimeInMs;
 
             let checkForSlick = this.getConfig('checkForSlick', null);
             checkForSlick = typeof checkForSlick === 'boolean' ? checkForSlick : false;
+
+            let theme = this.getConfig('theme', null);
+            theme = typeof theme === 'string' ? theme : null;
+
+            let useTheme = this.getConfig('useTheme', null);
+            useTheme = typeof useTheme === 'boolean' ? useTheme : theme !== null;
 
             let onLoad = this.getConfig('onLoad', null);
             onLoad = $.isFunction(onLoad) ? onLoad : null;
@@ -180,11 +212,19 @@
             _private.setup({
                 checkForSlick: checkForSlick,
                 maxWaitTimeInMs: maxWaitTimeInMs,
+                useTheme: useTheme,
+                theme: theme,
                 onLoad: onLoad
             });
         },
 
         apply: function ($el, slickConfig) {
+
+            // make sure when apply is called that we actually are set up, otherwise call it now
+            if (_private._isSetup !== true) {
+                this.setup();
+            }
+
             _private.apply($el, slickConfig);
         },
 

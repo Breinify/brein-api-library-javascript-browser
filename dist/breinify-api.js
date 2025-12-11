@@ -17068,6 +17068,8 @@ dependencyScope.jQuery = $;;
 
             this[name] = $.extend({
                 config: defConfig,
+                _setupDeferred: false,
+                _setupDone: false,
 
                 setConfig: function (key, value) {
                     if ($.isPlainObject(key) && (typeof value === 'undefined' || value == null)) {
@@ -17076,6 +17078,12 @@ dependencyScope.jQuery = $;;
                         this.config[key] = value;
                     } else {
                         // ignore
+                    }
+
+                    if (this._setupDeferred === true && this._setupDone === false && $.isFunction(this.setup)) {
+                        this.setup();
+                        _privates.triggerEvent('breinifyPlugInSetup[' + name + ']', [name, this]);
+                        this._setupDone = true;
                     }
 
                     // trigger an onConfigChange
@@ -17094,24 +17102,39 @@ dependencyScope.jQuery = $;;
                 }
             }, plugIn);
 
+            const enhancedPlugIn = this[name];
+
             /*
              * Trigger some events for the plugin life-cycle:
              * 1. bound - the plugin is actually bound to the `plugins` instance
              * 2. setup - the plugin is set up (setup method executed); only triggered if setup method is available
              * 3. added - the plugin is successfully added to the Breinify library stack
              */
-            _privates.triggerEvent('breinifyPlugInBound[' + name + ']', [name, this[name]]);
+            _privates.triggerEvent('breinifyPlugInBound[' + name + ']', [name, enhancedPlugIn]);
 
             // if there is a setup we set up the plug-in now and trigger the event
-            if ($.isFunction(this[name].setup)) {
-                this[name].setup();
+            if ($.isFunction(enhancedPlugIn.setup)) {
 
-                _privates.triggerEvent('breinifyPlugInSetup[' + name + ']', [name, this[name]]);
+                // check if a deferred setup is requested, which means we wait until the configuration is changed
+                let defer = false;
+                if ($.isFunction(enhancedPlugIn.deferSetup)) {
+                    defer = enhancedPlugIn.deferSetup() === true;
+                }
+
+                if (defer === true) {
+                    enhancedPlugIn._setupDeferred = true;
+                    enhancedPlugIn._setupDone = false;
+                } else {
+                    enhancedPlugIn.setup();
+                    _privates.triggerEvent('breinifyPlugInSetup[' + name + ']', [name, enhancedPlugIn]);
+                    enhancedPlugIn._setupDone = true;
+                }
+            } else {
+                enhancedPlugIn._setupDone = true;
             }
 
-            _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, this[name]]);
-
-            return this[name];
+            _privates.triggerEvent('breinifyPlugInAdded[' + name + ']', [name, enhancedPlugIn]);
+            return enhancedPlugIn;
         }
     };
 
