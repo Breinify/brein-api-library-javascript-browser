@@ -391,8 +391,8 @@
             },
             'marker::container': Renderer.marker.container,
             'marker::item': Renderer.marker.item,
-            'marker::recommender': function() {
-                return '';
+            'marker::recommender': function(data) {
+                return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
             }
         },
         /*
