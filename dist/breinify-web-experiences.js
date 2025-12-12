@@ -128,7 +128,7 @@
                         isValidPage = true;
                     }
                 } else if (type === 'REGEX') {
-                    if (new RegExp(type.value).test(window.location.pathname) === true) {
+                    if (new RegExp(value).test(window.location.pathname) === true) {
                         isValidPage = true;
                     }
                 } else {
