@@ -390,7 +390,10 @@
                 return Breinify.UTL.uuid();
             },
             'marker::container': Renderer.marker.container,
-            'marker::item': Renderer.marker.item
+            'marker::item': Renderer.marker.item,
+            'marker::recommender': function() {
+                return '';
+            }
         },
         /*
          * Defines HTML templates or jQuery instances that define how a container or item of the rendered recommender
