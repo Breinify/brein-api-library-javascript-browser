@@ -850,11 +850,11 @@
                 this.blurElements.push({
                     $el: $el,
                     settings: settings,
-                    data: data
+                    data: $.extend(true, {}, data)
                 });
             } else {
                 $el.click(function (event) {
-                    _self.handleClick(event, $el, settings, data);
+                    _self.handleClick(event, $el, settings, $.extend(true, {}, data));
                 });
             }
         },
