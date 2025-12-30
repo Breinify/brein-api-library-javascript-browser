@@ -909,9 +909,14 @@
         _handleClick: function (option, $el, event, additionalEventData) {
 
             // search for the container
-            const $container = $el.closest('.' + Renderer.marker.container);
+            let $container = $el.closest('.' + Renderer.marker.container);
             if ($container.length !== 1) {
-                return;
+
+                // try to find it via the data attribute
+                $container = $el.closest('[data-' + Renderer.marker.container + '="true"]');
+                if ($container.length !== 1) {
+                    return;
+                }
             }
 
             const containerData = $container.data(Renderer.marker.data);
