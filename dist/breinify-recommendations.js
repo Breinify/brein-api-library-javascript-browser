@@ -1026,12 +1026,20 @@
             } else if (type === 'com.brein.common.dto.CustomerAssetsDto') {
                 activityTags.assetIds = [];
                 activityTags.assetIds.push(id);
+
+                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.['assets::assetTitle'] ?? null);
+                activityTags.assetNames = [];
+                activityTags.assetNames.push(name);
             } else if (type === 'com.brein.common.dto.CustomerProductDto') {
                 activityTags.productIds = [];
                 activityTags.productIds.push(id);
+
+                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.['product::productName'] ?? null);
+                activityTags.productNames = [];
+                activityTags.productNames.push(name);
             } else {
 
-                // by default, we still bind the data to productIds
+                // by default, we still bind the id to productIds
                 activityTags.productIds = [];
                 activityTags.productIds.push(id);
             }
