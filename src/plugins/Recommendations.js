@@ -1009,7 +1009,7 @@
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
 
             // set the widgetPosition and the type (if possible)
-            if (typeof recommendation.widgetPosition === 'number') {
+            if (typeof recommendation?.widgetPosition === 'number') {
                 activityTags.widgetPosition = recommendation.widgetPosition;
 
                 if (typeof activityTags.widgetType === 'string') {
@@ -1020,7 +1020,7 @@
             const type = Breinify.UTL.isNonEmptyString(recommendationData?.meta?.type);
             activityTags.recType = type;
 
-            const id = Breinify.UTL.isNonEmptyString(recommendation.id);
+            const id = Breinify.UTL.isNonEmptyString(recommendation?.id);
             if (id === null) {
                 // nothing more to do
             } else if (type === 'com.brein.common.dto.CustomerAssetsDto') {
