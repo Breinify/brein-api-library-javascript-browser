@@ -904,9 +904,13 @@
             // set the info what was decided to the eventData to be usable in the onAfterActivitySent
             eventData.scheduleActivity = scheduleActivity;
 
+            // determine the final activity type to use
+            let selectedActivityType = Breinify.UTL.isNonEmptyString(settings?.activityType);
+            selectedActivityType = selectedActivityType === null ? activityType : selectedActivityType;
+
             if (scheduleActivity === true) {
 
-                Breinify.plugins.activities.scheduleDelayedActivity(user, activityType, tags, 60000);
+                Breinify.plugins.activities.scheduleDelayedActivity(user, selectedActivityType, tags, 60000);
                 if ($.isFunction(settings.onActivitySent)) {
                     settings.onActivitySent(settings, eventData, user, tags);
                 }
@@ -915,7 +919,7 @@
                 }
             } else if (scheduleActivity === false) {
 
-                Breinify.plugins.activities.generic(activityType, user, tags, function () {
+                Breinify.plugins.activities.generic(selectedActivityType, user, tags, function () {
                     if ($.isFunction(settings.onAfterActivitySent)) {
                         settings.onAfterActivitySent(settings, eventData, user, tags);
                     }
