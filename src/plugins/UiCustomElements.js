@@ -52,8 +52,12 @@
             this._observer = new MutationObserver((mutations) => {
                 for (const m of mutations) {
                     if (m.type === "childList") {
+
                         /*
-                         *
+                         * Look for JSON config scripts. We intentionally use `type$="application/json"`
+                         * instead of an exact match, because libraries like jQuery may rewrite script
+                         * tags while inserting HTML (e.g. `application/json` → `true/application/json`).
+                         * Using "ends-with" ensures we still detect valid JSON config blocks reliably.
                          */
                         if (this.querySelector('script[type$="application/json"]')) {
                             this._config = this._loadConfig();
