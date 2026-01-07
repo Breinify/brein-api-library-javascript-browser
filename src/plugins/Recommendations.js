@@ -1195,7 +1195,7 @@
                     }
                 }
 
-                _self._handleClick(option, $(this), event, additionalEventData);
+                _self._handleClick(option, $el, event, additionalEventData);
             });
 
             /*

@@ -1185,7 +1185,7 @@
                 // by default, we utilize the clicked element as $el
                 let $el = $(this);
 
-                // ... but we need to check if we are within a shadow-root
+                // ... but we need to check if we are within a shadow-root, if so use the root (parent) as $el
                 const nativeEvent = event.originalEvent || event;
                 const target = nativeEvent.composedPath ? nativeEvent.composedPath()[0] : nativeEvent.target;
                 if (target && typeof target.getRootNode === 'function') {
@@ -1195,7 +1195,7 @@
                     }
                 }
 
-                _self._handleClick(option, $(this), event, additionalEventData);
+                _self._handleClick(option, $el, event, additionalEventData);
             });
 
             /*
