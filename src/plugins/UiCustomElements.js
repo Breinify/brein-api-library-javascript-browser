@@ -128,11 +128,372 @@
         }
     }
 
+    class BrSimpleSlider extends HTMLElement {
+        static MIN_ITEM_WIDTH = 200;
+        static MAX_ITEM_WIDTH = 280;
+
+        static STYLE_ELEMENT_ID = "br-simple-slider-style";
+        static STYLE_CONTENT =
+            "br-simple-slider.br-simple-slider {" +
+            "  display: flex;" +
+            "  align-items: center;" +
+            "  position: relative;" +
+            "}" +
+
+            ".br-simple-slider__track {" +
+            "  display: flex;" +
+            "  flex: 1 1 auto;" +
+            "  min-width: 0;" +
+            "  overflow-x: auto;" +
+            "  scroll-snap-type: x mandatory;" +
+            "  scroll-behavior: smooth;" +
+            "  gap: 12px;" +
+            "  padding: 0;" +
+            "  cursor: grab;" +
+            "  -ms-overflow-style: none;" +
+            "  scrollbar-width: none;" +
+            "  overscroll-behavior-x: contain;" +
+            "}" +
+
+            ".br-simple-slider__track::-webkit-scrollbar {" +
+            "  display: none;" +
+            "}" +
+
+            ".br-simple-slider__track.is-dragging {" +
+            "  cursor: grabbing;" +
+            "}" +
+
+            ".br-simple-slider__item {" +
+            "  flex: 0 0 auto;" +
+            "  scroll-snap-align: start;" +
+            "  box-sizing: border-box;" +
+            "  min-width: 0;" +
+            "  overflow: hidden;" +
+            "}" +
+
+            ".br-simple-slider__btn {" +
+            "  flex: 0 0 auto;" +
+            "  border: none;" +
+            "  background: transparent;" +
+            "  cursor: pointer;" +
+            "  font-size: 24px;" +
+            "  padding: 0 4px;" +
+            "}" +
+
+            ".br-simple-slider__btn[disabled] {" +
+            "  opacity: 0.3;" +
+            "  cursor: default;" +
+            "}";
+
+        static ensureStylesAdded(hostElement) {
+            if (document.getElementById(BrSimpleSlider.STYLE_ELEMENT_ID)) {
+                return;
+            }
+
+            const styleEl = document.createElement("style");
+            styleEl.id = BrSimpleSlider.STYLE_ELEMENT_ID;
+            styleEl.type = "text/css";
+            styleEl.textContent = BrSimpleSlider.STYLE_CONTENT;
+
+            if (hostElement.firstChild) {
+                hostElement.insertBefore(styleEl, hostElement.firstChild);
+            } else {
+                hostElement.appendChild(styleEl);
+            }
+        }
+
+        static getGapPx(track) {
+            if (!track || typeof window === "undefined" || !window.getComputedStyle) {
+                return 0;
+            }
+
+            const style = window.getComputedStyle(track);
+            const rawGap = style.columnGap || style.gap;
+            const value = parseFloat(rawGap);
+
+            return Number.isNaN(value) ? 0 : value;
+        }
+
+        static smoothScrollBy(track, delta) {
+            if (!track) return;
+
+            try {
+                if (typeof track.scrollBy === "function") {
+                    track.scrollBy({left: delta, behavior: "smooth"});
+                    return;
+                }
+            } catch (_e) {
+            }
+
+            track.scrollLeft = track.scrollLeft + delta;
+        }
+
+        static determineItemsPerView(trackWidth, gap) {
+            const viewport = window.innerWidth || document.documentElement.clientWidth || 0;
+            const isPhone = viewport <= 600;
+
+            const minW = BrSimpleSlider.MIN_ITEM_WIDTH;
+            const maxW = BrSimpleSlider.MAX_ITEM_WIDTH;
+
+            let minN = Math.ceil((trackWidth + gap) / (maxW + gap));
+            let maxN = Math.floor((trackWidth + gap) / (minW + gap));
+
+            if (minN < 1) minN = 1;
+            if (maxN < 1) maxN = 1;
+
+            let nBase = maxN;
+            if (nBase < 1) nBase = 1;
+
+            if (isPhone) {
+                const candidate = 1.5;
+                const totalGapCandidate = gap * Math.max(0, candidate - 1);
+                const itemWidthCandidate = (trackWidth - totalGapCandidate) / candidate;
+
+                if (itemWidthCandidate >= minW && itemWidthCandidate <= maxW) {
+                    return candidate;
+                }
+
+                return nBase;
+            }
+
+            return nBase;
+        }
+
+        connectedCallback() {
+            this.classList.add("br-simple-slider");
+
+            BrSimpleSlider.ensureStylesAdded(this);
+
+            if (!this._initialized) {
+                this._setupStructure();
+                this._setupButtons();
+                this._setupDragToScroll();
+                this._setupMutationObserver();
+                this._setupResizeHandler();
+                this._applyLayout();
+                this._initialized = true;
+            } else {
+                this._applyLayout();
+            }
+        }
+
+        disconnectedCallback() {
+            if (this._observer) {
+                this._observer.disconnect();
+                this._observer = null;
+            }
+            if (this._resizeHandler) {
+                window.removeEventListener("resize", this._resizeHandler);
+                this._resizeHandler = null;
+            }
+        }
+
+        _setupStructure() {
+            const existingChildren = Array.prototype.slice.call(this.children);
+            const track = document.createElement("div");
+            track.className = "br-simple-slider__track";
+            this.appendChild(track);
+
+            existingChildren.forEach((child) => {
+                if (!(child instanceof HTMLElement)) return;
+                if (child.id === BrSimpleSlider.STYLE_ELEMENT_ID ||
+                    child.classList.contains("br-simple-slider__btn")) {
+                    return;
+                }
+                track.appendChild(child);
+                child.classList.add("br-simple-slider__item");
+            });
+
+            this._track = track;
+        }
+
+        _setupButtons() {
+            const track = this._track;
+
+            const prev = document.createElement("button");
+            prev.type = "button";
+            prev.className = "br-simple-slider__btn br-simple-slider__btn--prev";
+            prev.innerHTML = "&#8249;";
+
+            const next = document.createElement("button");
+            next.type = "button";
+            next.className = "br-simple-slider__btn br-simple-slider__btn--next";
+            next.innerHTML = "&#8250;";
+
+            this.insertBefore(prev, track);
+            this.appendChild(next);
+
+            const getStep = () => {
+                const firstItem = track.querySelector(".br-simple-slider__item");
+                if (!firstItem) return 0;
+                const rect = firstItem.getBoundingClientRect();
+                const gap = BrSimpleSlider.getGapPx(track);
+                return rect.width + gap;
+            };
+
+            prev.addEventListener("click", () => {
+                const step = getStep();
+                if (step > 0) BrSimpleSlider.smoothScrollBy(track, -step);
+            });
+
+            next.addEventListener("click", () => {
+                const step = getStep();
+                if (step > 0) BrSimpleSlider.smoothScrollBy(track, step);
+            });
+
+            this._prevBtn = prev;
+            this._nextBtn = next;
+
+            const updateButtons = () => {
+                const maxScroll = track.scrollWidth - track.clientWidth;
+                const current = track.scrollLeft;
+
+                if (maxScroll <= 0) {
+                    prev.disabled = true;
+                    next.disabled = true;
+                } else {
+                    prev.disabled = current <= 0;
+                    next.disabled = current >= maxScroll - 1;
+                }
+            };
+
+            track.addEventListener("scroll", updateButtons);
+            this._updateButtons = updateButtons;
+        }
+
+        _setupDragToScroll() {
+            const track = this._track;
+            if (!track) return;
+
+            let isDown = false;
+            let startX = 0;
+            let scrollLeft = 0;
+
+            track.addEventListener("mousedown", (e) => {
+                isDown = true;
+                track.classList.add("is-dragging");
+                startX = e.pageX - track.getBoundingClientRect().left;
+                scrollLeft = track.scrollLeft;
+            });
+
+            track.addEventListener("mouseleave", () => {
+                if (!isDown) return;
+                isDown = false;
+                track.classList.remove("is-dragging");
+            });
+
+            window.addEventListener("mouseup", () => {
+                if (!isDown) return;
+                isDown = false;
+                track.classList.remove("is-dragging");
+            });
+
+            track.addEventListener("mousemove", (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - track.getBoundingClientRect().left;
+                const walk = x - startX;
+                track.scrollLeft = scrollLeft - walk;
+            });
+        }
+
+        _setupMutationObserver() {
+            if (typeof MutationObserver === "undefined") return;
+
+            const track = this._track;
+            const self = this;
+
+            const observer = new MutationObserver(function (mutations) {
+                let requiresLayout = false;
+
+                mutations.forEach(function (mutation) {
+                    if (mutation.type !== "childList") return;
+
+                    if (mutation.target === self) {
+                        Array.prototype.forEach.call(mutation.addedNodes, function (node) {
+                            if (!(node instanceof HTMLElement)) return;
+                            if (node === track ||
+                                node.id === BrSimpleSlider.STYLE_ELEMENT_ID ||
+                                node.classList.contains("br-simple-slider__btn")) {
+                                return;
+                            }
+
+                            track.appendChild(node);
+                            node.classList.add("br-simple-slider__item");
+                            requiresLayout = true;
+                        });
+                    }
+
+                    if (mutation.target === track) {
+                        Array.prototype.forEach.call(mutation.addedNodes, function (node) {
+                            if (node instanceof HTMLElement) {
+                                node.classList.add("br-simple-slider__item");
+                                requiresLayout = true;
+                            }
+                        });
+                    }
+                });
+
+                if (requiresLayout) self._applyLayout();
+            });
+
+            observer.observe(this, {childList: true});
+            observer.observe(track, {childList: true});
+
+            this._observer = observer;
+        }
+
+        _setupResizeHandler() {
+            let resizeTimeout = null;
+
+            this._resizeHandler = () => {
+                if (resizeTimeout !== null) {
+                    window.clearTimeout(resizeTimeout);
+                }
+
+                resizeTimeout = window.setTimeout(() => {
+                    resizeTimeout = null;
+                    this._applyLayout();
+                }, 100);
+            };
+
+            window.addEventListener("resize", this._resizeHandler);
+        }
+
+        _applyLayout() {
+            const track = this._track;
+            if (!track) return;
+
+            const items = track.querySelectorAll(".br-simple-slider__item");
+            if (!items.length) return;
+
+            const trackWidth = track.clientWidth;
+            if (!trackWidth) return;
+
+            const gap = BrSimpleSlider.getGapPx(track);
+            const perView = BrSimpleSlider.determineItemsPerView(trackWidth, gap);
+            const totalGap = gap * Math.max(0, perView - 1);
+            const itemWidth = (trackWidth - totalGap) / perView;
+
+            items.forEach((item) => {
+                const px = itemWidth + "px";
+
+                item.style.flex = "0 0 " + px;
+                item.style.width = px;
+                item.style.minWidth = px;
+                item.style.maxWidth = px;
+            });
+
+            if (this._updateButtons) this._updateButtons();
+        }
+    }
+
     const UiCustomElements = {
         _classes: {},
 
         init: function () {
             this.addClass('BrConfigurable', BrConfigurable);
+            this.defineElement('br-simple-slider', BrSimpleSlider)
         },
 
         addClass: function (name, cls) {
