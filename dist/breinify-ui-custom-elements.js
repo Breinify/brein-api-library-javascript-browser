@@ -10,6 +10,7 @@
     }
 
     class BrConfigurable extends HTMLElement {
+
         _config = {};
         _observer = null;
         _initialized = false;
@@ -43,6 +44,15 @@
             return true;
         }
 
+        /**
+         * Hook: subclasses can override to disable shadow DOM usage.
+         * For components like <br-simple-slider> that need light DOM,
+         * return false.
+         */
+        usesShadowRoot() {
+            return true;
+        }
+
         _observeConfigChanges() {
             if (this._observer !== null) {
                 this._observer.disconnect();
@@ -52,13 +62,9 @@
             this._observer = new MutationObserver((mutations) => {
                 for (const m of mutations) {
                     if (m.type === "childList") {
-
-                        /*
-                         * Look for JSON config scripts. We intentionally use `type$="application/json"`
-                         * instead of an exact match, because libraries like jQuery may rewrite script
-                         * tags while inserting HTML (e.g. `application/json` → `true/application/json`).
-                         * Using "ends-with" ensures we still detect valid JSON config blocks reliably.
-                         */
+                        // Look for JSON config scripts. We intentionally use `type$="application/json"`
+                        // instead of an exact match, because libraries like jQuery may rewrite script
+                        // tags while inserting HTML (e.g. `application/json` → `true/application/json`).
                         if (this.querySelector('script[type$="application/json"]')) {
                             this._config = this._loadConfig();
                             this._render();
@@ -86,14 +92,12 @@
                 script.remove();
                 return parsed;
             } catch (e) {
-                console.error(`[${name}] Invalid JSON in config script`, e);
+                const tag = this.tagName ? this.tagName.toLowerCase() : "unknown-element";
+                console.error(`[${tag}] Invalid JSON in config script`, e);
                 return {};
             }
         }
 
-        /**
-         * Internal: ensure we have a shadow root and return it.
-         */
         _ensureShadowRoot() {
             if (!this.shadowRoot) {
                 this.attachShadow({mode: "open"});
@@ -105,34 +109,39 @@
          * Internal: template method that uses the `render` hook.
          */
         _render() {
-            const shadow = this._ensureShadowRoot();
-            this.render(shadow);
+            const root = this.usesShadowRoot() ? this._ensureShadowRoot() : this;
+            this.render(root);
         }
 
         /**
          * Hook: subclasses override this to render their own UI.
          * Default: show config as pretty-printed JSON.
          */
-        render(shadowRoot) {
-            shadowRoot.innerHTML = `
-                <style>
-                  .br-default-product {
-                    font-family: sans-serif;
-                  }
-                </style>
-        
-                <div class="br-product br-default-product">
-                  <pre>${JSON.stringify(this._config, null, 2)}</pre>
-                </div>
-            `;
+        render(root) {
+            root.innerHTML = `
+            <style>
+              .br-default-product {
+                font-family: sans-serif;
+              }
+            </style>
+    
+            <div class="br-product br-default-product">
+              <pre>${JSON.stringify(this._config, null, 2)}</pre>
+            </div>
+        `;
         }
     }
 
-    class BrSimpleSlider extends HTMLElement {
-        static MIN_ITEM_WIDTH = 200;
-        static MAX_ITEM_WIDTH = 280;
-
+    class BrSimpleSlider extends BrConfigurable {
         static STYLE_ELEMENT_ID = "br-simple-slider-style";
+
+        static DEFAULT_CONFIG = {
+            minItemWidth: 200,
+            maxItemWidth: 280,
+            showArrows: true,
+            phonePeek: true
+        };
+
         static STYLE_CONTENT =
             "br-simple-slider.br-simple-slider {" +
             "  display: flex;" +
@@ -228,12 +237,16 @@
             track.scrollLeft = track.scrollLeft + delta;
         }
 
-        static determineItemsPerView(trackWidth, gap) {
+        /**
+         * @param {number} trackWidth
+         * @param {number} gap
+         * @param {number} minW
+         * @param {number} maxW
+         * @param {boolean} phonePeek
+         */
+        static determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek) {
             const viewport = window.innerWidth || document.documentElement.clientWidth || 0;
             const isPhone = viewport <= 600;
-
-            const minW = BrSimpleSlider.MIN_ITEM_WIDTH;
-            const maxW = BrSimpleSlider.MAX_ITEM_WIDTH;
 
             let minN = Math.ceil((trackWidth + gap) / (maxW + gap));
             let maxN = Math.floor((trackWidth + gap) / (minW + gap));
@@ -244,7 +257,7 @@
             let nBase = maxN;
             if (nBase < 1) nBase = 1;
 
-            if (isPhone) {
+            if (isPhone && phonePeek) {
                 const candidate = 1.5;
                 const totalGapCandidate = gap * Math.max(0, candidate - 1);
                 const itemWidthCandidate = (trackWidth - totalGapCandidate) / candidate;
@@ -259,28 +272,57 @@
             return nBase;
         }
 
-        connectedCallback() {
-            this.classList.add("br-simple-slider");
+        /**
+         * Slider needs light DOM, not shadow.
+         */
+        usesShadowRoot() {
+            return false;
+        }
 
+        /**
+         * We still want to observe config script changes (default true is fine),
+         * so no need to override shouldObserveConfigChanges().
+         */
+
+        /**
+         * Called by BrConfigurable._render(), with `root` = this (because usesShadowRoot() === false).
+         * We ignore `root` and work on the light DOM.
+         */
+        render(_root) {
+            this.classList.add("br-simple-slider");
             BrSimpleSlider.ensureStylesAdded(this);
+
+            // merge defaults with loaded config
+            const base = BrSimpleSlider.DEFAULT_CONFIG;
+            const rawCfg = this._config || {};
+            this._config = {
+                minItemWidth: typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0
+                    ? rawCfg.minItemWidth : base.minItemWidth,
+                maxItemWidth: typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0
+                    ? rawCfg.maxItemWidth : base.maxItemWidth,
+                showArrows: typeof rawCfg.showArrows === "boolean"
+                    ? rawCfg.showArrows : base.showArrows,
+                phonePeek: typeof rawCfg.phonePeek === "boolean"
+                    ? rawCfg.phonePeek : base.phonePeek
+            };
 
             if (!this._initialized) {
                 this._setupStructure();
                 this._setupButtons();
                 this._setupDragToScroll();
-                this._setupMutationObserver();
+                this._setupItemMutationObserver();
                 this._setupResizeHandler();
-                this._applyLayout();
-                this._initialized = true;
-            } else {
-                this._applyLayout();
             }
+
+            this._applyLayout();
         }
 
         disconnectedCallback() {
-            if (this._observer) {
-                this._observer.disconnect();
-                this._observer = null;
+            super.disconnectedCallback();
+
+            if (this._itemObserver) {
+                this._itemObserver.disconnect();
+                this._itemObserver = null;
             }
             if (this._resizeHandler) {
                 window.removeEventListener("resize", this._resizeHandler);
@@ -300,6 +342,13 @@
                     child.classList.contains("br-simple-slider__btn")) {
                     return;
                 }
+                if (child.tagName &&
+                    child.tagName.toLowerCase() === "script" &&
+                    child.getAttribute("type") &&
+                    child.getAttribute("type").endsWith("application/json")) {
+                    return;
+                }
+
                 track.appendChild(child);
                 child.classList.add("br-simple-slider__item");
             });
@@ -309,6 +358,14 @@
 
         _setupButtons() {
             const track = this._track;
+            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+
+            if (!cfg.showArrows) {
+                this._prevBtn = null;
+                this._nextBtn = null;
+                this._updateButtons = null;
+                return;
+            }
 
             const prev = document.createElement("button");
             prev.type = "button";
@@ -397,7 +454,7 @@
             });
         }
 
-        _setupMutationObserver() {
+        _setupItemMutationObserver() {
             if (typeof MutationObserver === "undefined") return;
 
             const track = this._track;
@@ -412,9 +469,16 @@
                     if (mutation.target === self) {
                         Array.prototype.forEach.call(mutation.addedNodes, function (node) {
                             if (!(node instanceof HTMLElement)) return;
+
                             if (node === track ||
                                 node.id === BrSimpleSlider.STYLE_ELEMENT_ID ||
                                 node.classList.contains("br-simple-slider__btn")) {
+                                return;
+                            }
+                            if (node.tagName &&
+                                node.tagName.toLowerCase() === "script" &&
+                                node.getAttribute("type") &&
+                                node.getAttribute("type").endsWith("application/json")) {
                                 return;
                             }
 
@@ -440,7 +504,7 @@
             observer.observe(this, {childList: true});
             observer.observe(track, {childList: true});
 
-            this._observer = observer;
+            this._itemObserver = observer;
         }
 
         _setupResizeHandler() {
@@ -470,8 +534,13 @@
             const trackWidth = track.clientWidth;
             if (!trackWidth) return;
 
+            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+            const minW = cfg.minItemWidth;
+            const maxW = cfg.maxItemWidth;
+            const phonePeek = cfg.phonePeek !== false;
+
             const gap = BrSimpleSlider.getGapPx(track);
-            const perView = BrSimpleSlider.determineItemsPerView(trackWidth, gap);
+            const perView = BrSimpleSlider.determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek);
             const totalGap = gap * Math.max(0, perView - 1);
             const itemWidth = (trackWidth - totalGap) / perView;
 
