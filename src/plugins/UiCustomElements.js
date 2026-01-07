@@ -61,7 +61,7 @@
                 }
             });
 
-            this._observer.observe(this, { childList: true, subtree: false });
+            this._observer.observe(this, {childList: true, subtree: false});
         }
 
         _loadConfig() {
@@ -85,7 +85,7 @@
          */
         _ensureShadowRoot() {
             if (!this.shadowRoot) {
-                this.attachShadow({ mode: "open" });
+                this.attachShadow({mode: "open"});
             }
             return this.shadowRoot;
         }
@@ -124,11 +124,21 @@
             this.addClass('BrConfigurable', BrConfigurable);
         },
 
-        addClass: function(name, cls) {
+        addClass: function (name, cls) {
             this._classes[name] = cls;
         },
 
-        defineElement: function(name, element) {
+        getClass: function (name) {
+            const cls = this._classes[name];
+
+            if (cls) {
+                return cls;
+            } else {
+                throw new Error(`UiCustomElements: Class "${name}" is not registered. Ensure UiCustomElements.init() or addClass("${name}", ...) ?`);
+            }
+        },
+
+        defineElement: function (name, element) {
             if (window.customElements && !window.customElements.get(name)) {
                 window.customElements.define(name, element);
             }
