@@ -1182,7 +1182,7 @@
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
 
-                // by default, we utilize the clicked element as $el
+                // by default, we utilize the clicked element as $el ...
                 let $el = $(this);
 
                 // ... but we need to check if we are within a shadow-root, if so use the root (parent) as $el
