@@ -80,7 +80,11 @@
 
             try {
                 const json = script.textContent.trim();
-                return json ? JSON.parse(json) : {};
+                const parsed = json ? JSON.parse(json) : {};
+
+                // remove the element and return
+                script.remove();
+                return parsed;
             } catch (e) {
                 console.error(`[${name}] Invalid JSON in config script`, e);
                 return {};
