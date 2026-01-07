@@ -296,14 +296,10 @@
             const base = BrSimpleSlider.DEFAULT_CONFIG;
             const rawCfg = this._config || {};
             this._config = {
-                minItemWidth: typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0
-                    ? rawCfg.minItemWidth : base.minItemWidth,
-                maxItemWidth: typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0
-                    ? rawCfg.maxItemWidth : base.maxItemWidth,
-                showArrows: typeof rawCfg.showArrows === "boolean"
-                    ? rawCfg.showArrows : base.showArrows,
-                phonePeek: typeof rawCfg.phonePeek === "boolean"
-                    ? rawCfg.phonePeek : base.phonePeek
+                minItemWidth: typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0 ? rawCfg.minItemWidth : base.minItemWidth,
+                maxItemWidth: typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0 ? rawCfg.maxItemWidth : base.maxItemWidth,
+                showArrows: typeof rawCfg.showArrows === "boolean" ? rawCfg.showArrows : base.showArrows,
+                phonePeek: typeof rawCfg.phonePeek === "boolean" ? rawCfg.phonePeek : base.phonePeek
             };
 
             if (!this._initialized) {
