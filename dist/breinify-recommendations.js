@@ -393,6 +393,9 @@
             'marker::item': Renderer.marker.item,
             'marker::recommender': function(data) {
                 return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
+            },
+            'data::json': function(data) {
+                return JSON.stringify(data);
             }
         },
         /*
