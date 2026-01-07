@@ -391,10 +391,10 @@
             },
             'marker::container': Renderer.marker.container,
             'marker::item': Renderer.marker.item,
-            'marker::recommender': function(data) {
+            'marker::recommender': function (data) {
                 return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
             },
-            'data::json': function(data) {
+            'data::json': function (data) {
                 return JSON.stringify(data);
             }
         },
@@ -1181,6 +1181,20 @@
              * the needed information.
              */
             Breinify.UTL.dom.addClickObserver(option.bindings.selector, 'clickedRecommendations', function (event, additionalEventData) {
+
+                // by default, we utilize the clicked element as $el
+                let $el = $(this);
+
+                // ... but we need to check if we are within a shadow-root
+                const nativeEvent = event.originalEvent || event;
+                const target = nativeEvent.composedPath ? nativeEvent.composedPath()[0] : nativeEvent.target;
+                if (target && typeof target.getRootNode === 'function') {
+                    const root = target.getRootNode();
+                    if (root && root.host) {
+                        $el = $(root.host);
+                    }
+                }
+
                 _self._handleClick(option, $(this), event, additionalEventData);
             });
 
