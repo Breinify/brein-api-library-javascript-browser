@@ -52,7 +52,7 @@
             this._observer = new MutationObserver((mutations) => {
                 for (const m of mutations) {
                     if (m.type === "childList") {
-                        if (this.querySelector('script[type="application/json"]')) {
+                        if (this.querySelector('script[type$="application/json"]')) {
                             this._config = this._loadConfig();
                             this._render();
                         }
@@ -65,7 +65,7 @@
         }
 
         _loadConfig() {
-            const script = this.querySelector('script[type="application/json"]');
+            const script = this.querySelector('script[type$="application/json"]');
 
             if (!script) {
                 return {};
