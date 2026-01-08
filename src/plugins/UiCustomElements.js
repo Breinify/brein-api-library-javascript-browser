@@ -144,22 +144,24 @@
 
             // Safari 12/13: no class fields
             this._sliderInitialized = false;
+
+            this._layout = null;
+            this._header = null;
+            this._headerLeft = null;
+            this._headerTitle = null;
+            this._headerSubtitle = null;
+            this._headerCta = null;
+
             this._track = null;
             this._prevBtn = null;
             this._nextBtn = null;
+
             this._updateButtons = null;
             this._itemObserver = null;
             this._resizeHandler = null;
-
-            // header refs
-            this._layoutEl = null;
-            this._headerEl = null;
-            this._headerTitleWrapEl = null;
-            this._headerTitleEl = null;
-            this._headerSubtitleEl = null;
-            this._headerCtaEl = null;
         }
 
+        // Safari 12/13 compatible (static getter is OK)
         static get observedAttributes() {
             return [
                 "data-title",
@@ -174,7 +176,7 @@
         }
 
         attributeChangedCallback(_name, _oldValue, _newValue) {
-            // Only react after init; config changes already go through render()
+            // Attributes should update header immediately if initialized
             if (this._sliderInitialized) {
                 this._applyHeader();
             }
@@ -196,6 +198,8 @@
                 this._resizeHandler = null;
             }
         }
+
+        // ---------- statics (methods only; "constants" assigned after the class) ----------
 
         static ensureStylesAdded(hostElement) {
             if (document.getElementById(BrSimpleSlider.STYLE_ELEMENT_ID)) {
@@ -296,6 +300,8 @@
             return nBase;
         }
 
+        // ---------- render / init ----------
+
         render(_root) {
             this.classList.add("br-simple-slider");
             BrSimpleSlider.ensureStylesAdded(this);
@@ -316,7 +322,7 @@
                     .sort((a, b) => a.maxWidth - b.maxWidth);
             }
 
-            // keep existing slider config normalization + extend with header fields
+            // Merge slider config (unchanged behavior)
             this._config = {
                 minItemWidth: (typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0) ? rawCfg.minItemWidth : base.minItemWidth,
                 maxItemWidth: (typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0) ? rawCfg.maxItemWidth : base.maxItemWidth,
@@ -324,16 +330,16 @@
                 phonePeek: (typeof rawCfg.phonePeek === "boolean") ? rawCfg.phonePeek : base.phonePeek,
                 breakpoints: breakpoints,
 
-                // header config (all optional)
-                title: (typeof rawCfg.title === "string") ? rawCfg.title : "",
-                subtitle: (typeof rawCfg.subtitle === "string") ? rawCfg.subtitle : "",
-                hideHeader: (typeof rawCfg.hideHeader === "boolean") ? rawCfg.hideHeader : false,
-                titlePosition: (typeof rawCfg.titlePosition === "string") ? rawCfg.titlePosition : "left",
+                // header config defaults
+                title: (typeof rawCfg.title === "string") ? rawCfg.title : base.title,
+                subtitle: (typeof rawCfg.subtitle === "string") ? rawCfg.subtitle : base.subtitle,
+                hideHeader: (typeof rawCfg.hideHeader === "boolean") ? rawCfg.hideHeader : base.hideHeader,
+                titlePosition: (typeof rawCfg.titlePosition === "string") ? rawCfg.titlePosition : base.titlePosition,
 
-                ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : "",
-                ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : "",
-                ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : "",
-                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : ""
+                ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : base.ctaLabel,
+                ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : base.ctaUrl,
+                ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : base.ctaColor,
+                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground
             };
 
             if (!this._sliderInitialized) {
@@ -349,22 +355,24 @@
             this._applyLayout();
         }
 
+        // ---------- structure ----------
+
         _setupStructure() {
             const existingChildren = Array.prototype.slice.call(this.children);
 
-            // layout wrapper (grid) so header aligns exactly with track column
+            // layout wrapper: grid columns [prev][track-col][next], rows [header][slider]
             const layout = document.createElement("div");
             layout.className = "br-simple-slider__layout";
             this.appendChild(layout);
-            this._layoutEl = layout;
+            this._layout = layout;
 
-            // header
+            // header: aligns with track column (col 2), above it (row 1)
             const header = document.createElement("div");
             header.className = "br-simple-slider__header";
             header.style.display = "none";
 
-            const titleWrap = document.createElement("div");
-            titleWrap.className = "br-simple-slider__header-titlewrap";
+            const headerLeft = document.createElement("div");
+            headerLeft.className = "br-simple-slider__header-left";
 
             const title = document.createElement("div");
             title.className = "br-simple-slider__header-title";
@@ -374,30 +382,29 @@
             subtitle.className = "br-simple-slider__header-subtitle";
             subtitle.style.display = "none";
 
-            titleWrap.appendChild(title);
-            titleWrap.appendChild(subtitle);
+            headerLeft.appendChild(title);
+            headerLeft.appendChild(subtitle);
 
             const cta = document.createElement("a");
             cta.className = "br-simple-slider__header-cta";
             cta.style.display = "none";
             cta.setAttribute("rel", "noopener noreferrer");
 
-            header.appendChild(titleWrap);
+            header.appendChild(headerLeft);
             header.appendChild(cta);
 
             layout.appendChild(header);
 
-            this._headerEl = header;
-            this._headerTitleWrapEl = titleWrap;
-            this._headerTitleEl = title;
-            this._headerSubtitleEl = subtitle;
-            this._headerCtaEl = cta;
+            this._header = header;
+            this._headerLeft = headerLeft;
+            this._headerTitle = title;
+            this._headerSubtitle = subtitle;
+            this._headerCta = cta;
 
-            // track
+            // track: aligns with track column (col 2), row 2
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
             layout.appendChild(track);
-
             this._track = track;
 
             // move existing children into track
@@ -418,8 +425,7 @@
                     return;
                 }
 
-                // do not move our layout elements
-                if (child === layout || child === header || child === track) {
+                if (child === layout) {
                     return;
                 }
 
@@ -428,9 +434,11 @@
             });
         }
 
+        // ---------- buttons ----------
+
         _setupButtons() {
             const track = this._track;
-            const layout = this._layoutEl;
+            const layout = this._layout;
 
             if (!track || !layout) {
                 return;
@@ -446,7 +454,7 @@
             next.className = "br-simple-slider__btn br-simple-slider__btn--next";
             next.innerHTML = "&#8250;";
 
-            // buttons must be inside the layout grid
+            // Place into grid; CSS assigns them to col 1 / col 3 row 2
             layout.appendChild(prev);
             layout.appendChild(next);
 
@@ -494,6 +502,8 @@
             this._updateButtons = updateButtons;
         }
 
+        // ---------- drag ----------
+
         _setupDragToScroll() {
             const track = this._track;
             if (!track) {
@@ -537,6 +547,8 @@
                 track.scrollLeft = scrollLeft - walk;
             });
         }
+
+        // ---------- observers / resize ----------
 
         _setupItemMutationObserver() {
             if (typeof MutationObserver === "undefined") {
@@ -617,6 +629,143 @@
             window.addEventListener("resize", this._resizeHandler);
         }
 
+        // ---------- header logic ----------
+
+        _readTrimmedAttr(name) {
+            const raw = this.getAttribute(name);
+            if (raw === null) {
+                return null;
+            }
+            return String(raw).trim();
+        }
+
+        _readAttrNonEmpty(name) {
+            const v = this._readTrimmedAttr(name);
+            if (v === null) {
+                return null;
+            }
+            return v.length > 0 ? v : null;
+        }
+
+        _parseHideHeaderAttr() {
+            const v = this._readTrimmedAttr("data-hide-header");
+            if (v === null) {
+                return null; // not set
+            }
+            const lc = v.toLowerCase();
+            return (lc === "true" || lc === "yes" || lc === "y");
+        }
+
+        _resolveTitlePosition() {
+            const attrPos = this._readAttrNonEmpty("data-title-position");
+            const cfgPos = (this._config && typeof this._config.titlePosition === "string") ? this._config.titlePosition : "left";
+
+            const val = (attrPos !== null) ? attrPos : cfgPos;
+            const lc = String(val || "").toLowerCase();
+
+            return (lc === "center") ? "center" : "left";
+        }
+
+        _applyHeader() {
+            if (!this._header || !this._headerTitle || !this._headerSubtitle || !this._headerCta) {
+                return;
+            }
+
+            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+
+            // Priority:
+            //  - attribute (exists + non-empty trimmed) wins
+            //  - else config
+            const titleAttr = this._readAttrNonEmpty("data-title");
+            const subtitleAttr = this._readAttrNonEmpty("data-subtitle");
+
+            const title = (titleAttr !== null) ? titleAttr : String(cfg.title || "").trim();
+            const subtitle = (subtitleAttr !== null) ? subtitleAttr : String(cfg.subtitle || "").trim();
+
+            const hasTitle = title.length > 0;
+            const hasSubtitle = subtitle.length > 0;
+
+            // CTA values (attribute non-empty wins, else config)
+            const ctaLabelAttr = this._readAttrNonEmpty("data-cta-label");
+            const ctaUrlAttr = this._readAttrNonEmpty("data-cta-url");
+            const ctaColorAttr = this._readAttrNonEmpty("data-cta-color");
+            const ctaBgAttr = this._readAttrNonEmpty("data-cta-background");
+
+            const ctaLabel = (ctaLabelAttr !== null) ? ctaLabelAttr : String(cfg.ctaLabel || "").trim();
+            const ctaUrl = (ctaUrlAttr !== null) ? ctaUrlAttr : String(cfg.ctaUrl || "").trim();
+            const ctaColor = (ctaColorAttr !== null) ? ctaColorAttr : String(cfg.ctaColor || "").trim();
+            const ctaBg = (ctaBgAttr !== null) ? ctaBgAttr : String(cfg.ctaBackground || "").trim();
+
+            const hasCta = (ctaLabel.length > 0) && (ctaUrl.length > 0);
+
+            // hide-header:
+            // - active only when attribute is true/yes/y (any case)
+            // - else fall back to config.hideHeader
+            const hideAttr = this._parseHideHeaderAttr();
+            const hideCfg = (typeof cfg.hideHeader === "boolean") ? cfg.hideHeader : false;
+            const explicitlyHidden = (hideAttr === true) || (hideAttr === null && hideCfg === true);
+
+            // implicit hide: if both title+subtitle empty AND no CTA
+            const implicitlyHidden = (!hasTitle && !hasSubtitle && !hasCta);
+
+            if (explicitlyHidden || implicitlyHidden) {
+                this._header.style.display = "none";
+                return;
+            }
+
+            // show header
+            this._header.style.display = "";
+
+            // titlePosition
+            const pos = this._resolveTitlePosition();
+            this._header.setAttribute("data-title-position", pos);
+
+            // title
+            if (hasTitle) {
+                this._headerTitle.textContent = title;
+                this._headerTitle.style.display = "";
+            } else {
+                this._headerTitle.textContent = "";
+                this._headerTitle.style.display = "none";
+            }
+
+            // subtitle
+            if (hasSubtitle) {
+                this._headerSubtitle.textContent = subtitle;
+                this._headerSubtitle.style.display = "";
+            } else {
+                this._headerSubtitle.textContent = "";
+                this._headerSubtitle.style.display = "none";
+            }
+
+            // cta
+            if (hasCta) {
+                this._headerCta.textContent = ctaLabel;
+                this._headerCta.setAttribute("href", ctaUrl);
+                this._headerCta.setAttribute("target", "_blank");
+                this._headerCta.style.display = "";
+
+                // reset then apply optional styles
+                this._headerCta.style.color = "";
+                this._headerCta.style.background = "";
+                if (ctaColor.length > 0) {
+                    this._headerCta.style.color = ctaColor;
+                }
+                if (ctaBg.length > 0) {
+                    this._headerCta.style.background = ctaBg;
+                }
+            } else {
+                this._headerCta.textContent = "";
+                this._headerCta.removeAttribute("href");
+                this._headerCta.removeAttribute("target");
+                this._headerCta.style.display = "none";
+                this._headerCta.style.color = "";
+                this._headerCta.style.background = "";
+            }
+        }
+
+        // ---------- layout sizing (unchanged) ----------
+
         _applyLayout() {
             const track = this._track;
             if (!track) {
@@ -664,147 +813,38 @@
                 this._updateButtons();
             }
         }
-
-        _readNonEmptyAttr(name) {
-            const raw = this.getAttribute(name);
-            if (raw === null) {
-                return null;
-            }
-            const trimmed = String(raw).trim();
-            return trimmed.length > 0 ? trimmed : null;
-        }
-
-        _readAttrValue(name) {
-            const raw = this.getAttribute(name);
-            if (raw === null) {
-                return null;
-            }
-            return String(raw).trim();
-        }
-
-        _isHideHeaderActive() {
-            const raw = this._readAttrValue("data-hide-header");
-            if (raw === null) {
-                return null; // not set => fall back to config
-            }
-
-            const v = raw.toLowerCase();
-            if (v === "true" || v === "yes" || v === "y") {
-                return true;
-            }
-
-            // any other case => do not utilize hide-header
-            return null;
-        }
-
-        _resolveTitlePosition() {
-            const attrPos = this._readNonEmptyAttr("data-title-position");
-            const cfgPos = (this._config && typeof this._config.titlePosition === "string") ? this._config.titlePosition : "left";
-
-            const value = (attrPos !== null) ? attrPos : cfgPos;
-            const normalized = String(value || "").toLowerCase();
-
-            return normalized === "center" ? "center" : "left";
-        }
-
-        _applyHeader() {
-            if (!this._headerEl || !this._headerTitleEl || !this._headerSubtitleEl || !this._headerCtaEl || !this._headerTitleWrapEl) {
-                return;
-            }
-
-            const cfg = this._config || {};
-
-            const attrTitle = this._readNonEmptyAttr("data-title");
-            const attrSubtitle = this._readNonEmptyAttr("data-subtitle");
-
-            const title = (attrTitle !== null) ? attrTitle : (typeof cfg.title === "string" ? cfg.title.trim() : "");
-            const subtitle = (attrSubtitle !== null) ? attrSubtitle : (typeof cfg.subtitle === "string" ? cfg.subtitle.trim() : "");
-
-            const hasTitle = typeof title === "string" && title.trim().length > 0;
-            const hasSubtitle = typeof subtitle === "string" && subtitle.trim().length > 0;
-
-            const attrCtaLabel = this._readNonEmptyAttr("data-cta-label");
-            const attrCtaUrl = this._readNonEmptyAttr("data-cta-url");
-            const attrCtaColor = this._readNonEmptyAttr("data-cta-color");
-            const attrCtaBackground = this._readNonEmptyAttr("data-cta-background");
-
-            const ctaLabel = (attrCtaLabel !== null) ? attrCtaLabel : (typeof cfg.ctaLabel === "string" ? cfg.ctaLabel.trim() : "");
-            const ctaUrl = (attrCtaUrl !== null) ? attrCtaUrl : (typeof cfg.ctaUrl === "string" ? cfg.ctaUrl.trim() : "");
-            const ctaColor = (attrCtaColor !== null) ? attrCtaColor : (typeof cfg.ctaColor === "string" ? cfg.ctaColor.trim() : "");
-            const ctaBackground = (attrCtaBackground !== null) ? attrCtaBackground : (typeof cfg.ctaBackground === "string" ? cfg.ctaBackground.trim() : "");
-
-            const hasCta = (typeof ctaLabel === "string" && ctaLabel.trim().length > 0) &&
-                (typeof ctaUrl === "string" && ctaUrl.trim().length > 0);
-
-            const hideAttr = this._isHideHeaderActive(); // true or null
-            const hideCfg = (typeof cfg.hideHeader === "boolean") ? cfg.hideHeader : false;
-            const explicitlyHidden = (hideAttr === true) || (hideAttr === null && hideCfg === true);
-
-            const implicitHide = (!hasTitle && !hasSubtitle && !hasCta);
-
-            if (explicitlyHidden || implicitHide) {
-                this._headerEl.style.display = "none";
-                return;
-            }
-
-            this._headerEl.style.display = "";
-
-            const pos = this._resolveTitlePosition();
-            this._headerEl.setAttribute("data-title-position", pos);
-
-            if (hasTitle) {
-                this._headerTitleEl.textContent = title;
-                this._headerTitleEl.style.display = "";
-            } else {
-                this._headerTitleEl.textContent = "";
-                this._headerTitleEl.style.display = "none";
-            }
-
-            if (hasSubtitle) {
-                this._headerSubtitleEl.textContent = subtitle;
-                this._headerSubtitleEl.style.display = "";
-            } else {
-                this._headerSubtitleEl.textContent = "";
-                this._headerSubtitleEl.style.display = "none";
-            }
-
-            if (hasCta) {
-                this._headerCtaEl.textContent = ctaLabel;
-                this._headerCtaEl.setAttribute("href", ctaUrl);
-                this._headerCtaEl.setAttribute("target", "_blank");
-                this._headerCtaEl.style.display = "";
-
-                this._headerCtaEl.style.color = "";
-                this._headerCtaEl.style.background = "";
-
-                if (ctaColor) {
-                    this._headerCtaEl.style.color = ctaColor;
-                }
-                if (ctaBackground) {
-                    this._headerCtaEl.style.background = ctaBackground;
-                }
-            } else {
-                this._headerCtaEl.textContent = "";
-                this._headerCtaEl.removeAttribute("href");
-                this._headerCtaEl.removeAttribute("target");
-                this._headerCtaEl.style.display = "none";
-
-                this._headerCtaEl.style.color = "";
-                this._headerCtaEl.style.background = "";
-            }
-        }
     }
 
-    /*
-     * Safari 12/13: ensure STYLE_CONTENT includes these layout rules (add to your existing STYLE_CONTENT)
-     *
-     * The rest of your STYLE_CONTENT remains unchanged; only add these new selectors:
-     *
-     * .br-simple-slider__layout { ... }
-     * .br-simple-slider__header { ... } etc.
-     */
+    /* Safari 12/13 compatible "static constants" */
+    BrSimpleSlider.STYLE_ELEMENT_ID = "br-simple-slider-style";
+
+    BrSimpleSlider.DEFAULT_CONFIG = {
+        minItemWidth: 200,
+        maxItemWidth: 280,
+        showArrows: true,
+        phonePeek: true,
+        breakpoints: [],
+
+        // header defaults
+        title: "",
+        subtitle: "",
+        hideHeader: false,
+        titlePosition: "left",
+
+        ctaLabel: "",
+        ctaUrl: "",
+        ctaColor: "",
+        ctaBackground: ""
+    };
+
     BrSimpleSlider.STYLE_CONTENT =
-        BrSimpleSlider.STYLE_CONTENT +
+        /* host: keep simple, layout wrapper handles structure */
+        "br-simple-slider.br-simple-slider {" +
+        "  display: block;" +
+        "  position: relative;" +
+        "}" +
+
+        /* layout grid: [prev][track-col][next], rows [header][slider] */
         ".br-simple-slider__layout {" +
         "  display: grid;" +
         "  grid-template-columns: auto minmax(0, 1fr) auto;" +
@@ -812,23 +852,28 @@
         "  align-items: center;" +
         "  width: 100%;" +
         "}" +
+
+        /* header aligned with track column */
         ".br-simple-slider__header {" +
         "  grid-column: 2;" +
         "  grid-row: 1;" +
         "  display: grid;" +
-        "  grid-template-columns: 1fr auto;" +
+        "  grid-template-columns: minmax(0, 1fr) auto;" +
         "  align-items: center;" +
         "  margin: 0 0 10px 0;" +
         "}" +
-        ".br-simple-slider__header-titlewrap {" +
+
+        ".br-simple-slider__header-left {" +
         "  min-width: 0;" +
         "}" +
-        ".br-simple-slider__header[data-title-position='left'] .br-simple-slider__header-titlewrap {" +
+
+        ".br-simple-slider__header[data-title-position='left'] .br-simple-slider__header-left {" +
         "  text-align: left;" +
         "}" +
-        ".br-simple-slider__header[data-title-position='center'] .br-simple-slider__header-titlewrap {" +
+        ".br-simple-slider__header[data-title-position='center'] .br-simple-slider__header-left {" +
         "  text-align: center;" +
         "}" +
+
         ".br-simple-slider__header-title {" +
         "  font-weight: 600;" +
         "  line-height: 1.2;" +
@@ -838,6 +883,7 @@
         "  line-height: 1.2;" +
         "  margin-top: 2px;" +
         "}" +
+
         ".br-simple-slider__header-cta {" +
         "  justify-self: end;" +
         "  display: inline-block;" +
@@ -848,17 +894,58 @@
         "  cursor: pointer;" +
         "  user-select: none;" +
         "}" +
-        ".br-simple-slider__btn--prev {" +
-        "  grid-column: 1;" +
-        "  grid-row: 2;" +
-        "}" +
+
+        /* track: SAME behavior, just placed in grid col 2 row 2 */
         ".br-simple-slider__track {" +
         "  grid-column: 2;" +
+        "  grid-row: 2;" +
+        "  display: flex;" +
+        "  flex: 1 1 auto;" +
+        "  min-width: 0;" +
+        "  overflow-x: auto;" +
+        "  scroll-snap-type: x mandatory;" +
+        "  scroll-behavior: smooth;" +
+        "  gap: 12px;" +
+        "  padding: 0;" +
+        "  cursor: grab;" +
+        "  -ms-overflow-style: none;" +
+        "  scrollbar-width: none;" +
+        "  overscroll-behavior-x: contain;" +
+        "}" +
+        ".br-simple-slider__track::-webkit-scrollbar {" +
+        "  display: none;" +
+        "}" +
+        ".br-simple-slider__track.is-dragging {" +
+        "  cursor: grabbing;" +
+        "}" +
+
+        ".br-simple-slider__item {" +
+        "  flex: 0 0 auto;" +
+        "  scroll-snap-align: start;" +
+        "  box-sizing: border-box;" +
+        "  min-width: 0;" +
+        "  overflow: hidden;" +
+        "}" +
+
+        /* buttons placed into grid, row 2, col 1/3 */
+        ".br-simple-slider__btn {" +
+        "  border: none;" +
+        "  background: transparent;" +
+        "  cursor: pointer;" +
+        "  font-size: 24px;" +
+        "  padding: 0 4px;" +
+        "}" +
+        ".br-simple-slider__btn--prev {" +
+        "  grid-column: 1;" +
         "  grid-row: 2;" +
         "}" +
         ".br-simple-slider__btn--next {" +
         "  grid-column: 3;" +
         "  grid-row: 2;" +
+        "}" +
+        ".br-simple-slider__btn[disabled] {" +
+        "  opacity: 0.3;" +
+        "  cursor: default;" +
         "}";
 
     const UiCustomElements = {
