@@ -386,10 +386,17 @@
             this._headerSubtitleEl = subtitle;
             this._headerCtaEl = cta;
 
+            // row wrapper (for header and track)
+            const row = document.createElement("div");
+            row.className = "br-simple-slider__row";
+            this.appendChild(row);
+            this._row = row;
+
             // track
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
-            this.appendChild(track);
+            row.appendChild(track);
+            this._track = track;
 
             existingChildren.forEach((child) => {
                 if (!(child instanceof HTMLElement)) {
@@ -437,8 +444,8 @@
             next.className = "br-simple-slider__btn br-simple-slider__btn--next";
             next.innerHTML = "&#8250;";
 
-            this.insertBefore(prev, track);
-            this.appendChild(next);
+            this._row.insertBefore(prev, track);
+            this._row.appendChild(next);
 
             const getStep = () => {
                 const firstItem = track.querySelector(".br-simple-slider__item");
@@ -827,8 +834,16 @@
     BrSimpleSlider.STYLE_CONTENT =
         "br-simple-slider.br-simple-slider {" +
         "  display: flex;" +
-        "  align-items: center;" +
+        "  flex-direction: column;" +
+        "  align-items: stretch;" +
         "  position: relative;" +
+        "}" +
+
+        /* ROW: container HEADER, TRACK */
+        ".br-simple-slider__row {" +
+        "  display: flex;" +
+        "  align-items: center;" +
+        "  width: 100%;" +
         "}" +
 
         /* HEADER */
