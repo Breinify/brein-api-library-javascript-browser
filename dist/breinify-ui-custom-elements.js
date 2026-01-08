@@ -877,11 +877,14 @@
         ".br-simple-slider__header-title {" +
         "  font-weight: 600;" +
         "  line-height: 1.2;" +
+        "  font-size: 1.2rem;" +
+        "  padding-bottom: .15rem;" +
         "}" +
         ".br-simple-slider__header-subtitle {" +
         "  opacity: 0.75;" +
         "  line-height: 1.2;" +
         "  margin-top: 2px;" +
+        "  font-size: .8rem;" +
         "}" +
 
         ".br-simple-slider__header-cta {" +
