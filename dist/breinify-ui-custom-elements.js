@@ -150,6 +150,33 @@
             this._updateButtons = null;
             this._itemObserver = null;
             this._resizeHandler = null;
+
+            // header refs
+            this._headerEl = null;
+            this._headerTitleWrapEl = null;
+            this._headerTitleEl = null;
+            this._headerSubtitleEl = null;
+            this._headerCtaEl = null;
+        }
+
+        static get observedAttributes() {
+            return [
+                "data-title",
+                "data-subtitle",
+                "data-hide-header",
+                "data-title-position",
+                "data-cta-label",
+                "data-cta-url",
+                "data-cta-color",
+                "data-cta-background"
+            ];
+        }
+
+        attributeChangedCallback(_name, _oldValue, _newValue) {
+            // Only react after init; config changes already go through render()
+            if (this._sliderInitialized) {
+                this._applyHeader();
+            }
         }
 
         usesShadowRoot() {
@@ -288,12 +315,24 @@
                     .sort((a, b) => a.maxWidth - b.maxWidth);
             }
 
+            // keep existing slider config normalization + extend with header fields
             this._config = {
                 minItemWidth: (typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0) ? rawCfg.minItemWidth : base.minItemWidth,
                 maxItemWidth: (typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0) ? rawCfg.maxItemWidth : base.maxItemWidth,
                 showArrows: (typeof rawCfg.showArrows === "boolean") ? rawCfg.showArrows : base.showArrows,
                 phonePeek: (typeof rawCfg.phonePeek === "boolean") ? rawCfg.phonePeek : base.phonePeek,
-                breakpoints: breakpoints
+                breakpoints: breakpoints,
+
+                // header config (all optional)
+                title: (typeof rawCfg.title === "string") ? rawCfg.title : "",
+                subtitle: (typeof rawCfg.subtitle === "string") ? rawCfg.subtitle : "",
+                hideHeader: (typeof rawCfg.hideHeader === "boolean") ? rawCfg.hideHeader : false,
+                titlePosition: (typeof rawCfg.titlePosition === "string") ? rawCfg.titlePosition : "left",
+
+                ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : "",
+                ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : "",
+                ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : "",
+                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : ""
             };
 
             if (!this._sliderInitialized) {
@@ -305,11 +344,49 @@
                 this._sliderInitialized = true;
             }
 
+            this._applyHeader();
             this._applyLayout();
         }
 
         _setupStructure() {
             const existingChildren = Array.prototype.slice.call(this.children);
+
+            // header (inserted before track/buttons layout)
+            const header = document.createElement("div");
+            header.className = "br-simple-slider__header";
+            header.style.display = "none";
+
+            const titleWrap = document.createElement("div");
+            titleWrap.className = "br-simple-slider__header-titlewrap";
+
+            const title = document.createElement("div");
+            title.className = "br-simple-slider__header-title";
+            title.style.display = "none";
+
+            const subtitle = document.createElement("div");
+            subtitle.className = "br-simple-slider__header-subtitle";
+            subtitle.style.display = "none";
+
+            titleWrap.appendChild(title);
+            titleWrap.appendChild(subtitle);
+
+            const cta = document.createElement("a");
+            cta.className = "br-simple-slider__header-cta";
+            cta.style.display = "none";
+            cta.setAttribute("rel", "noopener noreferrer");
+
+            header.appendChild(titleWrap);
+            header.appendChild(cta);
+
+            this.appendChild(header);
+
+            this._headerEl = header;
+            this._headerTitleWrapEl = titleWrap;
+            this._headerTitleEl = title;
+            this._headerSubtitleEl = subtitle;
+            this._headerCtaEl = cta;
+
+            // track
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
             this.appendChild(track);
@@ -328,6 +405,12 @@
                     child.tagName.toLowerCase() === "script" &&
                     child.getAttribute("type") &&
                     child.getAttribute("type").endsWith("application/json")) {
+                    return;
+                }
+
+                // do not re-move the header we just inserted (it wasn't in existingChildren,
+                // but keep this as a safety net)
+                if (child === header) {
                     return;
                 }
 
@@ -571,23 +654,228 @@
                 this._updateButtons();
             }
         }
+
+        _readNonEmptyAttr(name) {
+            const raw = this.getAttribute(name);
+            if (raw === null) {
+                return null;
+            }
+            const trimmed = String(raw).trim();
+            return trimmed.length > 0 ? trimmed : null;
+        }
+
+        _readAttrValue(name) {
+            const raw = this.getAttribute(name);
+            if (raw === null) {
+                return null;
+            }
+            const trimmed = String(raw).trim();
+            return trimmed;
+        }
+
+        _isHideHeaderActive() {
+            // only active if value is true/yes/y (any case)
+            const raw = this._readAttrValue("data-hide-header");
+            if (raw === null) {
+                return null; // "not set" -> fall back to config
+            }
+
+            const v = raw.toLowerCase();
+            if (v === "true" || v === "yes" || v === "y") {
+                return true;
+            }
+
+            // any other value -> do not utilize hide-header
+            return null;
+        }
+
+        _resolveTitlePosition() {
+            const attrPos = this._readNonEmptyAttr("data-title-position");
+            const cfgPos = this._config && typeof this._config.titlePosition === "string" ? this._config.titlePosition : "left";
+
+            const value = (attrPos !== null ? attrPos : cfgPos);
+            const normalized = String(value || "").toLowerCase();
+
+            return normalized === "center" ? "center" : "left";
+        }
+
+        _applyHeader() {
+            if (!this._headerEl || !this._headerTitleEl || !this._headerSubtitleEl || !this._headerCtaEl || !this._headerTitleWrapEl) {
+                return;
+            }
+
+            const cfg = this._config || {};
+
+            // title/subtitle: attr has priority only if non-empty trimmed; else fall back to config
+            const attrTitle = this._readNonEmptyAttr("data-title");
+            const attrSubtitle = this._readNonEmptyAttr("data-subtitle");
+
+            const title = (attrTitle !== null) ? attrTitle : (typeof cfg.title === "string" ? cfg.title.trim() : "");
+            const subtitle = (attrSubtitle !== null) ? attrSubtitle : (typeof cfg.subtitle === "string" ? cfg.subtitle.trim() : "");
+
+            const hasTitle = typeof title === "string" && title.trim().length > 0;
+            const hasSubtitle = typeof subtitle === "string" && subtitle.trim().length > 0;
+
+            // CTA: attr priority only if non-empty trimmed; else fall back to config
+            const attrCtaLabel = this._readNonEmptyAttr("data-cta-label");
+            const attrCtaUrl = this._readNonEmptyAttr("data-cta-url");
+            const attrCtaColor = this._readNonEmptyAttr("data-cta-color");
+            const attrCtaBackground = this._readNonEmptyAttr("data-cta-background");
+
+            const ctaLabel = (attrCtaLabel !== null) ? attrCtaLabel : (typeof cfg.ctaLabel === "string" ? cfg.ctaLabel.trim() : "");
+            const ctaUrl = (attrCtaUrl !== null) ? attrCtaUrl : (typeof cfg.ctaUrl === "string" ? cfg.ctaUrl.trim() : "");
+            const ctaColor = (attrCtaColor !== null) ? attrCtaColor : (typeof cfg.ctaColor === "string" ? cfg.ctaColor.trim() : "");
+            const ctaBackground = (attrCtaBackground !== null) ? attrCtaBackground : (typeof cfg.ctaBackground === "string" ? cfg.ctaBackground.trim() : "");
+
+            const hasCta = (typeof ctaLabel === "string" && ctaLabel.trim().length > 0) &&
+                (typeof ctaUrl === "string" && ctaUrl.trim().length > 0);
+
+            // hide-header logic:
+            // - data-hide-header only applies if its value is true/yes/y (any case)
+            // - otherwise fall back to cfg.hideHeader boolean
+            const hideAttr = this._isHideHeaderActive(); // true or null
+            const hideCfg = (typeof cfg.hideHeader === "boolean") ? cfg.hideHeader : false;
+            const explicitlyHidden = (hideAttr === true) || (hideAttr === null && hideCfg === true);
+
+            // implicit hide: if both title+subtitle empty AND no CTA, hide regardless of hideHeader=false
+            const implicitHide = (!hasTitle && !hasSubtitle && !hasCta);
+
+            if (explicitlyHidden || implicitHide) {
+                this._headerEl.style.display = "none";
+                return;
+            }
+
+            // show header container
+            this._headerEl.style.display = "";
+
+            // apply title position
+            const pos = this._resolveTitlePosition();
+            this._headerEl.setAttribute("data-title-position", pos);
+
+            // title
+            if (hasTitle) {
+                this._headerTitleEl.textContent = title;
+                this._headerTitleEl.style.display = "";
+            } else {
+                this._headerTitleEl.textContent = "";
+                this._headerTitleEl.style.display = "none";
+            }
+
+            // subtitle
+            if (hasSubtitle) {
+                this._headerSubtitleEl.textContent = subtitle;
+                this._headerSubtitleEl.style.display = "";
+            } else {
+                this._headerSubtitleEl.textContent = "";
+                this._headerSubtitleEl.style.display = "none";
+            }
+
+            // CTA
+            if (hasCta) {
+                this._headerCtaEl.textContent = ctaLabel;
+                this._headerCtaEl.setAttribute("href", ctaUrl);
+                this._headerCtaEl.setAttribute("target", "_blank");
+                this._headerCtaEl.style.display = "";
+
+                // reset styles first (avoid old inline values sticking)
+                this._headerCtaEl.style.color = "";
+                this._headerCtaEl.style.background = "";
+
+                if (ctaColor) {
+                    this._headerCtaEl.style.color = ctaColor;
+                }
+                if (ctaBackground) {
+                    this._headerCtaEl.style.background = ctaBackground;
+                }
+            } else {
+                this._headerCtaEl.textContent = "";
+                this._headerCtaEl.removeAttribute("href");
+                this._headerCtaEl.style.display = "none";
+
+                this._headerCtaEl.style.color = "";
+                this._headerCtaEl.style.background = "";
+            }
+        }
     }
 
-    // Safari 12/13: replace static class fields with post-class assignments
+    /*
+     * Safari 12/13: replace static class fields with post-class assignments
+     * (keep your existing assignments and just ensure STYLE_CONTENT includes the header CSS below)
+     */
     BrSimpleSlider.STYLE_ELEMENT_ID = "br-simple-slider-style";
+
     BrSimpleSlider.DEFAULT_CONFIG = {
         minItemWidth: 200,
         maxItemWidth: 280,
         showArrows: true,
         phonePeek: true,
-        breakpoints: []
+        breakpoints: [],
+
+        // header defaults
+        title: "",
+        subtitle: "",
+        hideHeader: false,
+        titlePosition: "left",
+
+        // CTA defaults
+        ctaLabel: "",
+        ctaUrl: "",
+        ctaColor: "",
+        ctaBackground: ""
     };
+
     BrSimpleSlider.STYLE_CONTENT =
         "br-simple-slider.br-simple-slider {" +
         "  display: flex;" +
         "  align-items: center;" +
         "  position: relative;" +
         "}" +
+
+        /* HEADER */
+        ".br-simple-slider__header {" +
+        "  display: grid;" +
+        "  grid-template-columns: 1fr auto 1fr;" +
+        "  align-items: center;" +
+        "  width: 100%;" +
+        "  margin: 0 0 10px 0;" +
+        "}" +
+        ".br-simple-slider__header-titlewrap {" +
+        "  display: flex;" +
+        "  flex-direction: column;" +
+        "  min-width: 0;" +
+        "}" +
+        ".br-simple-slider__header[data-title-position='left'] .br-simple-slider__header-titlewrap {" +
+        "  grid-column: 1;" +
+        "  justify-self: start;" +
+        "  text-align: left;" +
+        "}" +
+        ".br-simple-slider__header[data-title-position='center'] .br-simple-slider__header-titlewrap {" +
+        "  grid-column: 2;" +
+        "  justify-self: center;" +
+        "  text-align: center;" +
+        "}" +
+        ".br-simple-slider__header-title {" +
+        "  font-weight: 600;" +
+        "  line-height: 1.2;" +
+        "}" +
+        ".br-simple-slider__header-subtitle {" +
+        "  opacity: 0.75;" +
+        "  line-height: 1.2;" +
+        "  margin-top: 2px;" +
+        "}" +
+        ".br-simple-slider__header-cta {" +
+        "  grid-column: 3;" +
+        "  justify-self: end;" +
+        "  display: inline-block;" +
+        "  text-decoration: none;" +
+        "  padding: 6px 10px;" +
+        "  border-radius: 6px;" +
+        "  line-height: 1;" +
+        "  cursor: pointer;" +
+        "  user-select: none;" +
+        "}" +
+
+        /* TRACK */
         ".br-simple-slider__track {" +
         "  display: flex;" +
         "  flex: 1 1 auto;" +
@@ -608,6 +896,8 @@
         ".br-simple-slider__track.is-dragging {" +
         "  cursor: grabbing;" +
         "}" +
+
+        /* ITEMS */
         ".br-simple-slider__item {" +
         "  flex: 0 0 auto;" +
         "  scroll-snap-align: start;" +
@@ -615,6 +905,8 @@
         "  min-width: 0;" +
         "  overflow: hidden;" +
         "}" +
+
+        /* BUTTONS */
         ".br-simple-slider__btn {" +
         "  flex: 0 0 auto;" +
         "  border: none;" +
