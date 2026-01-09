@@ -608,7 +608,6 @@
         }
 
         // ---------- drag ----------
-
         _setupDragToScroll() {
             const track = this._track;
             if (!track) {
@@ -618,9 +617,30 @@
             let isDown = false;
             let startX = 0;
             let scrollLeft = 0;
+            let didDrag = false;
+
+            const isInteractiveTarget = (target) => {
+                if (!(target instanceof Element)) {
+                    return false;
+                }
+                return !!target.closest("a, button, input, select, textarea, label, [role='button'], [tabindex]");
+            };
 
             track.addEventListener("mousedown", (e) => {
+
+                // only left-click drag
+                if (typeof e.button === "number" && e.button !== 0) {
+                    return;
+                }
+
+                // IMPORTANT: do not start dragging when user interacts with controls inside slides
+                if (isInteractiveTarget(e.target)) {
+                    return;
+                }
+
                 isDown = true;
+                didDrag = false;
+
                 track.classList.add("is-dragging");
                 startX = e.pageX - track.getBoundingClientRect().left;
                 scrollLeft = track.scrollLeft;
@@ -646,15 +666,32 @@
                 if (!isDown) {
                     return;
                 }
-                e.preventDefault();
+
                 const x = e.pageX - track.getBoundingClientRect().left;
                 const walk = x - startX;
-                track.scrollLeft = scrollLeft - walk;
+
+                // small threshold so tiny mouse movement doesn't turn a click into a drag
+                if (!didDrag && Math.abs(walk) > 6) {
+                    didDrag = true;
+                }
+
+                if (didDrag) {
+                    e.preventDefault();
+                    track.scrollLeft = scrollLeft - walk;
+                }
             });
+
+            // If a drag happened, suppress the "click" that Safari might fire after mouseup
+            track.addEventListener("click", (e) => {
+                if (didDrag) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    didDrag = false;
+                }
+            }, true);
         }
 
         // ---------- observers / resize ----------
-
         _setupItemMutationObserver() {
             if (typeof MutationObserver === "undefined") {
                 return;
