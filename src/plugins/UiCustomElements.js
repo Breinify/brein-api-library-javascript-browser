@@ -159,9 +159,6 @@
             this._updateButtons = null;
             this._itemObserver = null;
             this._resizeHandler = null;
-
-            this._isKeyboardMode = false;
-            this._inputModeHandlersBound = false;
         }
 
         // Safari 12/13 compatible (static getter is OK)
@@ -174,8 +171,7 @@
                 "data-cta-label",
                 "data-cta-url",
                 "data-cta-color",
-                "data-cta-background",
-                "data-aria-label"
+                "data-cta-background"
             ];
         }
 
@@ -343,15 +339,12 @@
                 ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : base.ctaLabel,
                 ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : base.ctaUrl,
                 ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : base.ctaColor,
-                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground,
-
-                ariaLabel: (typeof rawCfg.ariaLabel === "string") ? rawCfg.ariaLabel : base.ariaLabel
+                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground
             };
 
             if (!this._sliderInitialized) {
                 this._setupStructure();
                 this._setupButtons();
-                this._setupInputModeDetection();
                 this._setupDragToScroll();
                 this._setupItemMutationObserver();
                 this._setupResizeHandler();
@@ -411,20 +404,8 @@
             // track: aligns with track column (col 2), row 2
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
-
-            // ADA: carousel semantics + labeling and tab-index
-            track.id = track.id || ("br-simple-slider-track-" + Math.random().toString(36).slice(2));
-            track.setAttribute("tabindex", "0");
-
             layout.appendChild(track);
             this._track = track;
-
-            this.setAttribute("role", "region");
-            this.setAttribute("aria-roledescription", "carousel");
-
-            const ariaLabel = this._resolveAriaLabel();
-            this.setAttribute("aria-label", ariaLabel);
-            track.setAttribute("aria-label", ariaLabel);
 
             // move existing children into track
             existingChildren.forEach((child) => {
@@ -477,15 +458,6 @@
             layout.appendChild(prev);
             layout.appendChild(next);
 
-            // ADA: accessible button names + controls relationship
-            prev.setAttribute("aria-label", "Previous items");
-            next.setAttribute("aria-label", "Next items");
-
-            if (track.id) {
-                prev.setAttribute("aria-controls", track.id);
-                next.setAttribute("aria-controls", track.id);
-            }
-
             const getStep = () => {
                 const firstItem = track.querySelector(".br-simple-slider__item");
                 if (!firstItem) {
@@ -527,87 +499,11 @@
             };
 
             track.addEventListener("scroll", updateButtons);
-
-            // ADA: keyboard navigation on the track
-            track.addEventListener("keydown", (e) => {
-                const step = getStep();
-                if (step <= 0) {
-                    return;
-                }
-
-                const key = e.key;
-                const keyCode = e.keyCode;
-
-                const isLeft = (key === "ArrowLeft") || (keyCode === 37);
-                const isRight = (key === "ArrowRight") || (keyCode === 39);
-                const isHome = (key === "Home") || (keyCode === 36);
-                const isEnd = (key === "End") || (keyCode === 35);
-
-                if (isLeft) {
-                    e.preventDefault();
-                    BrSimpleSlider.smoothScrollBy(track, -step);
-                } else if (isRight) {
-                    e.preventDefault();
-                    BrSimpleSlider.smoothScrollBy(track, step);
-                } else if (isHome) {
-                    e.preventDefault();
-                    track.scrollLeft = 0;
-                } else if (isEnd) {
-                    e.preventDefault();
-                    track.scrollLeft = track.scrollWidth;
-                }
-            });
-
             this._updateButtons = updateButtons;
         }
 
-        _setupInputModeDetection() {
-            if (this._inputModeHandlersBound) {
-                return;
-            }
-            this._inputModeHandlersBound = true;
-
-            const enableKeyboardMode = () => {
-                if (!this._isKeyboardMode) {
-                    this._isKeyboardMode = true;
-                    this.classList.add("br-simple-slider--kbd");
-                }
-            };
-
-            const disableKeyboardMode = () => {
-                if (this._isKeyboardMode) {
-                    this._isKeyboardMode = false;
-                    this.classList.remove("br-simple-slider--kbd");
-                }
-            };
-
-            // If user presses keys typically used for navigation, show focus rings
-            this.addEventListener("keydown", (e) => {
-                const key = e.key || "";
-                const code = e.keyCode;
-
-                // Tab / arrows / Home / End are strong signals
-                if (key === "Tab" || code === 9 ||
-                    key === "ArrowLeft" || code === 37 ||
-                    key === "ArrowRight" || code === 39 ||
-                    key === "Home" || code === 36 ||
-                    key === "End" || code === 35) {
-                    enableKeyboardMode();
-                }
-            }, true);
-
-            // Any mouse interaction disables focus rings
-            this.addEventListener("mousedown", () => {
-                disableKeyboardMode();
-            }, true);
-
-            // Touch should also disable
-            this.addEventListener("touchstart", () => {
-                disableKeyboardMode();
-            }, true);
-        }
-
         // ---------- drag ----------
+
         _setupDragToScroll() {
             const track = this._track;
             if (!track) {
@@ -617,30 +513,9 @@
             let isDown = false;
             let startX = 0;
             let scrollLeft = 0;
-            let didDrag = false;
-
-            const isInteractiveTarget = (target) => {
-                if (!(target instanceof Element)) {
-                    return false;
-                }
-                return !!target.closest("a, button, input, select, textarea, label, [role='button'], [tabindex]");
-            };
 
             track.addEventListener("mousedown", (e) => {
-
-                // only left-click drag
-                if (typeof e.button === "number" && e.button !== 0) {
-                    return;
-                }
-
-                // IMPORTANT: do not start dragging when user interacts with controls inside slides
-                if (isInteractiveTarget(e.target)) {
-                    return;
-                }
-
                 isDown = true;
-                didDrag = false;
-
                 track.classList.add("is-dragging");
                 startX = e.pageX - track.getBoundingClientRect().left;
                 scrollLeft = track.scrollLeft;
@@ -666,32 +541,15 @@
                 if (!isDown) {
                     return;
                 }
-
+                e.preventDefault();
                 const x = e.pageX - track.getBoundingClientRect().left;
                 const walk = x - startX;
-
-                // small threshold so tiny mouse movement doesn't turn a click into a drag
-                if (!didDrag && Math.abs(walk) > 6) {
-                    didDrag = true;
-                }
-
-                if (didDrag) {
-                    e.preventDefault();
-                    track.scrollLeft = scrollLeft - walk;
-                }
+                track.scrollLeft = scrollLeft - walk;
             });
-
-            // If a drag happened, suppress the "click" that Safari might fire after mouseup
-            track.addEventListener("click", (e) => {
-                if (didDrag) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    didDrag = false;
-                }
-            }, true);
         }
 
         // ---------- observers / resize ----------
+
         _setupItemMutationObserver() {
             if (typeof MutationObserver === "undefined") {
                 return;
@@ -808,32 +666,6 @@
             return (lc === "center") ? "center" : "left";
         }
 
-        _resolveAriaLabel() {
-            const attrLabel = this._readAttrNonEmpty("data-aria-label");
-            if (attrLabel !== null) {
-                return attrLabel;
-            }
-
-            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
-
-            const cfgLabel = (cfg && typeof cfg.ariaLabel === "string") ? String(cfg.ariaLabel).trim() : "";
-            if (cfgLabel.length > 0) {
-                return cfgLabel;
-            }
-
-            const attrTitle = this._readAttrNonEmpty("data-title");
-            if (attrTitle !== null) {
-                return attrTitle;
-            }
-
-            const cfgTitle = (cfg && typeof cfg.title === "string") ? String(cfg.title).trim() : "";
-            if (cfgTitle.length > 0) {
-                return cfgTitle;
-            }
-
-            return "Carousel";
-        }
-
         _applyHeader() {
             if (!this._header || !this._headerTitle || !this._headerSubtitle || !this._headerCta) {
                 return;
@@ -930,14 +762,6 @@
                 this._headerCta.style.color = "";
                 this._headerCta.style.background = "";
             }
-
-            // ADA: keep aria-label in sync
-            const ariaLabel = this._resolveAriaLabel();
-            this.setAttribute("aria-label", ariaLabel);
-
-            if (this._track) {
-                this._track.setAttribute("aria-label", ariaLabel);
-            }
         }
 
         // ---------- layout sizing (unchanged) ----------
@@ -1010,10 +834,7 @@
         ctaLabel: "",
         ctaUrl: "",
         ctaColor: "",
-        ctaBackground: "",
-
-        // ADA and Aria configuration
-        ariaLabel: ""
+        ctaBackground: ""
     };
 
     BrSimpleSlider.STYLE_CONTENT =
@@ -1128,26 +949,6 @@
         ".br-simple-slider__btn[disabled] {" +
         "  opacity: 0.3;" +
         "  cursor: default;" +
-        "}" +
-        /* ADA: visible focus */
-        /* --- ADA: focus rings only for keyboard mode (Safari-safe) --- */
-        ".br-simple-slider__btn:focus-visible," +
-        ".br-simple-slider__header-cta:focus-visible," +
-        ".br-simple-slider__track:focus-visible {" +
-        "  outline: 3px solid currentColor;" +
-        "  outline-offset: 2px;" +
-        "}" +
-        /* Safari 12/13 (no focus-visible): only show focus when host is in keyboard mode */
-        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__btn:focus," +
-        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__header-cta:focus," +
-        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__track:focus {" +
-        "  outline: none;" +
-        "}" +
-        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__btn:focus," +
-        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__header-cta:focus," +
-        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__track:focus {" +
-        "  outline: 3px solid currentColor;" +
-        "  outline-offset: 2px;" +
         "}";
 
     const UiCustomElements = {
