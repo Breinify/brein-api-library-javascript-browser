@@ -1043,13 +1043,19 @@
         "  cursor: default;" +
         "}" +
         /* ADA: visible focus */
-        ".br-simple-slider__btn:focus," +
+        /* Modern browsers: show focus ring only for keyboard navigation */
         ".br-simple-slider__btn:focus-visible," +
-        ".br-simple-slider__header-cta:focus," +
         ".br-simple-slider__header-cta:focus-visible," +
-        ".br-simple-slider__track:focus," +
         ".br-simple-slider__track:focus-visible {" +
         "  outline: 3px solid currentColor;" +
+        "  outline-offset: 2px;" +
+        "}" +
+
+        /* Safari 12/13 fallback (no :focus-visible): keep it subtle */
+        ".br-simple-slider__btn:focus," +
+        ".br-simple-slider__header-cta:focus," +
+        ".br-simple-slider__track:focus {" +
+        "  outline: 2px solid rgba(0,0,0,0.35);" +
         "  outline-offset: 2px;" +
         "}";
 
