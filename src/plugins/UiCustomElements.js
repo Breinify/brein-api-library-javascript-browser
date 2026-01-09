@@ -159,6 +159,9 @@
             this._updateButtons = null;
             this._itemObserver = null;
             this._resizeHandler = null;
+
+            this._isKeyboardMode = false;
+            this._inputModeHandlersBound = false;
         }
 
         // Safari 12/13 compatible (static getter is OK)
@@ -348,6 +351,7 @@
             if (!this._sliderInitialized) {
                 this._setupStructure();
                 this._setupButtons();
+                this._setupInputModeDetection();
                 this._setupDragToScroll();
                 this._setupItemMutationObserver();
                 this._setupResizeHandler();
@@ -555,6 +559,52 @@
             });
 
             this._updateButtons = updateButtons;
+        }
+
+        _setupInputModeDetection() {
+            if (this._inputModeHandlersBound) {
+                return;
+            }
+            this._inputModeHandlersBound = true;
+
+            const enableKeyboardMode = () => {
+                if (!this._isKeyboardMode) {
+                    this._isKeyboardMode = true;
+                    this.classList.add("br-simple-slider--kbd");
+                }
+            };
+
+            const disableKeyboardMode = () => {
+                if (this._isKeyboardMode) {
+                    this._isKeyboardMode = false;
+                    this.classList.remove("br-simple-slider--kbd");
+                }
+            };
+
+            // If user presses keys typically used for navigation, show focus rings
+            this.addEventListener("keydown", (e) => {
+                const key = e.key || "";
+                const code = e.keyCode;
+
+                // Tab / arrows / Home / End are strong signals
+                if (key === "Tab" || code === 9 ||
+                    key === "ArrowLeft" || code === 37 ||
+                    key === "ArrowRight" || code === 39 ||
+                    key === "Home" || code === 36 ||
+                    key === "End" || code === 35) {
+                    enableKeyboardMode();
+                }
+            }, true);
+
+            // Any mouse interaction disables focus rings
+            this.addEventListener("mousedown", () => {
+                disableKeyboardMode();
+            }, true);
+
+            // Touch should also disable
+            this.addEventListener("touchstart", () => {
+                disableKeyboardMode();
+            }, true);
         }
 
         // ---------- drag ----------
@@ -1043,19 +1093,23 @@
         "  cursor: default;" +
         "}" +
         /* ADA: visible focus */
-        /* Modern browsers: show focus ring only for keyboard navigation */
+        /* --- ADA: focus rings only for keyboard mode (Safari-safe) --- */
         ".br-simple-slider__btn:focus-visible," +
         ".br-simple-slider__header-cta:focus-visible," +
         ".br-simple-slider__track:focus-visible {" +
         "  outline: 3px solid currentColor;" +
         "  outline-offset: 2px;" +
         "}" +
-
-        /* Safari 12/13 fallback (no :focus-visible): keep it subtle */
-        ".br-simple-slider__btn:focus," +
-        ".br-simple-slider__header-cta:focus," +
-        ".br-simple-slider__track:focus {" +
-        "  outline: 2px solid rgba(0,0,0,0.35);" +
+        /* Safari 12/13 (no focus-visible): only show focus when host is in keyboard mode */
+        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__btn:focus," +
+        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__header-cta:focus," +
+        "br-simple-slider.br-simple-slider:not(.br-simple-slider--kbd) .br-simple-slider__track:focus {" +
+        "  outline: none;" +
+        "}" +
+        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__btn:focus," +
+        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__header-cta:focus," +
+        "br-simple-slider.br-simple-slider.br-simple-slider--kbd .br-simple-slider__track:focus {" +
+        "  outline: 3px solid currentColor;" +
         "  outline-offset: 2px;" +
         "}";
 
