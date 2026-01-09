@@ -171,7 +171,8 @@
                 "data-cta-label",
                 "data-cta-url",
                 "data-cta-color",
-                "data-cta-background"
+                "data-cta-background",
+                "data-aria-label"
             ];
         }
 
@@ -339,7 +340,9 @@
                 ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : base.ctaLabel,
                 ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : base.ctaUrl,
                 ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : base.ctaColor,
-                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground
+                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground,
+
+                ariaLabel: (typeof rawCfg.ariaLabel === "string") ? rawCfg.ariaLabel : base.ariaLabel
             };
 
             if (!this._sliderInitialized) {
@@ -404,8 +407,20 @@
             // track: aligns with track column (col 2), row 2
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
+
+            // ADA: carousel semantics + labeling and tab-index
+            track.id = track.id || ("br-simple-slider-track-" + Math.random().toString(36).slice(2));
+            track.setAttribute("tabindex", "0");
+
             layout.appendChild(track);
             this._track = track;
+
+            this.setAttribute("role", "region");
+            this.setAttribute("aria-roledescription", "carousel");
+
+            const ariaLabel = this._resolveAriaLabel();
+            this.setAttribute("aria-label", ariaLabel);
+            track.setAttribute("aria-label", ariaLabel);
 
             // move existing children into track
             existingChildren.forEach((child) => {
@@ -458,6 +473,15 @@
             layout.appendChild(prev);
             layout.appendChild(next);
 
+            // ADA: accessible button names + controls relationship
+            prev.setAttribute("aria-label", "Previous items");
+            next.setAttribute("aria-label", "Next items");
+
+            if (track.id) {
+                prev.setAttribute("aria-controls", track.id);
+                next.setAttribute("aria-controls", track.id);
+            }
+
             const getStep = () => {
                 const firstItem = track.querySelector(".br-simple-slider__item");
                 if (!firstItem) {
@@ -499,6 +523,37 @@
             };
 
             track.addEventListener("scroll", updateButtons);
+
+            // ADA: keyboard navigation on the track
+            track.addEventListener("keydown", (e) => {
+                const step = getStep();
+                if (step <= 0) {
+                    return;
+                }
+
+                const key = e.key;
+                const keyCode = e.keyCode;
+
+                const isLeft = (key === "ArrowLeft") || (keyCode === 37);
+                const isRight = (key === "ArrowRight") || (keyCode === 39);
+                const isHome = (key === "Home") || (keyCode === 36);
+                const isEnd = (key === "End") || (keyCode === 35);
+
+                if (isLeft) {
+                    e.preventDefault();
+                    BrSimpleSlider.smoothScrollBy(track, -step);
+                } else if (isRight) {
+                    e.preventDefault();
+                    BrSimpleSlider.smoothScrollBy(track, step);
+                } else if (isHome) {
+                    e.preventDefault();
+                    track.scrollLeft = 0;
+                } else if (isEnd) {
+                    e.preventDefault();
+                    track.scrollLeft = track.scrollWidth;
+                }
+            });
+
             this._updateButtons = updateButtons;
         }
 
@@ -666,6 +721,32 @@
             return (lc === "center") ? "center" : "left";
         }
 
+        _resolveAriaLabel() {
+            const attrLabel = this._readAttrNonEmpty("data-aria-label");
+            if (attrLabel !== null) {
+                return attrLabel;
+            }
+
+            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+
+            const cfgLabel = (cfg && typeof cfg.ariaLabel === "string") ? String(cfg.ariaLabel).trim() : "";
+            if (cfgLabel.length > 0) {
+                return cfgLabel;
+            }
+
+            const attrTitle = this._readAttrNonEmpty("data-title");
+            if (attrTitle !== null) {
+                return attrTitle;
+            }
+
+            const cfgTitle = (cfg && typeof cfg.title === "string") ? String(cfg.title).trim() : "";
+            if (cfgTitle.length > 0) {
+                return cfgTitle;
+            }
+
+            return "Carousel";
+        }
+
         _applyHeader() {
             if (!this._header || !this._headerTitle || !this._headerSubtitle || !this._headerCta) {
                 return;
@@ -762,6 +843,14 @@
                 this._headerCta.style.color = "";
                 this._headerCta.style.background = "";
             }
+
+            // ADA: keep aria-label in sync
+            const ariaLabel = this._resolveAriaLabel();
+            this.setAttribute("aria-label", ariaLabel);
+
+            if (this._track) {
+                this._track.setAttribute("aria-label", ariaLabel);
+            }
         }
 
         // ---------- layout sizing (unchanged) ----------
@@ -834,7 +923,10 @@
         ctaLabel: "",
         ctaUrl: "",
         ctaColor: "",
-        ctaBackground: ""
+        ctaBackground: "",
+
+        // ADA and Aria configuration
+        ariaLabel: ""
     };
 
     BrSimpleSlider.STYLE_CONTENT =
@@ -949,6 +1041,16 @@
         ".br-simple-slider__btn[disabled] {" +
         "  opacity: 0.3;" +
         "  cursor: default;" +
+        "}" +
+        /* ADA: visible focus */
+        ".br-simple-slider__btn:focus," +
+        ".br-simple-slider__btn:focus-visible," +
+        ".br-simple-slider__header-cta:focus," +
+        ".br-simple-slider__header-cta:focus-visible," +
+        ".br-simple-slider__track:focus," +
+        ".br-simple-slider__track:focus-visible {" +
+        "  outline: 3px solid currentColor;" +
+        "  outline-offset: 2px;" +
         "}";
 
     const UiCustomElements = {
