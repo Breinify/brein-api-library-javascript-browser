@@ -938,7 +938,7 @@
         /**
          * Creates the clickable trigger banner (desktop + mobile).
          */
-        _createTrigger() {
+        _createTrigger($root) {
             const triggerCfg = (this.settings && this.settings.trigger) || {};
 
             const desktopUrl = triggerCfg.bannerUrl;
@@ -970,6 +970,9 @@
                 evt.preventDefault();
                 this._openSurvey();
             });
+
+            // by default, we just append the trigger to the root instance
+            $root.append($trigger);
             return $trigger;
         }
 
@@ -1620,18 +1623,11 @@
             const $root = $('<div class="br-survey-root"></div>');
 
             // add trigger banner
-            const $trigger = this._createTrigger();
-            $root.append($trigger);
-
+            this._createTrigger($root);
             this.$shadowRoot.append($root);
 
             // fire "rendered" once banner is actually in the DOM
             this._fireRenderedEvent();
-
-            // TODO: debug for now, remove when done
-            console.log(webExId);
-            console.log(this.settings);
-            console.log(JSON.stringify(this.settings));
         }
     }
 
