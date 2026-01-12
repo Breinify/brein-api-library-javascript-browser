@@ -1619,10 +1619,8 @@
             // second let's add the style snippet - if any
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
 
-            // wrapper root
-            const $root = $('<div class="br-survey-root"></div>');
-
             // add trigger banner
+            const $root = $('<div class="br-survey-root"></div>');
             this._createTrigger($root);
             this.$shadowRoot.append($root);
 
