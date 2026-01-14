@@ -929,7 +929,7 @@
         "  min-width: 0;" +
         "  overflow: hidden;" +
         // ensure last pixel is shown (round issues on Safari)
-        "  padding-bottom: 1px;" +
+        "  padding-bottom: 2px;" +
         "}" +
 
         /* buttons placed into grid, row 2, col 1/3 */
