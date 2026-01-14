@@ -512,13 +512,65 @@
 
             let isDown = false;
             let startX = 0;
-            let scrollLeft = 0;
+            let startScrollLeft = 0;
+
+            const getMaxScrollLeft = () => {
+                const max = track.scrollWidth - track.clientWidth;
+                return max > 0 ? max : 0;
+            };
+
+            const clamp = (v, min, max) => {
+                return Math.max(min, Math.min(max, v));
+            };
+
+            const disableSnapForDrag = () => {
+                // Disable mandatory snapping while dragging to avoid "snap back" at edges
+                track.style.scrollSnapType = "none";
+                // Disable smooth behavior while dragging (prevents delayed settling / snap feel)
+                track.style.scrollBehavior = "auto";
+            };
+
+            const restoreSnapAfterDrag = () => {
+                // Restore your CSS default
+                track.style.scrollSnapType = "x mandatory";
+                track.style.scrollBehavior = "smooth";
+
+                // Optional: snap to the nearest item once, so it ends cleanly (without jitter)
+                // Delay by a tick so the browser can apply final scrollLeft first.
+                window.setTimeout(() => {
+                    const firstItem = track.querySelector(".br-simple-slider__item");
+                    if (!firstItem) {
+                        return;
+                    }
+
+                    const rect = firstItem.getBoundingClientRect();
+                    const gap = BrSimpleSlider.getGapPx(track);
+                    const step = rect.width + gap;
+
+                    if (step <= 0) {
+                        return;
+                    }
+
+                    const maxScroll = getMaxScrollLeft();
+                    const current = clamp(track.scrollLeft, 0, maxScroll);
+
+                    // round to nearest snap point (start alignment)
+                    const idx = Math.round(current / step);
+                    const target = clamp(idx * step, 0, maxScroll);
+
+                    // Let CSS snap do it naturally; but setting scrollLeft once avoids "half snap" states
+                    track.scrollLeft = target;
+                }, 0);
+            };
 
             track.addEventListener("mousedown", (e) => {
                 isDown = true;
                 track.classList.add("is-dragging");
+
+                disableSnapForDrag();
+
                 startX = e.pageX - track.getBoundingClientRect().left;
-                scrollLeft = track.scrollLeft;
+                startScrollLeft = track.scrollLeft;
             });
 
             track.addEventListener("mouseleave", () => {
@@ -527,6 +579,7 @@
                 }
                 isDown = false;
                 track.classList.remove("is-dragging");
+                restoreSnapAfterDrag();
             });
 
             window.addEventListener("mouseup", () => {
@@ -535,6 +588,7 @@
                 }
                 isDown = false;
                 track.classList.remove("is-dragging");
+                restoreSnapAfterDrag();
             });
 
             track.addEventListener("mousemove", (e) => {
@@ -542,9 +596,14 @@
                     return;
                 }
                 e.preventDefault();
+
                 const x = e.pageX - track.getBoundingClientRect().left;
                 const walk = x - startX;
-                track.scrollLeft = scrollLeft - walk;
+
+                const maxScroll = getMaxScrollLeft();
+                const next = clamp(startScrollLeft - walk, 0, maxScroll);
+
+                track.scrollLeft = next;
             });
         }
 
