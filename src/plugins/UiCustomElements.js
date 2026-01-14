@@ -346,6 +346,7 @@
                 this._setupStructure();
                 this._setupButtons();
                 this._setupDragToScroll();
+                this._setupPreventHistorySwipe();
                 this._setupItemMutationObserver();
                 this._setupResizeHandler();
                 this._sliderInitialized = true;
@@ -512,63 +513,13 @@
 
             let isDown = false;
             let startX = 0;
-            let startScrollLeft = 0;
-
-            const getMaxScrollLeft = () => {
-                const max = track.scrollWidth - track.clientWidth;
-                return max > 0 ? max : 0;
-            };
-
-            const clamp = (v, min, max) => {
-                return Math.max(min, Math.min(max, v));
-            };
-
-            const disableSnapForDrag = () => {
-                // Disable mandatory snapping while dragging to avoid "snap back" at edges
-                track.style.scrollSnapType = "none";
-                // Disable smooth behavior while dragging (prevents delayed settling / snap feel)
-                track.style.scrollBehavior = "auto";
-            };
-
-            const restoreSnapAfterDrag = () => {
-                // Restore your CSS default
-                track.style.scrollSnapType = "x mandatory";
-                track.style.scrollBehavior = "smooth";
-
-                // Optional: snap to the nearest item once, so it ends cleanly (without jitter)
-                // Delay by a tick so the browser can apply final scrollLeft first.
-                window.setTimeout(() => {
-                    const firstItem = track.querySelector(".br-simple-slider__item");
-                    if (!firstItem) {
-                        return;
-                    }
-
-                    const rect = firstItem.getBoundingClientRect();
-                    const gap = BrSimpleSlider.getGapPx(track);
-                    const step = rect.width + gap;
-
-                    if (step <= 0) {
-                        return;
-                    }
-
-                    const maxScroll = getMaxScrollLeft();
-                    const current = clamp(track.scrollLeft, 0, maxScroll);
-
-                    // round to nearest snap point (start alignment)
-                    const idx = Math.round(current / step);
-                    // Let CSS snap do it naturally; but setting scrollLeft once avoids "half snap" states
-                    track.scrollLeft = clamp(idx * step, 0, maxScroll);
-                }, 0);
-            };
+            let scrollLeft = 0;
 
             track.addEventListener("mousedown", (e) => {
                 isDown = true;
                 track.classList.add("is-dragging");
-
-                disableSnapForDrag();
-
                 startX = e.pageX - track.getBoundingClientRect().left;
-                startScrollLeft = track.scrollLeft;
+                scrollLeft = track.scrollLeft;
             });
 
             track.addEventListener("mouseleave", () => {
@@ -577,7 +528,6 @@
                 }
                 isDown = false;
                 track.classList.remove("is-dragging");
-                restoreSnapAfterDrag();
             });
 
             window.addEventListener("mouseup", () => {
@@ -586,7 +536,6 @@
                 }
                 isDown = false;
                 track.classList.remove("is-dragging");
-                restoreSnapAfterDrag();
             });
 
             track.addEventListener("mousemove", (e) => {
@@ -594,13 +543,44 @@
                     return;
                 }
                 e.preventDefault();
-
                 const x = e.pageX - track.getBoundingClientRect().left;
                 const walk = x - startX;
-
-                const maxScroll = getMaxScrollLeft();
-                track.scrollLeft = clamp(startScrollLeft - walk, 0, maxScroll);
+                track.scrollLeft = scrollLeft - walk;
             });
+        }
+
+        _setupPreventHistorySwipe() {
+            const track = this._track;
+            if (!track) {
+                return;
+            }
+
+            const getMaxScrollLeft = () => {
+                const max = track.scrollWidth - track.clientWidth;
+                return max > 0 ? max : 0;
+            };
+
+            // IMPORTANT: passive:false so preventDefault works
+            track.addEventListener("wheel", (e) => {
+                // Only care about horizontal intent
+                const dx = e.deltaX || 0;
+                const dy = e.deltaY || 0;
+
+                if (Math.abs(dx) <= Math.abs(dy)) {
+                    return;
+                }
+
+                const max = getMaxScrollLeft();
+                const cur = track.scrollLeft;
+
+                const atLeft = cur <= 0;
+                const atRight = cur >= max - 1;
+
+                // If user tries to scroll beyond edges, prevent browser history swipe
+                if ((atLeft && dx < 0) || (atRight && dx > 0)) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
         }
 
         // ---------- observers / resize ----------
@@ -962,7 +942,7 @@
         "  min-width: 0;" +
         "  overflow-x: auto;" +
         "  scroll-snap-type: x mandatory;" +
-        "  scroll-behavior: auto;" +
+        "  scroll-behavior: smooth;" +
         "  gap: 12px;" +
         "  padding: 0;" +
         "  cursor: grab;" +
