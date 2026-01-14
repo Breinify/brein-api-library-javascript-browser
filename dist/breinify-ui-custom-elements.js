@@ -556,10 +556,8 @@
 
                     // round to nearest snap point (start alignment)
                     const idx = Math.round(current / step);
-                    const target = clamp(idx * step, 0, maxScroll);
-
                     // Let CSS snap do it naturally; but setting scrollLeft once avoids "half snap" states
-                    track.scrollLeft = target;
+                    track.scrollLeft = clamp(idx * step, 0, maxScroll);
                 }, 0);
             };
 
@@ -601,9 +599,7 @@
                 const walk = x - startX;
 
                 const maxScroll = getMaxScrollLeft();
-                const next = clamp(startScrollLeft - walk, 0, maxScroll);
-
-                track.scrollLeft = next;
+                track.scrollLeft = clamp(startScrollLeft - walk, 0, maxScroll);
             });
         }
 
