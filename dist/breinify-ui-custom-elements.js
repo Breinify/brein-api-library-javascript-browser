@@ -562,24 +562,39 @@
             const isHorizontalIntent = (e) => {
                 const dx = e.deltaX || 0;
                 const dy = e.deltaY || 0;
+                // horizontal intent if dx dominates
                 return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 0;
             };
 
-            // Capture phase helps on Safari where the history gesture can “win” early.
-            // passive:false is required so preventDefault works.
+            const getMaxScrollLeft = () => {
+                const max = track.scrollWidth - track.clientWidth;
+                return max > 0 ? max : 0;
+            };
+
+            // Capture phase so we intercept before Safari converts it into history navigation
             track.addEventListener("wheel", (e) => {
                 if (!isHorizontalIntent(e)) {
                     return;
                 }
 
-                // Always prevent default for horizontal wheel inside the track,
-                // otherwise macOS can treat edge-gestures as back/forward navigation.
-                e.preventDefault();
+                const dx = e.deltaX || 0;
+                const max = getMaxScrollLeft();
+                const cur = track.scrollLeft;
 
-                // Manually scroll. This preserves natural trackpad behavior.
-                // NOTE: Safari sometimes reports inverted signs depending on gesture;
-                // using deltaX directly matches native feel in practice.
-                track.scrollLeft = track.scrollLeft + (e.deltaX || 0);
+                // If layout isn’t ready yet (max==0), Safari may treat the swipe as history nav.
+                // Prevent that initial "back/forward" gesture; once layout is ready, normal scroll works.
+                if (max === 0) {
+                    e.preventDefault();
+                    return;
+                }
+
+                const atLeft = cur <= 0;
+                const atRight = cur >= max - 1;
+
+                // Only block when user pushes beyond edges (this is when history swipe happens)
+                if ((atLeft && dx < 0) || (atRight && dx > 0)) {
+                    e.preventDefault();
+                }
             }, { passive: false, capture: true });
         }
 
