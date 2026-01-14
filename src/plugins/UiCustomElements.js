@@ -962,7 +962,7 @@
         "  min-width: 0;" +
         "  overflow-x: auto;" +
         "  scroll-snap-type: x mandatory;" +
-        "  scroll-behavior: smooth;" +
+        "  scroll-behavior: auto;" +
         "  gap: 12px;" +
         "  padding: 0;" +
         "  cursor: grab;" +
