@@ -405,6 +405,10 @@
             // track: aligns with track column (col 2), row 2
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
+            track.setAttribute("tabindex", "0");
+            track.setAttribute("role", "region");
+            track.setAttribute("aria-label", "Product carousel");
+
             layout.appendChild(track);
             this._track = track;
 
@@ -555,32 +559,28 @@
                 return;
             }
 
-            const getMaxScrollLeft = () => {
-                const max = track.scrollWidth - track.clientWidth;
-                return max > 0 ? max : 0;
-            };
-
-            // IMPORTANT: passive:false so preventDefault works
-            track.addEventListener("wheel", (e) => {
-                // Only care about horizontal intent
+            const isHorizontalIntent = (e) => {
                 const dx = e.deltaX || 0;
                 const dy = e.deltaY || 0;
+                return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 0;
+            };
 
-                if (Math.abs(dx) <= Math.abs(dy)) {
+            // Capture phase helps on Safari where the history gesture can “win” early.
+            // passive:false is required so preventDefault works.
+            track.addEventListener("wheel", (e) => {
+                if (!isHorizontalIntent(e)) {
                     return;
                 }
 
-                const max = getMaxScrollLeft();
-                const cur = track.scrollLeft;
+                // Always prevent default for horizontal wheel inside the track,
+                // otherwise macOS can treat edge-gestures as back/forward navigation.
+                e.preventDefault();
 
-                const atLeft = cur <= 0;
-                const atRight = cur >= max - 1;
-
-                // If user tries to scroll beyond edges, prevent browser history swipe
-                if ((atLeft && dx < 0) || (atRight && dx > 0)) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
+                // Manually scroll. This preserves natural trackpad behavior.
+                // NOTE: Safari sometimes reports inverted signs depending on gesture;
+                // using deltaX directly matches native feel in practice.
+                track.scrollLeft = track.scrollLeft + (e.deltaX || 0);
+            }, { passive: false, capture: true });
         }
 
         // ---------- observers / resize ----------
