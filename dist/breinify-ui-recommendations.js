@@ -17,7 +17,7 @@
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
-                        .then(() => _private._handle(webExVersionId, recommendation))
+                        .then(() => _private._handle(webExId, webExVersionId, recommendation))
                         .catch(err => {
                             // handle/log error, and decide what to return
                             console.error(err);
@@ -29,7 +29,7 @@
             Breinify.plugins.recommendations.render(results);
         },
 
-        _handle: async function (webExVersionId, singleConfig) {
+        _handle: async function (webExId, webExVersionId, singleConfig) {
             const config = {};
 
             if (!$.isPlainObject(singleConfig)) {
@@ -42,7 +42,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExVersionId, singleConfig.process);
+            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
             this._applyStyle(singleConfig.style);
 
             /*
@@ -80,7 +80,7 @@
             }
         },
 
-        _createProcess: function (webExVersionId, config) {
+        _createProcess: function (webExId, webExVersionId, config) {
 
             let resolvedProcesses;
             if ($.isPlainObject(config)) {
