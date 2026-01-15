@@ -13,7 +13,7 @@
     const ALLOWED_POSITIONS = ['before', 'after', 'prepend', 'append', 'replace', 'externalRender'];
 
     const _private = {
-        handle: async function (webExVersionId, recommendations) {
+        handle: async function (webExId, webExVersionId, recommendations) {
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
