@@ -13,11 +13,11 @@
     const ALLOWED_POSITIONS = ['before', 'after', 'prepend', 'append', 'replace', 'externalRender'];
 
     const _private = {
-        handle: async function (webExId, recommendations) {
+        handle: async function (webExVersionId, recommendations) {
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
-                        .then(() => _private._handle(webExId, recommendation))
+                        .then(() => _private._handle(webExVersionId, recommendation))
                         .catch(err => {
                             // handle/log error, and decide what to return
                             console.error(err);
@@ -29,7 +29,7 @@
             Breinify.plugins.recommendations.render(results);
         },
 
-        _handle: async function (webExId, singleConfig) {
+        _handle: async function (webExVersionId, singleConfig) {
             const config = {};
 
             if (!$.isPlainObject(singleConfig)) {
@@ -42,7 +42,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, singleConfig.process);
+            config.process = this._createProcess(webExVersionId, singleConfig.process);
             this._applyStyle(singleConfig.style);
 
             /*
@@ -80,7 +80,7 @@
             }
         },
 
-        _createProcess: function (webExId, config) {
+        _createProcess: function (webExVersionId, config) {
 
             let resolvedProcesses;
             if ($.isPlainObject(config)) {
@@ -105,7 +105,7 @@
                     createActivityFunc.call(this, event, settings);
                 }
 
-                settings.activityTags.campaignWebExId = webExId;
+                settings.activityTags.campaignWebExId = webExVersionId;
             }
 
             return resolvedProcesses;
@@ -283,7 +283,7 @@
 
     // bind the plugin
     Breinify.plugins._add('uiRecommendations', {
-        register: function (module, webExId, config) {
+        register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
             /*
@@ -316,7 +316,7 @@
                 // TODO: decide what this would mean and how to handle it correctly
             } else if (configOnLoad.length > 0) {
                 module.onChange = function () {
-                    _self.handle(webExId, {
+                    _self.handle(webExId, webExVersionId, {
                         activationLogic: config.activationLogic,
                         recommendations: configOnLoad
                     });
@@ -335,18 +335,18 @@
                     };
                 };
                 module.onChange = function (data) {
-                    _self.handle(webExId, data);
+                    _self.handle(webExId, webExVersionId, data);
                 }
             }
         },
-        handle: function (webExId, config) {
+        handle: function (webExId, webExVersionId, config) {
             const recommendations = $.isArray(config.recommendations) ? config.recommendations : [];
             if (recommendations.length === 0) {
                 return;
             }
 
             Promise.resolve()
-                .then(() => _private.handle(webExId, recommendations))
+                .then(() => _private.handle(webExId, webExVersionId, recommendations))
                 .catch(err => {
                 });
         }
