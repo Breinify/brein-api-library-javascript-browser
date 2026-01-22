@@ -1236,7 +1236,8 @@
             const itemSnippetId = Breinify.UTL.isNonEmptyString(data.renderResultSnippet);
             const preconfig = Breinify.UTL.isNonEmptyString(data.preconfiguredRecommendation);
             const queryLabel = Breinify.UTL.isNonEmptyString(data.queryLabel) || preconfig;
-            const additionalOtherParameters = this._buildAnswerAttributes();
+            const buildAttributes = this._buildAnswerAttributes();
+            const additionalOtherParameters = buildAttributes.attributes;
             const recPayload = {
                 recommendationQueryName: queryLabel,
                 namedRecommendations: [
