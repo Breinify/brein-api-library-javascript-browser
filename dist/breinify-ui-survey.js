@@ -1236,11 +1236,15 @@
             const itemSnippetId = Breinify.UTL.isNonEmptyString(data.renderResultSnippet);
             const preconfig = Breinify.UTL.isNonEmptyString(data.preconfiguredRecommendation);
             const queryLabel = Breinify.UTL.isNonEmptyString(data.queryLabel) || preconfig;
+            const additionalOtherParameters = this._buildAnswerAttributes();
             const recPayload = {
                 recommendationQueryName: queryLabel,
                 namedRecommendations: [
                     preconfig
-                ]
+                ],
+                recommendationAdditionalParameters: {
+                    additionalOtherParameters: additionalOtherParameters
+                }
             };
 
             // determine the product snippet to use
@@ -1305,6 +1309,76 @@
                     }
                 }
             });
+        }
+
+        _resolveSelectedAnswers() {
+            const nodes = (((this.settings || {}).survey || {}).nodes) || [];
+
+            // Index nodes by node.id
+            const nodeById = Object.create(null);
+            for (const n of nodes) {
+                if (n && typeof n.id === "string") {
+                    nodeById[n.id] = n;
+                }
+            }
+
+            const byQuestionId = Object.create(null);
+            const missingQuestions = [];
+            const missingAnswers = [];
+
+            for (const [questionId, answerId] of Object.entries(this._selectedAnswers || {})) {
+                const node = nodeById[questionId] || null;
+
+                if (!node) {
+                    missingQuestions.push(questionId);
+                    byQuestionId[questionId] = {
+                        questionId,
+                        question: null,
+                        answerId,
+                        title: null,
+                        values: null,
+                        answer: null,
+                        node: null
+                    };
+                    continue;
+                }
+
+                const question = node?.data?.question ?? null;
+                const answers = Array.isArray(node?.data?.answers) ? node.data.answers : [];
+                const answer = answers.find(a => a && a._id === answerId) || null;
+
+                if (!answer) {
+                    missingAnswers.push({ questionId, answerId });
+                }
+
+                byQuestionId[questionId] = {
+                    questionId,
+                    question,
+                    answerId,
+                    title: answer?.title ?? null,
+                    values: answer?.values ?? null,
+                    answer,
+                    node
+                };
+            }
+
+            return { byQuestionId, missingQuestions, missingAnswers };
+        }
+
+        _buildAnswerAttributes() {
+            const resolved = this._resolveSelectedAnswers();
+
+            const attributes = Object.create(null);
+
+            for (const r of Object.values(resolved.byQuestionId)) {
+                const vals = Array.isArray(r.values) ? r.values : [];
+                for (const kv of vals) {
+                    if (!kv || typeof kv.key !== "string") continue;
+                    attributes[kv.key] = kv.value;
+                }
+            }
+
+            return { resolved, attributes };
         }
 
         _createPlaceholders(node) {
