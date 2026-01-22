@@ -819,6 +819,8 @@
                     this._currentNodeId = nodeId;
                 }
 
+                this._pruneSelectedAnswersToActivePath();
+
                 if (popup) {
                     this._renderCurrentPage(popup);
                     if (!popup.hasAttribute("open")) {
@@ -1380,6 +1382,41 @@
             }
 
             return { resolved, attributes };
+        }
+
+        /**
+         * Remove selected answers that are no longer part of the active path
+         * (current node + history stack).
+         *
+         * This fixes back/forward navigation where answers from "future" pages
+         * would otherwise remain in _selectedAnswers.
+         */
+        _pruneSelectedAnswersToActivePath() {
+            if (!$.isPlainObject(this._selectedAnswers)) {
+                return;
+            }
+
+            const allowed = Object.create(null);
+
+            if (Array.isArray(this._history)) {
+                this._history.forEach((id) => {
+                    const nid = Breinify.UTL.isNonEmptyString(id);
+                    if (nid !== null) {
+                        allowed[nid] = true;
+                    }
+                });
+            }
+
+            const current = Breinify.UTL.isNonEmptyString(this._currentNodeId);
+            if (current !== null) {
+                allowed[current] = true;
+            }
+
+            Object.keys(this._selectedAnswers).forEach((qid) => {
+                if (allowed[qid] !== true) {
+                    delete this._selectedAnswers[qid];
+                }
+            });
         }
 
         _createPlaceholders(node) {
