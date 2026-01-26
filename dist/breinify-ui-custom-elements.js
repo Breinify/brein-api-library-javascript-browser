@@ -1131,7 +1131,7 @@
                 return null;
             }
 
-            // direct hit in this root (works for Element + ShadowRoot)
+            // 1) Light DOM query on this root (Element or ShadowRoot)
             if (typeof root.querySelector === "function") {
                 const hit = root.querySelector(selector);
                 if (hit) {
@@ -1139,7 +1139,15 @@
                 }
             }
 
-            // traverse descendants if possible (works for Element + ShadowRoot)
+            // 2) If this root is an Element with an OPEN shadow root, search it too
+            if (root instanceof Element && root.shadowRoot) {
+                const inside = this._queryDeep(root.shadowRoot, selector);
+                if (inside) {
+                    return inside;
+                }
+            }
+
+            // 3) Traverse descendants and enter their open shadow roots
             if (typeof root.querySelectorAll !== "function") {
                 return null;
             }
@@ -1147,8 +1155,6 @@
             const tree = root.querySelectorAll("*");
             for (let i = 0; i < tree.length; i += 1) {
                 const el = tree[i];
-
-                // open shadow root only
                 if (el && el.shadowRoot) {
                     const inside = this._queryDeep(el.shadowRoot, selector);
                     if (inside) {
