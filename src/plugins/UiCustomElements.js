@@ -165,6 +165,7 @@
             this._itemObserver = null;
             this._resizeHandler = null;
 
+            this._activeIndex = 0;
             this._keyboardHandler = null;
         }
 
@@ -489,13 +490,19 @@
                     return;
                 }
 
-                if (e.key === "Home") {
+                if (e.key === "ArrowRight") {
                     e.preventDefault();
-                    track.scrollLeft = 0;
+                    this._setActiveIndex(this._activeIndex + 1, true);
+                } else if (e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    this._setActiveIndex(this._activeIndex - 1, true);
+                } else if (e.key === "Home") {
+                    e.preventDefault();
+                    this._setActiveIndex(0, true);
                 } else if (e.key === "End") {
                     e.preventDefault();
-                    const max = track.scrollWidth - track.clientWidth;
-                    track.scrollLeft = max > 0 ? max : 0;
+                    const items = this._getItems();
+                    this._setActiveIndex(items.length - 1, true);
                 }
             };
 
@@ -503,6 +510,53 @@
         }
 
         // ---------- items ----------
+
+        _getItems() {
+            if (!this._track) {
+                return [];
+            }
+
+            return Array.prototype.slice.call(this._track.querySelectorAll(".br-simple-slider__item"));
+        }
+
+        _setActiveIndex(nextIndex, focus) {
+            const items = this._getItems();
+            const size = items.length;
+
+            if (size === 0) {
+                this._activeIndex = 0;
+                return;
+            }
+
+            let idx = nextIndex;
+            if (idx < 0) idx = 0;
+            if (idx >= size) idx = size - 1;
+
+            this._activeIndex = idx;
+
+            for (let i = 0; i < size; i += 1) {
+                const item = items[i];
+                if (item && item.setAttribute) {
+                    item.setAttribute("tabindex", (i === idx) ? "0" : "-1");
+                }
+            }
+
+            const active = items[idx];
+            if (active && focus === true) {
+                // keep the item visible
+                try {
+                    active.scrollIntoView({block: "nearest", inline: "nearest"});
+                } catch (_e) {
+                    // ignore
+                }
+
+                try {
+                    active.focus({preventScroll: true});
+                } catch (_e2) {
+                    active.focus();
+                }
+            }
+        }
 
         _addItem(node, updateItemPositions) {
             if (!(node instanceof HTMLElement) || !this._track) {
@@ -996,6 +1050,8 @@
             if (this._updateButtons) {
                 this._updateButtons();
             }
+
+            this._setActiveIndex(this._activeIndex, false);
         }
     }
 
