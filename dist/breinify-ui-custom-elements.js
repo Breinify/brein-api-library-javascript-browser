@@ -514,33 +514,20 @@
         }
 
         _findPrimaryAction(item) {
-            if (!item) {
-                return null;
-            }
+            if (!item) return null;
 
-            // 1) Explicit marker wins
-            let el = item.querySelector("[data-br-primary-action]");
-            if (el instanceof HTMLElement) {
-                return el;
-            }
+            // explicit marker wins (supports host marker too)
+            let el = this._queryDeep(item, "[data-br-primary-action]");
+            if (el instanceof HTMLElement) return el;
 
-            // 2) First real link
-            el = item.querySelector("a[href]");
-            if (el instanceof HTMLElement) {
-                return el;
-            }
+            el = this._queryDeep(item, "a[href]");
+            if (el instanceof HTMLElement) return el;
 
-            // 3) Button
-            el = item.querySelector("button");
-            if (el instanceof HTMLElement) {
-                return el;
-            }
+            el = this._queryDeep(item, "button");
+            if (el instanceof HTMLElement) return el;
 
-            // 4) Generic “clickable” roles
-            el = item.querySelector('[role="button"], [tabindex="0"]');
-            if (el instanceof HTMLElement) {
-                return el;
-            }
+            el = this._queryDeep(item, '[role="button"], [tabindex="0"]');
+            if (el instanceof HTMLElement) return el;
 
             return null;
         }
@@ -563,6 +550,15 @@
 
             const target = this._findPrimaryAction(active);
             if (!target) {
+                return;
+            }
+
+            if (target && typeof target.activate === "function") {
+                target.activate();
+                return;
+            }
+            if (target && typeof target.click === "function") {
+                target.click();
                 return;
             }
 
@@ -856,7 +852,7 @@
                 if ((atLeft && dx < 0) || (atRight && dx > 0)) {
                     e.preventDefault();
                 }
-            }, { passive: false, capture: true });
+            }, {passive: false, capture: true});
         }
 
         // ---------- observers / resize ----------
@@ -1126,6 +1122,39 @@
             }
 
             this._setActiveIndex(this._activeIndex, false);
+        }
+
+        // ---------- utility ----------
+
+        _queryDeep(root, selector) {
+            if (!root) {
+                return null;
+            }
+
+            // 1) try light DOM first
+            if (typeof root.querySelector === "function") {
+                const hit = root.querySelector(selector);
+                if (hit) {
+                    return hit;
+                }
+            }
+
+            // 2) traverse descendants and enter open shadow roots
+            const tree = (root instanceof Element)
+                ? root.querySelectorAll("*")
+                : (root instanceof DocumentFragment ? root.querySelectorAll("*") : []);
+
+            for (let i = 0; i < tree.length; i += 1) {
+                const el = tree[i];
+                if (el && el.shadowRoot) {
+                    const inside = this._queryDeep(el.shadowRoot, selector);
+                    if (inside) {
+                        return inside;
+                    }
+                }
+            }
+
+            return null;
         }
     }
 
