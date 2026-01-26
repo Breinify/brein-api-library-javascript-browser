@@ -40,6 +40,11 @@
                 this._observer.disconnect();
                 this._observer = null;
             }
+            if (this._keyboardHandler && this._track) {
+                this._track.removeEventListener("keydown", this._keyboardHandler);
+                this._keyboardHandler = null;
+            }
+
         }
 
         /**
@@ -159,6 +164,8 @@
             this._updateButtons = null;
             this._itemObserver = null;
             this._resizeHandler = null;
+
+            this._keyboardHandler = null;
         }
 
         // Safari 12/13 compatible (static getter is OK)
@@ -173,13 +180,6 @@
                 "data-cta-color",
                 "data-cta-background"
             ];
-        }
-
-        attributeChangedCallback(_name, _oldValue, _newValue) {
-            // Attributes should update header immediately if initialized
-            if (this._sliderInitialized) {
-                this._applyHeader();
-            }
         }
 
         usesShadowRoot() {
@@ -349,6 +349,7 @@
                 this._setupPreventHistorySwipe();
                 this._setupItemMutationObserver();
                 this._setupResizeHandler();
+                this._setupKeyboardNavigation();
                 this._sliderInitialized = true;
             }
 
@@ -462,6 +463,43 @@
                 this._track.removeAttribute("aria-labelledby");
                 this._track.setAttribute("aria-label", "Item carousel");
             }
+        }
+
+        // ---------- keyboard support (ADA) ----------
+        _setupKeyboardNavigation() {
+            const track = this._track;
+            if (!track) {
+                return;
+            }
+
+            // remove previous handler if re-init happens
+            if (this._keyboardHandler) {
+                track.removeEventListener("keydown", this._keyboardHandler);
+                this._keyboardHandler = null;
+            }
+
+            this._keyboardHandler = (e) => {
+                // never interfere with modifiers (browser/AT shortcuts)
+                if (e.altKey || e.ctrlKey || e.metaKey) {
+                    return;
+                }
+
+                // never trap Tab
+                if (e.key === "Tab") {
+                    return;
+                }
+
+                if (e.key === "Home") {
+                    e.preventDefault();
+                    track.scrollLeft = 0;
+                } else if (e.key === "End") {
+                    e.preventDefault();
+                    const max = track.scrollWidth - track.clientWidth;
+                    track.scrollLeft = max > 0 ? max : 0;
+                }
+            };
+
+            track.addEventListener("keydown", this._keyboardHandler);
         }
 
         // ---------- items ----------
