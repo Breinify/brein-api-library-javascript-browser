@@ -503,13 +503,87 @@
                     e.preventDefault();
                     const items = this._getItems();
                     this._setActiveIndex(items.length - 1, true);
+                } else if (e.key === "Enter" || e.key === " ") {
+                    // Prevent page scroll on Space
+                    e.preventDefault();
+                    this._activateFocusedSlide();
                 }
             };
 
             track.addEventListener("keydown", this._keyboardHandler);
         }
 
+        _findPrimaryAction(item) {
+            if (!item) {
+                return null;
+            }
+
+            // 1) Explicit marker wins
+            let el = item.querySelector("[data-br-primary-action]");
+            if (el instanceof HTMLElement) {
+                return el;
+            }
+
+            // 2) First real link
+            el = item.querySelector("a[href]");
+            if (el instanceof HTMLElement) {
+                return el;
+            }
+
+            // 3) Button
+            el = item.querySelector("button");
+            if (el instanceof HTMLElement) {
+                return el;
+            }
+
+            // 4) Generic “clickable” roles
+            el = item.querySelector('[role="button"], [tabindex="0"]');
+            if (el instanceof HTMLElement) {
+                return el;
+            }
+
+            return null;
+        }
+
         // ---------- items ----------
+
+        _activateFocusedItem() {
+            const items = this._getItems();
+            const active = items[this._activeIndex];
+            if (!active) {
+                return;
+            }
+
+            // If focus is already on an interactive element inside the slide,
+            // don’t hijack (let it behave naturally).
+            const ae = document.activeElement;
+            if (ae && active.contains(ae) && ae !== active) {
+                return;
+            }
+
+            const target = this._findPrimaryAction(active);
+            if (!target) {
+                return;
+            }
+
+            // Prefer click() (works for links/buttons/custom click handlers)
+            try {
+                if (typeof target.click === "function") {
+                    target.click();
+                    return;
+                }
+            } catch (_e) {
+                // ignore
+            }
+
+            // Fallback for links if click() is blocked
+            if (target.tagName && target.tagName.toLowerCase() === "a") {
+                const href = target.getAttribute("href");
+                if (href) {
+                    window.location.href = href;
+                }
+            }
+        }
 
         _getItems() {
             if (!this._track) {
