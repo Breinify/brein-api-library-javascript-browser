@@ -608,8 +608,17 @@
 
             for (let i = 0; i < size; i += 1) {
                 const item = items[i];
-                if (item && item.setAttribute) {
-                    item.setAttribute("tabindex", (i === idx) ? "0" : "-1");
+                if (!item || !item.setAttribute) continue;
+
+                item.setAttribute("tabindex", (i === idx) ? "0" : "-1");
+
+                // only the active item references the carousel description
+                if (this._carouselDesc && this._carouselDesc.id) {
+                    if (i === idx) {
+                        item.setAttribute("aria-describedby", this._carouselDesc.id);
+                    } else {
+                        item.removeAttribute("aria-describedby");
+                    }
                 }
             }
 
@@ -685,10 +694,6 @@
                 // A11y: slide position context
                 item.setAttribute("aria-setsize", String(size));
                 item.setAttribute("aria-posinset", String(i + 1));
-
-                if (this._carouselDesc && this._carouselDesc.id) {
-                    item.setAttribute("aria-describedby", this._carouselDesc.id);
-                }
             }
         }
 
