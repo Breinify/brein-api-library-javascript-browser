@@ -1131,7 +1131,7 @@
                 return null;
             }
 
-            // 1) try light DOM first
+            // direct hit in this root (works for Element + ShadowRoot)
             if (typeof root.querySelector === "function") {
                 const hit = root.querySelector(selector);
                 if (hit) {
@@ -1139,13 +1139,16 @@
                 }
             }
 
-            // 2) traverse descendants and enter open shadow roots
-            const tree = (root instanceof Element)
-                ? root.querySelectorAll("*")
-                : (root instanceof DocumentFragment ? root.querySelectorAll("*") : []);
+            // traverse descendants if possible (works for Element + ShadowRoot)
+            if (typeof root.querySelectorAll !== "function") {
+                return null;
+            }
 
+            const tree = root.querySelectorAll("*");
             for (let i = 0; i < tree.length; i += 1) {
                 const el = tree[i];
+
+                // open shadow root only
                 if (el && el.shadowRoot) {
                     const inside = this._queryDeep(el.shadowRoot, selector);
                     if (inside) {
