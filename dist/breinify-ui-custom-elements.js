@@ -439,13 +439,15 @@
                     return;
                 }
 
-                this._addItem(child);
+                this._addItem(child, false);
             });
+
+            this._updateItemPositions();
         }
 
         // ---------- items ----------
 
-        _addItem(node) {
+        _addItem(node, updateItemPositions) {
             if (!(node instanceof HTMLElement) || !this._track) {
                 return false;
             }
@@ -477,7 +479,30 @@
             node.setAttribute("role", "group");
             node.setAttribute("aria-roledescription", "slide");
 
+            if (updateItemPositions !== false) {
+                this._updateItemPositions();
+            }
             return true;
+        }
+
+        _updateItemPositions() {
+            if (!this._track) {
+                return;
+            }
+
+            const items = this._track.querySelectorAll(".br-simple-slider__item");
+            const size = items.length;
+
+            for (let i = 0; i < size; i += 1) {
+                const item = items[i];
+                if (!(item instanceof HTMLElement)) {
+                    continue;
+                }
+
+                // A11y: slide position context
+                item.setAttribute("aria-setsize", String(size));
+                item.setAttribute("aria-posinset", String(i + 1));
+            }
         }
 
         // ---------- buttons ----------
