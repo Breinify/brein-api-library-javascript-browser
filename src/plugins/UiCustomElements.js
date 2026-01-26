@@ -408,7 +408,7 @@
             // track: aligns with track column (col 2), row 2
             const track = document.createElement("div");
             track.className = "br-simple-slider__track";
-            track.setAttribute("tabindex", "0");
+            track.setAttribute("tabindex", "-1");
             track.setAttribute("role", "region");
             track.setAttribute("aria-label", "Item carousel");
             track.setAttribute("aria-roledescription", "carousel");
@@ -510,7 +510,7 @@
                 }
             };
 
-            track.addEventListener("keydown", this._keyboardHandler);
+            track.addEventListener("keydown", this._keyboardHandler, true);
         }
 
         _findPrimaryAction(item) {
@@ -553,31 +553,16 @@
                 return;
             }
 
-            if (target && typeof target.activate === "function") {
+            // 1) Explicit activation hook (for custom elements)
+            if (typeof target.activate === "function") {
                 target.activate();
                 return;
             }
-            if (target && typeof target.click === "function") {
+
+            // 2) Native click (fires jQuery + DOM handlers)
+            if (typeof target.click === "function") {
                 target.click();
                 return;
-            }
-
-            // Prefer click() (works for links/buttons/custom click handlers)
-            try {
-                if (typeof target.click === "function") {
-                    target.click();
-                    return;
-                }
-            } catch (_e) {
-                // ignore
-            }
-
-            // Fallback for links if click() is blocked
-            if (target.tagName && target.tagName.toLowerCase() === "a") {
-                const href = target.getAttribute("href");
-                if (href) {
-                    window.location.href = href;
-                }
             }
         }
 
