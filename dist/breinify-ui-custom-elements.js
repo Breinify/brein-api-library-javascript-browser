@@ -378,6 +378,7 @@
             const title = document.createElement("div");
             title.className = "br-simple-slider__header-title";
             title.style.display = "none";
+            title.id = "br-simple-slider-title-" + Breinify.UTL.uuid();
 
             const subtitle = document.createElement("div");
             subtitle.className = "br-simple-slider__header-subtitle";
@@ -443,6 +444,24 @@
             });
 
             this._updateItemPositions();
+        }
+
+        _applyTrackLabel() {
+            if (!this._track) {
+                return;
+            }
+
+            const titleEl = this._headerTitle;
+            const titleVisible = !!(titleEl && titleEl.style.display !== "none");
+            const titleText = titleEl ? String(titleEl.textContent || "").trim() : "";
+
+            if (titleVisible && titleText.length > 0 && titleEl.id) {
+                this._track.setAttribute("aria-labelledby", titleEl.id);
+                this._track.removeAttribute("aria-label");
+            } else {
+                this._track.removeAttribute("aria-labelledby");
+                this._track.setAttribute("aria-label", "Item carousel");
+            }
         }
 
         // ---------- items ----------
@@ -833,6 +852,7 @@
 
             if (explicitlyHidden || implicitlyHidden) {
                 this._header.style.display = "none";
+                this._applyTrackLabel();
                 return;
             }
 
@@ -885,6 +905,9 @@
                 this._headerCta.style.color = "";
                 this._headerCta.style.background = "";
             }
+
+            // adapt the label of the whole track based on the title
+            this._applyTrackLabel();
         }
 
         // ---------- layout sizing (unchanged) ----------
