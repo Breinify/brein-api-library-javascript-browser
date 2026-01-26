@@ -40,11 +40,6 @@
                 this._observer.disconnect();
                 this._observer = null;
             }
-            if (this._keyboardHandler && this._track) {
-                this._track.removeEventListener("keydown", this._keyboardHandler);
-                this._keyboardHandler = null;
-            }
-
         }
 
         /**
@@ -167,6 +162,8 @@
 
             this._activeIndex = 0;
             this._keyboardHandler = null;
+
+            this._carouselDesc = null;
         }
 
         // Safari 12/13 compatible (static getter is OK)
@@ -197,6 +194,10 @@
             if (this._resizeHandler) {
                 window.removeEventListener("resize", this._resizeHandler);
                 this._resizeHandler = null;
+            }
+            if (this._keyboardHandler && this._track) {
+                this._track.removeEventListener("keydown", this._keyboardHandler, true);
+                this._keyboardHandler = null;
             }
         }
 
@@ -420,6 +421,15 @@
             layout.appendChild(track);
             this._track = track;
 
+            // add a description for ADA compliance
+            const desc = document.createElement("span");
+            desc.id = "br-simple-slider-desc-" + Breinify.UTL.uuid();
+            desc.className = "br-visually-hidden";
+            desc.textContent = "Item carousel";
+
+            this.appendChild(desc);
+            this._carouselDesc = desc;
+
             // move existing children into track
             existingChildren.forEach((child) => {
                 if (!(child instanceof HTMLElement)) {
@@ -438,7 +448,7 @@
                     return;
                 }
 
-                if (child !== layout) {
+                if (child === layout) {
                     return;
                 }
 
@@ -446,6 +456,7 @@
             });
 
             this._updateItemPositions();
+            this._setActiveIndex(this._activeIndex, false);
         }
 
         _applyTrackLabel() {
@@ -457,12 +468,18 @@
             const titleVisible = !!(titleEl && titleEl.style.display !== "none");
             const titleText = titleEl ? String(titleEl.textContent || "").trim() : "";
 
+            // Track label: prefer title element id
             if (titleVisible && titleText.length > 0 && titleEl.id) {
                 this._track.setAttribute("aria-labelledby", titleEl.id);
                 this._track.removeAttribute("aria-label");
             } else {
                 this._track.removeAttribute("aria-labelledby");
                 this._track.setAttribute("aria-label", "Item carousel");
+            }
+
+            // Shared description for slides (aria-describedby target)
+            if (this._carouselDesc) {
+                this._carouselDesc.textContent = titleVisible && titleText.length > 0 ? titleText + " carousel" : "Item carousel";
             }
         }
 
@@ -475,7 +492,7 @@
 
             // remove previous handler if re-init happens
             if (this._keyboardHandler) {
-                track.removeEventListener("keydown", this._keyboardHandler);
+                track.removeEventListener("keydown", this._keyboardHandler, true);
                 this._keyboardHandler = null;
             }
 
@@ -510,7 +527,7 @@
                 }
             };
 
-            track.addEventListener("keydown", this._keyboardHandler);
+            track.addEventListener("keydown", this._keyboardHandler, true);
         }
 
         _findPrimaryAction(item) {
@@ -668,6 +685,10 @@
                 // A11y: slide position context
                 item.setAttribute("aria-setsize", String(size));
                 item.setAttribute("aria-posinset", String(i + 1));
+
+                if (this._carouselDesc && this._carouselDesc.id) {
+                    item.setAttribute("aria-describedby", this._carouselDesc.id);
+                }
             }
         }
 
@@ -1179,6 +1200,20 @@
         "br-simple-slider.br-simple-slider {" +
         "  display: block;" +
         "  position: relative;" +
+        "}" +
+
+        // visually hidden elements (only needed for ADA)
+        ".br-visually-hidden{" +
+        "  position:absolute!important;" +
+        "  width:1px!important;" +
+        "  height:1px!important;" +
+        "  margin:-1px!important;" +
+        "  border:0!important;" +
+        "  padding:0!important;" +
+        "  overflow:hidden!important;" +
+        "  clip:rect(0 0 0 0)!important;" +
+        "  clip-path:inset(50%)!important;" +
+        "  white-space:nowrap!important;" +
         "}" +
 
         /* layout grid: [prev][track-col][next], rows [header][slider] */
