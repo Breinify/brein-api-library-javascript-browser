@@ -407,7 +407,12 @@
             track.className = "br-simple-slider__track";
             track.setAttribute("tabindex", "0");
             track.setAttribute("role", "region");
-            track.setAttribute("aria-label", "Product carousel");
+            track.setAttribute("aria-label", "Item carousel");
+            track.setAttribute("aria-roledescription", "carousel");
+
+            if (!track.id) {
+                track.id = "br-simple-slider-track-" + Breinify.UTL.uuid();
+            }
 
             layout.appendChild(track);
             this._track = track;
@@ -430,13 +435,49 @@
                     return;
                 }
 
-                if (child === layout) {
+                if (child !== layout) {
                     return;
                 }
 
-                track.appendChild(child);
-                child.classList.add("br-simple-slider__item");
+                this._addItem(child);
             });
+        }
+
+        // ---------- items ----------
+
+        _addItem(node) {
+            if (!(node instanceof HTMLElement) || !this._track) {
+                return false;
+            }
+
+            // Ignore internal nodes we never want to treat as items
+            if (node === this._track ||
+                node.id === BrSimpleSlider.STYLE_ELEMENT_ID ||
+                node.classList.contains("br-simple-slider__btn")) {
+                return false;
+            }
+
+            // Ignore JSON config scripts
+            if (node.tagName &&
+                node.tagName.toLowerCase() === "script" &&
+                node.getAttribute("type") &&
+                node.getAttribute("type").endsWith("application/json")) {
+                return false;
+            }
+
+            // Ensure it's in the track
+            if (node.parentNode !== this._track) {
+                this._track.appendChild(node);
+            }
+
+            // Mark item
+            node.classList.add("br-simple-slider__item");
+
+            // A11y: slide semantics (attributes only; no UX change)
+            node.setAttribute("role", "group");
+            node.setAttribute("aria-roledescription", "slide");
+
+            return true;
         }
 
         // ---------- buttons ----------
@@ -453,11 +494,21 @@
             prev.type = "button";
             prev.className = "br-simple-slider__btn br-simple-slider__btn--prev";
             prev.innerHTML = "&#8249;";
+            prev.setAttribute("aria-label", "Previous items");
+            prev.setAttribute("title", "Previous");
 
             const next = document.createElement("button");
             next.type = "button";
             next.className = "br-simple-slider__btn br-simple-slider__btn--next";
             next.innerHTML = "&#8250;";
+            next.setAttribute("aria-label", "Next items");
+            next.setAttribute("title", "Next");
+
+            // link buttons as controls for the track
+            if (track && track.id) {
+                prev.setAttribute("aria-controls", track.id);
+                next.setAttribute("aria-controls", track.id);
+            }
 
             // Place into grid; CSS assigns them to col 1 / col 3 row 2
             layout.appendChild(prev);
@@ -635,17 +686,14 @@
                                 return;
                             }
 
-                            track.appendChild(node);
-                            node.classList.add("br-simple-slider__item");
-                            requiresLayout = true;
+                            requiresLayout = self._addItem(node) || requiresLayout;
                         });
                     }
 
                     if (mutation.target === track) {
                         Array.prototype.forEach.call(mutation.addedNodes, function (node) {
                             if (node instanceof HTMLElement) {
-                                node.classList.add("br-simple-slider__item");
-                                requiresLayout = true;
+                                requiresLayout = self._addItem(node) || requiresLayout;
                             }
                         });
                     }
