@@ -1144,25 +1144,71 @@
 
         // ---------- utility ----------
 
-        _queryDeep(root, selector) {
+        _queryDeep(root, selector, findAll) {
             if (!root) {
-                return null;
+                return findAll === true ? [] : null;
             }
+
+            // ---- helper: collect all matches (shadow-aware) ----
+            const collectAll = () => {
+                const results = [];
+                const seen = new Set();
+
+                const add = (el) => {
+                    if (!(el instanceof HTMLElement)) return;
+                    if (seen.has(el)) return;
+                    seen.add(el);
+                    results.push(el);
+                };
+
+                const scan = (node) => {
+                    if (!node) return;
+
+                    // 1) query on this node (Element or ShadowRoot)
+                    if (typeof node.querySelectorAll === "function") {
+                        const hits = node.querySelectorAll(selector);
+                        for (let i = 0; i < hits.length; i += 1) {
+                            add(hits[i]);
+                        }
+                    }
+
+                    // 2) enter open shadow root
+                    if (node instanceof Element && node.shadowRoot) {
+                        scan(node.shadowRoot);
+                    }
+
+                    // 3) traverse descendants and enter their open shadow roots
+                    if (typeof node.querySelectorAll !== "function") return;
+
+                    const tree = node.querySelectorAll("*");
+                    for (let i = 0; i < tree.length; i += 1) {
+                        const el = tree[i];
+                        if (el && el.shadowRoot) {
+                            scan(el.shadowRoot);
+                        }
+                    }
+                };
+
+                scan(root);
+                return results;
+            };
+
+            if (findAll === true) {
+                return collectAll();
+            }
+
+            // ---- existing behavior: first match only ----
 
             // 1) Light DOM query on this root (Element or ShadowRoot)
             if (typeof root.querySelector === "function") {
                 const hit = root.querySelector(selector);
-                if (hit) {
-                    return hit;
-                }
+                if (hit) return hit;
             }
 
             // 2) If this root is an Element with an OPEN shadow root, search it too
             if (root instanceof Element && root.shadowRoot) {
-                const inside = this._queryDeep(root.shadowRoot, selector);
-                if (inside) {
-                    return inside;
-                }
+                const inside = this._queryDeep(root.shadowRoot, selector, false);
+                if (inside) return inside;
             }
 
             // 3) Traverse descendants and enter their open shadow roots
@@ -1174,10 +1220,8 @@
             for (let i = 0; i < tree.length; i += 1) {
                 const el = tree[i];
                 if (el && el.shadowRoot) {
-                    const inside = this._queryDeep(el.shadowRoot, selector);
-                    if (inside) {
-                        return inside;
-                    }
+                    const inside = this._queryDeep(el.shadowRoot, selector, false);
+                    if (inside) return inside;
                 }
             }
 
@@ -1185,11 +1229,9 @@
         }
 
         _getInnerTabbables(root) {
-            if (!root || typeof root.querySelectorAll !== "function") return [];
+            if (!root) return [];
 
-            // Keep it simple + robust:
-            // - Anything inherently focusable
-            // - Anything with tabindex >= 0
+            // Anything potentially tabbable
             const selector = [
                 'a[href]',
                 'button',
@@ -1199,37 +1241,33 @@
                 '[tabindex]'
             ].join(',');
 
-            const nodes = Array.prototype.slice.call(root.querySelectorAll(selector));
+            // IMPORTANT: deep query (light DOM + open shadow roots)
+            const nodes = this._queryDeep(root, selector, true);
+
+            if (!Array.isArray(nodes)) return [];
 
             return nodes.filter((el) => {
                 if (!(el instanceof HTMLElement)) return false;
 
-                // ignore disabled / inert-ish
+                // ignore disabled / aria-disabled
                 if (el.hasAttribute("disabled")) return false;
                 if (el.getAttribute("aria-disabled") === "true") return false;
 
-                // ignore elements that are not actually tabbable
+                // tabindex < 0 is not tabbable
                 const tabindexAttr = el.getAttribute("tabindex");
                 if (tabindexAttr !== null) {
                     const ti = parseInt(tabindexAttr, 10);
                     if (!Number.isNaN(ti) && ti < 0) return false;
                 }
 
-                // skip the slide item itself if passed incorrectly
-                if (el.classList && el.classList.contains("br-simple-slider__item")) return false;
+                // never treat the slide itself as an inner tabbable
+                if (el.classList.contains("br-simple-slider__item")) return false;
 
-                // skip elements that are hidden/collapsed
-                if (el.offsetParent === null && el !== document.activeElement) {
-                    // this catches display:none; for position:fixed it can be null too,
-                    // but that's OK for our "tabbables" purpose.
-                    // If you want stricter: remove this condition.
-                    return false;
-                }
+                // anchors without href are not tabbable
+                if (el.tagName === "A" && !el.getAttribute("href")) return false;
 
-                // anchors without href aren't tabbable by default
-                if (el.tagName && el.tagName.toLowerCase() === "a" && !el.getAttribute("href")) {
-                    return false;
-                }
+                // hidden elements (Chrome/Safari-safe heuristic)
+                if (el.offsetParent === null && el !== document.activeElement) return false;
 
                 return true;
             });
@@ -1241,8 +1279,6 @@
             for (let i = 0; i < tabbables.length; i += 1) {
                 const el = tabbables[i];
 
-                // Store original tabindex if present so we can restore later if needed
-                // (no freeze/unfreeze required; restore only if option changes / consumer calls)
                 if (!el.hasAttribute("data-br-orig-tabindex")) {
                     const orig = el.getAttribute("tabindex");
                     el.setAttribute("data-br-orig-tabindex", orig === null ? "" : orig);
