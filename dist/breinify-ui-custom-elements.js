@@ -457,6 +457,7 @@
 
             this._updateItemPositions();
             this._setActiveIndex(this._activeIndex, false);
+            this._applyTrackLabel();
         }
 
         _applyTrackLabel() {
@@ -670,6 +671,12 @@
             // A11y: slide semantics (attributes only; no UX change)
             node.setAttribute("role", "group");
             node.setAttribute("aria-roledescription", "slide");
+
+            // Keep slide focusable and disable inner tabbables by default (unless configured not to)
+            const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+            if (cfg.preserveInnerTabOrder !== true) {
+                this._disableInnerTabbables(node);
+            }
 
             if (updateItemPositions !== false) {
                 this._updateItemPositions();
@@ -1176,6 +1183,74 @@
 
             return null;
         }
+
+        _getInnerTabbables(root) {
+            if (!root || typeof root.querySelectorAll !== "function") return [];
+
+            // Keep it simple + robust:
+            // - Anything inherently focusable
+            // - Anything with tabindex >= 0
+            const selector = [
+                'a[href]',
+                'button',
+                'input',
+                'select',
+                'textarea',
+                '[tabindex]'
+            ].join(',');
+
+            const nodes = Array.prototype.slice.call(root.querySelectorAll(selector));
+
+            return nodes.filter((el) => {
+                if (!(el instanceof HTMLElement)) return false;
+
+                // ignore disabled / inert-ish
+                if (el.hasAttribute("disabled")) return false;
+                if (el.getAttribute("aria-disabled") === "true") return false;
+
+                // ignore elements that are not actually tabbable
+                const tabindexAttr = el.getAttribute("tabindex");
+                if (tabindexAttr !== null) {
+                    const ti = parseInt(tabindexAttr, 10);
+                    if (!Number.isNaN(ti) && ti < 0) return false;
+                }
+
+                // skip the slide item itself if passed incorrectly
+                if (el.classList && el.classList.contains("br-simple-slider__item")) return false;
+
+                // skip elements that are hidden/collapsed
+                if (el.offsetParent === null && el !== document.activeElement) {
+                    // this catches display:none; for position:fixed it can be null too,
+                    // but that's OK for our "tabbables" purpose.
+                    // If you want stricter: remove this condition.
+                    return false;
+                }
+
+                // anchors without href aren't tabbable by default
+                if (el.tagName && el.tagName.toLowerCase() === "a" && !el.getAttribute("href")) {
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        _disableInnerTabbables(slide) {
+            const tabbables = this._getInnerTabbables(slide);
+
+            for (let i = 0; i < tabbables.length; i += 1) {
+                const el = tabbables[i];
+
+                // Store original tabindex if present so we can restore later if needed
+                // (no freeze/unfreeze required; restore only if option changes / consumer calls)
+                if (!el.hasAttribute("data-br-orig-tabindex")) {
+                    const orig = el.getAttribute("tabindex");
+                    el.setAttribute("data-br-orig-tabindex", orig === null ? "" : orig);
+                }
+
+                el.setAttribute("tabindex", "-1");
+            }
+        }
     }
 
     /* Safari 12/13 compatible "static constants" */
@@ -1186,6 +1261,7 @@
         maxItemWidth: 280,
         showArrows: true,
         phonePeek: true,
+        preserveInnerTabOrder: false,
         breakpoints: [],
 
         // header defaults
