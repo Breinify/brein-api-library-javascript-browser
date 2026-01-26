@@ -506,7 +506,7 @@
                 } else if (e.key === "Enter" || e.key === " ") {
                     // Prevent page scroll on Space
                     e.preventDefault();
-                    this._activateFocusedSlide();
+                    this._activateFocusedItem();
                 }
             };
 
