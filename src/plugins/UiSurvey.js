@@ -1177,9 +1177,9 @@
         _createRecommendationPage(node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const titleText = Breinify.UTL.isNonEmptyString(data.searchTitle)
-                || "Finding recommendations for you…";
+                || "Unlocking your personalized picks…";
             const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle)
-                || "We are matching your answers with the best products.";
+                || "We are analyzing your vibes… Almost there!";
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
@@ -1265,8 +1265,10 @@
             }
 
             // determine default title and subtitle
-            const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) || "Here are some great picks we found for you";
-            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "";
+            const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) ||
+                "Your Recommendations";
+            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) ||
+                "Vibes that gets you";
 
             // fire it and handle the result
             Breinify.plugins.recommendations.render({
