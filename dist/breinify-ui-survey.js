@@ -554,19 +554,22 @@
             }
         }
 
-        close(reason) {
+        close(reason, meta) {
             if (this.hasAttribute("open")) {
                 this.removeAttribute("open");
             }
 
             document.body.classList.remove("br-survey-scroll-lock");
 
+            const detail = Object.assign({}, $.isPlainObject(this.meta) ? this.meta : {}, $.isPlainObject(meta) ? meta : {}, {
+                reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
+            });
+
             this.dispatchEvent(new CustomEvent("br-ui-survey:popup-closed", {
                 bubbles: true,
+                composed: true,
                 cancelable: false,
-                detail: {
-                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
-                }
+                detail: detail
             }));
         }
 
@@ -795,7 +798,7 @@
                 // If it is from an "old" session, ignore and make sure we're reset
                 if (!this._sessionId || !state.sessionId || state.sessionId !== this._sessionId) {
                     if (popup && popup.hasAttribute("open")) {
-                        popup.close("history");
+                        popup.close("history", {webExId: this.uuid, sessionId: this._sessionId});
                     }
                     this._resetSurveyState();
                     return;
@@ -860,54 +863,26 @@
         }
 
         _fireAnswerClickedEvent(nodeId, answerId) {
-            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
-            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
-            const answer = this._getAnswerFromNode(node, answerId);
-
-            this.dispatchEvent(new CustomEvent("br-ui-survey:answer-clicked", {
-                bubbles: true,
-                cancelable: false,
-                detail: {
-                    webExId: this.uuid,
-                    nodeId: resolvedNodeId,
-                    pageType: node && node.type ? node.type : null,
-                    pageIndex: this._getPageIndex(resolvedNodeId),
-                    totalPages: this._getTotalPageCount(),
-                    answerId: answerId,
-                    answer: answer || null,
-                    sessionId: this._sessionId || null
-                }
-            }));
+            this._fireAnswerEvent("br-ui-survey:answer-clicked", nodeId, answerId);
         }
 
         _fireNavigatedEvent(fromNodeId, toNodeId, reason, fromStepNumber, toStepNumber) {
-            const toId = Breinify.UTL.isNonEmptyString(toNodeId);
-            const toNode = toId !== null && this._nodesById ? this._nodesById[toId] : null;
-
             const canGoBack = Array.isArray(this._history) && this._history.length > 0;
             const isFirstStep = toStepNumber === 1;
-            const isFinalStep = this._isFinalStep(toId);
+            const isFinalStep = this._isFinalStep(toNodeId);
 
-            this.dispatchEvent(new CustomEvent("br-ui-survey:navigated", {
-                bubbles: true,
-                cancelable: false,
-                detail: {
-                    webExId: this.uuid,
-                    fromNodeId: Breinify.UTL.isNonEmptyString(fromNodeId),
-                    toNodeId: toId,
-                    fromPageIndex: this._getPageIndex(fromNodeId),
-                    toPageIndex: this._getPageIndex(toId),
-                    totalPages: this._getTotalPageCount(),
-                    toPageType: toNode && toNode.type ? toNode.type : null,
+            this._dispatchSurveyEvent("br-ui-survey:navigated", Object.assign({},
+                this._getPageContext(fromNodeId, "from"),
+                this._getPageContext(toNodeId, "to"),
+                {
                     fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
                     toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
-                    sessionId: this._sessionId || null,
                     canGoBack: canGoBack,
                     isFirstStep: isFirstStep,
                     isFinalStep: isFinalStep,
                     reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
                 }
-            }));
+            ));
         }
 
         /**
@@ -963,49 +938,82 @@
         }
 
         _fireRenderedEvent() {
-            this.dispatchEvent(new CustomEvent("br-ui-survey:rendered", {
-                bubbles: true,
-                cancelable: false,
-                detail: {
-                    webExId: this.uuid
-                }
-            }));
+            this._dispatchSurveyEvent("br-ui-survey:rendered", {});
         }
 
         _fireOpenedEvent() {
-            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
-            const node = nodeId !== null && this._nodesById ? this._nodesById[nodeId] : null;
-
-            this.dispatchEvent(new CustomEvent("br-ui-survey:opened", {
-                bubbles: true,
-                cancelable: false,
-                detail: {
-                    webExId: this.uuid,
-                    nodeId: nodeId,
-                    pageType: node && node.type ? node.type : null,
-                    pageIndex: this._getPageIndex(nodeId),
-                    totalPages: this._getTotalPageCount()
-                }
-            }));
+            this._dispatchPageSurveyEvent("br-ui-survey:opened", this._currentNodeId, {});
         }
 
         _fireAnswerSelectedEvent(nodeId, answerId) {
+            this._fireAnswerEvent("br-ui-survey:answer-selected", nodeId, answerId);
+        }
+
+        _fireAnswerEvent(eventType, nodeId, answerId) {
             const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
             const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
             const answer = this._getAnswerFromNode(node, answerId);
 
-            this.dispatchEvent(new CustomEvent("br-ui-survey:answer-selected", {
+            const questionLabel = node && node.data && typeof node.data.question === "string" ? node.data.question : null;
+            const answerLabel = answer && typeof answer.title === "string" ? answer.title : null;
+
+            this._dispatchPageSurveyEvent(eventType, resolvedNodeId, {
+                answerId: answerId,
+                answer: answer || null,
+                answerLabel: answerLabel,
+                questionLabel: questionLabel
+            });
+        }
+
+        _getPageContext(nodeId, prefix) {
+            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
+            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
+
+            const ctx = {
+                nodeId: resolvedNodeId,
+                pageType: node && node.type ? node.type : null,
+                pageIndex: this._getPageIndex(resolvedNodeId),
+                totalPages: this._getTotalPageCount()
+            };
+
+            const p = Breinify.UTL.isNonEmptyString(prefix);
+            if (p === null) {
+                return ctx;
+            } else {
+                const out = {};
+                out[p + "NodeId"] = ctx.nodeId;
+                out[p + "PageType"] = ctx.pageType;
+                out[p + "PageIndex"] = ctx.pageIndex;
+
+                // total pages is an overall constant and is not prefixed since it's node independent
+                out["totalPages"] = ctx.totalPages;
+                return out;
+            }
+        }
+
+        _dispatchPageSurveyEvent(eventType, nodeId, detail) {
+            const normalizedDetails = $.isPlainObject(detail) ? detail : {};
+            const ctx = this._getPageContext(nodeId);
+
+            // ctx has nodeId/pageType/pageIndex/totalPages; normalizedDetails can extend/override
+            this._dispatchSurveyEvent(eventType, Object.assign({}, ctx, normalizedDetails));
+        }
+
+        _dispatchSurveyEvent(eventType, detail) {
+            const normalizedDetails = $.isPlainObject(detail) ? detail : {};
+
+            // enforce common fields
+            if (typeof normalizedDetails.webExId === "undefined") {
+                normalizedDetails.webExId = this.uuid;
+            }
+            if (typeof normalizedDetails.sessionId === "undefined") {
+                normalizedDetails.sessionId = this._sessionId || null;
+            }
+
+            this.dispatchEvent(new CustomEvent(eventType, {
                 bubbles: true,
                 cancelable: false,
-                detail: {
-                    webExId: this.uuid,
-                    nodeId: resolvedNodeId,
-                    pageType: node && node.type ? node.type : null,
-                    pageIndex: this._getPageIndex(resolvedNodeId),
-                    totalPages: this._getTotalPageCount(),
-                    answerId: answerId,
-                    answer: answer || null
-                }
+                detail: normalizedDetails
             }));
         }
 
@@ -1035,12 +1043,7 @@
                 $trigger.append($(`<img src="${mobileUrl}" class="br-survey-trigger-image br-survey-trigger-mobile" alt="Start survey"/>`));
             }
 
-            // TODO: need to add activity renderElement
-
             $trigger.on("click", (evt) => {
-
-                // TODO: need to add activity clickedElement
-
                 evt.preventDefault();
                 this._openSurvey();
             });
@@ -1085,6 +1088,12 @@
 
             // start a new session if needed
             this._ensureSessionId();
+
+            // set the meta information and attach it to the popup
+            popup.meta = {
+                webExId: this.uuid,
+                sessionId: this._sessionId
+            };
 
             // render whatever we have as current node (or an error if missing)
             this._renderCurrentPage(popup);
