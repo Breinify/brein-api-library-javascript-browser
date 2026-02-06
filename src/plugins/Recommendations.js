@@ -911,12 +911,35 @@
 
         _handleClick: function (option, $el, event, additionalEventData) {
 
-            // search for the container
+            /*
+             * Try resolving the recommendation container from $el.
+             * NOTE: In shadow DOM scenarios the click observer may pass the shadow host as $el on purpose,
+             * which means $el might not be inside the rendered recommendation DOM.
+             */
             let $container = $el.closest('.' + Renderer.marker.container);
-            if ($container.length !== 1) {
+            $container = $container.length === 1 ? $container : $el.closest('[data-' + Renderer.marker.container + '="true"]');
 
-                // try to find it via the data attribute
-                $container = $el.closest('[data-' + Renderer.marker.container + '="true"]');
+
+            /*
+             * Resolve the deepest real click target (if provided by the click observer).
+             * This is shadow-DOM safe (avoids retargeting issues) and is used as a fallback:
+             *  - to find the container when $el is the host
+             *  - to find the clicked item (.brrc-item) reliably
+             */
+            const actualTarget = additionalEventData && additionalEventData.actualTarget;
+            const $clickedEl = actualTarget && actualTarget.nodeType === 1 ? $(actualTarget) : null;
+
+            /*
+             * If $el was not sufficient to locate the container, fall back to the real click target.
+             * If we still cannot find exactly one container, abort (no valid recommendation click context).
+             */
+            if ($container.length !== 1) {
+                if ($clickedEl === null) {
+                    return;
+                }
+
+                $container = $clickedEl.closest('.' + Renderer.marker.container);
+                $container = $container.length === 1 ? $container : $clickedEl.closest('[data-' + Renderer.marker.container + '="true"]');
                 if ($container.length !== 1) {
                     return;
                 }
@@ -929,19 +952,21 @@
                 return;
             }
 
+            // use the real click target for item resolution when available; otherwise keep $el
+            const $itemEl = $clickedEl === null ? $el : $clickedEl;
             if (containerData.data.splitTestData.isControl === true) {
-                this._handleControlClick(event, $el, $container, containerData.data, additionalEventData, containerData.option);
+                this._handleControlClick(event, $itemEl, $container, containerData.data, additionalEventData, containerData.option);
             } else {
-                this._handleRecommendationClick(event, $el, $container, containerData.data, additionalEventData, containerData.option);
+                this._handleRecommendationClick(event, $itemEl, $container, containerData.data, additionalEventData, containerData.option);
             }
 
             /*
-             * It may be needed that the further propagation (especially for specific listeners)
-             * should be stopped.
+             * Some integrations want to stop further propagation after we handled the click
+             * (e.g., to prevent other observers from reacting to the same interaction).
              */
-            if (additionalEventData.stopPropagation === true) {
+            if (additionalEventData && additionalEventData.stopPropagation === true) {
                 event.stopPropagation();
-                Renderer._process(option.process.stoppedPropagation, event, $el, $container,
+                Renderer._process(option.process.stoppedPropagation, event, $itemEl, $container,
                     containerData.data, additionalEventData, containerData.option);
             }
         },
@@ -1194,6 +1219,21 @@
                         $el = $(root.host);
                     }
                 }
+
+                /*
+                 * Normalize the real click target:
+                 *  - composedPath()[0] gives us the deepest physical element that was clicked
+                 *  - works for light DOM, shadow DOM, SVG, and text nodes
+                 *  - always normalized to an Element (never a Text node)
+                 *
+                 *  IMPORTANT:
+                 *  We keep $el semantics unchanged (it may be the shadow host),
+                 *  but expose the real clicked element separately so downstream logic
+                 *  (e.g. container resolution via closest(...)) can work reliably.
+                 */
+                additionalEventData = additionalEventData || {};
+                additionalEventData.actualTarget = target && target.nodeType === 1 ? target :
+                    (target && target.parentElement ? target.parentElement : null);
 
                 _self._handleClick(option, $el, event, additionalEventData);
             });
