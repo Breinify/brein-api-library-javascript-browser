@@ -1951,8 +1951,6 @@
                 return;
             }
 
-            console.log("[uiSurvey] event ", eventName, detail);
-
             const type = this._determineEventType(eventName, metadata, detail);
             if (type == null) {
                 return;
@@ -1964,8 +1962,7 @@
                 widgetType: 'survey'
             }, this._determineTags(eventName, metadata, detail));
 
-            console.log("[uiSurvey] activity ", type, tags);
-            // Breinify.plugins.activities.generic(type, user, tags);
+            Breinify.plugins.activities.generic(type, user, tags);
         }
     };
 
