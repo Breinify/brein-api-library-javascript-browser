@@ -1898,28 +1898,74 @@
 
     const eventHandler = {
 
-        _determineEventType: function (eventName) {
+        _determineEventType: function (eventName, metadata, detail) {
             switch (eventName) {
                 case 'br-ui-survey:rendered':
                     return 'renderedElement'
                 case 'br-ui-survey:opened':
+                case 'br-ui-survey:popup-closed':
+                case 'br-ui-survey:answer-selected':
                     return 'clickedElement'
                 default:
                     return null;
             }
         },
 
-        sendActivity: function (eventName, detail) {
+        _determineTags: function (eventName, metadata, detail) {
+            switch (eventName) {
+                case 'br-ui-survey:rendered':
+                    return {
+                        actionType: 'rendered',
+                        action: 'render banner/button/text',
+                        elementType: 'br-survey-root'
+                    };
+                case 'br-ui-survey:opened':
+                    return {
+                        actionType: 'trigger',
+                        action: 'open survey',
+                        elementType: 'br-survey-root'
+                    };
+                case 'br-ui-survey:popup-closed':
+                    return {
+                        actionType: 'trigger',
+                        action: 'closed survey',
+                        elementType: Breinify.UTL.isNonEmptyString(detail?.reason) ? detail.reason : 'unspecified'
+                    };
+                case 'br-ui-survey:answer-selected':
+                    return {
+                        actionType: 'click',
+                        action: 'selected answer',
+                        elementType: 'br-survey-answer',
+                        stepNumber: typeof detail?.stepNumber === 'number' ? detail.stepNumber : null,
+                        answer: Breinify.UTL.isNonEmptyString(detail?.answerLabel),
+                        question: Breinify.UTL.isNonEmptyString(detail?.questionLabel)
+                    };
+                default:
+                    return {};
+            }
+        },
+
+        sendActivity: function (metadata, eventName, detail) {
+            if (Breinify.UTL.isNonEmptyString(eventName) === null ||
+                Breinify.UTL.isNonEmptyString(detail?.webExId) === null) {
+                return;
+            }
+
             console.log("[uiSurvey] event ", eventName, detail);
 
-            const type = this._determineEventType(eventName);
-            const user = {};
-            const tags = {};
-
-            if (type !== null) {
-                console.log("[uiSurvey] activity ", type, tags);
-                // Breinify.plugins.activities.generic(type, user, tags);
+            const type = this._determineEventType(eventName, metadata, detail);
+            if (type == null) {
+                return;
             }
+            const user = {};
+            const tags = $.extend(true, {
+                campaignWebExId: detail.webExId,
+                widget: metadata.campaignName,
+                widgetType: 'survey'
+            }, this._determineTags(eventName, metadata, detail));
+
+            console.log("[uiSurvey] activity ", type, tags);
+            // Breinify.plugins.activities.generic(type, user, tags);
         }
     };
 
@@ -2031,9 +2077,15 @@
             }
 
             // get the actual DOM element
+            const metadata = {
+                version: module.version,
+                created: module.created,
+                campaignName: Breinify.UTL.isNonEmptyString(module.campaignName)
+            };
+
             const survey = $survey.get(0);
             this.attachEventListeners(survey, webExId, function (eventName, detail) {
-                eventHandler.sendActivity(eventName, detail);
+                eventHandler.sendActivity(metadata, eventName, detail);
             });
 
             survey.render(webExId, config);
