@@ -884,6 +884,10 @@
             const toId = Breinify.UTL.isNonEmptyString(toNodeId);
             const toNode = toId !== null && this._nodesById ? this._nodesById[toId] : null;
 
+            const canGoBack = Array.isArray(this._history) && this._history.length > 0;
+            const isFirstStep = toStepNumber === 1;
+            const isFinalStep = this._isFinalStep(toId);
+
             this.dispatchEvent(new CustomEvent("br-ui-survey:navigated", {
                 bubbles: true,
                 cancelable: false,
@@ -898,6 +902,9 @@
                     fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
                     toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
                     sessionId: this._sessionId || null,
+                    canGoBack: canGoBack,
+                    isFirstStep: isFirstStep,
+                    isFinalStep: isFinalStep,
                     reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
                 }
             }));
@@ -1670,6 +1677,42 @@
             } else {
                 console.warn("No next edge found for", nodeId, answerId);
             }
+        }
+
+        _hasOutgoingEdges(nodeId) {
+            const nid = Breinify.UTL.isNonEmptyString(nodeId);
+            if (nid === null || !Array.isArray(this._edges)) {
+                return false;
+            }
+            return this._edges.some((e) => $.isPlainObject(e) && e.source === nid);
+        }
+
+        _isFinalStep(nodeId) {
+            const nid = Breinify.UTL.isNonEmptyString(nodeId);
+            if (nid === null) {
+                return true;
+            }
+
+            const node = this._nodesById && this._nodesById[nid] ? this._nodesById[nid] : null;
+
+            // If it's a question, "final" means: no valid next step for the selected answer
+            if ($.isPlainObject(node) && node.type === "question") {
+                const selectedAnswerId = $.isPlainObject(this._selectedAnswers)
+                    ? Breinify.UTL.isNonEmptyString(this._selectedAnswers[nid])
+                    : null;
+
+                // If no answer selected, user cannot proceed => treat as "final" from navigation perspective
+                // (If you prefer "unknown", we can add a separate flag instead.)
+                if (selectedAnswerId === null) {
+                    return true;
+                }
+
+                const nextNodeId = this._getNextNodeIdFromAnswer(nid, selectedAnswerId);
+                return nextNodeId === null;
+            }
+
+            // Otherwise, final means: no outgoing edges at all
+            return !this._hasOutgoingEdges(nid);
         }
 
         _goBack() {
