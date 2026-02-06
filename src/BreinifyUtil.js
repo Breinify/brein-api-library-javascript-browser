@@ -397,6 +397,37 @@
             supportsLogging: typeof window.console === 'object' && typeof window.console.log === 'function',
             supportsGroup: typeof window.console === 'object' && typeof window.console.log === 'function',
 
+            normalizeErrorMessage(error) {
+
+                if (error == null) {
+                    return 'Unknown error';
+                }
+                // Native Error or subclass
+                else if (error instanceof Error) {
+                    return error.stack || error.message || error.toString();
+                }
+                // Plain string
+                else if (typeof error === 'string') {
+                    return error;
+                }
+                // Objects with a message
+                else if (typeof error === 'object' && typeof error.message === 'string') {
+                    try {
+                        return JSON.stringify(error);
+                    } catch (e) {
+                        return error.message;
+                    }
+                }
+                // Anything else (number, boolean, symbol, etc.)
+                else {
+                    try {
+                        return JSON.stringify(error);
+                    } catch (e) {
+                        return String(error);
+                    }
+                }
+            },
+
             log: function (logLevel, message) {
 
                 if (!BreinifyUtil.internal.isDevMode()) {

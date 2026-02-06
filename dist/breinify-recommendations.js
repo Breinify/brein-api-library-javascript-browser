@@ -774,6 +774,14 @@
 
                     // TODO: maybe better error handling and into object
                     Renderer._process(option.process.error, error);
+                    let errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
+                    this._handleRender({
+                        status: {
+                            code: 500,
+                            message: errorMsg,
+                            error: true
+                        }
+                    }, option, null);
                 });
 
                 return;
