@@ -793,11 +793,21 @@
                         name: name,
                         result: result
                     });
+
+                    this._handleRender({
+                        status: {
+                            code: 500,
+                            message: 'unexpected result-type received',
+                            error: true
+                        }
+                    }, option, null);
                 } else if (result.status.error === true) {
                     Renderer._process(option.process.error, $.extend({
                         name: name,
                         result: result
                     }, result.status));
+
+                    this._handleRender(result, option, null);
                 } else if ($.isFunction(option.data.modify)) {
 
                     // the method used in any case to handle the modified responses
