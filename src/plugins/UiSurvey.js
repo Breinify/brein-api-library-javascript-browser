@@ -1897,8 +1897,29 @@
     }
 
     const eventHandler = {
+
+        _determineEventType: function (eventName) {
+            switch (eventName) {
+                case 'br-ui-survey:rendered':
+                    return 'renderedElement'
+                case 'br-ui-survey:opened':
+                    return 'clickedElement'
+                default:
+                    return null;
+            }
+        },
+
         sendActivity: function (eventName, detail) {
-            console.log("[uiSurvey]", eventName, detail);
+            console.log("[uiSurvey] event ", eventName, detail);
+
+            const type = this._determineEventType(eventName);
+            const user = {};
+            const tags = {};
+
+            if (type !== null) {
+                console.log("[uiSurvey] activity ", type, tags);
+                // Breinify.plugins.activities.generic(type, user, tags);
+            }
         }
     };
 
