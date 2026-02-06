@@ -775,7 +775,7 @@
                     // TODO: maybe better error handling and into object
                     Renderer._process(option.process.error, error);
                     let errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
-                    this._handleRender({
+                    _self._handleRender({
                         status: {
                             code: 500,
                             message: errorMsg,
@@ -802,7 +802,7 @@
                         result: result
                     });
 
-                    this._handleRender({
+                    _self._handleRender({
                         status: {
                             code: 500,
                             message: 'unexpected result-type received',
@@ -815,7 +815,7 @@
                         result: result
                     }, result.status));
 
-                    this._handleRender(result, option, null);
+                    _self._handleRender(result, option, null);
                 } else if ($.isFunction(option.data.modify)) {
 
                     // the method used in any case to handle the modified responses
