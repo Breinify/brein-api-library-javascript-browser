@@ -520,12 +520,12 @@
                         return;
                     }
                     if (this._shouldCloseOnBackgroundClick()) {
-                        this.close();
+                        this.close("backdrop");
                     }
                 });
             }
             if (closeBtn) {
-                closeBtn.addEventListener("click", () => this.close());
+                closeBtn.addEventListener("click", () => this.close("close-button"));
             }
         }
 
@@ -554,7 +554,7 @@
             }
         }
 
-        close() {
+        close(reason) {
             if (this.hasAttribute("open")) {
                 this.removeAttribute("open");
             }
@@ -563,7 +563,10 @@
 
             this.dispatchEvent(new CustomEvent("br-ui-survey:popup-closed", {
                 bubbles: true,
-                cancelable: false
+                cancelable: false,
+                detail: {
+                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
+                }
             }));
         }
 
@@ -776,8 +779,11 @@
          * Handle browser Back/Forward.
          */
         _onPopState(event) {
+            let reason = "unspecified";
+
             const popup = document.querySelector(popupElementName);
             const state = event.state;
+            const prevNodeId = this._currentNodeId;
 
             // Case 1: This popstate belongs to some survey state
             if (state && state.brUiSurvey === true) {
@@ -789,7 +795,7 @@
                 // If it is from an "old" session, ignore and make sure we're reset
                 if (!this._sessionId || !state.sessionId || state.sessionId !== this._sessionId) {
                     if (popup && popup.hasAttribute("open")) {
-                        popup.close();
+                        popup.close("history");
                     }
                     this._resetSurveyState();
                     return;
@@ -808,13 +814,19 @@
                 if (Array.isArray(this._history) &&
                     this._history.length > 0 &&
                     this._history[this._history.length - 1] === nodeId) {
+                    reason = "back";
+
                     // BACK: step back in our intra-survey history
                     this._currentNodeId = this._history.pop();
                 } else if (this._currentNodeId) {
+                    reason = "forward";
+
                     // FORWARD: move forward from the current node
                     this._history.push(this._currentNodeId);
                     this._currentNodeId = nodeId;
                 } else {
+                    reason = "forward";
+
                     // Initial survey state for this instance (e.g., entering via Forward)
                     this._currentNodeId = nodeId;
                 }
@@ -826,6 +838,11 @@
                     if (!popup.hasAttribute("open")) {
                         popup.open();
                     }
+
+                    // semantic: page changed due to history navigation
+                    if (prevNodeId !== this._currentNodeId) {
+                        this._fireNavigatedEvent(prevNodeId, this._currentNodeId, reason);
+                    }
                 }
 
                 return;
@@ -836,6 +853,48 @@
                 popup.close();
             }
             this._resetSurveyState();
+        }
+
+        _fireAnswerClickedEvent(nodeId, answerId) {
+            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
+            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
+            const answer = this._getAnswerFromNode(node, answerId);
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:answer-clicked", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExId: this.uuid,
+                    nodeId: resolvedNodeId,
+                    pageType: node && node.type ? node.type : null,
+                    pageIndex: this._getPageIndex(resolvedNodeId),
+                    totalPages: this._getTotalPageCount(),
+                    answerId: answerId,
+                    answer: answer || null,
+                    sessionId: this._sessionId || null
+                }
+            }));
+        }
+
+        _fireNavigatedEvent(fromNodeId, toNodeId, reason) {
+            const toId = Breinify.UTL.isNonEmptyString(toNodeId);
+            const toNode = toId !== null && this._nodesById ? this._nodesById[toId] : null;
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:navigated", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExId: this.uuid,
+                    fromNodeId: Breinify.UTL.isNonEmptyString(fromNodeId),
+                    toNodeId: toId,
+                    fromPageIndex: this._getPageIndex(fromNodeId),
+                    toPageIndex: this._getPageIndex(toId),
+                    totalPages: this._getTotalPageCount(),
+                    toPageType: toNode && toNode.type ? toNode.type : null,
+                    sessionId: this._sessionId || null,
+                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
+                }
+            }));
         }
 
         /**
@@ -1353,7 +1412,7 @@
                 const answer = answers.find(a => a && a._id === answerId) || null;
 
                 if (!answer) {
-                    missingAnswers.push({ questionId, answerId });
+                    missingAnswers.push({questionId, answerId});
                 }
 
                 byQuestionId[questionId] = {
@@ -1367,7 +1426,7 @@
                 };
             }
 
-            return { byQuestionId, missingQuestions, missingAnswers };
+            return {byQuestionId, missingQuestions, missingAnswers};
         }
 
         _buildAnswerAttributes() {
@@ -1383,7 +1442,7 @@
                 }
             }
 
-            return { resolved, attributes };
+            return {resolved, attributes};
         }
 
         /**
@@ -1446,6 +1505,7 @@
             }
 
             this._selectedAnswers[nodeId] = answerId;
+            this._fireAnswerClickedEvent(nodeId, answerId);
 
             if (!container || !container.querySelectorAll) {
                 return;
@@ -1585,11 +1645,14 @@
             const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
 
             if (nextNodeId !== null) {
+
                 // remember where we came from (intra-survey history)
                 if (!Array.isArray(this._history)) {
                     this._history = [];
                 }
                 this._history.push(nodeId);
+
+                const prevNodeId = this._currentNodeId;
                 this._currentNodeId = nextNodeId;
 
                 const popup = document.querySelector(popupElementName);
@@ -1599,9 +1662,8 @@
 
                 // push new history entry so browser Back goes to previous page
                 this._pushHistoryStateForCurrentPage();
+                this._fireNavigatedEvent(prevNodeId, this._currentNodeId, "forward");
             } else {
-                // TODO: later this is a good place to fire "finalized survey" when end state is well-defined
-                // eslint-disable-next-line no-console
                 console.warn("No next edge found for", nodeId, answerId);
             }
         }
@@ -1744,6 +1806,81 @@
     }
 
     Breinify.plugins._add("uiSurvey", {
+
+        attachEventListeners: function (surveyEl, webExId, callback, selection) {
+            if (!surveyEl) {
+                return;
+            }
+
+            // prevent double-binding if register() runs more than once
+            const markerKey = "__brUiSurveyListeners::" + webExId;
+            if (surveyEl[markerKey] === true) {
+                return;
+            }
+            surveyEl[markerKey] = true;
+
+            // make sure we have a fallback if none is passed
+            const handler = typeof callback === "function" ? callback : function (eventName, detail) {
+            };
+
+            // normalize selection into a map: { "<name>": true }
+            let allowed = null;
+            if (Array.isArray(selection)) {
+                allowed = Object.create(null);
+                selection.forEach(function (name) {
+                    if (typeof name === "string" && name.length > 0) {
+                        allowed[name] = true;
+                    }
+                });
+            } else if (selection && typeof selection === "object") {
+                allowed = selection;
+            }
+
+            const isAllowed = function (name) {
+                return allowed === null || allowed[name] === true;
+            };
+
+            const wrap = function (name) {
+                return function (evt) {
+                    if (!isAllowed(name)) {
+                        return;
+                    }
+                    handler(name, evt && evt.detail ? evt.detail : null);
+                };
+            };
+
+            // Events dispatched by UiSurvey element
+            if (isAllowed("rendered")) {
+                surveyEl.addEventListener("br-ui-survey:rendered", wrap("rendered"));
+            }
+            if (isAllowed("opened")) {
+                surveyEl.addEventListener("br-ui-survey:opened", wrap("opened"));
+            }
+            if (isAllowed("navigated")) {
+                surveyEl.addEventListener("br-ui-survey:navigated", wrap("navigated"));
+            }
+            if (isAllowed("answer-clicked")) {
+                surveyEl.addEventListener("br-ui-survey:answer-clicked", wrap("answer-clicked"));
+            }
+            if (isAllowed("answer-selected")) {
+                surveyEl.addEventListener("br-ui-survey:answer-selected", wrap("answer-selected"));
+            }
+
+            // Popup event is dispatched by popup element; listen globally
+            if (isAllowed("popup-closed")) {
+                document.addEventListener("br-ui-survey:popup-closed", function (evt) {
+                    const d = evt && evt.detail ? evt.detail : null;
+
+                    // if webExId is present, filter so multiple surveys don't spam each other
+                    if (d && d.webExId && d.webExId !== webExId) {
+                        return;
+                    }
+
+                    handler("popup-closed", d);
+                });
+            }
+        },
+
         register: function (module, webExId, config) {
 
             if (!window.customElements.get(popupElementName)) {
@@ -1777,6 +1914,11 @@
 
             // get the actual DOM element
             const survey = $survey.get(0);
+            this.attachEventListeners(survey, webExId, function (eventName, detail) {
+                // eslint-disable-next-line no-console
+                console.log("[uiSurvey]", eventName, detail);
+            });
+
             survey.render(webExId, config);
         }
     });
