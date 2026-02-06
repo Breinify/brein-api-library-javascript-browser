@@ -47,6 +47,11 @@ The following attributes are **specific to the `br-ui-survey:navigated` event** 
 
 | **Attribute** | **Type** | **Description** |
 |----------|------|-------------|
+| `webExId` | `string` | Web Experience identifier of the survey instance |
+| `sessionId` | `string \| null` | Identifier of the active survey session |
+| `nodeId` | `string \| null` | Identifier of the survey node (page) associated with the event |
+| `pageType` | `string \| null` | Type of the current page (e.g. `question`, `recommendation`) |
+| `pageIndex` | `number` | Zero-based index of the page within all survey question pages |
 | `fromNodeId` | `string \| null` | Identifier of the node the user navigated from |
 | `fromPageType` | `string \| null` | Page type of the previous step (e.g. `question`) |
 | `fromPageIndex` | `number` | Zero-based index of the previous page |
@@ -60,14 +65,6 @@ The following attributes are **specific to the `br-ui-survey:navigated` event** 
 | `isFirstStep` | `boolean` | Indicates whether the destination step is the first step |
 | `isFinalStep` | `boolean` | Indicates whether the destination step is considered final |
 | `reason` | `string` | Reason for navigation: `forward`, `back`, `history`, or `unspecified` |
-| `webExId` | `string` | Web Experience identifier of the survey instance |
-| `sessionId` | `string \| null` | Identifier of the active survey session |
-| `webExId` | `string` | Web Experience identifier of the survey instance emitting the event |
-| `sessionId` | `string \| null` | Unique identifier for the current survey session; remains stable for the lifetime of the popup |
-| `nodeId` | `string \| null` | Identifier of the survey node (page) associated with the event |
-| `pageType` | `string \| null` | Type of the current page (e.g. `question`, `recommendation`) |
-| `pageIndex` | `number` | Zero-based index of the page within all survey question pages |
-| `totalPages` | `number` | Total number of survey question pages configured |
 
 
 | Event |
