@@ -1897,7 +1897,7 @@
     }
 
     const eventHandler = {
-        sendActivity: function (tags) {
+        sendActivity: function (eventName, detail) {
             console.log("[uiSurvey]", eventName, detail);
         }
     };
