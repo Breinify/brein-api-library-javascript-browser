@@ -1322,6 +1322,7 @@
         }
 
         _requestRecommendations(popup, container, node) {
+            const _self = this;
 
             // get the data to be used for the page
             const data = $.isPlainObject(node.data) ? node.data : {};
@@ -1408,7 +1409,10 @@
 
                         // remove skeleton cards; recommender will append items into $itemContainer / $grid
                         $attachedContainer.empty();
-                    }
+                    },
+                    createActivity: function (event, settings) {
+                        settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(_self.uuid);
+                    },
                 }
             });
         }
