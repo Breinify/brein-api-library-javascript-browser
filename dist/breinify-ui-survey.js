@@ -1896,6 +1896,12 @@
         }
     }
 
+    const eventHandler = {
+        sendActivity: function (tags) {
+            console.log("[uiSurvey]", eventName, detail);
+        }
+    };
+
     Breinify.plugins._add("uiSurvey", {
 
         attachEventListeners: function (surveyEl, webExId, callback, selection) {
@@ -2006,8 +2012,7 @@
             // get the actual DOM element
             const survey = $survey.get(0);
             this.attachEventListeners(survey, webExId, function (eventName, detail) {
-                // eslint-disable-next-line no-console
-                console.log("[uiSurvey]", eventName, detail);
+                eventHandler.sendActivity(eventName, detail);
             });
 
             survey.render(webExId, config);
