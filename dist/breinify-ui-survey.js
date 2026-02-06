@@ -867,22 +867,15 @@
         }
 
         _fireNavigatedEvent(fromNodeId, toNodeId, reason, fromStepNumber, toStepNumber) {
-            const canGoBack = Array.isArray(this._history) && this._history.length > 0;
-            const isFirstStep = toStepNumber === 1;
-            const isFinalStep = this._isFinalStep(toNodeId);
-
-            this._dispatchSurveyEvent("br-ui-survey:navigated", Object.assign({},
-                this._getPageContext(fromNodeId, "from"),
-                this._getPageContext(toNodeId, "to"),
-                {
-                    fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
-                    toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
-                    canGoBack: canGoBack,
-                    isFirstStep: isFirstStep,
-                    isFinalStep: isFinalStep,
+            this._dispatchSurveyEvent("br-ui-survey:navigated", this._buildEventDetail({
+                fromNodeId: fromNodeId,
+                toNodeId: toNodeId,
+                fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
+                toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
+                extra: {
                     reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
                 }
-            ));
+            }));
         }
 
         /**
@@ -957,12 +950,15 @@
             const questionLabel = node && node.data && typeof node.data.question === "string" ? node.data.question : null;
             const answerLabel = answer && typeof answer.title === "string" ? answer.title : null;
 
-            this._dispatchPageSurveyEvent(eventType, resolvedNodeId, {
-                answerId: answerId,
-                answer: answer || null,
-                answerLabel: answerLabel,
-                questionLabel: questionLabel
-            });
+            this._dispatchSurveyEvent(eventType, this._buildEventDetail({
+                nodeId: resolvedNodeId,
+                extra: {
+                    answerId: answerId,
+                    answer: answer || null,
+                    answerLabel: answerLabel,
+                    questionLabel: questionLabel
+                }
+            }));
         }
 
         _getPageContext(nodeId, prefix) {
@@ -989,6 +985,30 @@
                 out["totalPages"] = ctx.totalPages;
                 return out;
             }
+        }
+
+        _buildEventDetail(opts) {
+            const o = $.isPlainObject(opts) ? opts : {};
+
+            const nodeId = Breinify.UTL.isNonEmptyString(o.nodeId);
+            const fromNodeId = Breinify.UTL.isNonEmptyString(o.fromNodeId);
+            const toNodeId = Breinify.UTL.isNonEmptyString(o.toNodeId);
+
+            return Object.assign({},
+                // page context
+                nodeId !== null ? this._getPageContext(nodeId, null) : {},
+                fromNodeId !== null ? this._getPageContext(fromNodeId, "from") : {},
+                toNodeId !== null ? this._getPageContext(toNodeId, "to") : {},
+
+                // step context
+                nodeId !== null ? this._getStepContext(nodeId, o.stepNumber) : {},
+                toNodeId !== null ? this._getStepContext(toNodeId, o.toStepNumber) : {},
+                fromNodeId !== null ? {fromStepNumber: o.fromStepNumber ?? null} : {},
+                toNodeId !== null ? {toStepNumber: o.toStepNumber ?? null} : {},
+
+                // event-specific fields
+                $.isPlainObject(o.extra) ? o.extra : {}
+            );
         }
 
         _dispatchPageSurveyEvent(eventType, nodeId, detail) {
@@ -1686,6 +1706,21 @@
             } else {
                 console.warn("No next edge found for", nodeId, answerId);
             }
+        }
+
+        _getStepNumber() {
+            return (Array.isArray(this._history) ? this._history.length : 0) + 1;
+        }
+
+        _getStepContext(nodeId, stepNumber) {
+            const sn = typeof stepNumber === "number" ? stepNumber : this._getStepNumber();
+
+            return {
+                stepNumber: sn,
+                canGoBack: Array.isArray(this._history) && this._history.length > 0,
+                isFirstStep: sn === 1,
+                isFinalStep: this._isFinalStep(nodeId)
+            };
         }
 
         _hasOutgoingEdges(nodeId) {
