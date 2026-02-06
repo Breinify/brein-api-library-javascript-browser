@@ -45,7 +45,7 @@ The following attributes are included in the `detail` object of **all survey eve
 
 The following attributes are **specific to the `br-ui-survey:navigated` event** and describe the semantic transition between two survey steps from the user's perspective.
 
-| Attribute | Type | Description |
+| **Attribute** | **Type** | **Description** |
 |----------|------|-------------|
 | `fromNodeId` | `string \| null` | Identifier of the node the user navigated from |
 | `fromPageType` | `string \| null` | Page type of the previous step (e.g. `question`) |
@@ -62,8 +62,6 @@ The following attributes are **specific to the `br-ui-survey:navigated` event** 
 | `reason` | `string` | Reason for navigation: `forward`, `back`, `history`, or `unspecified` |
 | `webExId` | `string` | Web Experience identifier of the survey instance |
 | `sessionId` | `string \| null` | Identifier of the active survey session |
-| Attribute | Type | Description |
-|----------|------|-------------|
 | `webExId` | `string` | Web Experience identifier of the survey instance emitting the event |
 | `sessionId` | `string \| null` | Unique identifier for the current survey session; remains stable for the lifetime of the popup |
 | `nodeId` | `string \| null` | Identifier of the survey node (page) associated with the event |
