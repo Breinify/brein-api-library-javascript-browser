@@ -970,29 +970,46 @@
                 return;
             }
 
-            // use the real click target for item resolution when available; otherwise keep $el
+            const enhancedAdditionalEventData = $.extend(true, {}, additionalEventData, {
+                // semantic click anchor (it may be the host on purpose)
+                semanticTarget: $el && $el.length === 1 ? $el.get(0) : null
+            });
             const $itemEl = $clickedEl === null ? $el : $clickedEl;
             if (containerData.data.splitTestData.isControl === true) {
-                this._handleControlClick(event, $itemEl, $container, containerData.data, additionalEventData, containerData.option);
+                this._handleControlClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
             } else {
-                this._handleRecommendationClick(event, $itemEl, $container, containerData.data, additionalEventData, containerData.option);
+                this._handleRecommendationClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
             }
 
             /*
              * Some integrations want to stop further propagation after we handled the click
              * (e.g., to prevent other observers from reacting to the same interaction).
              */
-            if (additionalEventData && additionalEventData.stopPropagation === true) {
+            if (enhancedAdditionalEventData.stopPropagation === true) {
                 event.stopPropagation();
                 Renderer._process(option.process.stoppedPropagation, event, $itemEl, $container,
-                    containerData.data, additionalEventData, containerData.option);
+                    containerData.data, enhancedAdditionalEventData, containerData.option);
             }
         },
 
         _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
 
             // search for any item-element that would identify a recommendation click
-            const $recItem = $el.closest('.' + Renderer.marker.item);
+            let $recItem = $el.closest('.' + Renderer.marker.item);
+            if ($recItem.length !== 1) {
+                const semanticTarget = additionalEventData && additionalEventData.semanticTarget;
+                if (semanticTarget && semanticTarget.nodeType === 1) {
+                    const $semantic = $(semanticTarget);
+
+                    // host might be the item itself or inside it
+                    $recItem = $semantic.closest('.' + Renderer.marker.item);
+                    if ($recItem.length !== 1 && $semantic.is('.' + Renderer.marker.item)) {
+                        $recItem = $semantic;
+                    }
+                }
+            }
+
+            // if we still do not have exactly one item, this isn't a recommendation click
             if ($recItem.length !== 1) {
                 return;
             }
