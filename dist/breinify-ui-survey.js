@@ -811,6 +811,8 @@
                     return;
                 }
 
+                const fromStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
+
                 if (Array.isArray(this._history) &&
                     this._history.length > 0 &&
                     this._history[this._history.length - 1] === nodeId) {
@@ -831,6 +833,8 @@
                     this._currentNodeId = nodeId;
                 }
 
+                const toStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
+
                 this._pruneSelectedAnswersToActivePath();
 
                 if (popup) {
@@ -841,7 +845,7 @@
 
                     // semantic: page changed due to history navigation
                     if (prevNodeId !== this._currentNodeId) {
-                        this._fireNavigatedEvent(prevNodeId, this._currentNodeId, reason);
+                        this._fireNavigatedEvent(prevNodeId, this._currentNodeId, reason, fromStepNumber, toStepNumber);
                     }
                 }
 
@@ -876,7 +880,7 @@
             }));
         }
 
-        _fireNavigatedEvent(fromNodeId, toNodeId, reason) {
+        _fireNavigatedEvent(fromNodeId, toNodeId, reason, fromStepNumber, toStepNumber) {
             const toId = Breinify.UTL.isNonEmptyString(toNodeId);
             const toNode = toId !== null && this._nodesById ? this._nodesById[toId] : null;
 
@@ -891,6 +895,8 @@
                     toPageIndex: this._getPageIndex(toId),
                     totalPages: this._getTotalPageCount(),
                     toPageType: toNode && toNode.type ? toNode.type : null,
+                    fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
+                    toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
                     sessionId: this._sessionId || null,
                     reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
                 }
@@ -1085,10 +1091,6 @@
 
             // fire opened-event once popup and first page are visible
             this._fireOpenedEvent();
-
-            // debug for now
-            // eslint-disable-next-line no-console
-            console.log("Survey trigger clicked:", this.uuid, "currentNodeId:", this._currentNodeId);
         }
 
         _renderCurrentPage(popup) {
@@ -1645,12 +1647,14 @@
             const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
 
             if (nextNodeId !== null) {
+                const fromStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
 
                 // remember where we came from (intra-survey history)
                 if (!Array.isArray(this._history)) {
                     this._history = [];
                 }
                 this._history.push(nodeId);
+                const toStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
 
                 const prevNodeId = this._currentNodeId;
                 this._currentNodeId = nextNodeId;
@@ -1662,7 +1666,7 @@
 
                 // push new history entry so browser Back goes to previous page
                 this._pushHistoryStateForCurrentPage();
-                this._fireNavigatedEvent(prevNodeId, this._currentNodeId, "forward");
+                this._fireNavigatedEvent(prevNodeId, this._currentNodeId, "forward", fromStepNumber, toStepNumber);
             } else {
                 console.warn("No next edge found for", nodeId, answerId);
             }
