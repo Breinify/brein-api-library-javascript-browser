@@ -1913,25 +1913,25 @@
 
         _determineTags: function (eventName, metadata, detail) {
             switch (eventName) {
-                case 'br-ui-survey:rendered':
+                case 'rendered':
                     return {
                         actionType: 'rendered',
                         action: 'render banner/button/text',
                         elementType: 'br-survey-root'
                     };
-                case 'br-ui-survey:opened':
+                case 'opened':
                     return {
                         actionType: 'trigger',
                         action: 'open survey',
                         elementType: 'br-survey-root'
                     };
-                case 'br-ui-survey:popup-closed':
+                case 'popup-closed':
                     return {
                         actionType: 'trigger',
                         action: 'closed survey',
                         elementType: Breinify.UTL.isNonEmptyString(detail?.reason) ? detail.reason : 'unspecified'
                     };
-                case 'br-ui-survey:answer-selected':
+                case 'answer-selected':
                     return {
                         actionType: 'click',
                         action: 'selected answer',
