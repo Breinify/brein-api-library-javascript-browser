@@ -1900,11 +1900,11 @@
 
         _determineEventType: function (eventName, metadata, detail) {
             switch (eventName) {
-                case 'br-ui-survey:rendered':
+                case 'rendered':
                     return 'renderedElement'
-                case 'br-ui-survey:opened':
-                case 'br-ui-survey:popup-closed':
-                case 'br-ui-survey:answer-selected':
+                case 'opened':
+                case 'popup-closed':
+                case 'answer-selected':
                     return 'clickedElement'
                 default:
                     return null;
