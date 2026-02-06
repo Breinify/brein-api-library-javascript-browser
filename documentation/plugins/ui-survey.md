@@ -36,14 +36,53 @@ Common fields automatically included in all survey events:
 
 #### Events Overview
 
-| Event name | When it fires | Purpose |
-|-----------|---------------|---------|
-| `br-ui-survey:rendered` | After the survey trigger element is rendered into the DOM | Signals that the survey is initialized and ready for interaction |
-| `br-ui-survey:opened` | When the popup opens and the first survey page becomes visible | Marks the beginning of a user survey session |
-| `br-ui-survey:navigated` | Whenever the user moves between survey steps (forward, back, or history navigation) | Tracks user progression through the survey flow |
-| `br-ui-survey:answer-clicked` | When a user clicks an answer option (without navigating yet) | Captures user intent prior to committing a choice |
-| `br-ui-survey:answer-selected` | When an answer is committed and used to move forward | Records the selected answer that influenced navigation |
-| `br-ui-survey:popup-closed` | When the survey popup is closed for any reason | Indicates survey interruption or completion |
+#### Common Event Attributes
+
+The following attributes are included in the `detail` object of **all survey events**, unless stated otherwise.
+
+
+#### Navigation Event Attributes (`br-ui-survey:navigated`)
+
+The following attributes are **specific to the `br-ui-survey:navigated` event** and describe the semantic transition between two survey steps from the user's perspective.
+
+| **Attribute** | **Type** | **Description** |
+| `fromNodeId` | `string \| null` | Identifier of the node the user navigated from |
+| `fromPageType` | `string \| null` | Page type of the previous step (e.g. `question`) |
+| `fromPageIndex` | `number` | Zero-based index of the previous page |
+| `toNodeId` | `string` | Identifier of the node the user navigated to |
+| `toPageType` | `string` | Page type of the new step (e.g. `question`, `recommendation`) |
+| `toPageIndex` | `number` | Zero-based index of the destination page |
+| `totalPages` | `number` | Total number of configured survey question pages |
+| `fromStepNumber` | `number \| null` | User-visible step number before navigation (1-based) |
+| `toStepNumber` | `number \| null` | User-visible step number after navigation (1-based) |
+| `canGoBack` | `boolean` | Indicates whether backward navigation is currently possible |
+| `isFirstStep` | `boolean` | Indicates whether the destination step is the first step |
+| `isFinalStep` | `boolean` | Indicates whether the destination step is considered final |
+| `reason` | `string` | Reason for navigation: `forward`, `back`, `history`, or `unspecified` |
+| `webExId` | `string` | Web Experience identifier of the survey instance |
+| `sessionId` | `string \| null` | Identifier of the active survey session |
+| `webExId` | `string` | Web Experience identifier of the survey instance emitting the event |
+| `sessionId` | `string \| null` | Unique identifier for the current survey session; remains stable for the lifetime of the popup |
+| `nodeId` | `string \| null` | Identifier of the survey node (page) associated with the event |
+| `pageType` | `string \| null` | Type of the current page (e.g. `question`, `recommendation`) |
+| `pageIndex` | `number` | Zero-based index of the page within all survey question pages |
+| `totalPages` | `number` | Total number of survey question pages configured |
+
+
+| Event |
+|-------|
+| **`br-ui-survey:rendered`** |
+| *When it fires:* After the survey trigger element is rendered into the DOM<br>*Purpose:* Indicates that the survey component is initialized and ready |
+| **`br-ui-survey:opened`** |
+| *When it fires:* When the popup opens and the first page becomes visible<br>*Purpose:* Marks the start of a user survey session |
+| **`br-ui-survey:navigated`** |
+| *When it fires:* Whenever the user moves between survey steps (forward, back, or via browser history)<br>*Purpose:* Describes how the user progresses through the survey flow |
+| **`br-ui-survey:answer-clicked`** |
+| *When it fires:* When a user clicks an answer option without navigating yet<br>*Purpose:* Captures user interaction intent prior to committing a choice |
+| **`br-ui-survey:answer-selected`** |
+| *When it fires:* When an answer is committed and used to move forward<br>*Purpose:* Records the selected answer that drives navigation |
+| **`br-ui-survey:popup-closed`** |
+| *When it fires:* When the survey popup is closed for any reason<br>*Purpose:* Signals survey interruption or completion |
 
 
 #### Overview
