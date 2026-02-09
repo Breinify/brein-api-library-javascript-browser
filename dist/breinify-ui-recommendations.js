@@ -15,7 +15,7 @@
     const _private = {
         _rendered: new Set(),
 
-        handle: async function (webExId, webExVersionId, recommendations) {
+        handle: async function (webExId, webExVersionId, recommendations, config) {
             if (this._rendered.has(webExVersionId)) {
                 return;
             }
@@ -23,7 +23,7 @@
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
-                        .then(() => _private._handle(webExId, webExVersionId, recommendation))
+                        .then(() => _private._handle(webExId, webExVersionId, recommendation, config))
                         .catch(err => {
                             // handle/log error, and decide what to return
                             console.error(err);
@@ -36,7 +36,7 @@
             this._rendered.add(webExVersionId);
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig) {
+        _handle: async function (webExId, webExVersionId, singleConfig, overallConfig) {
             const config = {};
 
             if (!$.isPlainObject(singleConfig)) {
@@ -49,7 +49,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
+            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process, overallConfig.type);
             this._applyStyle(singleConfig.style);
 
             /*
@@ -87,8 +87,8 @@
             }
         },
 
-        _createProcess: function (webExId, webExVersionId, config) {
-
+        _createProcess: function (webExId, webExVersionId, config, type) {
+console.log(type);
             let resolvedProcesses;
             if ($.isPlainObject(config)) {
                 resolvedProcesses = Object.fromEntries(
@@ -355,7 +355,7 @@
             }
 
             Promise.resolve()
-                .then(() => _private.handle(webExId, webExVersionId, recommendations))
+                .then(() => _private.handle(webExId, webExVersionId, recommendations, config))
                 .catch(err => {
                 });
         }
