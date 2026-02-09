@@ -13,7 +13,13 @@
     const ALLOWED_POSITIONS = ['before', 'after', 'prepend', 'append', 'replace', 'externalRender'];
 
     const _private = {
+        _rendered: new Set(),
+
         handle: async function (webExId, webExVersionId, recommendations) {
+            if (this._rendered.has(webExVersionId)) {
+                return;
+            }
+
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
@@ -27,6 +33,7 @@
             );
 
             Breinify.plugins.recommendations.render(results);
+            this._rendered.add(webExVersionId);
         },
 
         _handle: async function (webExId, webExVersionId, singleConfig) {
