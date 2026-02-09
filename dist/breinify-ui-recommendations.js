@@ -16,14 +16,20 @@
         _rendered: new Set(),
 
         handle: async function (webExId, webExVersionId, recommendations, config) {
-            if (this._rendered.has(webExVersionId)) {
+
+            /*
+             * If we have a handlingType of `onLoad` we only expect the actual element to be rendered only once,
+             * that would normally happen only once when the page is loaded, but sometimes systems play around with
+             * the history (which we actually observer), thus page-loads "may" happen "multiple times".
+             */
+            if (Breinify.UTL.isNonEmptyString(config.type) === 'onLoad' && this._rendered.has(webExVersionId)) {
                 return;
             }
 
             const results = await Promise.all(
                 recommendations.map(recommendation =>
                     Promise.resolve()
-                        .then(() => _private._handle(webExId, webExVersionId, recommendation, config))
+                        .then(() => _private._handle(webExId, webExVersionId, recommendation))
                         .catch(err => {
                             // handle/log error, and decide what to return
                             console.error(err);
@@ -36,7 +42,7 @@
             this._rendered.add(webExVersionId);
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig, overallConfig) {
+        _handle: async function (webExId, webExVersionId, singleConfig) {
             const config = {};
 
             if (!$.isPlainObject(singleConfig)) {
@@ -49,7 +55,7 @@
             config.position = this._createPosition(singleConfig.position);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process, overallConfig.type);
+            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
             this._applyStyle(singleConfig.style);
 
             /*
@@ -61,7 +67,7 @@
             return config;
         },
 
-        _applyStyle: function(config) {
+        _applyStyle: function (config) {
             if (!$.isPlainObject(config)) {
                 return;
             }
@@ -87,8 +93,8 @@
             }
         },
 
-        _createProcess: function (webExId, webExVersionId, config, type) {
-console.log(type);
+        _createProcess: function (webExId, webExVersionId, config, handlingType) {
+
             let resolvedProcesses;
             if ($.isPlainObject(config)) {
                 resolvedProcesses = Object.fromEntries(
