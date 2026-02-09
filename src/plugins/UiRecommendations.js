@@ -325,7 +325,8 @@
                 module.onChange = function () {
                     _self.handle(webExId, webExVersionId, {
                         activationLogic: config.activationLogic,
-                        recommendations: configOnLoad
+                        recommendations: configOnLoad,
+                        type: 'onLoad'
                     });
                 }
             } else {
@@ -338,7 +339,8 @@
 
                     return {
                         activationLogic: config.activationLogic,
-                        recommendations: selectedRecommenders
+                        recommendations: selectedRecommenders,
+                        type: 'onChange'
                     };
                 };
                 module.onChange = function (data) {
