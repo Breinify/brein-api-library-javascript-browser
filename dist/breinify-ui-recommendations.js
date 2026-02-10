@@ -74,22 +74,8 @@
 
             // we do not support any changes via selectors currently, so we only check the snippet
             const snippetId = Breinify.UTL.isNonEmptyString(config.snippet);
-            if (snippetId === null) {
-                return;
-            }
-
-            const css = Breinify.plugins.snippetManager.getSnippet(snippetId);
-            const $css = $(css);
-            let id = Breinify.UTL.isNonEmptyString($css.attr('id'));
-            if (id === null) {
-                id = 'br-' + snippetId;
-                $css.attr('id', id);
-            }
-
-            const $body = $('body');
-            const $existingCss = $body.find('#' + id);
-            if ($existingCss.length === 0) {
-                $body.prepend($css);
+            if (snippetId !== null) {
+                Breinify.plugins.snippetManager.injectSnippet(snippetId, 'body', 'prepend');
             }
         },
 
