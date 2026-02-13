@@ -771,17 +771,11 @@
 
                 // we fire each error method
                 $.each(options, function (name, option) {
-
                     // TODO: maybe better error handling and into object
                     Renderer._process(option.process.error, error);
-                    let errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
-                    _self._handleRender({
-                        status: {
-                            code: 500,
-                            message: errorMsg,
-                            error: true
-                        }
-                    }, option, null);
+
+                    const errorResponse = _self._mapError(data, error);
+                    _self._handleRender(errorResponse, option, null);
                 });
 
                 return;
@@ -857,6 +851,17 @@
                     _self._applyRecommendation(result, option);
                 }
             });
+        },
+
+        _mapError: function (data, error) {
+            let errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
+            return {
+                status: {
+                    code: 500,
+                        message: errorMsg,
+                        error: true
+                }
+            }
         },
 
         _handleRender: function (result, option, $container) {
@@ -1391,9 +1396,9 @@
             // use the default endpoint
             Breinify.recommendation({}, payloads, function (data, errorText) {
                 if (typeof errorText === 'string') {
-                    callback(new Error(errorText));
+                    callback(new Error(errorText), data);
                 } else if (!$.isArray(data.results)) {
-                    callback(new Error('Invalid response received.'));
+                    callback(new Error('Invalid response received.'), data);
                 } else {
                     let result = _self._mapResults(payloads, data.results);
                     callback(null, result);

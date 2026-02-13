@@ -205,7 +205,19 @@
              * We also check if the recommendation plugin is loaded, for legacy purposes
              * to send rendered activities for system not yet using the plugin.
              */
-            if (meta.isRecommendationPlugin === false && Breinify.plugins._isAdded('recommendations') === true) {
+            if (meta.isRecommendationPlugin !== false || Breinify.plugins._isAdded('recommendations') !== true) {
+                // nothing to do, we have a recommendation call from the plugin (or no plugin available)
+            }
+            // handle error now, we have a plugin but no call from the plugin
+            else if (typeof errorText === 'string') {
+                const mappedError = Breinify.plugins.recommendations._mapError(data, errorText);
+                Breinify.plugins.recommendations._handleRender(mappedError, {}, null);
+            }
+            /*
+             * There is a plugin available (Breinify.plugins._isAdded('recommendations') === true),
+             * and we fired outside the plugin (meta.isRecommendationPlugin === false).
+             */
+            else {
                 const recResults = $.isPlainObject(data) && $.isArray(data.results) ? data.results : [];
 
                 let payload;
