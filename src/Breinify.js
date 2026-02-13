@@ -257,7 +257,22 @@
                 // let's ignore any error
                 'error': function (jqXHR, text, exception) {
                     if ($.isFunction(error)) {
-                        error(jqXHR.responseText, text + ' (' + exception + ')');
+                        const data = {
+                            httpStatus: jqXHR.status || null,
+                            statusText: jqXHR.statusText || null,
+                            textStatus: text || null,
+                            errorThrown: exception || null,
+                            responseText: jqXHR.responseText || null,
+                            url: jqXHR.responseURL || null,
+                            readyState: jqXHR.readyState || null,
+                            timestamp: Date.now(),
+
+                            isNetworkError: jqXHR.status === 0,
+                            isServerError: jqXHR.status >= 500,
+                            isClientError: jqXHR.status >= 400 && jqXHR.status < 500
+                        };
+
+                        error(data, text + ' (' + exception + ')');
                     }
                 },
 
