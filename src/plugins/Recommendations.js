@@ -854,17 +854,46 @@
         },
 
         _mapError: function (data, error) {
-            let errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
-            return {
-                status: {
-                    code: 500,
+            const errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
+
+            // if we do not have additional data for the error, we return here with a 500
+            if (!$.isPlainObject(data) || typeof data.httpStatus !== 'number') {
+                return {
+                    status: {
+                        code: 500,
                         message: errorMsg,
                         error: true
+                    }
+                }
+            }
+            // we have a valid response, that we assume to be an error
+            else if (data.httpStatus === 200) {
+                return {
+                    status: {
+                        code: 500,
+                        message: 'received status-code 200 as error: ' + errorMsg,
+                        error: true
+                    }
+                }
+            }
+            // we have an actual HTTP status code (indicating an error) from the response, we utilize this
+            else {
+                return {
+                    status: {
+                        code: data.httpStatus,
+                        message: data.responseText,
+                        error: true
+                    }
                 }
             }
         },
 
         _handleRender: function (result, option, $container) {
+
+            // if we have a forbidden status, we just ignore the handling completely
+            if ($.isPlainObject(result) && $.isPlainObject(result.status) && result.status.code === 403) {
+                return;
+            }
 
             // determine the options to use
             const renderOption = $.extend(true, {
