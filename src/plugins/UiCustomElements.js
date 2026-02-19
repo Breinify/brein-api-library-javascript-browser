@@ -18,6 +18,7 @@
             this._config = {};
             this._observer = null;
             this._initialized = false;
+            this._lastLayout = null;
         }
 
         connectedCallback() {
@@ -330,6 +331,8 @@
                 maxItemWidth: (typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0) ? rawCfg.maxItemWidth : base.maxItemWidth,
                 showArrows: (typeof rawCfg.showArrows === "boolean") ? rawCfg.showArrows : base.showArrows,
                 phonePeek: (typeof rawCfg.phonePeek === "boolean") ? rawCfg.phonePeek : base.phonePeek,
+                preserveInnerTabOrder: (typeof rawCfg.preserveInnerTabOrder === "boolean") ? rawCfg.preserveInnerTabOrder : base.preserveInnerTabOrder,
+                scrollByVisibleItems: (typeof rawCfg.scrollByVisibleItems === "boolean") ? rawCfg.scrollByVisibleItems : base.scrollByVisibleItems,
                 breakpoints: breakpoints,
 
                 // header config defaults
@@ -743,9 +746,24 @@
                 if (!firstItem) {
                     return 0;
                 }
+
+                // Use the actual rendered width (matches what you scroll today)
                 const rect = firstItem.getBoundingClientRect();
+                const itemW = rect.width;
+
                 const gap = BrSimpleSlider.getGapPx(track);
-                return rect.width + gap;
+
+                // Default: scroll by 1 item
+                let itemsToScroll = 1;
+
+                // Optional: scroll by "page" (floor(perView))
+                const cfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
+                if (cfg.scrollByVisibleItems === true && this._lastLayout && typeof this._lastLayout.stepItems === "number") {
+                    itemsToScroll = this._lastLayout.stepItems;
+                }
+
+                // Width of N items plus gaps between them
+                return (itemW * itemsToScroll) + (gap * Math.max(0, itemsToScroll));
             };
 
             prev.addEventListener("click", () => {
@@ -1120,6 +1138,15 @@
             const totalGap = gap * Math.max(0, perView - 1);
             const itemWidth = (trackWidth - totalGap) / perView;
 
+            const stepItems = Math.max(1, Math.floor(perView));
+            this._lastLayout = {
+                perView: perView,
+                gap: gap,
+                totalGap: totalGap,
+                itemWidth: itemWidth,
+                stepItems: stepItems
+            };
+
             items.forEach((item) => {
                 const px = itemWidth + "px";
 
@@ -1298,6 +1325,8 @@
         showArrows: true,
         phonePeek: true,
         preserveInnerTabOrder: false,
+        // when true, arrow buttons scroll by the visible "page" of items (Math.floor(perView))
+        scrollByVisibleItems: false,
         breakpoints: [],
 
         // header defaults
