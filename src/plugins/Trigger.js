@@ -33,7 +33,7 @@
 
                     // attributes: only Elements have attributes
                     if (mutation.type === 'attributes' && typeof mutation.attributeName === 'string' && mutation.attributeName.trim() !== '') {
-                        const $target = mutation.target && mutation.target.nodeType === 1 ? $(mutation.target) : null;
+                        const $target = Breinify.UTL.dom.isNodeType(mutation.target, 1) ? $(mutation.target) : null;
                         if ($target !== null && $target.length === 1) {
                             _self.handleDomChange($target, {
                                 type: 'attribute-change',
@@ -47,7 +47,7 @@
                     if (addedNodes && addedNodes.length > 0) {
                         for (let k = 0; k < addedNodes.length; k++) {
                             const addedNode = addedNodes[k];
-                            const $addedNode = addedNode && addedNode.nodeType === 1 ? $(addedNode) : null;
+                            const $addedNode = Breinify.UTL.dom.isNodeType(addedNode, 1) ? $(addedNode) : null;
                             if ($addedNode !== null && $addedNode.length === 1) {
                                 _self.handleDomChange($addedNode, { type: 'added-element' });
                             }
@@ -59,7 +59,7 @@
                     if (removedNodes && removedNodes.length > 0) {
                         for (let k = 0; k < removedNodes.length; k++) {
                             const removedNode = removedNodes[k];
-                            const $removedNode = removedNode && removedNode.nodeType === 1 ? $(removedNode) : null;
+                            const $removedNode = Breinify.UTL.dom.isNodeType(removedNode, 1) ? $(removedNode) : null;
 
                             if ($removedNode !== null && $removedNode.length > 0) {
                                 _self.handleDomChange($removedNode, { type: 'removed-element' });

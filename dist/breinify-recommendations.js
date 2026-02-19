@@ -196,7 +196,7 @@
 
             // check the text
             $entry.contents().filter(function () {
-                return this.nodeType === 3; // Node.TEXT_NODE
+                return Breinify.UTL.dom.isNodeType(this, 3);
             }).each(function () {
                 const $el = $(this);
                 const replaced = _self._replace($el.text(), replacements, option);
@@ -979,7 +979,7 @@
              *  - to find the clicked item (.brrc-item) reliably
              */
             const actualTarget = additionalEventData && additionalEventData.actualTarget;
-            const $clickedEl = actualTarget && actualTarget.nodeType === 1 ? $(actualTarget) : null;
+            const $clickedEl = Breinify.UTL.dom.isNodeType(actualTarget, 1) ? $(actualTarget) : null;
 
             /*
              * If $el was not sufficient to locate the container, fall back to the real click target.
@@ -1032,7 +1032,7 @@
             let $recItem = $el.closest('.' + Renderer.marker.item);
             if ($recItem.length !== 1) {
                 const semanticTarget = additionalEventData && additionalEventData.semanticTarget;
-                if (semanticTarget && semanticTarget.nodeType === 1) {
+                if (Breinify.UTL.dom.isNodeType(semanticTarget, 1)) {
                     const $semantic = $(semanticTarget);
 
                     // host might be the item itself or inside it
@@ -1301,7 +1301,7 @@
                  *  (e.g. container resolution via closest(...)) can work reliably.
                  */
                 additionalEventData = additionalEventData || {};
-                additionalEventData.actualTarget = target && target.nodeType === 1 ? target :
+                additionalEventData.actualTarget = Breinify.UTL.dom.isNodeType(target, 1) ? target :
                     (target && target.parentElement ? target.parentElement : null);
 
                 _self._handleClick(option, $el, event, additionalEventData);

@@ -230,7 +230,7 @@
         _resolveTarget: function (target) {
             if (target && target.jquery) {
                 return target;
-            } else if (target && target.nodeType === 1) {
+            } else if (Breinify.UTL.dom.isNodeType(target, 1)) {
                 return $(target);
             } else if (Breinify.UTL.isNonEmptyString(target)) {
                 return $(target);

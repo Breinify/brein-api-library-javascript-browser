@@ -45,11 +45,53 @@
             }
         },
 
+        isNodeType: function (el, nodeTypes) {
+            if (el == null) {
+                return false;
+            }
+
+            const types = Array.isArray(nodeTypes) ? nodeTypes : [nodeTypes];
+
+            // resolve nodes to check
+            let nodes;
+            try {
+                if (el.jquery) {
+                    if (el.length === 0) {
+                        return false;
+                    }
+
+                    nodes = el.get(); // all elements
+                } else {
+                    nodes = [el];
+                }
+            } catch (e) {
+                return false;
+            }
+
+            // ALL nodes must match
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+
+                let nodeType;
+                try {
+                    nodeType = node.nodeType;
+                } catch (e) {
+                    return false;
+                }
+
+                if (typeof nodeType !== 'number' || types.indexOf(nodeType) === -1) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
         determineText: function (el, onlyInline) {
             onlyInline = typeof onlyInline === 'boolean' ? onlyInline : false;
 
             let content = null;
-            if (el.nodeType === 1) {
+            if (this.isNodeType(el, 1)) {
                 let $el = $(el);
                 let display = $el.css('display');
 
@@ -79,7 +121,7 @@
                     content = this.append(content, BreinifyUtil.texts($el, true));
                     content = this.append(content, '\n');
                 }
-            } else if (el.nodeType === 3) {
+            } else if (this.isNodeType(el, 3)) {
                 content = this.append(content, el.nodeValue);
             }
 
@@ -87,11 +129,7 @@
         },
 
         isDomEl: function (el) {
-            if (typeof el === 'object') {
-                return el.nodeType === 1;
-            } else {
-                return false;
-            }
+            return _private.isNodeType(el, 1);
         },
 
         clickObserver: {
@@ -217,8 +255,15 @@
 
                 this.mutationObserver = new MutationObserver(function (mutations) {
                     for (let i = 0; i < mutations.length; i++) {
-                        for (let k = 0; k < mutations[i].addedNodes.length; k++) {
-                            _self.checkModifications($(mutations[i].addedNodes[k]));
+                        const nodesAdded = mutations[i].addedNodes;
+
+                        for (let k = 0; k < nodesAdded.length; k++) {
+                            const nodeAdded = nodesAdded[k];
+                            if (!_private.isNodeType(nodeAdded, 1)) {
+                                continue;
+                            }
+
+                            _self.checkModifications($(nodeAdded));
                         }
                     }
                 });
@@ -975,6 +1020,10 @@
         },
 
         dom: {
+
+            isNodeType: function (el, nodeTypes) {
+                return _private.isNodeType(el, nodeTypes);
+            },
 
             getTagName: function ($el) {
                 let tagName = $el === null ? null : BreinifyUtil.isNonEmptyString($el.prop('tagName'));

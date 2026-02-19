@@ -84,6 +84,7 @@
             }
         },
         dom: {
+            isNodeType: function(el, nodeTypes) { return false; },
             getTagName: function($el) { return 'no tag'; },
             determineElementType: function() { return null; },
             addModification: function() {},
