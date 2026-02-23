@@ -133,23 +133,24 @@
         _createPositionSelector: function (position) {
             if (!$.isPlainObject(position)) {
                 return null;
+            } else if ($.isFunction(position._func)) {
+                return position._func;
             }
 
             const selector = Breinify.UTL.isNonEmptyString(position.selector);
             const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
 
-            let func = null;
             if (selector === null && snippet === null) {
                 return null;
             } else if (selector !== null) {
-                func = function () {
+                position._func = function () {
                     return $(selector);
                 };
             } else {
-                func = Breinify.plugins.snippetManager.getSnippet(snippet);
+                position._func = Breinify.plugins.snippetManager.getSnippet(snippet);
             }
 
-            return func;
+            return position._func;
         },
 
         _createTemplates: function (templates) {
