@@ -257,7 +257,7 @@
 
                 // check if the selected element is affected by this change
                 const func = this._createPositionSelector(rec.position);
-                const $el = func();
+                const $el = func(rec);
                 if (!$el || !$el.jquery) {
                     // not a jQuery object - continue
                 } else if ($el.length === 0) {
