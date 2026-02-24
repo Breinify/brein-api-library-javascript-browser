@@ -143,6 +143,16 @@
             }
         },
 
+        _recommenderName: function(payload) {
+            if ($.isPlainObject(payload) &&
+                $.isArray(payload.namedRecommendations) &&
+                payload.namedRecommendations.length === 1) {
+                return Breinify.UTL.isNonEmptyString(payload.namedRecommendations[0]);
+            } else {
+                return null;
+            }
+        },
+
         _applyExternalRender: function (option, data, cb) {
             if ($.isFunction(option.position.externalRender)) {
                 option.position.externalRender(data, cb);
@@ -1460,7 +1470,7 @@
                 queryName = payload.recommendationQueryName;
             }
 
-            const recommenderName = this._recommenderName(payload);
+            const recommenderName = Renderer._recommenderName(payload);
             const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
 
             // add some general information
@@ -1472,16 +1482,6 @@
             };
 
             return recommendationResult;
-        },
-
-        _recommenderName: function(payload) {
-            if ($.isPlainObject(payload) &&
-                $.isArray(payload.namedRecommendations) &&
-                payload.namedRecommendations.length === 1) {
-                return Breinify.UTL.isNonEmptyString(payload.namedRecommendations[0]);
-            } else {
-                return null;
-            }
         },
 
         _mapResults: function (payloads, results) {

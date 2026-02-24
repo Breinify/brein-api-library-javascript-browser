@@ -273,7 +273,7 @@
                 } else if ($el.data('br-marked-for-' + webExId) === 'true') {
                     // continue
                 } else if (!$container.is($el) && $container.has($el).length === 0) {
-                    // continue;
+                    // the changed container has nothing to do with the element - continue;
                 } else {
                     $el.data('br-marked-for-' + webExId, 'true');
                     selectedRecs.push(rec);
