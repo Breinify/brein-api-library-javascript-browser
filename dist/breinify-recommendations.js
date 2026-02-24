@@ -100,7 +100,8 @@
                 return;
             }
 
-            const $anchor = this._determineSelector(selector);
+            const recommenderName = this._recommenderName(option?.recommender?.payload);
+            const $anchor = this._determineSelector(selector, recommenderName);
             if ($anchor === null) {
                 cb(null, {
                     error: true,
@@ -1459,13 +1460,7 @@
                 queryName = payload.recommendationQueryName;
             }
 
-            let recommenderName = null;
-            if ($.isPlainObject(payload) &&
-                $.isArray(payload.namedRecommendations) &&
-                payload.namedRecommendations.length === 1) {
-                recommenderName = payload.namedRecommendations[0];
-            }
-
+            const recommenderName = this._recommenderName(payload);
             const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
 
             // add some general information
@@ -1477,6 +1472,16 @@
             };
 
             return recommendationResult;
+        },
+
+        _recommenderName: function(payload) {
+            if ($.isPlainObject(payload) &&
+                $.isArray(payload.namedRecommendations) &&
+                payload.namedRecommendations.length === 1) {
+                return Breinify.UTL.isNonEmptyString(payload.namedRecommendations[0]);
+            } else {
+                return null;
+            }
         },
 
         _mapResults: function (payloads, results) {
