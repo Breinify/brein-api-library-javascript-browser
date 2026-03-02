@@ -249,7 +249,7 @@
 
         _findRequirements: function (webExId, recs, $container, data) {
 
-            // we only care about specific events, so filter early
+            // we only care about specific events, so filter early on removal and attribute changes
             if (!$.isPlainObject(data) ||
                 data.type === 'attribute-change' ||
                 data.type === 'removed-element') {
@@ -262,7 +262,7 @@
                 // check if the selected element is affected by this change
                 const func = this._createPositionSelector(rec.position);
                 const recommenderName = this._recommenderName(rec);
-                const $el = func(recommenderName, rec);
+                const $el = func(recommenderName, rec, $container, data);
                 if (!$el || !$el.jquery) {
                     // not a jQuery object - continue
                 } else if ($el.length === 0) {
