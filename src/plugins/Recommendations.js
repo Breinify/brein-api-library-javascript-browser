@@ -1209,6 +1209,11 @@
             defaultTags.widgetType = recommenderName;
             defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
 
+            /*
+             * We allow to provide additional information via the additionalEventData
+             */
+            console.log('additionalEventData: ', additionalEventData);
+
             return defaultTags;
         },
 
