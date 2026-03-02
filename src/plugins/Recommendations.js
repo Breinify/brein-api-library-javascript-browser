@@ -43,9 +43,10 @@
             }
         },
 
-        _determineSelector: function (value, parameters) {
+        _determineSelector: function (value) {
             if ($.isFunction(value)) {
-                value = value(parameters);
+                const params = Array.prototype.slice.call(arguments, 1);
+                value = value.apply(null, params);
             }
 
             if (value === null) {
@@ -108,10 +109,10 @@
              * 3. data defining the reasoning/type of the call (i.e., added-element (dom-tree change), or
              *    determine-container)
              */
-            const parameters = [this._recommenderName(option?.recommender?.payload), null, {
+            const recommenderName = this._recommenderName(option?.recommender?.payload);
+            const $anchor = this._determineSelector(selector, recommenderName, null, {
                 type: 'determine-container'
-            }];
-            const $anchor = this._determineSelector(selector, parameters);
+            });
             if ($anchor === null) {
                 cb(null, {
                     error: true,
@@ -153,7 +154,7 @@
             }
         },
 
-        _recommenderName: function (payload) {
+        _recommenderName: function(payload) {
             if ($.isPlainObject(payload) &&
                 $.isArray(payload.namedRecommendations) &&
                 payload.namedRecommendations.length === 1) {
