@@ -100,8 +100,18 @@
                 return;
             }
 
+            /*
+             * The arguments for the methods align with the UI Recommendations check for requirements, i.e.,
+             * if the recommender is configured to render on DOM tree changes, the same method is called with
+             * 1. recommenderName
+             * 2. modified element
+             * 3. data defining the reasoning/type of the call (i.e., added-element (dom-tree change), or
+             *    determine-container)
+             */
             const recommenderName = this._recommenderName(option?.recommender?.payload);
-            const $anchor = this._determineSelector(selector, recommenderName);
+            const $anchor = this._determineSelector(selector, recommenderName, null, {
+                type: 'determine-container'
+            });
             if ($anchor === null) {
                 cb(null, {
                     error: true,

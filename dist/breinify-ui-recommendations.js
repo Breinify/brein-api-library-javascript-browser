@@ -243,7 +243,7 @@
             };
         },
 
-        _recommenderName: function(rec) {
+        _recommenderName: function (rec) {
             return Breinify.UTL.isNonEmptyString(rec?.recommender?.preconfiguredRecommendation);
         },
 
@@ -259,10 +259,18 @@
             const selectedRecs = [];
             for (const rec of recs) {
 
-                // check if the selected element is affected by this change
+                /*
+                 * Retrieve the method used to determine if the requirements are met. The method
+                 * called has to be aligned with the container check method, i.e., the following parameters
+                 * are passed:
+                 * 1. recommenderName
+                 * 2. modified element
+                 * 3. data defining the reasoning/type of the call (i.e., added-element (dom-tree change), or
+                 *    determine-container)
+                 */
                 const func = this._createPositionSelector(rec.position);
                 const recommenderName = this._recommenderName(rec);
-                const $el = func(recommenderName, rec, $container, data);
+                const $el = func(recommenderName, $container, data);
                 if (!$el || !$el.jquery) {
                     // not a jQuery object - continue
                 } else if ($el.length === 0) {
