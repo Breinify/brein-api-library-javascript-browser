@@ -262,7 +262,7 @@
                 // check if the selected element is affected by this change
                 const func = this._createPositionSelector(rec.position);
                 const recommenderName = this._recommenderName(rec);
-                const $el = func(recommenderName);
+                const $el = func(recommenderName, rec);
                 if (!$el || !$el.jquery) {
                     // not a jQuery object - continue
                 } else if ($el.length === 0) {
