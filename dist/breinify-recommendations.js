@@ -350,7 +350,7 @@
             clickedType: 'clickedRecommendation'
         },
         bindings: {
-            selector: 'a',
+            selector: 'a,.br-rec-click',
             specificSelectors: {}
         },
         splitTests: {
