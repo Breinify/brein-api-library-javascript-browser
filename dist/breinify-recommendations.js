@@ -1216,7 +1216,7 @@
              * - productNames (must be a non-empty array)
              * - recType
              */
-            if ($.isPlainObject(additionalEventData) && Object.keys(additionalEventData).length > 0) {
+            if ($.isPlainObject(additionalEventData) && !$.isEmptyObject(additionalEventData)) {
 
                 if (typeof additionalEventData.widgetPosition === 'number' && additionalEventData.widgetPosition > 0) {
                     defaultTags.widgetPosition = additionalEventData.widgetPosition;
