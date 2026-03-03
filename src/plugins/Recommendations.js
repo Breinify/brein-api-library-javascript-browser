@@ -1210,9 +1210,28 @@
             defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
 
             /*
-             * We allow to provide additional information via the additionalEventData
+             * We allow to provide additional information via the additionalEventData:
+             * - widgetPosition can be set early
+             * - productIds (must be a non-empty array)
+             * - productNames (must be a non-empty array)
+             * - recType
              */
-            console.log('additionalEventData: ', additionalEventData);
+            if ($.isPlainObject(additionalEventData)) {
+
+                if (typeof additionalEventData.widgetPosition === 'number' && additionalEventData.widgetPosition > 0) {
+                    defaultTags.widgetPosition = additionalEventData.widgetPosition;
+                }
+                if (Array.isArray(additionalEventData.productIds) && additionalEventData.productIds.length > 0) {
+                    defaultTags.productIds = additionalEventData.productIds;
+                }
+                if (Array.isArray(additionalEventData.productNames) && additionalEventData.productNames.length > 0) {
+                    defaultTags.productNames = additionalEventData.productNames;
+                }
+                const recType = Breinify.UTL.isNonEmptyString(additionalEventData?.recType);
+                if (recType !== null) {
+                    defaultTags.recType = recType;
+                }
+            }
 
             return defaultTags;
         },
