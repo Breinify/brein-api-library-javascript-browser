@@ -66,15 +66,33 @@
             }
 
             this._observer = new MutationObserver((mutations) => {
-                for (const m of mutations) {
-                    if (m.type === "childList") {
-                        // Look for JSON config scripts. We intentionally use `type$="application/json"`
-                        // instead of an exact match, because libraries like jQuery may rewrite script
-                        // tags while inserting HTML (e.g. `application/json` → `true/application/json`).
-                        if (this.querySelector('script[type$="application/json"]')) {
-                            this._config = this._loadConfig();
-                            this._render();
+                for (let i = 0; i < mutations.length; i += 1) {
+                    const m = mutations[i];
+
+                    if (m.type !== "childList") {
+                        continue;
+                    }
+
+                    let hasDirectConfigScript = false;
+
+                    for (let j = 0; j < m.addedNodes.length; j += 1) {
+                        const node = m.addedNodes[j];
+
+                        if (
+                            node instanceof HTMLElement &&
+                            node.tagName &&
+                            node.tagName.toLowerCase() === "script" &&
+                            node.getAttribute("type") &&
+                            node.getAttribute("type").endsWith("application/json")
+                        ) {
+                            hasDirectConfigScript = true;
+                            break;
                         }
+                    }
+
+                    if (hasDirectConfigScript) {
+                        this._config = this._loadConfig();
+                        this._render();
                         break;
                     }
                 }
@@ -84,7 +102,23 @@
         }
 
         _loadConfig() {
-            const script = this.querySelector('script[type$="application/json"]');
+            const children = Array.prototype.slice.call(this.children);
+            let script = null;
+
+            for (let i = 0; i < children.length; i += 1) {
+                const child = children[i];
+
+                if (
+                    child &&
+                    child.tagName &&
+                    child.tagName.toLowerCase() === "script" &&
+                    child.getAttribute("type") &&
+                    child.getAttribute("type").endsWith("application/json")
+                ) {
+                    script = child;
+                    break;
+                }
+            }
 
             if (!script) {
                 return {};
@@ -94,7 +128,6 @@
                 const json = script.textContent.trim();
                 const parsed = json ? JSON.parse(json) : {};
 
-                // remove the element and return
                 script.remove();
                 return parsed;
             } catch (e) {
