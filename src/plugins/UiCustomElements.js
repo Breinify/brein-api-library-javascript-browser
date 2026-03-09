@@ -218,6 +218,22 @@
             return false;
         }
 
+        connectedCallback() {
+            super.connectedCallback();
+
+            if (this._sliderInitialized) {
+                if (!this._itemObserver) {
+                    this._setupItemMutationObserver();
+                }
+                if (!this._resizeHandler) {
+                    this._setupResizeHandler();
+                }
+                if (!this._keyboardHandler) {
+                    this._setupKeyboardNavigation();
+                }
+            }
+        }
+
         disconnectedCallback() {
             super.disconnectedCallback();
 
