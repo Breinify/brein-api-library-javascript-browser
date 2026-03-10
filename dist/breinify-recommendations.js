@@ -1484,11 +1484,8 @@
         _mapResult: function (payload, result) {
             let recommendationResult = {};
 
-            if (this._determineErrorResponse(result, recommendationResult)) {
-                // nothing to do, the error-data was written
-            } else if (this._determineSplitTestData(result, recommendationResult)) {
-                // nothing to do, the split-test-data was written
-            } else {
+            this._determineSplitTestData(result, recommendationResult);
+            if (!this._determineErrorResponse(result, recommendationResult)) {
                 this._determineRecommendationData(result, recommendationResult);
             }
 
@@ -1702,7 +1699,7 @@
                 };
             }
 
-            return result.active;
+            return result.splitTestData.active;
         },
 
         _mapAssets: function (recommendationResponse) {
