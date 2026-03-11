@@ -26,7 +26,7 @@
                 return;
             }
 
-            this._config = this._loadConfig();
+            this._config = this._buildConfig();
             this._render();
 
             if (this.shouldObserveConfigChanges()) {
@@ -43,6 +43,19 @@
             }
         }
 
+        attributeChangedCallback(name, oldValue, newValue) {
+            if (oldValue === newValue) {
+                return;
+            }
+
+            if (this._initialized !== true) {
+                return;
+            }
+
+            this._config = this._buildConfig();
+            this._render();
+        }
+
         /**
          * Hook: subclasses can override to disable observing.
          */
@@ -57,6 +70,29 @@
          */
         usesShadowRoot() {
             return true;
+        }
+
+        /**
+         * Hook: subclasses can override to define which attributes
+         * should be read into config.
+         *
+         * Supported forms:
+         *
+         * 1)
+         * {
+         *   imageHoverSwap: "data-image-hover-swap"
+         * }
+         *
+         * 2)
+         * {
+         *   imageHoverSwap: {
+         *     attribute: "data-image-hover-swap",
+         *     transform: function (value, element) { ... }
+         *   }
+         * }
+         */
+        getConfigAttributeMap() {
+            return {};
         }
 
         _observeConfigChanges() {
@@ -91,7 +127,7 @@
                     }
 
                     if (hasDirectConfigScript) {
-                        this._config = this._loadConfig();
+                        this._config = this._buildConfig();
                         this._render();
                         break;
                     }
@@ -99,6 +135,64 @@
             });
 
             this._observer.observe(this, {childList: true, subtree: false});
+        }
+
+        _buildConfig() {
+            const jsonConfig = this._loadConfig();
+            const attributeConfig = this._loadAttributeConfig();
+
+            return this._mergeConfig(jsonConfig, attributeConfig);
+        }
+
+        _mergeConfig(jsonConfig, attributeConfig) {
+            const base = this._isPlainObject(jsonConfig) ? jsonConfig : {};
+            const overrides = this._isPlainObject(attributeConfig) ? attributeConfig : {};
+
+            return Object.assign({}, base, overrides);
+        }
+
+        _loadAttributeConfig() {
+            const map = this.getConfigAttributeMap();
+            const config = {};
+
+            if (!this._isPlainObject(map)) {
+                return config;
+            }
+
+            const keys = Object.keys(map);
+            for (let i = 0; i < keys.length; i += 1) {
+                const configKey = keys[i];
+                const definition = map[configKey];
+
+                let attributeName = null;
+                let transform = null;
+
+                if (typeof definition === "string") {
+                    attributeName = definition;
+                } else if (this._isPlainObject(definition) && typeof definition.attribute === "string") {
+                    attributeName = definition.attribute;
+
+                    if (typeof definition.transform === "function") {
+                        transform = definition.transform;
+                    }
+                }
+
+                if (!attributeName) {
+                    continue;
+                }
+
+                if (!this.hasAttribute(attributeName)) {
+                    continue;
+                }
+
+                const rawValue = this.getAttribute(attributeName);
+
+                config[configKey] = transform
+                    ? transform.call(this, rawValue, this)
+                    : rawValue;
+            }
+
+            return config;
         }
 
         _loadConfig() {
@@ -132,7 +226,7 @@
                 return parsed;
             } catch (e) {
                 const tag = this.tagName ? this.tagName.toLowerCase() : "unknown-element";
-                console.error(`[${tag}] Invalid JSON in config script`, e);
+                console.error("[" + tag + "] Invalid JSON in config script", e);
                 return {};
             }
         }
@@ -168,6 +262,12 @@
               <pre>${JSON.stringify(this._config, null, 2)}</pre>
             </div>
         `;
+        }
+
+        _isPlainObject(o) {
+            return o !== null &&
+                typeof o === "object" &&
+                Object.prototype.toString.call(o) === "[object Object]";
         }
     }
 
