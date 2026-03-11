@@ -303,7 +303,8 @@
                 minItemWidth: baseConfig.minItemWidth,
                 maxItemWidth: baseConfig.maxItemWidth,
                 showArrows: baseConfig.showArrows,
-                phonePeek: baseConfig.phonePeek
+                phonePeek: baseConfig.phonePeek,
+                phonePeekItemsPerView: baseConfig.phonePeekItemsPerView
             };
 
             const bps = Array.isArray(baseConfig.breakpoints) ? baseConfig.breakpoints : [];
@@ -317,6 +318,7 @@
                     const s = bp.settings || {};
                     if (typeof s.minItemWidth === "number" && s.minItemWidth > 0) cfg.minItemWidth = s.minItemWidth;
                     if (typeof s.maxItemWidth === "number" && s.maxItemWidth > 0) cfg.maxItemWidth = s.maxItemWidth;
+                    if (typeof s.phonePeekItemsPerView === "number" && s.phonePeekItemsPerView > 1) cfg.phonePeekItemsPerView = s.phonePeekItemsPerView;
                     if (typeof s.showArrows === "boolean") cfg.showArrows = s.showArrows;
                     if (typeof s.phonePeek === "boolean") cfg.phonePeek = s.phonePeek;
                     break;
@@ -326,21 +328,20 @@
             return cfg;
         }
 
-        static determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek) {
+        static determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek, phonePeekItemsPerView) {
             const viewport = window.innerWidth || document.documentElement.clientWidth || 0;
             const isPhone = viewport <= 600;
 
-            let minN = Math.ceil((trackWidth + gap) / (maxW + gap));
             let maxN = Math.floor((trackWidth + gap) / (minW + gap));
-
-            if (minN < 1) minN = 1;
             if (maxN < 1) maxN = 1;
 
-            let nBase = maxN;
-            if (nBase < 1) nBase = 1;
+            const nBase = maxN;
 
             if (isPhone && phonePeek) {
-                const candidate = 1.5;
+                const candidate = (typeof phonePeekItemsPerView === "number" && phonePeekItemsPerView > 1)
+                    ? phonePeekItemsPerView
+                    : 1.5;
+
                 const totalGapCandidate = gap * Math.max(0, candidate - 1);
                 const itemWidthCandidate = (trackWidth - totalGapCandidate) / candidate;
 
@@ -378,6 +379,7 @@
             this._config = {
                 minItemWidth: (typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0) ? rawCfg.minItemWidth : base.minItemWidth,
                 maxItemWidth: (typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0) ? rawCfg.maxItemWidth : base.maxItemWidth,
+                phonePeekItemsPerView: (typeof rawCfg.phonePeekItemsPerView === "number" && rawCfg.phonePeekItemsPerView > 1) ? rawCfg.phonePeekItemsPerView : base.phonePeekItemsPerView,
                 showArrows: (typeof rawCfg.showArrows === "boolean") ? rawCfg.showArrows : base.showArrows,
                 phonePeek: (typeof rawCfg.phonePeek === "boolean") ? rawCfg.phonePeek : base.phonePeek,
                 preserveInnerTabOrder: (typeof rawCfg.preserveInnerTabOrder === "boolean") ? rawCfg.preserveInnerTabOrder : base.preserveInnerTabOrder,
@@ -1177,13 +1179,15 @@
 
             const baseCfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
             const gap = BrSimpleSlider.getGapPx(track);
-
             const effectiveCfg = BrSimpleSlider.resolveConfigForWidth(baseCfg, trackWidth);
-            const minW = effectiveCfg.minItemWidth;
-            const maxW = effectiveCfg.maxItemWidth;
-            const phonePeek = effectiveCfg.phonePeek !== false;
-
-            const perView = BrSimpleSlider.determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek);
+            const perView = BrSimpleSlider.determineItemsPerView(
+                trackWidth,
+                gap,
+                effectiveCfg.minItemWidth,
+                effectiveCfg.maxItemWidth,
+                effectiveCfg.phonePeek !== false,
+                effectiveCfg.phonePeekItemsPerView
+            );
             const totalGap = gap * Math.max(0, perView - 1);
             const itemWidth = (trackWidth - totalGap) / perView;
 
@@ -1371,6 +1375,7 @@
     BrSimpleSlider.DEFAULT_CONFIG = {
         minItemWidth: 200,
         maxItemWidth: 280,
+        phonePeekItemsPerView: 1.5,
         showArrows: true,
         phonePeek: true,
         preserveInnerTabOrder: false,
