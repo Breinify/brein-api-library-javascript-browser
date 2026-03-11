@@ -43,19 +43,6 @@
             }
         }
 
-        attributeChangedCallback(name, oldValue, newValue) {
-            if (oldValue === newValue) {
-                return;
-            }
-
-            if (this._initialized !== true) {
-                return;
-            }
-
-            this._config = this._buildConfig();
-            this._render();
-        }
-
         /**
          * Hook: subclasses can override to disable observing.
          */
@@ -73,17 +60,16 @@
         }
 
         /**
-         * Hook: subclasses can override to define which attributes
-         * should be read into config.
+         * Hook: subclasses can override to define config attributes.
          *
          * Supported forms:
          *
-         * 1)
          * {
          *   imageHoverSwap: "data-image-hover-swap"
          * }
          *
-         * 2)
+         * or
+         *
          * {
          *   imageHoverSwap: {
          *     attribute: "data-image-hover-swap",
@@ -101,40 +87,63 @@
                 this._observer = null;
             }
 
+            const observedAttributeNames = this._getObservedConfigAttributeNames();
+
             this._observer = new MutationObserver((mutations) => {
+                let shouldReload = false;
+
                 for (let i = 0; i < mutations.length; i += 1) {
                     const m = mutations[i];
 
-                    if (m.type !== "childList") {
-                        continue;
-                    }
+                    if (m.type === "childList") {
+                        let hasDirectConfigScriptChange = false;
 
-                    let hasDirectConfigScript = false;
+                        for (let j = 0; j < m.addedNodes.length; j += 1) {
+                            const node = m.addedNodes[j];
 
-                    for (let j = 0; j < m.addedNodes.length; j += 1) {
-                        const node = m.addedNodes[j];
+                            if (this._isConfigScriptNode(node)) {
+                                hasDirectConfigScriptChange = true;
+                                break;
+                            }
+                        }
 
-                        if (
-                            node instanceof HTMLElement &&
-                            node.tagName &&
-                            node.tagName.toLowerCase() === "script" &&
-                            node.getAttribute("type") &&
-                            node.getAttribute("type").endsWith("application/json")
-                        ) {
-                            hasDirectConfigScript = true;
+                        if (!hasDirectConfigScriptChange) {
+                            for (let j = 0; j < m.removedNodes.length; j += 1) {
+                                const node = m.removedNodes[j];
+
+                                if (this._isConfigScriptNode(node)) {
+                                    hasDirectConfigScriptChange = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (hasDirectConfigScriptChange) {
+                            shouldReload = true;
+                            break;
+                        }
+                    } else if (m.type === "attributes") {
+                        if (observedAttributeNames.indexOf(m.attributeName) !== -1) {
+                            shouldReload = true;
                             break;
                         }
                     }
+                }
 
-                    if (hasDirectConfigScript) {
-                        this._config = this._buildConfig();
-                        this._render();
-                        break;
-                    }
+                if (shouldReload) {
+                    this._config = this._buildConfig();
+                    this._render();
                 }
             });
 
-            this._observer.observe(this, {childList: true, subtree: false});
+            const observeOptions = {
+                childList: true,
+                subtree: false,
+                attributes: observedAttributeNames.length > 0,
+                attributeFilter: observedAttributeNames.length > 0 ? observedAttributeNames : undefined
+            };
+
+            this._observer.observe(this, observeOptions);
         }
 
         _buildConfig() {
@@ -177,11 +186,7 @@
                     }
                 }
 
-                if (!attributeName) {
-                    continue;
-                }
-
-                if (!this.hasAttribute(attributeName)) {
+                if (!attributeName || !this.hasAttribute(attributeName)) {
                     continue;
                 }
 
@@ -195,6 +200,47 @@
             return config;
         }
 
+        _getObservedConfigAttributeNames() {
+            const map = this.getConfigAttributeMap();
+            const names = [];
+            const seen = {};
+
+            if (!this._isPlainObject(map)) {
+                return names;
+            }
+
+            const keys = Object.keys(map);
+            for (let i = 0; i < keys.length; i += 1) {
+                const definition = map[keys[i]];
+                let attributeName = null;
+
+                if (typeof definition === "string") {
+                    attributeName = definition;
+                } else if (this._isPlainObject(definition) && typeof definition.attribute === "string") {
+                    attributeName = definition.attribute;
+                }
+
+                if (!attributeName || seen[attributeName] === true) {
+                    continue;
+                }
+
+                seen[attributeName] = true;
+                names.push(attributeName);
+            }
+
+            return names;
+        }
+
+        _isConfigScriptNode(node) {
+            return !!(
+                node instanceof HTMLElement &&
+                node.tagName &&
+                node.tagName.toLowerCase() === "script" &&
+                node.getAttribute("type") &&
+                node.getAttribute("type").endsWith("application/json")
+            );
+        }
+
         _loadConfig() {
             const children = Array.prototype.slice.call(this.children);
             let script = null;
@@ -202,13 +248,7 @@
             for (let i = 0; i < children.length; i += 1) {
                 const child = children[i];
 
-                if (
-                    child &&
-                    child.tagName &&
-                    child.tagName.toLowerCase() === "script" &&
-                    child.getAttribute("type") &&
-                    child.getAttribute("type").endsWith("application/json")
-                ) {
+                if (this._isConfigScriptNode(child)) {
                     script = child;
                     break;
                 }
@@ -281,7 +321,6 @@
 
             this._layout = null;
             this._header = null;
-            this._headerLeft = null;
             this._headerTitle = null;
             this._headerSubtitle = null;
             this._headerCta = null;
@@ -298,20 +337,6 @@
             this._keyboardHandler = null;
 
             this._carouselDesc = null;
-        }
-
-        // Safari 12/13 compatible (static getter is OK)
-        static get observedAttributes() {
-            return [
-                "data-title",
-                "data-subtitle",
-                "data-hide-header",
-                "data-title-position",
-                "data-cta-label",
-                "data-cta-url",
-                "data-cta-color",
-                "data-cta-background"
-            ];
         }
 
         usesShadowRoot() {
@@ -555,7 +580,6 @@
             layout.appendChild(header);
 
             this._header = header;
-            this._headerLeft = headerLeft;
             this._headerTitle = title;
             this._headerSubtitle = subtitle;
             this._headerCta = cta;
