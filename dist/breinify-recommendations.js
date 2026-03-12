@@ -69,8 +69,6 @@
                 console.log('[utilFeatures] data', data);
                 console.log('[utilFeatures] options', options);
             });
-
-
         },
 
         _determineSelector: function (value) {
