@@ -44,6 +44,12 @@
             }
         },
 
+        _refresh: function (options) {
+            const $parents = $(this.marker.parentContainer);
+            console.log('[utilFeatures] $parents', $parents.length);
+            console.log('[utilFeatures] options', options);
+        },
+
         _determineSelector: function (value) {
             if ($.isFunction(value)) {
                 const params = Array.prototype.slice.call(arguments, 1);
@@ -157,7 +163,7 @@
             }
         },
 
-        _recommenderName: function(payload) {
+        _recommenderName: function (payload) {
             if ($.isPlainObject(payload) &&
                 $.isArray(payload.namedRecommendations) &&
                 payload.namedRecommendations.length === 1) {
@@ -487,8 +493,8 @@
     const Recommendations = {
         marker: $.extend(true, {}, Renderer.marker),
 
-        refresh: function(options) {
-            console.log('[utilFeatures] options', options);
+        refresh: function (options) {
+            Renderer._refresh(options);
         },
 
         /**
