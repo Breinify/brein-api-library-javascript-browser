@@ -460,16 +460,33 @@
             }
 
             if (phonePeek) {
-                const candidate = (typeof phonePeekItemsPerView === "number" && phonePeekItemsPerView > 1)
+                const preferred = (typeof phonePeekItemsPerView === "number" && phonePeekItemsPerView > 1)
                     ? phonePeekItemsPerView
                     : 1.5;
 
-                const totalGapCandidate = gap * Math.max(0, candidate - 1);
-                const itemWidthCandidate = (trackWidth - totalGapCandidate) / candidate;
+                const fits = function (candidate) {
+                    if (typeof candidate !== "number" || candidate <= 1) {
+                        return false;
+                    }
 
-                if (itemWidthCandidate >= minW && itemWidthCandidate <= maxW) {
-                    return candidate;
+                    const totalGapCandidate = gap * Math.max(0, candidate - 1);
+                    const itemWidthCandidate = (trackWidth - totalGapCandidate) / candidate;
+
+                    return itemWidthCandidate <= maxW;
+                };
+
+                // first try configured peek size (e.g. 2.5)
+                if (fits(preferred)) {
+                    return preferred;
                 }
+
+                // then try a smaller peek fallback
+                if (preferred > 1.5 && fits(1.5)) {
+                    return 1.5;
+                }
+
+                // in peek mode never fall back to an integer layout
+                return preferred > 1.5 ? 1.5 : preferred;
             }
 
             return maxN;
