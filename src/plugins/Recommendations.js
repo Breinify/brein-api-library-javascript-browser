@@ -21,6 +21,7 @@
 
     const Renderer = {
         marker: {
+            parentContainer: 'brrc-pcont',
             container: 'brrc-cont',
             item: 'brrc-item',
             data: 'recommendation'
@@ -141,6 +142,8 @@
              */
             if ($.isFunction($anchor[method])) {
                 $anchor[method]($container);
+
+                $container.addClass(this.marker.parentContainer);
                 cb($container, {
                     error: false,
                     externalRendering: false
