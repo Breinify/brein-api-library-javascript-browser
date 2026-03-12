@@ -52,6 +52,7 @@
                 return;
             }
 
+            const payloads = {};
             $parents.each(function () {
                 const $parent = $(this);
                 const $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find('.' + _self.marker.container);
@@ -59,6 +60,7 @@
                     return;
                 }
 
+                // read the data from the containers and combine it by group
                 const data = $itemContainer.data(_self.marker.data);
                 if (!$.isPlainObject(data) ||
                     !$.isPlainObject(data.option) ||
@@ -66,9 +68,24 @@
                     return;
                 }
 
+                const recPayload = _self._createPayload(data.option);
+                let noGroupCount = 0;
+                let recGroup = Breinify.UTL.isNonEmptyString(recPayload.recommendationGroup);
+                if (recGroup === null) {
+                    recGroup = 'no-group-' + (noGroupCount++);
+                    payloads[recGroup] = [];
+                } else if (!$.isArray(payloads[recGroup])) {
+                    payloads[recGroup] = [];
+                }
+
+                payloads[recGroup].push(recPayload);
+
                 console.log('[utilFeatures] data', data);
                 console.log('[utilFeatures] options', options);
+                console.log('[utilFeatures] options', recPayload);
             });
+
+            console.log('[utilFeatures] payloads', payloads);
         },
 
         _determineSelector: function (value) {
@@ -181,6 +198,16 @@
                     errorDescription: 'unable to apply method to anchor',
                     externalRendering: false
                 });
+            }
+        },
+
+        _createPayload: function (option, def) {
+            if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
+                return option.recommender.payload;
+            } else if ($.isPlainObject(def)) {
+                return def;
+            } else {
+                return {};
             }
         },
 
@@ -549,8 +576,7 @@
                     _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
 
                         // we need to "fake" the recommendation payload
-                        const recPayload = $.isPlainObject(option.recommender) &&
-                        $.isPlainObject(option.recommender.payload) ? option.recommender.payload : {};
+                        const recPayload = Renderer._createPayload(option);
 
                         if (error === null) {
                             let statusCode = 200;
@@ -1679,8 +1705,7 @@
             for (let i = 0; i < payloads.length; i++) {
 
                 // we support direct payloads or an array of options
-                let p = $.isPlainObject(payloads[i]) && $.isPlainObject(payloads[i].recommender) &&
-                $.isPlainObject(payloads[i].recommender.payload) ? payloads[i].recommender.payload : payloads[i];
+                let p = Renderer._createPayload(payloads[i], payloads[i]);
 
                 const candidate = this._extractCandidateNameFromPayload(p);
                 if (candidate !== null) {
