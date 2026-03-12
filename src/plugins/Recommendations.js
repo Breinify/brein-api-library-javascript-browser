@@ -484,6 +484,10 @@
     const Recommendations = {
         marker: $.extend(true, {}, Renderer.marker),
 
+        refresh: function(options) {
+console.log('options', options);
+        },
+
         /**
          * <p>The bind method is used to bind the functionality provided by this library to given or otherwise loaded.
          * Use-cases for the usage of the bind (instead of render) method could be:
