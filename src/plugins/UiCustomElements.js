@@ -454,15 +454,12 @@
         }
 
         static determineItemsPerView(trackWidth, gap, minW, maxW, phonePeek, phonePeekItemsPerView) {
-            const viewport = window.innerWidth || document.documentElement.clientWidth || 0;
-            const isPhone = viewport <= 600;
-
             let maxN = Math.floor((trackWidth + gap) / (minW + gap));
-            if (maxN < 1) maxN = 1;
+            if (maxN < 1) {
+                maxN = 1;
+            }
 
-            const nBase = maxN;
-
-            if (isPhone && phonePeek) {
+            if (phonePeek) {
                 const candidate = (typeof phonePeekItemsPerView === "number" && phonePeekItemsPerView > 1)
                     ? phonePeekItemsPerView
                     : 1.5;
@@ -475,7 +472,7 @@
                 }
             }
 
-            return nBase;
+            return maxN;
         }
 
         // ---------- render / init ----------
