@@ -54,7 +54,7 @@
 
             $parents.each(function () {
                 const $parent = $(this);
-                const $itemContainer = $parent.hasClass(_self.marker.item) ? $parent : $parent.find('.' + _self.marker.item);
+                const $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find('.' + _self.marker.container);
                 if ($itemContainer.length === 0) {
                     return;
                 }
