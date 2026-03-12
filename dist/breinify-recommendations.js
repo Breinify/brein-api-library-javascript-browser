@@ -1495,10 +1495,12 @@
         _retrieveRecommendations: function (payloads, callback) {
             const _self = this;
 
-            // ensure we have the flag in the call mark as plugin related
+            // ensure we have the flag in the call mark as plugin related and a unique identifier of the grouped info
             if ($.isArray(payloads)) {
+                const recommendationGroup = Breinify.UTL.uuid();
                 for (let i = 0; i < payloads.length; i++) {
                     payloads[i].recommendationPlugin = true;
+                    payloads[i].recommendationGroup = recommendationGroup;
                 }
             }
 
