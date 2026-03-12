@@ -45,6 +45,8 @@
         },
 
         _refresh: function (options) {
+            const $parents = $(this.marker.parentContainer);
+            console.log('[utilFeatures] $parents', $parents.length);
             console.log('[utilFeatures] options', options);
         },
 
