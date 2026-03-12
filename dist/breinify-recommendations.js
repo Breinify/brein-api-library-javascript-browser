@@ -45,9 +45,32 @@
         },
 
         _refresh: function (options) {
+            const _self = this;
+
             const $parents = $('.' + this.marker.parentContainer);
-            console.log('[utilFeatures] $parents', $parents.length);
-            console.log('[utilFeatures] options', options);
+            if ($parents.length === 0) {
+                return;
+            }
+
+            $parents.each(function () {
+                const $parent = $(this);
+                const $itemContainer = $parent.hasClass(_self.marker.item) ? $parent : $parent.find('.' + _self.marker.item);
+                if ($itemContainer.length === 0) {
+                    return;
+                }
+
+                const data = $itemContainer.data(_self.marker.data);
+                if (!$.isPlainObject(data) ||
+                    !$.isPlainObject(data.option) ||
+                    !$.isPlainObject(data.data)) {
+                    return;
+                }
+
+                console.log('[utilFeatures] data', data);
+                console.log('[utilFeatures] options', options);
+            });
+
+
         },
 
         _determineSelector: function (value) {
