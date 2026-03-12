@@ -485,7 +485,7 @@
         marker: $.extend(true, {}, Renderer.marker),
 
         refresh: function(options) {
-console.log('options', options);
+            console.log('options', options);
         },
 
         /**
