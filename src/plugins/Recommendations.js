@@ -234,15 +234,17 @@
         _createPayload: function (option, def) {
 
             // check for any refresh-options we may have right now
-            const overridePayload = $.isPlainObject(this.refreshOptions) && $.isPlainObject(this.refreshOptions.payload) ? this.refreshOptions.payload : {};
+            const refreshOptions = $.isPlainObject(this.refreshOptions) ? this.refreshOptions : {};
+            const optionsVersion = typeof refreshOptions.optionsVersion === 'number' ? refreshOptions.optionsVersion : null;
+            const overridePayload = $.isPlainObject(refreshOptions.payload) ? refreshOptions.payload : {};
 
             if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
                 return $.extend(true, {}, option.recommender.payload, overridePayload, {
-                    optionsVersion: Renderer.refreshOptions.optionsVersion
+                    optionsVersion: optionsVersion
                 });
             } else if ($.isPlainObject(def)) {
                 return $.extend(true, {}, def, overridePayload, {
-                    optionsVersion: Renderer.refreshOptions.optionsVersion
+                    optionsVersion: optionsVersion
                 });
             } else {
                 return {
