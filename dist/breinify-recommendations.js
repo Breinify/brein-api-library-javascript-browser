@@ -34,9 +34,7 @@
             testGroupType: 'test',
             controlGroupType: 'control'
         },
-        refreshOptions: {
-            optionsVersion: new Date().getTime()
-        },
+        refreshOptions: null,
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
@@ -51,8 +49,9 @@
             const _self = this;
 
             // keep the options that are passed in
+            const optionsVersion = new Date().getTime();
             this.refreshOptions = $.extend(true, refreshOptions, {
-                optionsVersion: new Date().getTime()
+                optionsVersion: optionsVersion
             });
 
             const $parents = $('.' + this.marker.parentContainer);
@@ -93,7 +92,10 @@
 
                 const cpyOption = $.extend(true, {}, option, {});
 
-                delete cpyOption.meta;
+                cpyOption.meta = {
+                    processId: null,
+                    optionsVersion: optionsVersion
+                }
                 cpyOption.position = {
                     replace: function () {
                         return $parent;
@@ -1064,6 +1066,8 @@
 
                 this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
+            } else if (this.refreshOptions !== null && option.meta.optionsVersion !== this.refreshOptions.options.version) {
+                console.log('[utilFeatures] oldData');
             } else if (result.status.code === 7120) {
 
                 // the recommendation is supposed to be ignored, but there is no split-test
