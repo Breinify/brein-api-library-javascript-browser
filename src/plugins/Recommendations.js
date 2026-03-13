@@ -94,6 +94,8 @@
                 };
                 cpyOption.recommender = recPayload;
 
+                settings.push(cpyOption);
+
                 console.log('[utilFeatures] data', data);
                 console.log('[utilFeatures] refreshOptions', refreshOptions);
                 console.log('[utilFeatures] recPayload', recPayload);
