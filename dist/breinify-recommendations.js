@@ -238,15 +238,15 @@
 
             if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
                 return $.extend(true, {}, option.recommender.payload, overridePayload, {
-                    optionsVersion: this.refreshOptions.optionsVersion
+                    optionsVersion: Renderer.refreshOptions.optionsVersion
                 });
             } else if ($.isPlainObject(def)) {
                 return $.extend(true, {}, def, overridePayload, {
-                    optionsVersion: this.refreshOptions.optionsVersion
+                    optionsVersion: Renderer.refreshOptions.optionsVersion
                 });
             } else {
                 return {
-                    optionsVersion: this.refreshOptions.optionsVersion
+                    optionsVersion: Renderer.refreshOptions.optionsVersion
                 };
             }
         },
@@ -1066,7 +1066,7 @@
 
                 this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
-            } else if (this.refreshOptions !== null && option.meta.optionsVersion !== this.refreshOptions.options.version) {
+            } else if (Renderer.refreshOptions !== null && option.meta.optionsVersion !== Renderer.refreshOptions.options.version) {
                 console.log('[utilFeatures] oldData');
             } else if (result.status.code === 7120) {
 
