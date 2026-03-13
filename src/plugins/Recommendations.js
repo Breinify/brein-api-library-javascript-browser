@@ -45,18 +45,19 @@
             }
         },
 
-        _refresh: function (options) {
+        _refresh: function (refreshOptions) {
             const _self = this;
 
             // keep the options that are passed in
-            this.refreshOptions = options;
+            this.refreshOptions = refreshOptions;
 
             const $parents = $('.' + this.marker.parentContainer);
             if ($parents.length === 0) {
                 return;
             }
 
-            const payloads = {};
+            let noGroupCount = 0;
+            const settings = {};
             $parents.each(function () {
                 const $parent = $(this);
                 const $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find('.' + _self.marker.container);
@@ -72,24 +73,38 @@
                     return;
                 }
 
-                const recPayload = _self._createPayload(data.option);
-                let noGroupCount = 0;
+                const option = data.option;
+                // we updated the this.refreshOptions before, so that ensure we get a modified payload here
+                const recPayload = _self._createPayload(option);
+
+                // determine the group to use, if we have to group the information
                 let recGroup = Breinify.UTL.isNonEmptyString(recPayload.recommendationGroup);
                 if (recGroup === null) {
                     recGroup = 'no-group-' + (noGroupCount++);
-                    payloads[recGroup] = [];
-                } else if (!$.isArray(payloads[recGroup])) {
-                    payloads[recGroup] = [];
+                    settings[recGroup] = [];
+                } else if (!$.isArray(settings[recGroup])) {
+                    settings[recGroup] = [];
                 }
 
-                payloads[recGroup].push(recPayload);
+                const cpyOption = $.extend(true, {}, option, {});
+                cpyOption.position = {
+                    replace: function() {
+                        return $parent;
+                    }
+                };
+                cpyOption.recommender = recPayload;
 
                 console.log('[utilFeatures] data', data);
-                console.log('[utilFeatures] options', options);
-                console.log('[utilFeatures] options', recPayload);
+                console.log('[utilFeatures] refreshOptions', refreshOptions);
+                console.log('[utilFeatures] recPayload', recPayload);
             });
 
-            console.log('[utilFeatures] payloads', payloads);
+            console.log('[utilFeatures] settings', settings);
+
+            // fire a rerender for each of the groups
+            Object.values(settings).forEach(function (setting) {
+                Breinify.plugins.recommendations.render(setting);
+            });
         },
 
         _determineSelector: function (value) {
