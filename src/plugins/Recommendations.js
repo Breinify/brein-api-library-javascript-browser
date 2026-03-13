@@ -34,6 +34,7 @@
             testGroupType: 'test',
             controlGroupType: 'control'
         },
+        refreshOptions: null,
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
@@ -46,6 +47,9 @@
 
         _refresh: function (options) {
             const _self = this;
+
+            // keep the options that are passed in
+            this.refreshOptions = options;
 
             const $parents = $('.' + this.marker.parentContainer);
             if ($parents.length === 0) {
@@ -202,8 +206,12 @@
         },
 
         _createPayload: function (option, def) {
+
+            // check for any refresh-options we may have right now
+            const overridePayload = $.isPlainObject(this.refreshOptions) && $.isPlainObject(this.refreshOptions.payload) ? this.refreshOptions.payload : {};
+
             if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
-                return option.recommender.payload;
+                return $.extend(true, {}, option.recommender.payload, overridePayload);
             } else if ($.isPlainObject(def)) {
                 return def;
             } else {
