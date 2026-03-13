@@ -90,11 +90,11 @@
 
                 delete cpyOption.meta;
                 cpyOption.position = {
-                    replace: function() {
+                    replace: function () {
                         return $parent;
                     }
                 };
-                cpyOption.recommender = recPayload;
+                cpyOption.recommender.payload = recPayload;
 
                 settings[recGroup].push(cpyOption);
 
