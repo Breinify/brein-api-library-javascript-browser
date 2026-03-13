@@ -1080,9 +1080,9 @@
             } else if (Renderer.refreshOptions !== null &&
                 option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
 
-                // we have a normal recommendation call
-                this._renderRecommendation(option, result, function ($container) {
-                    _self._applyBindings(option, $container);
+                // just append the container with the data, refresh will do the rest
+                Renderer._appendContainer(option, result, function () {
+                    // ignore
                 });
 
                 // we have refreshed data, so we have to fire again
