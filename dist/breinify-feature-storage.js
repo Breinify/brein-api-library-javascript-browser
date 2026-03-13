@@ -29,12 +29,12 @@
         fetchHookInstalled: false,
 
         getDebounceMs: function () {
-            const value = FeatureStorage.getConfig('featureChangeDebounceMs', 250);
+            const value = this.getConfig('featureChangeDebounceMs', 250);
             return typeof value === 'number' && isFinite(value) && value >= 0 ? value : 250;
         },
 
         isDebugEnabled: function () {
-            return FeatureStorage.getConfig('debug', false) === true;
+            return this.getConfig('debug', false) === true;
         },
 
         debugLog: function () {
