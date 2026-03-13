@@ -1081,8 +1081,17 @@
                 option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
 
                 // just append the container with the data, refresh will do the rest
-                Renderer._appendContainer(option, result, function () {
-                    // ignore
+                Renderer._appendContainer(option, result, function ($container, settings) {
+                    if ($container === null) {
+                        return;
+                    }
+
+                    let $itemContainer = $container.find('.' + Renderer.marker.container);
+                    if ($itemContainer.length === 0) {
+                        $itemContainer = $container;
+                    }
+
+                    _self._setupContainer($itemContainer, option, data);
                 });
 
                 // we have refreshed data, so we have to fire again
@@ -1096,6 +1105,10 @@
 
                 // we have a normal recommendation call
                 this._renderRecommendation(option, result, function ($container) {
+                    if ($container === null) {
+                        return;
+                    }
+
                     _self._applyBindings(option, $container);
 
                     _self._handleRender(result, option, $container);
@@ -1537,14 +1550,11 @@
                 let $itemContainer = $container.find('.' + Renderer.marker.container);
                 if ($itemContainer.length === 0) {
                     $itemContainer = $container;
-
-                    // add the class (it was obviously not there yet)
-                    $itemContainer.addClass(Renderer.marker.container);
                 }
 
                 // store the info needed for clicks on the item's container
                 $itemContainer = _self._setupContainer($itemContainer, option, data);
-                Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option)
+                Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option);
 
                 // if a third party is rendering, apply the data to the rendered elements
                 if (settings.externalRendering === true) {
