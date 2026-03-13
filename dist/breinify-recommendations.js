@@ -1080,6 +1080,11 @@
             } else if (Renderer.refreshOptions !== null &&
                 option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
 
+                // we have a normal recommendation call
+                this._renderRecommendation(option, result, function ($container) {
+                    _self._applyBindings(option, $container);
+                });
+
                 // we have refreshed data, so we have to fire again
                 return false;
             } else if (result.status.code === 7120) {
