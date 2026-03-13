@@ -48,11 +48,19 @@
         _refresh: function (refreshOptions) {
             const _self = this;
 
-            // keep the options that are passed in
-            const optionsVersion = new Date().getTime();
-            this.refreshOptions = $.extend(true, refreshOptions, {
-                optionsVersion: optionsVersion
-            });
+            let optionsVersion = null;
+            if ($.isPlainObject(refreshOptions)) {
+                optionsVersion = new Date().getTime();
+                this.refreshOptions = $.extend(true, refreshOptions, {
+                    optionsVersion: optionsVersion
+                });
+            } else if ($.isPlainObject(this.refreshOptions)) {
+                optionsVersion = this.refreshOptions.optionsVersion;
+            } else {
+
+                // we have no information about refreshing, so just ignore the call
+                return;
+            }
 
             const $parents = $('.' + this.marker.parentContainer);
             if ($parents.length === 0) {
@@ -983,6 +991,7 @@
 
             if (refreshData) {
                 console.log('need refresh', options);
+                this._refresh();
             }
         },
 
