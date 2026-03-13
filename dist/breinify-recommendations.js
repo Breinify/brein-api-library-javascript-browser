@@ -239,9 +239,13 @@
                     optionsVersion: this.refreshOptions.optionsVersion
                 });
             } else if ($.isPlainObject(def)) {
-                return def;
+                return $.extend(true, {}, def, overridePayload, {
+                    optionsVersion: this.refreshOptions.optionsVersion
+                });
             } else {
-                return {};
+                return {
+                    optionsVersion: this.refreshOptions.optionsVersion
+                };
             }
         },
 
