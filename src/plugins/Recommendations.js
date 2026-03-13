@@ -88,7 +88,7 @@
 
                 const cpyOption = $.extend(true, {}, option, {});
 
-                cpyOption.meta = null;
+                delete cpyOption.meta;
                 cpyOption.position = {
                     replace: function() {
                         return $parent;
