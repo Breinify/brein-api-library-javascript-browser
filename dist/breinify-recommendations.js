@@ -34,7 +34,9 @@
             testGroupType: 'test',
             controlGroupType: 'control'
         },
-        refreshOptions: null,
+        refreshOptions: {
+            lastUpdates: new Date().getTime()
+        },
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
@@ -49,7 +51,9 @@
             const _self = this;
 
             // keep the options that are passed in
-            this.refreshOptions = refreshOptions;
+            this.refreshOptions = $.extend(true, refreshOptions, {
+                lastUpdates: new Date().getTime()
+            });
 
             const $parents = $('.' + this.marker.parentContainer);
             if ($parents.length === 0) {
@@ -74,6 +78,7 @@
                 }
 
                 const option = data.option;
+
                 // we updated the this.refreshOptions before, so that ensure we get a modified payload here
                 const recPayload = _self._createPayload(option);
 
