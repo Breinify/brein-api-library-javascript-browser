@@ -1091,7 +1091,7 @@
                         $itemContainer = $container;
                     }
 
-                    _self._setupContainer($itemContainer, option, data);
+                    _self._setupContainer($itemContainer, option, result);
                 });
 
                 // we have refreshed data, so we have to fire again
