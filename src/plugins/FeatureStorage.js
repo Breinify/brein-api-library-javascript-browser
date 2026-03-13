@@ -10,6 +10,8 @@
     }
 
     const $ = Breinify.UTL._jquery();
+    let _plugin = null;
+
     const _private = {
         featureChangeTimer: null,
         currentFeatures: {},
@@ -29,12 +31,12 @@
         fetchHookInstalled: false,
 
         getDebounceMs: function () {
-            const value = this.getConfig('featureChangeDebounceMs', 250);
+            const value = _plugin.getConfig('featureChangeDebounceMs', 250);
             return typeof value === 'number' && isFinite(value) && value >= 0 ? value : 250;
         },
 
         isDebugEnabled: function () {
-            return this.getConfig('debug', false) === true;
+            return _plugin.getConfig('debug', false) === true;
         },
 
         debugLog: function () {
@@ -913,5 +915,5 @@
     };
 
     // bind the module
-    Breinify.plugins._add('featureStorage', FeatureStorage);
+    _plugin = Breinify.plugins._add('featureStorage', FeatureStorage);
 })();
