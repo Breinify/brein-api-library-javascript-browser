@@ -906,6 +906,7 @@
             }
 
             // fire each named recommendation, with the option
+            let refreshData = false
             $.each(options, function (name, option) {
                 let result = data[name];
 
@@ -950,7 +951,9 @@
 
                         for (let i = 0; i < modifyResults.length; i++) {
                             const modifyResult = modifyResults[i];
-                            _self._applyRecommendation(modifyResult.result, modifyResult.option);
+                            if (!_self._applyRecommendation(modifyResult.result, modifyResult.option)) {
+                                refreshData = true;
+                            }
                         }
                     }
 
@@ -972,9 +975,15 @@
                         handleModifyResult(modifyResponse);
                     }
                 } else {
-                    _self._applyRecommendation(result, option);
+                    if (!_self._applyRecommendation(result, option)) {
+                        refreshData = true;
+                    }
                 }
             });
+
+            if (refreshData) {
+                console.log('need refresh', options);
+            }
         },
 
         _mapError: function (data, error) {
@@ -1068,8 +1077,11 @@
 
                 this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
-            } else if (Renderer.refreshOptions !== null && option.meta.optionsVersion !== Renderer.refreshOptions.options.version) {
-                console.log('[utilFeatures] oldData');
+            } else if (Renderer.refreshOptions !== null &&
+                option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
+
+                // we have refreshed data, so we have to fire again
+                return false;
             } else if (result.status.code === 7120) {
 
                 // the recommendation is supposed to be ignored, but there is no split-test
@@ -1085,6 +1097,8 @@
                     Renderer._process(option.process.finalize, option, result, $container);
                 });
             }
+
+            return true;
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
