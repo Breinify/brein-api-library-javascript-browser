@@ -35,7 +35,7 @@
             controlGroupType: 'control'
         },
         refreshOptions: {
-            lastUpdates: new Date().getTime()
+            optionsVersion: new Date().getTime()
         },
 
         _process: function (func, ...args) {
@@ -52,7 +52,7 @@
 
             // keep the options that are passed in
             this.refreshOptions = $.extend(true, refreshOptions, {
-                lastUpdates: new Date().getTime()
+                optionsVersion: new Date().getTime()
             });
 
             const $parents = $('.' + this.marker.parentContainer);
@@ -235,7 +235,9 @@
             const overridePayload = $.isPlainObject(this.refreshOptions) && $.isPlainObject(this.refreshOptions.payload) ? this.refreshOptions.payload : {};
 
             if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
-                return $.extend(true, {}, option.recommender.payload, overridePayload);
+                return $.extend(true, {}, option.recommender.payload, overridePayload, {
+                    optionsVersion: this.refreshOptions.optionsVersion
+                });
             } else if ($.isPlainObject(def)) {
                 return def;
             } else {
