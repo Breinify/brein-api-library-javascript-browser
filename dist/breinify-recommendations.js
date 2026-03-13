@@ -908,7 +908,7 @@
             }
 
             // fire each named recommendation, with the option
-            let refreshData = false
+            let recStatus = 'undefined';
             $.each(options, function (name, option) {
                 let result = data[name];
 
@@ -953,9 +953,7 @@
 
                         for (let i = 0; i < modifyResults.length; i++) {
                             const modifyResult = modifyResults[i];
-                            if (!_self._applyRecommendation(modifyResult.result, modifyResult.option)) {
-                                refreshData = true;
-                            }
+                            recStatus = _self._applyRecommendation(modifyResult.result, modifyResult.option)
                         }
                     }
 
@@ -977,13 +975,11 @@
                         handleModifyResult(modifyResponse);
                     }
                 } else {
-                    if (!_self._applyRecommendation(result, option)) {
-                        refreshData = true;
-                    }
+                    recStatus = _self._applyRecommendation(result, option);
                 }
             });
 
-            if (refreshData) {
+            if (recStatus === 'out-of-date') {
                 Renderer._refresh();
             }
         },
@@ -1079,6 +1075,8 @@
 
                 this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
+
+                return 'not-rendered-control';
             } else if (Renderer.refreshOptions !== null &&
                 option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
 
@@ -1097,12 +1095,14 @@
                 });
 
                 // we have refreshed data, so we have to fire again
-                return false;
+                return 'out-of-date';
             } else if (result.status.code === 7120) {
 
                 // the recommendation is supposed to be ignored, but there is no split-test
                 this._handleRender(result, option, null);
                 Renderer._process(option.process.finalize, option, result, null);
+
+                return 'not-rendered-ignored';
             } else {
 
                 // we have a normal recommendation call
@@ -1116,9 +1116,9 @@
                     _self._handleRender(result, option, $container);
                     Renderer._process(option.process.finalize, option, result, $container);
                 });
-            }
 
-            return true;
+                return 'rendered';
+            }
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
