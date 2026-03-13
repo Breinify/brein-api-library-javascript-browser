@@ -112,13 +112,7 @@
                 cpyOption.recommender.payload = recPayload;
 
                 settings[recGroup].push(cpyOption);
-
-                console.log('[utilFeatures] data', data);
-                console.log('[utilFeatures] refreshOptions', refreshOptions);
-                console.log('[utilFeatures] recPayload', recPayload);
             });
-
-            console.log('[utilFeatures] settings', settings);
 
             // fire a rerender for each of the groups
             Object.values(settings).forEach(function (setting) {
@@ -990,7 +984,6 @@
             });
 
             if (refreshData) {
-                console.log('need refresh', options);
                 Renderer._refresh();
             }
         },
