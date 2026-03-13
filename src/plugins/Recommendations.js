@@ -991,7 +991,7 @@
 
             if (refreshData) {
                 console.log('need refresh', options);
-                this._refresh();
+                Renderer._refresh();
             }
         },
 
