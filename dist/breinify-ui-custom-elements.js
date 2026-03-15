@@ -492,6 +492,84 @@
             return 1.5;
         }
 
+        _matchesSelfOrAncestor(selector) {
+            if (typeof selector !== "string" || selector.trim().length === 0) {
+                return false;
+            }
+
+            if (!(this instanceof HTMLElement)) {
+                return false;
+            }
+
+            try {
+                if (this.matches(selector)) {
+                    return true;
+                }
+
+                return this.closest(selector) !== null;
+            } catch (_e) {
+                return false;
+            }
+        }
+
+        _resolveVariantName(rawCfg) {
+            if (!this._isPlainObject(rawCfg) || !Array.isArray(rawCfg.variantRules)) {
+                return null;
+            }
+
+            for (let i = 0; i < rawCfg.variantRules.length; i += 1) {
+                const rule = rawCfg.variantRules[i];
+
+                if (!this._isPlainObject(rule)) {
+                    continue;
+                }
+
+                const selector = typeof rule.selector === "string" ? rule.selector.trim() : "";
+                const variant = typeof rule.variant === "string" ? rule.variant.trim() : "";
+
+                if (selector.length === 0 || variant.length === 0) {
+                    continue;
+                }
+
+                if (this._matchesSelfOrAncestor(selector)) {
+                    return variant;
+                }
+            }
+
+            return null;
+        }
+
+        _resolveVariantConfig(rawCfg, variantName) {
+            if (!this._isPlainObject(rawCfg) ||
+                !this._isPlainObject(rawCfg.variants) ||
+                typeof variantName !== "string" ||
+                variantName.trim().length === 0) {
+                return null;
+            }
+
+            const variantCfg = rawCfg.variants[variantName];
+            return this._isPlainObject(variantCfg) ? variantCfg : null;
+        }
+
+        _mergeVariantRawConfig(rawCfg, variantCfg) {
+            if (!this._isPlainObject(rawCfg)) {
+                return this._isPlainObject(variantCfg) ? Object.assign({}, variantCfg) : {};
+            }
+
+            if (!this._isPlainObject(variantCfg)) {
+                return Object.assign({}, rawCfg);
+            }
+
+            const merged = Object.assign({}, rawCfg, variantCfg);
+
+            // if variant defines its own breakpoints, they replace base breakpoints entirely
+            if (Array.isArray(variantCfg.breakpoints)) {
+                merged.breakpoints = variantCfg.breakpoints.slice();
+            }
+
+            return merged;
+        }
+
         // ---------- render / init ----------
 
         render(_root) {
@@ -499,11 +577,20 @@
             BrSimpleSlider.ensureStylesAdded(this);
 
             const base = BrSimpleSlider.DEFAULT_CONFIG;
-            const rawCfg = this._config || {};
+            const rawCfg = this._isPlainObject(this._config) ? this._config : {};
+            const resolvedVariantName = this._resolveVariantName(rawCfg);
+            const resolvedVariantCfg = this._resolveVariantConfig(rawCfg, resolvedVariantName);
+            const effectiveRawCfg = this._mergeVariantRawConfig(rawCfg, resolvedVariantCfg);
+
+            if (resolvedVariantName) {
+                this.setAttribute("data-resolved-variant", resolvedVariantName);
+            } else {
+                this.removeAttribute("data-resolved-variant");
+            }
 
             let breakpoints = [];
-            if (Array.isArray(rawCfg.breakpoints)) {
-                breakpoints = rawCfg.breakpoints
+            if (Array.isArray(effectiveRawCfg.breakpoints)) {
+                breakpoints = effectiveRawCfg.breakpoints
                     .filter((bp) => bp && typeof bp === "object")
                     .map((bp) => {
                         const maxWidth = (typeof bp.maxWidth === "number" && bp.maxWidth > 0) ? bp.maxWidth : null;
@@ -516,25 +603,25 @@
 
             // Merge slider config (unchanged behavior)
             this._config = {
-                minItemWidth: (typeof rawCfg.minItemWidth === "number" && rawCfg.minItemWidth > 0) ? rawCfg.minItemWidth : base.minItemWidth,
-                maxItemWidth: (typeof rawCfg.maxItemWidth === "number" && rawCfg.maxItemWidth > 0) ? rawCfg.maxItemWidth : base.maxItemWidth,
-                phonePeekItemsPerView: (typeof rawCfg.phonePeekItemsPerView === "number" && rawCfg.phonePeekItemsPerView > 1) ? rawCfg.phonePeekItemsPerView : base.phonePeekItemsPerView,
-                showArrows: (typeof rawCfg.showArrows === "boolean") ? rawCfg.showArrows : base.showArrows,
-                phonePeek: (typeof rawCfg.phonePeek === "boolean") ? rawCfg.phonePeek : base.phonePeek,
-                preserveInnerTabOrder: (typeof rawCfg.preserveInnerTabOrder === "boolean") ? rawCfg.preserveInnerTabOrder : base.preserveInnerTabOrder,
-                scrollByVisibleItems: (typeof rawCfg.scrollByVisibleItems === "boolean") ? rawCfg.scrollByVisibleItems : base.scrollByVisibleItems,
+                minItemWidth: (typeof effectiveRawCfg.minItemWidth === "number" && effectiveRawCfg.minItemWidth > 0) ? effectiveRawCfg.minItemWidth : base.minItemWidth,
+                maxItemWidth: (typeof effectiveRawCfg.maxItemWidth === "number" && effectiveRawCfg.maxItemWidth > 0) ? effectiveRawCfg.maxItemWidth : base.maxItemWidth,
+                phonePeekItemsPerView: (typeof effectiveRawCfg.phonePeekItemsPerView === "number" && effectiveRawCfg.phonePeekItemsPerView > 1) ? effectiveRawCfg.phonePeekItemsPerView : base.phonePeekItemsPerView,
+                showArrows: (typeof effectiveRawCfg.showArrows === "boolean") ? effectiveRawCfg.showArrows : base.showArrows,
+                phonePeek: (typeof effectiveRawCfg.phonePeek === "boolean") ? effectiveRawCfg.phonePeek : base.phonePeek,
+                preserveInnerTabOrder: (typeof effectiveRawCfg.preserveInnerTabOrder === "boolean") ? effectiveRawCfg.preserveInnerTabOrder : base.preserveInnerTabOrder,
+                scrollByVisibleItems: (typeof effectiveRawCfg.scrollByVisibleItems === "boolean") ? effectiveRawCfg.scrollByVisibleItems : base.scrollByVisibleItems,
                 breakpoints: breakpoints,
 
                 // header config defaults
-                title: (typeof rawCfg.title === "string") ? rawCfg.title : base.title,
-                subtitle: (typeof rawCfg.subtitle === "string") ? rawCfg.subtitle : base.subtitle,
-                hideHeader: (typeof rawCfg.hideHeader === "boolean") ? rawCfg.hideHeader : base.hideHeader,
-                titlePosition: (typeof rawCfg.titlePosition === "string") ? rawCfg.titlePosition : base.titlePosition,
+                title: (typeof effectiveRawCfg.title === "string") ? effectiveRawCfg.title : base.title,
+                subtitle: (typeof effectiveRawCfg.subtitle === "string") ? effectiveRawCfg.subtitle : base.subtitle,
+                hideHeader: (typeof effectiveRawCfg.hideHeader === "boolean") ? effectiveRawCfg.hideHeader : base.hideHeader,
+                titlePosition: (typeof effectiveRawCfg.titlePosition === "string") ? effectiveRawCfg.titlePosition : base.titlePosition,
 
-                ctaLabel: (typeof rawCfg.ctaLabel === "string") ? rawCfg.ctaLabel : base.ctaLabel,
-                ctaUrl: (typeof rawCfg.ctaUrl === "string") ? rawCfg.ctaUrl : base.ctaUrl,
-                ctaColor: (typeof rawCfg.ctaColor === "string") ? rawCfg.ctaColor : base.ctaColor,
-                ctaBackground: (typeof rawCfg.ctaBackground === "string") ? rawCfg.ctaBackground : base.ctaBackground
+                ctaLabel: (typeof effectiveRawCfg.ctaLabel === "string") ? effectiveRawCfg.ctaLabel : base.ctaLabel,
+                ctaUrl: (typeof effectiveRawCfg.ctaUrl === "string") ? effectiveRawCfg.ctaUrl : base.ctaUrl,
+                ctaColor: (typeof effectiveRawCfg.ctaColor === "string") ? effectiveRawCfg.ctaColor : base.ctaColor,
+                ctaBackground: (typeof effectiveRawCfg.ctaBackground === "string") ? effectiveRawCfg.ctaBackground : base.ctaBackground
             };
 
             if (!this._sliderInitialized) {
