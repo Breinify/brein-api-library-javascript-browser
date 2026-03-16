@@ -1703,6 +1703,7 @@
 
         /**
          * Method to get the current timezone of the user.
+         *
          * @returns {string|null} the current timezone or null if it cannot be determined
          */
         timezone: function () {
