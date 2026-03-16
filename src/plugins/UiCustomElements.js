@@ -15,7 +15,6 @@
             super();
 
             // Safari 12/13: no class fields
-            this._rawConfig = {};
             this._config = {};
             this._observer = null;
             this._initialized = false;
@@ -27,7 +26,7 @@
                 return;
             }
 
-            this._rawConfig = this._buildConfig();
+            this._config = this._buildConfig();
             this._render();
 
             if (this.shouldObserveConfigChanges()) {
@@ -132,7 +131,7 @@
                 }
 
                 if (shouldReload) {
-                    this._rawConfig = this._buildConfig();
+                    this._config = this._buildConfig();
                     this._render();
                 }
             });
@@ -261,7 +260,10 @@
 
             try {
                 const json = script.textContent.trim();
-                return json ? JSON.parse(json) : {};
+                const parsed = json ? JSON.parse(json) : {};
+
+                script.remove();
+                return parsed;
             } catch (e) {
                 const tag = this.tagName ? this.tagName.toLowerCase() : "unknown-element";
                 console.error("[" + tag + "] Invalid JSON in config script", e);
@@ -575,7 +577,7 @@
             BrSimpleSlider.ensureStylesAdded(this);
 
             const base = BrSimpleSlider.DEFAULT_CONFIG;
-            const rawCfg = this._isPlainObject(this._rawConfig) ? this._rawConfig : {};
+            const rawCfg = this._isPlainObject(this._config) ? this._config : {};
             const resolvedVariantName = this._resolveVariantName(rawCfg);
             const resolvedVariantCfg = this._resolveVariantConfig(rawCfg, resolvedVariantName);
             const effectiveRawCfg = this._mergeVariantRawConfig(rawCfg, resolvedVariantCfg);
