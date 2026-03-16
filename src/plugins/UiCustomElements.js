@@ -628,6 +628,8 @@
                 scrollByVisibleItems: (typeof effectiveRawCfg.scrollByVisibleItems === "boolean") ? effectiveRawCfg.scrollByVisibleItems : base.scrollByVisibleItems,
                 breakpoints: breakpoints,
 
+                itemWidthMode: (effectiveRawCfg.itemWidthMode === "content") ? "content" : base.itemWidthMode,
+
                 // header config defaults
                 title: (typeof effectiveRawCfg.title === "string") ? effectiveRawCfg.title : base.title,
                 subtitle: (typeof effectiveRawCfg.subtitle === "string") ? effectiveRawCfg.subtitle : base.subtitle,
@@ -1420,47 +1422,78 @@
 
             const baseCfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
             const gap = BrSimpleSlider.getGapPx(track);
-            const effectiveCfg = BrSimpleSlider.resolveConfigForWidth(baseCfg, trackWidth);
-            const perView = BrSimpleSlider.determineItemsPerView(
-                trackWidth,
-                gap,
-                effectiveCfg.minItemWidth,
-                effectiveCfg.maxItemWidth,
-                effectiveCfg.phonePeek !== false,
-                effectiveCfg.phonePeekItemsPerView
-            );
-            const totalGap = gap * Math.max(0, perView - 1);
-            const itemWidth = (trackWidth - totalGap) / perView;
 
-            const stepItems = Math.max(1, Math.floor(perView));
-            this._lastLayout = {
-                perView: perView,
-                gap: gap,
-                totalGap: totalGap,
-                itemWidth: itemWidth,
-                stepItems: stepItems
-            };
+            if (baseCfg.itemWidthMode === "content") {
+                items.forEach((item) => {
+                    item.style.flex = "0 0 auto";
+                    item.style.width = "auto";
+                    item.style.minWidth = "0";
+                    item.style.maxWidth = "none";
+                });
 
-            items.forEach((item) => {
-                const px = itemWidth + "px";
+                this._lastLayout = {
+                    perView: null,
+                    gap: gap,
+                    totalGap: null,
+                    itemWidth: null,
+                    stepItems: 1
+                };
 
-                item.style.flex = "0 0 " + px;
-                item.style.width = px;
-                item.style.minWidth = px;
-                item.style.maxWidth = px;
-            });
+                if (this._prevBtn && this._nextBtn) {
+                    const showArrows = baseCfg.showArrows !== false;
+                    this._prevBtn.style.display = showArrows ? "" : "none";
+                    this._nextBtn.style.display = showArrows ? "" : "none";
+                }
 
-            if (this._prevBtn && this._nextBtn) {
-                const showArrows = effectiveCfg.showArrows !== false;
-                this._prevBtn.style.display = showArrows ? "" : "none";
-                this._nextBtn.style.display = showArrows ? "" : "none";
+                if (this._updateButtons) {
+                    this._updateButtons();
+                }
+
+                this._setActiveIndex(this._activeIndex, false);
+            } else {
+
+                const effectiveCfg = BrSimpleSlider.resolveConfigForWidth(baseCfg, trackWidth);
+                const perView = BrSimpleSlider.determineItemsPerView(
+                    trackWidth,
+                    gap,
+                    effectiveCfg.minItemWidth,
+                    effectiveCfg.maxItemWidth,
+                    effectiveCfg.phonePeek !== false,
+                    effectiveCfg.phonePeekItemsPerView
+                );
+                const totalGap = gap * Math.max(0, perView - 1);
+                const itemWidth = (trackWidth - totalGap) / perView;
+
+                const stepItems = Math.max(1, Math.floor(perView));
+                this._lastLayout = {
+                    perView: perView,
+                    gap: gap,
+                    totalGap: totalGap,
+                    itemWidth: itemWidth,
+                    stepItems: stepItems
+                };
+
+                items.forEach((item) => {
+                    const px = itemWidth + "px";
+
+                    item.style.flex = "0 0 " + px;
+                    item.style.width = px;
+                    item.style.minWidth = px;
+                    item.style.maxWidth = px;
+                });
+
+                if (this._prevBtn && this._nextBtn) {
+                    const showArrows = effectiveCfg.showArrows !== false;
+                    this._prevBtn.style.display = showArrows ? "" : "none";
+                    this._nextBtn.style.display = showArrows ? "" : "none";
+                }
+
+                if (this._updateButtons) {
+                    this._updateButtons();
+                }
+
+                this._setActiveIndex(this._activeIndex, false);
             }
-
-            if (this._updateButtons) {
-                this._updateButtons();
-            }
-
-            this._setActiveIndex(this._activeIndex, false);
         }
 
         // ---------- utility ----------
@@ -1623,6 +1656,9 @@
         // when true, arrow buttons scroll by the visible "page" of items (Math.floor(perView))
         scrollByVisibleItems: false,
         breakpoints: [],
+
+        // currently allowed item modes are fixed and content (content does NOT support arrows)
+        itemWidthMode: "fixed",
 
         // header defaults
         title: "",
