@@ -318,6 +318,7 @@
 
             // Safari 12/13: no class fields
             this._sliderInitialized = false;
+            this._sliderRawConfig = null;
 
             this._layout = null;
             this._header = null;
@@ -492,6 +493,21 @@
             return 1.5;
         }
 
+        _getSliderRawConfig() {
+            const current = this._isPlainObject(this._config) ? this._config : {};
+
+            if (Array.isArray(current.variantRules) || this._isPlainObject(current.variants)) {
+                this._sliderRawConfig = Object.assign({}, current);
+                return this._sliderRawConfig;
+            }
+
+            if (!this._isPlainObject(this._sliderRawConfig)) {
+                this._sliderRawConfig = Object.assign({}, current);
+            }
+
+            return this._sliderRawConfig;
+        }
+
         _matchesSelfOrAncestor(selector) {
             if (typeof selector !== "string" || selector.trim().length === 0) {
                 return false;
@@ -577,7 +593,7 @@
             BrSimpleSlider.ensureStylesAdded(this);
 
             const base = BrSimpleSlider.DEFAULT_CONFIG;
-            const rawCfg = this._isPlainObject(this._config) ? this._config : {};
+            const rawCfg = this._getSliderRawConfig();
             const resolvedVariantName = this._resolveVariantName(rawCfg);
             const resolvedVariantCfg = this._resolveVariantConfig(rawCfg, resolvedVariantName);
             const effectiveRawCfg = this._mergeVariantRawConfig(rawCfg, resolvedVariantCfg);
