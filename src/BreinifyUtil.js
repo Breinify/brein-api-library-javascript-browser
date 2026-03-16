@@ -1703,11 +1703,24 @@
 
         /**
          * Method to get the current timezone of the user.
-         * @returns {string} the current timezone
+         * @returns {string|null} the current timezone or null if it cannot be determined
          */
         timezone: function () {
-            //noinspection JSUnresolvedFunction
-            return jstz().timezone_name;
+            try {
+                const intlTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (typeof intlTimezone === 'string' && intlTimezone.trim() !== '') {
+                    return intlTimezone;
+                }
+            } catch (e) {
+                // ignore and try fallback
+            }
+
+            try {
+                const timezone = jstz();
+                return timezone && typeof timezone.timezone_name === 'string' && timezone.timezone_name.trim() !== '' ? timezone.timezone_name : null;
+            } catch (e) {
+                return null;
+            }
         },
 
         /**
