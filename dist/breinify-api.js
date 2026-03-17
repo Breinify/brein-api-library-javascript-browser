@@ -14832,6 +14832,7 @@ dependencyScope.jQuery = $;;
 
         /**
          * Method to get the current timezone of the user.
+         *
          * @returns {string|null} the current timezone or null if it cannot be determined
          */
         timezone: function () {
@@ -14846,11 +14847,7 @@ dependencyScope.jQuery = $;;
 
             try {
                 const timezone = jstz();
-                return timezone &&
-                typeof timezone.timezone_name === 'string' &&
-                timezone.timezone_name.trim() !== ''
-                    ? timezone.timezone_name
-                    : null;
+                return timezone && typeof timezone.timezone_name === 'string' && timezone.timezone_name.trim() !== '' ? timezone.timezone_name : null;
             } catch (e) {
                 return null;
             }

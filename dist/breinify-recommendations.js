@@ -188,7 +188,9 @@
              */
             const recommenderName = this._recommenderName(option?.recommender?.payload);
             const $anchor = this._determineSelector(selector, recommenderName, null, {
-                type: 'determine-container'
+                type: 'determine-container',
+                option: option,
+                data: data
             });
             if ($anchor === null) {
                 cb(null, {
