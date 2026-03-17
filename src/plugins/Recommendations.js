@@ -1378,25 +1378,135 @@
 
         _sendActivity: function (option, event, settings) {
 
-            // the click could have been within a shadow-dom
+            /*
+             * Resolve the actual clicked target.
+             *
+             * The event target may be:
+             * - the anchor itself
+             * - a child element inside the anchor
+             * - an element originating from a shadow-dom path passed via event.data.actualTarget
+             */
             const actualTarget = event.data?.actualTarget ?? event.target;
 
-            const anchor = actualTarget instanceof HTMLAnchorElement
-                ? actualTarget
-                : actualTarget?.closest?.('a') ?? null;
+            /*
+             * Resolve the nearest anchor element safely.
+             *
+             * We only call closest(...) if the target is an Element, otherwise we may
+             * run into issues for non-element targets.
+             */
+            const anchor = actualTarget instanceof HTMLAnchorElement ? actualTarget :
+                actualTarget instanceof Element ? actualTarget.closest('a') : null;
 
             /*
-             * Determine if the event had some key held to open in a new tab, if so we can
-             * sent the activity directly from the current tab. If not we need to schedule
-             * the activity sent.
+             * Determine whether the user explicitly requested a different browsing context.
+             *
+             * Covered cases:
+             * - cmd/click on macOS
+             * - ctrl/click on Windows/Linux
+             * - middle mouse button
+             * - shift/alt are included as additional modifiers because sites/browsers may
+             *   use them to alter navigation behavior as well
              */
-            const openInNewTabByUser = event.metaKey || event.ctrlKey || event.which === 2;
-            const openInNewTabByTarget = anchor?.target === '_blank';
+            const openInNewTabByUser = event.metaKey === true ||
+                event.ctrlKey === true ||
+                event.shiftKey === true ||
+                event.altKey === true ||
+                event.which === 2 ||
+                event.button === 1;
 
+            /*
+             * Read the anchor target attribute in a robust way.
+             *
+             * We prefer getAttribute('target') so we can inspect the literal markup value.
+             * The property anchor.target may normalize values depending on the browser.
+             */
+            const rawTarget = anchor instanceof HTMLAnchorElement ? anchor.getAttribute('target') : null;
+            const normalizedTarget = typeof rawTarget === 'string' ? rawTarget.trim().toLowerCase() : '';
+
+            /*
+             * Determine whether the link opens in another browsing context due to target.
+             *
+             * Cases treated as opening elsewhere:
+             * - _blank
+             * - any named target other than the current browsing context semantics
+             *
+             * Cases treated as current context:
+             * - empty / missing target
+             * - _self
+             * - _top
+             * - _parent
+             */
+            const openInNewTabByTarget = normalizedTarget !== '' &&
+                normalizedTarget !== '_self' &&
+                normalizedTarget !== '_top' &&
+                normalizedTarget !== '_parent';
+
+            /*
+             * Final "opens elsewhere" decision.
+             */
             const openInNewTab = openInNewTabByUser || openInNewTabByTarget;
-            const willReloadPage = anchor instanceof HTMLAnchorElement && openInNewTab !== true;
 
-            // by default, we assume a click event
+            /*
+             * Inspect href and special anchor behavior to determine whether the current page
+             * is likely to unload.
+             *
+             * We only need to schedule when the current page is expected to go away before
+             * the activity can be sent directly.
+             */
+            const rawHref = anchor instanceof HTMLAnchorElement ? anchor.getAttribute('href') : null;
+            const href = typeof rawHref === 'string' ? rawHref.trim() : '';
+            const normalizedHref = href.toLowerCase();
+
+            /*
+             * Certain anchors do not cause a real page navigation in the current tab:
+             * - empty href
+             * - "#"
+             * - same-page hash navigation
+             * - javascript: links
+             * - download links
+             * - links that open in another tab/window
+             */
+            const hasDownloadAttribute = anchor instanceof HTMLAnchorElement && anchor.hasAttribute('download');
+
+            const isJavaScriptHref = normalizedHref.indexOf('javascript:') === 0;
+            const isEmptyHref = href === '';
+            const isOnlyHash = href === '#';
+            const isHashNavigation = href.charAt(0) === '#' && href.length > 1;
+
+            /*
+             * A same-page hash link should not require scheduling because the current page
+             * remains loaded.
+             */
+            let isSamePageHashNavigation = false;
+            if (anchor instanceof HTMLAnchorElement && isHashNavigation) {
+                const currentUrlWithoutHash = window.location.href.split('#')[0];
+                const anchorUrlWithoutHash = anchor.href.split('#')[0];
+                isSamePageHashNavigation = currentUrlWithoutHash === anchorUrlWithoutHash;
+            }
+
+            /*
+             * Determine whether the current page will likely unload.
+             *
+             * We schedule only for actual same-tab navigations.
+             */
+            let willReloadPage = false;
+            if (anchor instanceof HTMLAnchorElement) {
+                if (openInNewTab === true) {
+                    willReloadPage = false;
+                } else if (hasDownloadAttribute) {
+                    willReloadPage = false;
+                } else if (isEmptyHref || isOnlyHash || isJavaScriptHref) {
+                    willReloadPage = false;
+                } else if (isSamePageHashNavigation) {
+                    willReloadPage = false;
+                } else {
+                    willReloadPage = true;
+                }
+            }
+
+            /*
+             * By default, we assume a click event activity type.
+             */
             let activityType = Breinify.UTL.isNonEmptyString(option.activity.type);
             activityType = activityType === null ? option.activity.clickedType : activityType;
 
@@ -1404,7 +1514,7 @@
                 additionalEventData: {
                     meta: {
                         openInNewTab: openInNewTab,
-                        willReloadPage: willReloadPage,
+                        willReloadPage: willReloadPage
                     },
                     sendActivities: true,
                     scheduleActivities: null
@@ -1414,20 +1524,21 @@
                 activityUser: {}
             }, settings);
 
-            // trigger the creation activity process to ensure that we can modify the activity to be  sent
+            /*
+             * Trigger the activity creation process so listeners may enrich/modify the
+             * activity payload or override scheduling behavior.
+             */
             Renderer._process(option.process.createActivity, event, settings);
 
             /*
-             * Check if the activity is still supposed to be sent out, this would mean something "incorrect"
-             * was handled, and we just stop the sending completely.
+             * Stop immediately if a listener decided the activity must not be sent.
              */
             if (settings.additionalEventData.sendActivities === false) {
                 return;
             }
 
             /*
-             * After this step we may have some new information set (via the createActivity listener), so
-             * let's reevaluate if we have the widgetPosition, but not a widgetId
+             * If we have widgetPosition and widgetType, but not widgetId, create it.
              */
             if (typeof settings.activityTags.widgetPosition === 'number' &&
                 typeof settings.activityTags.widgetType === 'string' &&
@@ -1435,23 +1546,30 @@
                 settings.activityTags.widgetId = settings.activityTags.widgetType + '-' + settings.activityTags.widgetPosition;
             }
 
-            // decide to schedule or not
+            /*
+             * Decide whether to schedule the activity.
+             *
+             * Default behavior:
+             * - if the current page will not unload, send directly
+             * - if the current page will unload, schedule it
+             *
+             * A listener may explicitly override this by setting scheduleActivities.
+             */
             let scheduleActivity = null;
             if (settings.additionalEventData.scheduleActivities === null) {
-                if (willReloadPage === false) {
-                    scheduleActivity = false;
-                } else {
-                    scheduleActivity = openInNewTab !== true;
-                }
+                scheduleActivity = willReloadPage === true;
             } else if (typeof settings.additionalEventData.scheduleActivities === 'boolean') {
                 scheduleActivity = settings.additionalEventData.scheduleActivities;
             }
 
+            /*
+             * Send or schedule the activity if the activities plugin is available.
+             */
             if (!$.isPlainObject(Breinify.plugins.activities)) {
-                // "activities" is not available
+                // "activities" plugin is not available
             } else if (scheduleActivity === true) {
                 Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
-            } else if (scheduleActivity === false) {
+            } else {
                 Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
             }
         },
