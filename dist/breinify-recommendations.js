@@ -1378,16 +1378,23 @@
 
         _sendActivity: function (option, event, settings) {
 
+            // the click could have been within a shadow-dom
+            const actualTarget = event.data?.actualTarget ?? event.target;
+
+            const anchor = actualTarget instanceof HTMLAnchorElement
+                ? actualTarget
+                : actualTarget?.closest?.('a') ?? null;
+
             /*
              * Determine if the event had some key held to open in a new tab, if so we can
              * sent the activity directly from the current tab. If not we need to schedule
              * the activity sent.
              */
-            const openInNewTab = event.metaKey || event.ctrlKey || event.which === 2;
+            const openInNewTabByUser = event.metaKey || event.ctrlKey || event.which === 2;
+            const openInNewTabByTarget = anchor?.target === '_blank';
 
-            // the click could have been within a shadow-dom
-            const actualTarget = event.data?.actualTarget ?? event.target;
-            const willReloadPage = actualTarget instanceof HTMLAnchorElement;
+            const openInNewTab = openInNewTabByUser || openInNewTabByTarget;
+            const willReloadPage = anchor instanceof HTMLAnchorElement && openInNewTab !== true;
 
             // by default, we assume a click event
             let activityType = Breinify.UTL.isNonEmptyString(option.activity.type);
