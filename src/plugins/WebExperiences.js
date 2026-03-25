@@ -11,6 +11,8 @@
 
     const $ = Breinify.UTL._jquery();
     const _private = {
+        idPrefix: 'web-experience-',
+
         setup: function (configuration, module) {
 
             // ensure that we utilize the onChange method over the ready method
@@ -164,16 +166,43 @@
                 console.error('[breinify] error occurred while executing activationSnippet: ', e)
                 return false;
             }
+        },
+
+        determineId: function(id) {
+            const normId = Breinify.UTL.isNonEmptyString(id);
+            if (normId === null) {
+                return null;
+            } else if (normId.startsWith(this.idPrefix)) {
+                return normId;
+            } else {
+                return this.idPrefix + normId;
+            }
         }
     };
 
     const WebExperiences = {
 
+        isBootstrapped: function(id) {
+            const normId = _private.determineId(id);
+            if (normId === null) {
+                return false;
+            }
+
+            return Breinify.plugins.api.isModule(normId) === true;
+        },
+
         bootstrap: function (id, configuration, module) {
 
             // the module must be a valid object
             if (typeof module !== 'object') {
-                console.error('the module with id "' + id + '" is not a valid module and cannot be setup');
+                console.error('the module is not a valid module and cannot be setup (id: ' + id + ')');
+                return;
+            }
+
+            // check if the id has the prefix
+            id = _private.determineId(id);
+            if (id === null) {
+                console.error('the id "' + id + '" is not a valid identifier');
                 return;
             }
 
