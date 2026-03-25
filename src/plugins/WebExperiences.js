@@ -172,7 +172,7 @@
             const normId = Breinify.UTL.isNonEmptyString(id);
             if (normId === null) {
                 return null;
-            } else if (normId.startsWith(this.idPrefix)) {
+            } else if (normId.indexOf(this.idPrefix) === 0) {
                 return normId;
             } else {
                 return this.idPrefix + normId;
