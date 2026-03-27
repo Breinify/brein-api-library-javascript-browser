@@ -411,6 +411,7 @@
             // if this is not connected we utilize the position information and attach it
             if (this._ensureConnected() === false) {
                 this._stopRefreshLoop();
+                this._hideCountdown(false);
                 return;
             }
 
