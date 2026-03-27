@@ -745,9 +745,9 @@
         _ensureConnected() {
             if (this.isConnected === true) {
                 return true;
+            } else {
+                return Breinify.plugins.webExperiences.attach(this.settings, $(this));
             }
-
-            return Breinify.plugins.webExperiences.attach(this.settings, $(this));
         }
 
         _checkCampaignBasedResponse(response) {
