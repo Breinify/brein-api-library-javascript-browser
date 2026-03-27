@@ -614,14 +614,14 @@
     class UiSurvey extends HTMLElement {
         $shadowRoot = null;
         settings = null;
-        uuid = null;
+        webExVersionId = null;
 
         constructor() {
             super();
 
             this.attachShadow({mode: "open"});
 
-            this.uuid = null;
+            this.webExVersionId = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
             this._selectedAnswers = {};
@@ -765,7 +765,7 @@
             const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
             const state = {
                 brUiSurvey: true,
-                webExId: this.uuid,
+                webExVersionId: this.webExVersionId,
                 nodeId: nodeId,
                 sessionId: this._sessionId
             };
@@ -791,14 +791,14 @@
             // Case 1: This popstate belongs to some survey state
             if (state && state.brUiSurvey === true) {
                 // If it belongs to another survey instance, ignore it
-                if (state.webExId !== this.uuid) {
+                if (state.webExVersionId !== this.webExVersionId) {
                     return;
                 }
 
                 // If it is from an "old" session, ignore and make sure we're reset
                 if (!this._sessionId || !state.sessionId || state.sessionId !== this._sessionId) {
                     if (popup && popup.hasAttribute("open")) {
-                        popup.close("history", {webExId: this.uuid, sessionId: this._sessionId});
+                        popup.close("history", {webExVersionId: this.webExVersionId, sessionId: this._sessionId});
                     }
                     this._resetSurveyState();
                     return;
@@ -1023,8 +1023,8 @@
             const normalizedDetails = $.isPlainObject(detail) ? detail : {};
 
             // enforce common fields
-            if (typeof normalizedDetails.webExId === "undefined") {
-                normalizedDetails.webExId = this.uuid;
+            if (typeof normalizedDetails.webExVersionId === "undefined") {
+                normalizedDetails.webExVersionId = this.webExVersionId;
             }
             if (typeof normalizedDetails.sessionId === "undefined") {
                 normalizedDetails.sessionId = this._sessionId || null;
@@ -1111,7 +1111,7 @@
 
             // set the meta information and attach it to the popup
             popup.meta = {
-                webExId: this.uuid,
+                webExVersionId: this.webExVersionId,
                 sessionId: this._sessionId
             };
 
@@ -1411,7 +1411,7 @@
                         $attachedContainer.empty();
                     },
                     createActivity: function (event, settings) {
-                        settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(_self.uuid);
+                        settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(_self.webExVersionId);
                     },
                 }
             });
@@ -1878,9 +1878,9 @@
             }
         }
 
-        render(webExId, settings) {
+        render(webExVersionId, settings) {
             this.settings = settings;
-            this.uuid = webExId;
+            this.webExVersionId = webExVersionId;
             this.$shadowRoot.empty();
 
             // first add the base style and load structure
@@ -1951,7 +1951,7 @@
 
         sendActivity: function (metadata, eventName, detail) {
             if (Breinify.UTL.isNonEmptyString(eventName) === null ||
-                Breinify.UTL.isNonEmptyString(detail?.webExId) === null) {
+                Breinify.UTL.isNonEmptyString(detail?.webExVersionId) === null) {
                 return;
             }
 
@@ -1961,7 +1961,7 @@
             }
             const user = {};
             const tags = $.extend(true, {
-                campaignWebExId: detail.webExId,
+                campaignWebExId: detail.webExVersionId,
                 widget: metadata.campaignName,
                 widgetType: 'survey'
             }, this._determineTags(eventName, metadata, detail));
@@ -1972,13 +1972,13 @@
 
     Breinify.plugins._add("uiSurvey", {
 
-        attachEventListeners: function (surveyEl, webExId, callback, selection) {
+        attachEventListeners: function (surveyEl, webExVersionId, callback, selection) {
             if (!surveyEl) {
                 return;
             }
 
             // prevent double-binding if register() runs more than once
-            const markerKey = "__brUiSurveyListeners::" + webExId;
+            const markerKey = "__brUiSurveyListeners::" + webExVersionId;
             if (surveyEl[markerKey] === true) {
                 return;
             }
@@ -2036,8 +2036,8 @@
                 document.addEventListener("br-ui-survey:popup-closed", function (evt) {
                     const d = evt && evt.detail ? evt.detail : null;
 
-                    // if webExId is present, filter so multiple surveys don't spam each other
-                    if (d && d.webExId && d.webExId !== webExId) {
+                    // if webExVersionId is present, filter so multiple surveys don't spam each other
+                    if (d && d.webExVersionId && d.webExVersionId !== webExVersionId) {
                         return;
                     }
 
@@ -2046,18 +2046,31 @@
             }
         },
 
-        register: function (module, webExId, config) {
+        render: function (module, config) {
 
+            // check if we already have the element (just defensive)
+            const webExElId = "br-survey-" + webExVersionId;
+
+            let $survey = $("#" + webExElId);
+            if ($survey.length === 0) {
+
+                // make sure we have the survey root element at this point to attach it if needed
+                if (!window.customElements.get(generalSurveyElementName)) {
+                    window.customElements.define(generalSurveyElementName, UiSurvey);
+                }
+
+                // otherwise we add the element and attach it, if successful we continue
+                $survey = $("<" + generalSurveyElementName + "/>").attr("id", webExElId);
+                if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
+                    return;
+                }
+            }
+
+            // if we made it here we can now ensure that the survey element is known
             if (!window.customElements.get(popupElementName)) {
                 window.customElements.define(popupElementName, UiSurveyPopup);
             }
 
-            if (!window.customElements.get(generalSurveyElementName)) {
-                window.customElements.define(generalSurveyElementName, UiSurvey);
-            }
-
-            // check if we already have the element (just defensive)
-            const webExElId = "br-survey-" + webExId;
             const globalStyleId = "br-survey-global-style";
             if ($('#' + globalStyleId).length === 0) {
                 $('body').prepend(`
@@ -2065,16 +2078,6 @@
                     .br-survey-scroll-lock { overflow: hidden !important; touch-action: none !important; overscroll-behavior: none !important; }
                   </style>
                 `);
-            }
-
-            let $survey = $("#" + webExElId);
-            if ($survey.length === 0) {
-
-                // otherwise we add the element and attach it, if successful we continue
-                $survey = $("<" + generalSurveyElementName + "/>").attr("id", webExElId);
-                if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
-                    return;
-                }
             }
 
             // get the actual DOM element
@@ -2085,11 +2088,11 @@
             };
 
             const survey = $survey.get(0);
-            this.attachEventListeners(survey, webExId, function (eventName, detail) {
+            this.attachEventListeners(survey, webExVersionId, function (eventName, detail) {
                 eventHandler.sendActivity(metadata, eventName, detail);
             });
 
-            survey.render(webExId, config);
+            survey.render(webExVersionId, config);
         }
     });
 })();

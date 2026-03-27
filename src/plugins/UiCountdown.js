@@ -230,15 +230,12 @@
         }
     }
 
-    /**
-     * When using this plugin it adds a wrapper method as plugin, which adds the possibility to
-     * register the custom HTML element. This method can be called multiple times without issues
-     * (so whenever the plugin is retrieved).
-     */
     class UiCountdown extends HTMLElement {
         $shadowRoot = null
         settings = null
         uuid = null
+        interval = null
+        isRendered = false
 
         constructor() {
             super();
@@ -413,46 +410,67 @@
 
             // if this is not connected we utilize the position information and attach it
             if (this._ensureConnected() === false) {
+                this._stopRefreshLoop();
                 return;
             }
 
-            // add any additional styles
-            this._applyStyle();
-
-            // modify the template based on the settings and add the content
-            this._applyHtml();
-            this._applyContent();
+            /*
+             * The configuration is static for the lifetime of the element on the page.
+             * Thus, style/html/content are created once and then retained even if the
+             * element is later detached and re-attached somewhere else.
+             */
+            if (this.isRendered !== true) {
+                this._applyStyle();
+                this._applyHtml();
+                this._applyContent();
+                this.isRendered = true;
+            }
 
             // apply type specific settings to the countdown
-            if (this.settings.type === 'CAMPAIGN_BASED') {
-                this.startCounter();
-            } else if (this.settings.type === 'ONE_TIME') {
-                this.startCounter();
+            if (this.settings.type === 'CAMPAIGN_BASED' || this.settings.type === 'ONE_TIME') {
+                const needsUpdates = this._updateCountdown(true);
+                if (needsUpdates === false) {
+                    this._hideCountdown(false);
+                    this._stopRefreshLoop();
+                } else {
+                    this._ensureRefreshLoop();
+                }
             } else {
                 this._hideCountdown();
+                this._stopRefreshLoop();
             }
         }
 
-        startCounter() {
+        _ensureRefreshLoop() {
             const _self = this;
 
-            /*
-             * If the update returns false, it means nothing needs to be updated anymore,
-             * so let's just return (the countdown it is not visible at this point, we still
-             * call hide to trigger an update if needed, i.e., from configured -> rendered).
-             */
-            if (this._updateCountdown(true) === false) {
-                _self._hideCountdown(false);
+            if (this.interval != null) {
                 return;
             }
 
-            // start the interval to keep the countdown updating
             this.interval = new AccurateInterval(() => {
-                if (!_self._updateCountdown(false)) {
-                    _self.interval.stop();
+
+                /*
+                 * Stop the loop if we are no longer attached. Re-attachment will
+                 * happen through a later render/onChange call if needed.
+                 */
+                if (_self.isConnected !== true) {
+                    _self._stopRefreshLoop();
+                    return;
+                }
+
+                if (_self._updateCountdown(false) === false) {
+                    _self._stopRefreshLoop();
                     _self._hideCountdown(true);
                 }
             }).start();
+        }
+
+        _stopRefreshLoop() {
+            if (this.interval != null) {
+                this.interval.stop();
+                this.interval = null;
+            }
         }
 
         getStartTime() {
@@ -516,42 +534,40 @@
 
         _applyStyle() {
 
-            // add the default style and ensure there is nothing configured right now
+            // add the default style
             if (this.$shadowRoot.find('#br-style-countdown-default').length === 0) {
                 this.$shadowRoot.prepend(cssStyle);
             }
-            this.$shadowRoot.find('#br-style-countdown-configured').remove();
 
             const selectors = $.isPlainObject(this.settings.style) && $.isArray(this.settings.style.selectors) ? this.settings.style.selectors : [];
-            let additionalStyle = Breinify.UTL.isNonEmptyString(selectors
+            const additionalStyle = Breinify.UTL.isNonEmptyString(selectors
                 .filter(entry => $.isPlainObject(entry))
                 .map(entry => Object.entries(entry)
                     .map(([key, value]) => `${key} { ${value} }`)
-                    .join('')
-                )
+                    .join(''))
                 .join(''));
 
-            let snippetSelector = '#br-style-countdown-default';
             if (additionalStyle !== null) {
                 this.$shadowRoot.find('#br-style-countdown-default')
                     .after('<style id="br-style-countdown-configured">' + additionalStyle + '</style>');
-                snippetSelector = '#br-style-countdown-configured';
             }
+
+            const snippetSelector = additionalStyle === null ? '#br-style-countdown-default' : '#br-style-countdown-configured';
 
             // check for snippets
             Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot, snippetSelector);
         }
 
         _applyHtml() {
-            this.$shadowRoot.find('.countdown-banner').remove();
-
             const url = Breinify.UTL.isNonEmptyString(this.settings.experience.url);
             const containerType = url === null ? 'div' : 'a';
-            const finalHtmlTemplate = htmlTemplate.replaceAll('a-or-div', containerType)
+
+            const finalHtmlTemplate = htmlTemplate.replaceAll('a-or-div', containerType);
             this.$shadowRoot.append(finalHtmlTemplate);
 
+            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+
             if (url !== null) {
-                const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
                 $countdownBanner.attr('href', url);
 
                 const usedHref = Breinify.UTL.isNonEmptyString($countdownBanner.attr('href'));
@@ -564,7 +580,7 @@
                     $countdownBanner.attr('target', '_blank');
                 }
 
-                $countdownBanner.click(event => this._sendActivity('clickedElement', event));
+                $countdownBanner.on('click.brUiCountdown', event => this._sendActivity('clickedElement', event));
             }
         }
 
@@ -717,7 +733,7 @@
         }
 
         _getStorageKey() {
-            return 'br-wed-' + this.settings.webExId;
+            return 'br-wed-' + this.settings.webExVersionId;
         }
 
         _applyOneTimeSettings(settings, callback) {
@@ -746,7 +762,9 @@
             if (this.isConnected === true) {
                 return true;
             } else {
-                return Breinify.plugins.webExperiences.attach(this.settings, $(this));
+                return Breinify.plugins.webExperiences.attach(this.settings, $(this), {
+                    cardinality: 'single'
+                });
             }
         }
 
@@ -774,8 +792,8 @@
             }
 
             // check the web-experience's identifier to match this one (if any is selected/defined)
-            const expectedWebExperienceId = Breinify.UTL.isNonEmptyString(webExperienceData.webExperienceId);
-            if (expectedWebExperienceId !== null && this.settings.webExId !== expectedWebExperienceId) {
+            const expectedWebExpId = Breinify.UTL.isNonEmptyString(webExperienceData.webExperienceId);
+            if (expectedWebExpId !== null && this.settings.webExId !== expectedWebExpId) {
                 return false;
             }
 
@@ -847,7 +865,7 @@
             // set some campaign information
             tags.campaignWebExId = Breinify.UTL.isNonEmptyString(this.settings.webExVersionId);
 
-            // some experience specific information (could also be retrieved via the webExId)
+            // some experience specific information (could also be retrieved via the webExVersionId)
             tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
 
             // add the split-test info if any split-test
@@ -870,10 +888,32 @@
 
     // bind the module
     Breinify.plugins._add('uiCountdown', {
-        register: function () {
+
+        render: function (module, config) {
+
             if (!window.customElements.get(elementName)) {
                 window.customElements.define(elementName, UiCountdown);
             }
+
+            // let's find the element in the DOM-tree and create it if not there
+            const countdownId = 'br-ui-countdown-' + module.webExVersionId;
+            let $countdown = $('br-ui-countdown#' + countdownId);
+            if ($countdown.length === 0) {
+                $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
+            }
+
+            // apply the configuration and render it on the DOM-tree once the configuration is loaded
+            const countdown = $countdown.get(0);
+            countdown.config($.extend(true, {
+                type: module.type,
+                campaignName: Breinify.UTL.isNonEmptyString(module.campaignName),
+                webExVersionId: module.webExVersionId,
+                webExId: module.webExId,
+            }, config), function(error) {
+                if (error === null) {
+                    countdown.render();
+                }
+            });
         }
     });
 })();

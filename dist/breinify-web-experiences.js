@@ -22,13 +22,15 @@
             }
 
             // set up the activation-logic if it's defined and set up the check
-            if ($.isPlainObject(configuration.activationLogic)) {
-                this.setupActivityLogic(configuration.activationLogic, module);
-            }
+            this.setupActivityLogic(configuration, module);
         },
 
-        setupActivityLogic: function (logic, module) {
+        setupActivityLogic: function (configuration, module) {
             const _self = this;
+
+            if (!$.isPlainObject(configuration?.activationLogic)) {
+                return;
+            }
 
             let currentIsValidPage = null;
             if ($.isFunction(module.isValidPage)) {
@@ -42,7 +44,7 @@
              * @return {boolean} returns `true` if the page is valid for this module, or `false` if no further execution should be handled
              */
             module.isValidPage = function () {
-                return _self.checkActivityLogic(logic) === true &&
+                return _self.checkActivityLogic(configuration, module) === true &&
                     (currentIsValidPage === null || currentIsValidPage.call(module) === true);
             };
         },
@@ -112,7 +114,12 @@
             return values.some(matcher);
         },
 
-        checkActivityLogic: function (logic) {
+        checkActivityLogic: function (configuration, module) {
+            if (!$.isPlainObject(configuration?.activationLogic)) {
+                return;
+            }
+
+            const logic = configuration.activationLogic;
             const paths = $.isArray(logic.paths) ? logic.paths : [];
             let isValidPage = paths.length === 0;
 
@@ -123,6 +130,12 @@
 
                 if (type === 'ALL_PATHS') {
                     isValidPage = true;
+                } else if (type === 'ATTRIBUTE') {
+                    this._setupAttribute(configuration, module);
+                    isValidPage = true;
+
+                    // we do not need to do anything else, the attribute is set up and active
+                    break;
                 } else if (value === null) {
                     console.warn('found invalid value that was not or an empty string');
                 } else if (type === 'STATIC_PATHS') {
@@ -147,28 +160,114 @@
                 }
             }
 
-            const snippet = Breinify.UTL.isNonEmptyString(logic.snippet);
+            // if the page is not valid, we do not have to check the snippet
+            return isValidPage ? this._checkActivationSnippet(logic.snippet) : false;
+        },
+
+        _setupAttribute: function (configuration, module) {
+            const _self = this;
+
+            // prevent double wrapping and return true early
+            if (module._hasAttributeFindRequirements === true) {
+                return true;
+            } else {
+                module._hasAttributeFindRequirements = true;
+            }
+
+            module.renderingBehavior = 'onChange';
+            module.findRequirements = function ($el, data) {
+                _self._findAttributeRequirements(module, $el, data);
+            };
+
+            return false;
+        },
+
+        _findAttributeRequirements: function (module, $el, data) {
+            const type = data?.type;
+
+            if (type === 'removed-element') {
+                return false;
+            } else if (type === 'attribute-change') {
+                if (data?.attribute !== 'data-br-webexpid') {
+                    return false;
+                }
+
+                const el = $el ? $el[0] : null;
+                if (this._isWebExpDiv(el, true)) {
+                    return this._handleAttribute(module, $el, data, el);
+                } else {
+                    return false;
+                }
+            }
+
+            const root = $el ? $el[0] : null;
+            if (!root || root.nodeType !== 1) {
+                return false;
+            } else if (this._isWebExpDiv(root, false)) {
+                return this._handleAttribute(module, $el, data, root);
+            } else {
+                const match = root.querySelector('div[data-br-webexpid]:not([data-br-webexpfnd="true"])');
+
+                if (match) {
+                    return this._handleAttribute(module, $el, data, match);
+                } else {
+                    return false;
+                }
+            }
+        },
+
+        _isWebExpDiv: function (el, ignoreFoundFlag) {
+            if (!el || !Breinify.UTL.dom.isNodeType(el, 1) || el.tagName !== 'DIV') {
+                return false;
+            } else if (!el.hasAttribute('data-br-webexpid')) {
+                return false;
+            } else if (ignoreFoundFlag === true) {
+                return true;
+            } else {
+                return el.getAttribute('data-br-webexpfnd') !== 'true';
+            }
+        },
+
+        _handleAttribute: function (module, $el, data, el) {
+
+            // mark the element as handled
+            el.setAttribute('data-br-webexpfnd', 'true');
+
+            // read the information of the experience
+            const webExpId = el.getAttribute('data-br-webexpid');
+            const webExpPos = el.getAttribute('data-br-webexppos');
+
+            const existingFindRequirements = $.isFunction(module.findRequirements) ? module.findRequirements : null;
+            if (existingFindRequirements === null) {
+                return true;
+            } else {
+                return existingFindRequirements.call(this, $el, data);
+            }
+        },
+
+        _checkActivationSnippet: function (logicSnippet) {
+
+            // get the snippet a not existing snippet means we return true
+            const snippet = Breinify.UTL.isNonEmptyString(logicSnippet);
             if (snippet === null) {
-                return isValidPage;
-            } else if (isValidPage === false) {
-                return false;
+                return true;
             }
 
-            // check if we have a snippet, if one is defined, and we cannot find it we return false as fallback
+            // check if the snippet resolves, if so we utilize it, if not we return false as fallback
             const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippet);
-            if (!$.isFunction(activationSnippet)) {
-                return false;
-            }
-
-            try {
-                return activationSnippet() === true;
-            } catch (e) {
-                console.error('[breinify] error occurred while executing activationSnippet: ', e)
+            if ($.isFunction(activationSnippet)) {
+                try {
+                    return activationSnippet() === true;
+                } catch (e) {
+                    console.error('[breinify] error occurred while executing activationSnippet: ', e)
+                    return false;
+                }
+            } else {
                 return false;
             }
         },
 
-        determineId: function(id) {
+        determineId: function (id) {
             const normId = Breinify.UTL.isNonEmptyString(id);
             if (normId === null) {
                 return null;
@@ -177,12 +276,66 @@
             } else {
                 return this.idPrefix + normId;
             }
+        },
+
+        _resolveCurrentAnchor: function (operation, $el) {
+            if (!$el || $el.length === 0 || $el.get(0).isConnected !== true) {
+                return null;
+            }
+
+            const el = $el.get(0);
+            const parent = el.parentNode;
+            if (!parent || parent.nodeType !== 1) {
+                return null;
+            }
+
+            if (operation === 'append' || operation === 'prepend') {
+                return parent;
+            } else if (operation === 'before') {
+                return el.nextElementSibling;
+            } else if (operation === 'after') {
+                return el.previousElementSibling;
+            } else {
+                return null;
+            }
         }
     };
 
     const WebExperiences = {
 
-        isBootstrapped: function(id) {
+        determineActivationLogicType: function (configuration) {
+            if (!$.isPlainObject(configuration?.activationLogic)) {
+                return 'NONE';
+            }
+
+            const logic = configuration.activationLogic;
+            const paths = $.isArray(logic.paths) ? logic.paths : [];
+            if (paths.length) {
+                return 'ANY_PATH';
+            }
+
+            for (let i = 0; i < paths.length && isValidPage === false; i++) {
+                const path = $.isPlainObject(paths[i]) ? paths[i] : {};
+                const type = Breinify.UTL.isNonEmptyString(path.type);
+                const value = Breinify.UTL.isNonEmptyString(path.value);
+
+                if (type === 'ALL_PATHS') {
+                    return 'ANY_PATH';
+                } else if (type === 'ATTRIBUTE') {
+                    return 'BY_ATTRIBUTE';
+                } else if (value === null) {
+                    return 'INVALID';
+                } else if (type === 'STATIC_PATHS' || type === 'REGEX') {
+                    // nothing to do, there can be multiple, or we can find one of the override any
+                } else {
+                    return 'INVALID';
+                }
+            }
+
+            return 'BY_PATH';
+        },
+
+        isBootstrapped: function (id) {
             const normId = _private.determineId(id);
             if (normId === null) {
                 return false;
@@ -247,8 +400,18 @@
             }
         },
 
-        attach: function(settings, $el) {
-            const position = $.isPlainObject(settings) && $.isPlainObject(settings.position) ? settings.position : null;
+        attach: function (webExpSettings, $el, placement) {
+
+            // ensure valid inputs
+            placement = $.extend(true, {
+                cardinality: 'single'
+            }, $.isPlainObject(placement) ? placement : {});
+
+            if (!$el || $el.length === 0) {
+                return false;
+            }
+
+            const position = $.isPlainObject(webExpSettings) && $.isPlainObject(webExpSettings.position) ? webExpSettings.position : null;
             if (position == null) {
                 return false;
             }
@@ -259,20 +422,98 @@
                 return false;
             }
 
-            // determine the anchor, it is needed but evaluated within the utility method
-            let $anchor;
+            // determine the anchor candidates
+            let $anchor = null;
             const selector = Breinify.UTL.isNonEmptyString(position.selector);
             const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+
             if (snippet === null && selector === null) {
-                $anchor = null;
+                return false;
             } else if (selector !== null) {
                 $anchor = $(selector);
             } else if (snippet !== null) {
-                $anchor = null
+                const positionFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
+                $anchor = $.isFunction(positionFunc) ? $(positionFunc()) : null;
             }
 
-            // now attach the element and if successful move on (otherwise return)
-            return Breinify.UTL.dom.attachByOperation(operation, $anchor, $el);
+            if (!$anchor || $anchor.length === 0) {
+                return false;
+            }
+
+            /*
+             * For now, singleton is the default and only fully supported mode.
+             * We attach the element to exactly one valid anchor.
+             */
+            const cardinality = Breinify.UTL.isNonEmptyString(placement.cardinality) || 'single';
+            if (cardinality !== 'single') {
+                return false;
+            }
+
+            // normalize and keep only element nodes
+            const $candidates = $anchor.filter(function () {
+                return this && this.nodeType === 1;
+            });
+
+            if ($candidates.length === 0) {
+                return false;
+            }
+
+            /*
+             * Step 1: if the element is already attached in a valid place for the
+             * current operation, keep it there. This prevents unnecessary moves.
+             */
+            const currentAnchor = _private._resolveCurrentAnchor(operation, $el);
+            if (currentAnchor !== null) {
+                const $currentAnchor = $(currentAnchor);
+                const isStillValid = $candidates.filter(function () {
+                    return this === currentAnchor;
+                }).length > 0;
+
+                if (isStillValid) {
+                    $el.data('br.webexp.attach.operation', operation);
+                    $el.data('br.webexp.attach.anchor', currentAnchor);
+                    return true;
+                }
+            }
+
+            /*
+             * Step 2: if we previously chose an anchor and it is still valid, prefer it.
+             * This keeps the placement stable across repeated onChange calls.
+             */
+            const previousAnchor = $el.data('br.webexp.attach.anchor');
+            if (previousAnchor != null) {
+                const $previousAnchor = $(previousAnchor);
+                const isPreviousStillValid = $candidates.filter(function () {
+                    return this === previousAnchor;
+                }).length > 0;
+
+                if (isPreviousStillValid) {
+                    const attached = Breinify.UTL.dom.attachByOperation(operation, $previousAnchor, $el);
+                    if (attached === true) {
+                        $el.data('br.webexp.attach.operation', operation);
+                        $el.data('br.webexp.attach.anchor', previousAnchor);
+                        return true;
+                    }
+                }
+            }
+
+            /*
+             * Step 3: choose the first valid candidate in DOM order.
+             */
+            const targetAnchor = $candidates.get(0);
+            if (targetAnchor == null) {
+                return false;
+            }
+
+            const $targetAnchor = $(targetAnchor);
+            const attached = Breinify.UTL.dom.attachByOperation(operation, $targetAnchor, $el);
+            if (attached === true) {
+                $el.data('br.webexp.attach.operation', operation);
+                $el.data('br.webexp.attach.anchor', targetAnchor);
+                return true;
+            }
+
+            return false;
         }
     };
 

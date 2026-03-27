@@ -301,6 +301,27 @@
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
+            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
+
+            /*
+             * We have to check the activation logic since this may override the position, register happens before the
+             * bootstrap of the web-experience so we have to adapt the configuration.
+             */
+            const activationType = Breinify.plugins.webExperiences.determineActivationLogicType(config);
+            if (activationType === 'BY_ATTRIBUTE') {
+
+                for (const rec of recs) {
+                    rec.position = {
+                        renderingBehavior: 'onChange',
+                        operation: 'replace',
+                        selector: function() {
+
+                        }
+                    }
+                }
+            }
+
+
             /*
              * In the case that we have the rendering behavior configured to be "onChange" we need to observe the dom-tree
              * via findRequirements. The detection of the path change is not enough in that case, and we need to render
@@ -309,7 +330,6 @@
             const configOnLoad = [];
             const configOnChange = [];
 
-            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
             for (const rec of recs) {
                 const position = $.isPlainObject(rec) && $.isPlainObject(rec.position) ? rec.position : {};
 
@@ -323,13 +343,7 @@
                 }
             }
 
-            /*
-             * It would be very untypical to have mixed renders, since on-change rendering can only happen for one
-             * element, the one that observes the change (or a group of elements observing the same change).
-             */
-            if (configOnChange.length > 0 && configOnLoad.length > 0) {
-                // TODO: decide what this would mean and how to handle it correctly
-            } else if (configOnLoad.length > 0) {
+            if (configOnLoad.length > 0 && configOnChange.length === 0) {
                 module.onChange = function () {
                     _self.handle(webExId, webExVersionId, {
                         activationLogic: config.activationLogic,
@@ -341,17 +355,32 @@
                 module.findRequirements = function ($container, data) {
 
                     const selectedRecommenders = _private._findRequirements(webExId, configOnChange, $container, data);
-                    if (!$.isArray(selectedRecommenders) || selectedRecommenders.length === 0) {
+                    if ($.isArray(selectedRecommenders) && selectedRecommenders.length > 0) {
+                        return {
+                            activationLogic: config.activationLogic,
+                            recommendations: selectedRecommenders,
+                            type: 'onChange'
+                        };
+                    } else if (configOnLoad.length > 0) {
+                        // TODO: find a good marker so it doesn't run every time
+                        return {};
+                    } else {
                         return false;
                     }
-
-                    return {
-                        activationLogic: config.activationLogic,
-                        recommendations: selectedRecommenders,
-                        type: 'onChange'
-                    };
                 };
+
                 module.onChange = function (data) {
+
+                    // fire the change for the on-load configuration
+                    if (configOnLoad.length > 0) {
+                        _self.handle(webExId, webExVersionId, {
+                            activationLogic: config.activationLogic,
+                            recommendations: configOnLoad,
+                            type: 'onLoad'
+                        });
+                    }
+
+                    // now fire the once that actually are selected
                     _self.handle(webExId, webExVersionId, data);
                 }
             }
