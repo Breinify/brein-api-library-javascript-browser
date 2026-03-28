@@ -315,7 +315,7 @@
 
                 if (!$target || !$target.jquery || $target.length === 0) {
                     continue;
-                } else if (!$changedContainer.is($target) && $changedContainer.has($target).length === 0) {
+                } else if (!$target.is($changedContainer) && $target.has($changedContainer).length === 0) {
                     continue;
                 }
 

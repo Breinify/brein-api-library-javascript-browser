@@ -282,21 +282,10 @@
             return "br-marked-for-" + webExId + "-" + webExVersionId + "-" + recommenderName;
         },
 
-        _isChangedContainerRelevant: function ($changedContainer, $target) {
-            if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length === 0) {
-                return false;
-            } else if (!$target || !$target.jquery || $target.length === 0) {
-                return false;
-            }
-
-            return $changedContainer.is($target) || $changedContainer.has($target).length > 0;
-        },
-
         _findRequirements: function (webExId, webExVersionId, recs, $changedContainer, data) {
 
             /*
-             * Hot path: we only care about added elements. We explicitly ignore removals and
-             * attribute changes because recommenders should not re-render for those.
+             * Hot path: we only care about added elements. Ignore removals and attribute changes.
              */
             if (!$.isPlainObject(data) || data.type !== "added-element") {
                 return false;
@@ -315,18 +304,24 @@
                     continue;
                 }
 
+                /*
+                 * Align with recommendations plugin expectation:
+                 * 1. recommenderName
+                 * 2. changed container
+                 * 3. mutation meta data
+                 */
                 const recommenderName = this._recommenderName(rec);
                 const $target = func(recommenderName, $changedContainer, data);
 
                 if (!$target || !$target.jquery || $target.length === 0) {
                     continue;
-                } else if (!$changedContainer.is($target) && $changedContainer.has($target).length === 0) {
+                } else if (!$target.is($changedContainer) && $target.has($changedContainer).length === 0) {
                     continue;
                 }
 
                 const markerKey = this._createMarkerKey(webExId, webExVersionId, rec);
-
                 let shouldSelect = false;
+
                 $target.each(function () {
                     const $entry = $(this);
 
@@ -350,6 +345,7 @@
         }
     };
 
+    // bind the plugin
     Breinify.plugins._add("uiRecommendations", {
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
@@ -360,6 +356,11 @@
                 return;
             }
 
+            /*
+             * In the case that we have the rendering behavior configured to be "onChange" we need to observe the dom-tree
+             * via findRequirements. The detection of the path change is not enough in that case, and we need to render
+             * on every requirement fulfillment.
+             */
             const configOnLoad = [];
             const configOnChange = [];
 
@@ -387,7 +388,6 @@
                         type: "onLoad"
                     });
                 };
-
                 return;
             }
 
@@ -395,14 +395,6 @@
              * Mixed mode or only on-change recommenders.
              */
             module.findRequirements = function ($container, data) {
-                const selectedRecommenders = _private._findRequirements(
-                    webExId,
-                    webExVersionId,
-                    configOnChange,
-                    $container,
-                    data
-                );
-
                 const result = {};
 
                 if (runtime.onLoadHandled !== true && configOnLoad.length > 0) {
@@ -412,6 +404,14 @@
                         type: "onLoad"
                     };
                 }
+
+                const selectedRecommenders = _private._findRequirements(
+                    webExId,
+                    webExVersionId,
+                    configOnChange,
+                    $container,
+                    data
+                );
 
                 if ($.isArray(selectedRecommenders) && selectedRecommenders.length > 0) {
                     result.onChange = {
@@ -425,11 +425,11 @@
             };
 
             module.onChange = function (data) {
-                if ($.isPlainObject(data.onLoad)) {
+                if ($.isPlainObject(data?.onLoad)) {
                     _self.handle(webExId, webExVersionId, data.onLoad);
                 }
 
-                if ($.isPlainObject(data.onChange)) {
+                if ($.isPlainObject(data?.onChange)) {
                     _self.handle(webExId, webExVersionId, data.onChange);
                 }
             };
@@ -443,7 +443,7 @@
 
             Promise.resolve()
                 .then(() => _private.handle(webExId, webExVersionId, recommendations, config))
-                .catch(() => {
+                .catch(function () {
                     // intentionally swallowed to preserve existing behavior
                 });
         }
