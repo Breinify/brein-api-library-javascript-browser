@@ -10,6 +10,7 @@
     }
 
     const $ = Breinify.UTL._jquery();
+
     const _private = {
         idPrefix: 'web-experience-',
 
@@ -21,16 +22,15 @@
                 module.ready = null;
             }
 
-            // set up the activation-logic if it's defined and set up the check
+            // set up dynamic requirement wrappers first
+            this.setupDynamicRequirements(configuration, module);
+
+            // set up the activation logic for page validation
             this.setupActivityLogic(configuration, module);
         },
 
         setupActivityLogic: function (configuration, module) {
             const _self = this;
-
-            if (!$.isPlainObject(configuration?.activationLogic)) {
-                return;
-            }
 
             let currentIsValidPage = null;
             if ($.isFunction(module.isValidPage)) {
@@ -38,14 +38,63 @@
             }
 
             /**
-             * Checks if the current page (pathname) is valid for this module. If the method returns `true`, the
-             * `findRequirements` and `onChange` method may follow up.
+             * Checks if the current page is relevant for this module.
              *
-             * @return {boolean} returns `true` if the page is valid for this module, or `false` if no further execution should be handled
+             * For path-based activation logic this behaves as before.
+             * For attribute-based activation logic this only gates whether
+             * the page may participate at all; the actual DOM requirement
+             * is handled via findRequirements.
+             *
+             * @return {boolean} returns `true` if the page is valid for this module,
+             * otherwise `false`
              */
             module.isValidPage = function () {
                 return _self.checkActivityLogic(configuration, module) === true &&
                     (currentIsValidPage === null || currentIsValidPage.call(module) === true);
+            };
+        },
+
+        setupDynamicRequirements: function (configuration, module) {
+            const _self = this;
+
+            if (module._webExpDynamicRequirementsWrapped === true) {
+                return;
+            }
+
+            const observeAttribute = this.hasAttributeActivation(configuration);
+            const observePosition = this.hasDynamicPosition(configuration);
+
+            if (observeAttribute !== true && observePosition !== true) {
+                return;
+            }
+
+            const originalFindRequirements = $.isFunction(module.findRequirements) ? module.findRequirements : null;
+
+            module._webExpDynamicRequirementsWrapped = true;
+            module.renderingBehavior = 'onChange';
+
+            module.findRequirements = function ($el, data) {
+                let dynamicMatched = false;
+
+                if (observeAttribute === true &&
+                    _self.findAttributeRequirement(configuration, module, $el, data) === true) {
+                    dynamicMatched = true;
+                }
+
+                if (observePosition === true &&
+                    _self.findPositionRequirement(configuration, module, $el, data) === true) {
+                    dynamicMatched = true;
+                }
+
+                if (dynamicMatched !== true) {
+                    return false;
+                }
+
+                if (originalFindRequirements === null) {
+                    return true;
+                }
+
+                return originalFindRequirements.call(module, $el, data) === true;
             };
         },
 
@@ -106,7 +155,6 @@
                     }
                     break;
                 default:
-                    // undefined operator, we should add it in
                     return false;
             }
 
@@ -116,26 +164,25 @@
 
         checkActivityLogic: function (configuration, module) {
             if (!$.isPlainObject(configuration?.activationLogic)) {
-                return;
+                return true;
             }
 
             const logic = configuration.activationLogic;
             const paths = $.isArray(logic.paths) ? logic.paths : [];
+
             let isValidPage = paths.length === 0;
+            let hasAttributePath = false;
 
             for (let i = 0; i < paths.length && isValidPage === false; i++) {
                 const path = $.isPlainObject(paths[i]) ? paths[i] : {};
                 const type = Breinify.UTL.isNonEmptyString(path.type);
                 const value = Breinify.UTL.isNonEmptyString(path.value);
 
-                if (type === 'ALL_PATHS') {
+                if (type === 'ATTRIBUTE') {
+                    hasAttributePath = true;
+                    continue;
+                } else if (type === 'ALL_PATHS') {
                     isValidPage = true;
-                } else if (type === 'ATTRIBUTE') {
-                    this._setupAttribute(configuration, module);
-                    isValidPage = true;
-
-                    // we do not need to do anything else, the attribute is set up and active
-                    break;
                 } else if (value === null) {
                     console.warn('found invalid value that was not or an empty string');
                 } else if (type === 'STATIC_PATHS') {
@@ -143,14 +190,18 @@
                         isValidPage = true;
                     }
                 } else if (type === 'REGEX') {
-                    if (new RegExp(value).test(window.location.pathname) === true) {
-                        isValidPage = true;
+                    try {
+                        if (new RegExp(value).test(window.location.pathname) === true) {
+                            isValidPage = true;
+                        }
+                    } catch (e) {
+                        console.warn('found invalid regex "' + value + '" in the activation logic, skipping');
                     }
                 } else {
-                    console.warn('found undefined path type "' + path + '" in the activation logic, skipping');
+                    console.warn('found undefined path type "' + type + '" in the activation logic, skipping');
                 }
 
-                // if we have a valid-page and search params, we need to evaluate these next
+                // if we have a valid page and search params, evaluate these next
                 if (isValidPage === true && $.isArray(path.searchParameters) && path.searchParameters.length > 0) {
                     for (let j = 0; j < path.searchParameters.length && isValidPage === true; j++) {
 
@@ -160,106 +211,155 @@
                 }
             }
 
-            // if the page is not valid, we do not have to check the snippet
-            return isValidPage ? this._checkActivationSnippet(logic.snippet) : false;
-        },
-
-        _setupAttribute: function (configuration, module) {
-            const _self = this;
-
-            // prevent double wrapping and return true early
-            if (module._hasAttributeFindRequirements === true) {
-                return true;
-            } else {
-                module._hasAttributeFindRequirements = true;
+            /*
+             * ATTRIBUTE is DOM-driven activation. If we have at least one ATTRIBUTE path
+             * and no path-based rule has invalidated the page, the page is eligible and
+             * the actual activation happens via findRequirements.
+             */
+            if (isValidPage !== true && hasAttributePath === true) {
+                isValidPage = true;
             }
 
-            module.renderingBehavior = 'onChange';
-            module.findRequirements = function ($el, data) {
-                _self._findAttributeRequirements(module, $el, data);
-            };
+            // if the page is not valid, we do not have to check the snippet
+            return isValidPage === true ? this._checkActivationSnippet(logic.snippet) : false;
+        },
+
+        hasAttributeActivation: function (configuration) {
+            if (!$.isPlainObject(configuration?.activationLogic)) {
+                return false;
+            }
+
+            const paths = $.isArray(configuration.activationLogic.paths) ? configuration.activationLogic.paths : [];
+            for (let i = 0; i < paths.length; i++) {
+                const path = $.isPlainObject(paths[i]) ? paths[i] : {};
+                if (Breinify.UTL.isNonEmptyString(path.type) === 'ATTRIBUTE') {
+                    return true;
+                }
+            }
 
             return false;
         },
 
-        _findAttributeRequirements: function (module, $el, data) {
+        hasDynamicPosition: function (configuration) {
+            const position = $.isPlainObject(configuration?.position) ? configuration.position : null;
+            if (position === null) {
+                return false;
+            }
+
+            const renderingBehavior = Breinify.UTL.isNonEmptyString(position.renderingBehavior);
+            return renderingBehavior !== null && renderingBehavior.toLowerCase() === 'onchange';
+        },
+
+        findAttributeRequirement: function (configuration, module, $el, data) {
             const type = data?.type;
 
-            if (type === 'removed-element') {
+            if (type === 'attribute-change' && data?.attribute !== 'data-br-webexpid') {
                 return false;
-            } else if (type === 'attribute-change') {
-                if (data?.attribute !== 'data-br-webexpid') {
-                    return false;
-                }
-
-                const el = $el ? $el[0] : null;
-                if (this._isWebExpDiv(el, true)) {
-                    return this._handleAttribute(module, $el, data, el);
-                } else {
-                    return false;
-                }
             }
 
-            const root = $el ? $el[0] : null;
+            const root = $el && $el.length > 0 ? $el[0] : null;
             if (!root || root.nodeType !== 1) {
                 return false;
-            } else if (this._isWebExpDiv(root, false)) {
-                return this._handleAttribute(module, $el, data, root);
-            } else {
-                const match = root.querySelector('div[data-br-webexpid]:not([data-br-webexpfnd="true"])');
+            }
 
-                if (match) {
-                    return this._handleAttribute(module, $el, data, match);
-                } else {
-                    return false;
+            return this._findMatchingAttributeElement(module, root) !== null;
+        },
+
+        _findMatchingAttributeElement: function (module, root) {
+            if (this._isMatchingWebExpDiv(module, root) === true) {
+                return root;
+            }
+
+            if (!$.isFunction(root.querySelectorAll)) {
+                return null;
+            }
+
+            const candidates = root.querySelectorAll('div[data-br-webexpid]');
+            for (let i = 0; i < candidates.length; i++) {
+                if (this._isMatchingWebExpDiv(module, candidates[i]) === true) {
+                    return candidates[i];
                 }
             }
+
+            return null;
         },
 
-        _isWebExpDiv: function (el, ignoreFoundFlag) {
+        _isMatchingWebExpDiv: function (module, el) {
             if (!el || !Breinify.UTL.dom.isNodeType(el, 1) || el.tagName !== 'DIV') {
                 return false;
-            } else if (!el.hasAttribute('data-br-webexpid')) {
-                return false;
-            } else if (ignoreFoundFlag === true) {
-                return true;
-            } else {
-                return el.getAttribute('data-br-webexpfnd') !== 'true';
             }
+
+            const actualWebExpId = Breinify.UTL.isNonEmptyString(el.getAttribute('data-br-webexpid'));
+            if (actualWebExpId === null) {
+                return false;
+            }
+
+            const expectedWebExpId = Breinify.UTL.isNonEmptyString(module?.webExId);
+            if (expectedWebExpId === null) {
+                return true;
+            }
+
+            return actualWebExpId === expectedWebExpId;
         },
 
-        _handleAttribute: function (module, $el, data, el) {
+        findPositionRequirement: function (configuration, module, $el, data) {
+            const position = $.isPlainObject(configuration?.position) ? configuration.position : null;
+            if (position === null) {
+                return false;
+            }
 
-            // mark the element as handled
-            el.setAttribute('data-br-webexpfnd', 'true');
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+            const root = $el && $el.length > 0 ? $el[0] : null;
 
-            // read the information of the experience
-            const webExpId = el.getAttribute('data-br-webexpid');
-            const webExpPos = el.getAttribute('data-br-webexppos');
+            if (selector !== null) {
+                if (!root || root.nodeType !== 1) {
+                    return $(selector).length > 0;
+                }
 
-            const existingFindRequirements = $.isFunction(module.findRequirements) ? module.findRequirements : null;
-            if (existingFindRequirements === null) {
-                return true;
+                if ($.isFunction(root.matches) && root.matches(selector)) {
+                    return true;
+                }
+
+                return $.isFunction(root.querySelector) && root.querySelector(selector) !== null;
+            } else if (snippet !== null) {
+                const positionFunc = Breinify.plugins._isAdded('snippetManager') === true
+                    ? Breinify.plugins.snippetManager.getSnippet(snippet)
+                    : null;
+
+                if (!$.isFunction(positionFunc)) {
+                    return false;
+                }
+
+                try {
+                    const $anchor = $(positionFunc());
+                    return $anchor.length > 0;
+                } catch (e) {
+                    return false;
+                }
             } else {
-                return existingFindRequirements.call(this, $el, data);
+                return false;
             }
         },
 
         _checkActivationSnippet: function (logicSnippet) {
 
-            // get the snippet a not existing snippet means we return true
+            // get the snippet; a non-existing snippet means we return true
             const snippet = Breinify.UTL.isNonEmptyString(logicSnippet);
             if (snippet === null) {
                 return true;
             }
 
             // check if the snippet resolves, if so we utilize it, if not we return false as fallback
-            const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippet);
+            const activationSnippet = Breinify.plugins._isAdded('snippetManager') === true
+                ? Breinify.plugins.snippetManager.getSnippet(snippet)
+                : null;
+
             if ($.isFunction(activationSnippet)) {
                 try {
                     return activationSnippet() === true;
                 } catch (e) {
-                    console.error('[breinify] error occurred while executing activationSnippet: ', e)
+                    console.error('[breinify] error occurred while executing activationSnippet: ', e);
                     return false;
                 }
             } else {
@@ -283,17 +383,23 @@
                 return null;
             }
 
+            const normalizedOperation = Breinify.UTL.isNonEmptyString(operation);
+            if (normalizedOperation === null) {
+                return null;
+            }
+
+            const op = normalizedOperation.toLowerCase();
             const el = $el.get(0);
             const parent = el.parentNode;
             if (!parent || parent.nodeType !== 1) {
                 return null;
             }
 
-            if (operation === 'append' || operation === 'prepend') {
+            if (op === 'append' || op === 'prepend') {
                 return parent;
-            } else if (operation === 'before') {
+            } else if (op === 'before') {
                 return el.nextElementSibling;
-            } else if (operation === 'after') {
+            } else if (op === 'after') {
                 return el.previousElementSibling;
             } else {
                 return null;
@@ -302,38 +408,6 @@
     };
 
     const WebExperiences = {
-
-        determineActivationLogicType: function (configuration) {
-            if (!$.isPlainObject(configuration?.activationLogic)) {
-                return 'NONE';
-            }
-
-            const logic = configuration.activationLogic;
-            const paths = $.isArray(logic.paths) ? logic.paths : [];
-            if (paths.length) {
-                return 'ANY_PATH';
-            }
-
-            for (let i = 0; i < paths.length && isValidPage === false; i++) {
-                const path = $.isPlainObject(paths[i]) ? paths[i] : {};
-                const type = Breinify.UTL.isNonEmptyString(path.type);
-                const value = Breinify.UTL.isNonEmptyString(path.value);
-
-                if (type === 'ALL_PATHS') {
-                    return 'ANY_PATH';
-                } else if (type === 'ATTRIBUTE') {
-                    return 'BY_ATTRIBUTE';
-                } else if (value === null) {
-                    return 'INVALID';
-                } else if (type === 'STATIC_PATHS' || type === 'REGEX') {
-                    // nothing to do, there can be multiple, or we can find one of the override any
-                } else {
-                    return 'INVALID';
-                }
-            }
-
-            return 'BY_PATH';
-        },
 
         isBootstrapped: function (id) {
             const normId = _private.determineId(id);
@@ -361,7 +435,7 @@
 
             if (Breinify.plugins._isAdded('trigger') !== true) {
 
-                // if we don't have the trigger plugin stop now, it's a required dependency for web-experiences
+                // if we do not have the trigger plugin stop now, it is a required dependency for web-experiences
                 console.error('the trigger plugin is not available, ' +
                     'skipping setup of the web-experiences with id "' + id + '"');
                 return;
@@ -380,9 +454,11 @@
             Breinify.plugins.api.addModule(id, module);
         },
 
-        style(settings, $el, selector) {
+        style: function (settings, $el, selector) {
+            const snippetId = $.isPlainObject(settings?.style)
+                ? Breinify.UTL.isNonEmptyString(settings.style.snippet)
+                : null;
 
-            const snippetId = $.isPlainObject(settings.style) ? Breinify.UTL.isNonEmptyString(settings.style.snippet) : null;
             if (snippetId !== null && Breinify.plugins._isAdded('snippetManager')) {
                 const snippet = Breinify.UTL.isNonEmptyString(Breinify.plugins.snippetManager.getSnippet(snippetId));
                 if (snippet !== null) {
@@ -417,10 +493,11 @@
             }
 
             // determine the operation to utilize, it is needed
-            const operation = Breinify.UTL.isNonEmptyString(position.operation);
-            if (operation === null) {
+            const operationValue = Breinify.UTL.isNonEmptyString(position.operation);
+            if (operationValue === null) {
                 return false;
             }
+            const operation = operationValue.toLowerCase();
 
             // determine the anchor candidates
             let $anchor = null;
@@ -432,7 +509,9 @@
             } else if (selector !== null) {
                 $anchor = $(selector);
             } else if (snippet !== null) {
-                const positionFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
+                const positionFunc = Breinify.plugins._isAdded('snippetManager') === true
+                    ? Breinify.plugins.snippetManager.getSnippet(snippet)
+                    : null;
                 $anchor = $.isFunction(positionFunc) ? $(positionFunc()) : null;
             }
 
@@ -445,7 +524,7 @@
              * We attach the element to exactly one valid anchor.
              */
             const cardinality = Breinify.UTL.isNonEmptyString(placement.cardinality) || 'single';
-            if (cardinality !== 'single') {
+            if (cardinality.toLowerCase() !== 'single') {
                 return false;
             }
 
@@ -464,7 +543,6 @@
              */
             const currentAnchor = _private._resolveCurrentAnchor(operation, $el);
             if (currentAnchor !== null) {
-                const $currentAnchor = $(currentAnchor);
                 const isStillValid = $candidates.filter(function () {
                     return this === currentAnchor;
                 }).length > 0;
@@ -482,13 +560,12 @@
              */
             const previousAnchor = $el.data('br.webexp.attach.anchor');
             if (previousAnchor != null) {
-                const $previousAnchor = $(previousAnchor);
                 const isPreviousStillValid = $candidates.filter(function () {
                     return this === previousAnchor;
                 }).length > 0;
 
                 if (isPreviousStillValid) {
-                    const attached = Breinify.UTL.dom.attachByOperation(operation, $previousAnchor, $el);
+                    const attached = Breinify.UTL.dom.attachByOperation(operation, $(previousAnchor), $el);
                     if (attached === true) {
                         $el.data('br.webexp.attach.operation', operation);
                         $el.data('br.webexp.attach.anchor', previousAnchor);
@@ -505,8 +582,7 @@
                 return false;
             }
 
-            const $targetAnchor = $(targetAnchor);
-            const attached = Breinify.UTL.dom.attachByOperation(operation, $targetAnchor, $el);
+            const attached = Breinify.UTL.dom.attachByOperation(operation, $(targetAnchor), $el);
             if (attached === true) {
                 $el.data('br.webexp.attach.operation', operation);
                 $el.data('br.webexp.attach.anchor', targetAnchor);

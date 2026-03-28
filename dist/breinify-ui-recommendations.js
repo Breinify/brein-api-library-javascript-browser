@@ -304,25 +304,6 @@
             const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
 
             /*
-             * We have to check the activation logic since this may override the position, register happens before the
-             * bootstrap of the web-experience so we have to adapt the configuration.
-             */
-            const activationType = Breinify.plugins.webExperiences.determineActivationLogicType(config);
-            if (activationType === 'BY_ATTRIBUTE') {
-
-                for (const rec of recs) {
-                    rec.position = {
-                        renderingBehavior: 'onChange',
-                        operation: 'replace',
-                        selector: function() {
-
-                        }
-                    }
-                }
-            }
-
-
-            /*
              * In the case that we have the rendering behavior configured to be "onChange" we need to observe the dom-tree
              * via findRequirements. The detection of the path change is not enough in that case, and we need to render
              * on "every" requirement fulfillment.
