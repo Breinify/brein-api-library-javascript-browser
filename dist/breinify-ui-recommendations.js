@@ -161,7 +161,7 @@
             }
 
             const func = this._createPositionSelector(position);
-            return $.isFunction(func) ? { [operation]: func } : {};
+            return $.isFunction(func) ? {[operation]: func} : {};
         },
 
         _createPositionSelector: function (position) {
@@ -285,16 +285,25 @@
         _findRequirements: function (webExId, webExVersionId, recs, $changedContainer, data) {
 
             /*
-             * Hot path: we only care about added elements. Ignore removals and attribute changes.
+             * Hot path:
+             * - only react to added elements
+             * - require exactly one changed element container
              */
             if (!$.isPlainObject(data) || data.type !== "added-element") {
                 return false;
-            } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length === 0) {
+            } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
+                return false;
+            } else if (!$.isArray(recs) || recs.length === 0) {
                 return false;
             }
 
+            const markerContainerClass = Breinify.plugins.recommendations.marker.container;
+            const markerSelector = "." + markerContainerClass;
+            const changedEl = $changedContainer.get(0);
+
             const selectedRecs = [];
-            for (const rec of recs) {
+            for (let i = 0; i < recs.length; i++) {
+                const rec = recs[i];
                 if (!$.isPlainObject(rec)) {
                     continue;
                 }
@@ -309,15 +318,42 @@
 
                 if (!$target || !$target.jquery || $target.length === 0) {
                     continue;
-                } else if ($target.find("." + Breinify.plugins.recommendations.marker.container).length > 0 ||
-                    $target.hasClass(Breinify.plugins.recommendations.marker.container)) {
-                    continue;
-                } else if ($target.data("br-marked-for-" + webExId + "::" + webExVersionId) === "true") {
-                    continue;
-                } else {
-                    $target.data("br-marked-for-" + webExId + "::" + webExVersionId, "true");
-                    selectedRecs.push(rec);
                 }
+
+                /*
+                 * We only support selecting one target here.
+                 * If multiple are returned, use the first one deterministically.
+                 */
+                const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
+                const targetEl = $resolvedTarget.get(0);
+                if (!targetEl) {
+                    continue;
+                }
+
+                /*
+                 * If the target itself is already a rendered recommendation container, skip immediately.
+                 */
+                if ($resolvedTarget.hasClass(markerContainerClass)) {
+                    continue;
+                }
+
+                /*
+                 * Duplicate protection marker.
+                 */
+                const renderMarker = "br-marked-for-" + webExId + "::" + webExVersionId;
+                if ($resolvedTarget.data(renderMarker) === "true") {
+                    continue;
+                }
+
+                /*
+                 * Fast subtree check using native DOM first, instead of jQuery .find(...).
+                 */
+                if (targetEl.querySelector(markerSelector) !== null) {
+                    continue;
+                }
+
+                $resolvedTarget.data(renderMarker, "true");
+                selectedRecs.push(rec);
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
