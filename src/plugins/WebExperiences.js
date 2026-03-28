@@ -512,16 +512,17 @@
             }
         },
 
-        attach: function (webExpSettings, elementOrSupplier, placement) {
+        attach: function (webExpSettings, elOrSupplier, placement) {
 
             placement = $.extend(true, {
-                cardinality: "single"
+                cardinality: 'single',
+                key: null
             }, $.isPlainObject(placement) ? placement : {});
 
             const position = $.isPlainObject(webExpSettings) && $.isPlainObject(webExpSettings.position)
                 ? webExpSettings.position
                 : null;
-            if (position === null) {
+            if (position == null) {
                 return false;
             }
 
@@ -530,41 +531,48 @@
                 return false;
             }
 
-            let targets = null;
-            if ($.isArray(elementOrSupplier?._lastResolvedTargets?.positionTargets)) {
-                targets = elementOrSupplier._lastResolvedTargets.positionTargets;
+            let $anchor = null;
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+
+            if (selector === null && snippet === null) {
+                return false;
+            } else if (selector !== null) {
+                $anchor = $(selector);
+            } else if (snippet !== null) {
+                const positionFunc = Breinify.plugins._isAdded('snippetManager') === true
+                    ? Breinify.plugins.snippetManager.getSnippet(snippet)
+                    : null;
+                $anchor = $.isFunction(positionFunc) ? $(positionFunc()) : null;
             }
 
-            if (!$.isArray(targets) || targets.length === 0) {
-                targets = _private.resolvePositionTargets(webExpSettings, null, null);
-            }
-
-            if (!$.isArray(targets) || targets.length === 0) {
+            if (!$anchor || $anchor.length === 0) {
                 return false;
             }
 
-            const isSupplier = $.isFunction(elementOrSupplier);
-            const cardinality = isSupplier === true
-                ? (Breinify.UTL.isNonEmptyString(placement.cardinality) || "single").toLowerCase()
-                : "single";
+            const $candidates = $anchor.filter(function () {
+                return Breinify.UTL.dom.isNodeType(this, 1);
+            });
+
+            if ($candidates.length === 0) {
+                return false;
+            }
+
+            const cardinality = Breinify.UTL.isNonEmptyString(placement.cardinality) || 'single';
+            const isSupplier = $.isFunction(elOrSupplier);
 
             /*
-             * --------------------------------------------------
-             * BACKWARD-COMPATIBLE SINGLE INSTANCE MODE
-             * --------------------------------------------------
+             * SINGLE: old behavior, keep backward compatible.
              */
-            if (cardinality !== "multi") {
-                const $el = _private._createElementInstance(elementOrSupplier, {
-                    index: 0,
-                    anchor: targets[0],
-                    anchors: targets
-                });
-
-                if (!$el || $el.length === 0) {
+            if (cardinality !== 'multi') {
+                if (!isSupplier && (!elOrSupplier || elOrSupplier.length === 0)) {
                     return false;
                 }
 
-                const $candidates = $(targets);
+                const $el = isSupplier ? elOrSupplier() : elOrSupplier;
+                if (!$el || $el.length === 0) {
+                    return false;
+                }
 
                 const currentAnchor = _private._resolveCurrentAnchor(operation, $el);
                 if (currentAnchor !== null) {
@@ -573,33 +581,37 @@
                     }).length > 0;
 
                     if (isStillValid) {
-                        $el.data("br.webexp.attach.operation", operation);
-                        $el.data("br.webexp.attach.anchor", currentAnchor);
+                        $el.data('br.webexp.attach.operation', operation);
+                        $el.data('br.webexp.attach.anchor', currentAnchor);
                         return true;
                     }
                 }
 
-                const previousAnchor = $el.data("br.webexp.attach.anchor");
+                const previousAnchor = $el.data('br.webexp.attach.anchor');
                 if (previousAnchor != null) {
                     const isPreviousStillValid = $candidates.filter(function () {
                         return this === previousAnchor;
                     }).length > 0;
 
                     if (isPreviousStillValid) {
-                        const attachedPrev = Breinify.UTL.dom.attachByOperation(operation, $(previousAnchor), $el);
-                        if (attachedPrev === true) {
-                            $el.data("br.webexp.attach.operation", operation);
-                            $el.data("br.webexp.attach.anchor", previousAnchor);
+                        const attached = Breinify.UTL.dom.attachByOperation(operation, $(previousAnchor), $el);
+                        if (attached === true) {
+                            $el.data('br.webexp.attach.operation', operation);
+                            $el.data('br.webexp.attach.anchor', previousAnchor);
                             return true;
                         }
                     }
                 }
 
-                const targetAnchor = targets[0];
+                const targetAnchor = $candidates.get(0);
+                if (targetAnchor == null) {
+                    return false;
+                }
+
                 const attached = Breinify.UTL.dom.attachByOperation(operation, $(targetAnchor), $el);
                 if (attached === true) {
-                    $el.data("br.webexp.attach.operation", operation);
-                    $el.data("br.webexp.attach.anchor", targetAnchor);
+                    $el.data('br.webexp.attach.operation', operation);
+                    $el.data('br.webexp.attach.anchor', targetAnchor);
                     return true;
                 }
 
@@ -607,40 +619,52 @@
             }
 
             /*
-             * --------------------------------------------------
-             * MULTI INSTANCE MODE
-             * --------------------------------------------------
-             *
-             * Only supported when a supplier/constructor is passed.
-             * One new element instance is created per target anchor.
+             * MULTI: supplier required, dedupe per anchor.
              */
-            if (isSupplier !== true) {
+            if (!isSupplier) {
                 return false;
             }
 
-            let attachedCount = 0;
+            const attachKey = Breinify.UTL.isNonEmptyString(placement.key) ||
+                Breinify.UTL.isNonEmptyString(webExpSettings.webExId) ||
+                Breinify.UTL.isNonEmptyString(webExpSettings.webExVersionId) ||
+                Breinify.UTL.isNonEmptyString(selector) ||
+                Breinify.UTL.isNonEmptyString(snippet);
 
-            for (let i = 0; i < targets.length; i++) {
-                const targetAnchor = targets[i];
-                const $el = _private._createElementInstance(elementOrSupplier, {
-                    index: i,
-                    anchor: targetAnchor,
-                    anchors: targets
-                });
-
-                if (!$el || $el.length === 0) {
-                    continue;
-                }
-
-                const attached = Breinify.UTL.dom.attachByOperation(operation, $(targetAnchor), $el);
-                if (attached === true) {
-                    $el.data("br.webexp.attach.operation", operation);
-                    $el.data("br.webexp.attach.anchor", targetAnchor);
-                    attachedCount++;
-                }
+            if (attachKey === null) {
+                return false;
             }
 
-            return attachedCount > 0;
+            let attachedAny = false;
+            const dataKey = 'br.webexp.multi.' + attachKey;
+
+            $candidates.each(function () {
+                const anchor = this;
+                const $candidateAnchor = $(anchor);
+
+                /*
+                 * If this exact anchor already has an instance for this experience,
+                 * skip it.
+                 */
+                if ($candidateAnchor.data(dataKey) === true) {
+                    return;
+                }
+
+                const $newEl = elOrSupplier();
+                if (!$newEl || $newEl.length === 0) {
+                    return;
+                }
+
+                const attached = Breinify.UTL.dom.attachByOperation(operation, $candidateAnchor, $newEl);
+                if (attached === true) {
+                    $newEl.data('br.webexp.attach.operation', operation);
+                    $newEl.data('br.webexp.attach.anchor', anchor);
+                    $candidateAnchor.data(dataKey, true);
+                    attachedAny = true;
+                }
+            });
+
+            return attachedAny;
         }
     };
 
