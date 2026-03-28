@@ -3,9 +3,7 @@
 (function () {
     if (typeof Breinify !== "object") {
         return;
-    }
-    // make sure the plugin isn't loaded yet
-    else if (Breinify.plugins._isAdded("uiSurvey")) {
+    } else if (Breinify.plugins._isAdded("uiSurvey")) {
         return;
     }
 
@@ -20,15 +18,12 @@
 
             this.attachShadow({mode: "open"});
 
-            // configuration flags (set from runtime via settings.popup)
             this.closeOnBackgroundClick = false;
             this.resetOnClose = true;
             this.meta = {};
         }
 
         render(settings) {
-
-            // only render once
             if (this.shadowRoot.childNodes.length > 0) {
                 return;
             }
@@ -36,9 +31,6 @@
             const popupBaseStyleId = "br-survey-popup-style";
             this.shadowRoot.innerHTML = `
                 <style id="${popupBaseStyleId}">
-                    /* -------------------------------------------------- */
-                    /* Popup chrome (backdrop, dialog)                    */
-                    /* -------------------------------------------------- */
                     :host {
                         display: none;
                         position: fixed;
@@ -49,7 +41,9 @@
                         font-size: var(--br-ui-base-font-size);
                     }
 
-                    :host([open]) { display: block; }
+                    :host([open]) {
+                        display: block;
+                    }
 
                     .br-popup-backdrop {
                         position: fixed;
@@ -113,7 +107,9 @@
                     }
 
                     @media (max-width: 640px) {
-                        .br-popup-outer { align-items: stretch; }
+                        .br-popup-outer {
+                            align-items: stretch;
+                        }
 
                         .br-popup-dialog {
                             width: 100%;
@@ -124,7 +120,10 @@
                             box-shadow: none;
                         }
 
-                        .br-popup-body { flex: 1 1 auto; overflow: auto; }
+                        .br-popup-body {
+                            flex: 1 1 auto;
+                            overflow: auto;
+                        }
                     }
 
                     ${this._ensurePageStyle()}
@@ -133,13 +132,9 @@
                 <div class="br-popup-backdrop" part="backdrop"></div>
                 <div class="br-popup-outer">
                     <div class="br-popup-dialog" role="dialog" aria-modal="true">
-                        <button type="button" class="br-popup-close" aria-label="Close survey">
-                            &times;
-                        </button>
+                        <button type="button" class="br-popup-close" aria-label="Close survey">&times;</button>
                         <div class="br-popup-body">
-                            <div class="br-popup-placeholder">
-                                Survey content will appear here…
-                            </div>
+                            <div class="br-popup-placeholder">Survey content will appear here…</div>
                         </div>
                         <div class="br-popup-footer"></div>
                     </div>
@@ -485,6 +480,7 @@
                     if (window.innerWidth && window.innerWidth <= 640) {
                         return;
                     }
+
                     if (this._shouldCloseOnBackgroundClick()) {
                         this.close("backdrop");
                     }
@@ -500,6 +496,7 @@
             if (typeof this.closeOnBackgroundClick === "boolean") {
                 return this.closeOnBackgroundClick;
             }
+
             return false;
         }
 
@@ -524,9 +521,14 @@
 
             document.body.classList.remove("br-survey-scroll-lock");
 
-            const detail = Object.assign({}, $.isPlainObject(this.meta) ? this.meta : {}, $.isPlainObject(meta) ? meta : {}, {
-                reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
-            });
+            const detail = Object.assign(
+                {},
+                $.isPlainObject(this.meta) ? this.meta : {},
+                $.isPlainObject(meta) ? meta : {},
+                {
+                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
+                }
+            );
 
             this.dispatchEvent(new CustomEvent("br-ui-survey:popup-closed", {
                 bubbles: true,
@@ -628,7 +630,9 @@
         }
 
         _createTrigger() {
-            const triggerCfg = (this.settings && this.settings.trigger) || {};
+            const triggerCfg = $.isPlainObject(this.settings) && $.isPlainObject(this.settings.trigger)
+                ? this.settings.trigger
+                : {};
 
             const desktopUrl = Breinify.UTL.isNonEmptyString(triggerCfg.bannerUrl);
             const mobileUrl = Breinify.UTL.isNonEmptyString(triggerCfg.mobileBannerUrl) || desktopUrl;
@@ -705,6 +709,8 @@
 
             let runtime = this.runtimeByWebExVersionId[webExVersionId];
             if ($.isPlainObject(runtime)) {
+                runtime.module = module;
+                runtime.settings = $.isPlainObject(settings) ? settings : {};
                 return runtime;
             }
 
@@ -721,7 +727,8 @@
                 _resetOnClose: true,
                 _historyIntegrationAttached: false,
                 _boundPopStateHandler: null,
-                _sessionId: null
+                _sessionId: null,
+                _multiAttached: false
             };
 
             this._loadStructureFromSettings(runtime);
@@ -774,6 +781,7 @@
 
             popup.closeOnBackgroundClick = this._getCloseOnBackgroundClickSetting(runtime);
             runtime._resetOnClose = this._getResetOnCloseSetting(runtime);
+
             return popup;
         },
 
@@ -861,6 +869,7 @@
                             sessionId: runtime._sessionId
                         });
                     }
+
                     this._resetSurveyState(runtime);
                     return;
                 }
@@ -1214,7 +1223,9 @@
 
                 const question = node && node.data ? node.data.question : null;
                 const answers = Array.isArray(node && node.data ? node.data.answers : null) ? node.data.answers : [];
-                const answer = answers.find(a => a && a._id === answerId) || null;
+                const answer = answers.find(function (a) {
+                    return a && a._id === answerId;
+                }) || null;
 
                 if (!answer) {
                     missingAnswers.push({questionId: questionId, answerId: answerId});
@@ -1248,6 +1259,7 @@
                     if (!kv || typeof kv.key !== "string") {
                         continue;
                     }
+
                     attributes[kv.key] = kv.value;
                 }
             }
@@ -1449,7 +1461,6 @@
         },
 
         _requestRecommendations: function (runtime, popup, container, node) {
-            const _self = this;
             const data = $.isPlainObject(node.data) ? node.data : {};
 
             popup.setBodyContent(container);
@@ -1506,7 +1517,7 @@
                     payload: recPayload
                 },
                 process: {
-                    attachedContainer: function ($attachedContainer, $itemContainer, recData, option) {
+                    attachedContainer: function ($attachedContainer, $itemContainer, recData) {
                         const additional = recData && $.isPlainObject(recData.additionalData) ? recData.additionalData : {};
 
                         const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
@@ -1762,82 +1773,30 @@
             this._fireOpenedEvent(runtime);
         },
 
-        _resolveAnchorCandidates: function (config) {
-            const position = $.isPlainObject(config) && $.isPlainObject(config.position) ? config.position : null;
-            if (position == null) {
-                return {
-                    operation: null,
-                    $anchors: $()
-                };
-            }
-
-            const operation = Breinify.UTL.isNonEmptyString(position.operation);
-            if (operation === null) {
-                return {
-                    operation: null,
-                    $anchors: $()
-                };
-            }
-
-            let $anchors = $();
-            const selector = Breinify.UTL.isNonEmptyString(position.selector);
-            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
-
-            if (selector !== null) {
-                $anchors = $(selector);
-            } else if (snippet !== null) {
-                const positionFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
-                $anchors = $.isFunction(positionFunc) ? $(positionFunc()) : $();
-            }
-
-            $anchors = $anchors.filter(function () {
-                return this && this.nodeType === 1;
-            });
-
-            return {
-                operation: operation,
-                $anchors: $anchors
-            };
+        createTriggerElement: function (runtime) {
+            const trigger = document.createElement(generalSurveyElementName);
+            trigger.setAttribute("data-br-survey-webexversionid", runtime.webExVersionId);
+            return $(trigger);
         },
 
         ensureTriggers: function (runtime) {
-            const resolved = this._resolveAnchorCandidates(runtime.settings);
-            const operation = resolved.operation;
-            const $anchors = resolved.$anchors;
+            this.cleanupTriggers(runtime);
 
-            if (operation === null || !$anchors || $anchors.length === 0) {
+            if (runtime._multiAttached === true) {
+                this.cleanupTriggers(runtime);
                 return;
             }
 
-            const markerKey = "br.uiSurvey.trigger." + runtime.webExVersionId;
-
-            $anchors.each((idx, anchor) => {
-                const $anchor = $(anchor);
-                let trigger = $anchor.data(markerKey);
-
-                if (!trigger) {
-                    trigger = document.createElement(generalSurveyElementName);
-                    trigger.setAttribute("data-br-survey-webexversionid", runtime.webExVersionId);
-
-                    const attached = Breinify.UTL.dom.attachByOperation(operation, $anchor, $(trigger));
-                    if (attached !== true) {
-                        return;
-                    }
-
-                    $anchor.data(markerKey, trigger);
-                } else if (trigger.isConnected !== true) {
-                    const attached = Breinify.UTL.dom.attachByOperation(operation, $anchor, $(trigger));
-                    if (attached !== true) {
-                        return;
-                    }
-                }
+            const supplier = () => {
+                const $trigger = this.createTriggerElement(runtime);
+                const trigger = $trigger.get(0);
 
                 this.registerTrigger(runtime, trigger);
 
                 Breinify.plugins.uiSurvey.attachEventListeners(
                     trigger,
                     runtime.webExVersionId,
-                    function (eventName, detail) {
+                    (eventName, detail) => {
                         const metadata = {
                             version: runtime.module.version,
                             created: runtime.module.created,
@@ -1850,7 +1809,17 @@
                 trigger.render(runtime.webExVersionId, runtime.settings, () => {
                     this.openSurvey(runtime.webExVersionId);
                 });
+
+                return $trigger;
+            };
+
+            const attached = Breinify.plugins.webExperiences.attach(runtime.settings, supplier, {
+                cardinality: "multi"
             });
+
+            if (attached === true) {
+                runtime._multiAttached = true;
+            }
         }
     };
 
@@ -1960,6 +1929,7 @@
                     if (!isAllowed(name)) {
                         return;
                     }
+
                     handler(name, evt && evt.detail ? evt.detail : null);
                 };
             };
@@ -2004,9 +1974,13 @@
             const globalStyleId = "br-survey-global-style";
             if ($("#" + globalStyleId).length === 0) {
                 $("body").prepend(`
-                  <style id="${globalStyleId}">
-                    .br-survey-scroll-lock { overflow: hidden !important; touch-action: none !important; overscroll-behavior: none !important; }
-                  </style>
+                    <style id="${globalStyleId}">
+                        .br-survey-scroll-lock {
+                            overflow: hidden !important;
+                            touch-action: none !important;
+                            overscroll-behavior: none !important;
+                        }
+                    </style>
                 `);
             }
 
