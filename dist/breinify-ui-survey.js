@@ -1782,11 +1782,6 @@
         ensureTriggers: function (runtime) {
             this.cleanupTriggers(runtime);
 
-            if (runtime._multiAttached === true) {
-                this.cleanupTriggers(runtime);
-                return;
-            }
-
             const supplier = () => {
                 const $trigger = this.createTriggerElement(runtime);
                 const trigger = $trigger.get(0);
@@ -1813,13 +1808,9 @@
                 return $trigger;
             };
 
-            const attached = Breinify.plugins.webExperiences.attach(runtime.settings, supplier, {
+            Breinify.plugins.webExperiences.attach(runtime.settings, supplier, {
                 cardinality: "multi"
             });
-
-            if (attached === true) {
-                runtime._multiAttached = true;
-            }
         }
     };
 
