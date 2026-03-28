@@ -57,6 +57,15 @@
                 return;
             }
 
+            console.log('[countdown-status]', {
+                uuid: this.uuid,
+                id: this.id,
+                webExVersionId: this.settings && this.settings.webExVersionId,
+                status: status,
+                value: value,
+                isConnected: this.isConnected
+            });
+
             // current settings
             let current = this.countdownById[el.uuid];
             current = $.isPlainObject(current) ? current : {};
@@ -87,6 +96,14 @@
 
                 // the status 'failed', 'ignored', and 'rendering' is considered final
                 if (cd.status === 'initializing') {
+                    console.log('[countdown-blocked]', Object.values(this.countdownById).map(cd => ({
+                        uuid: cd.el && cd.el.uuid,
+                        id: cd.el && cd.el.id,
+                        webExVersionId: cd.el && cd.el.settings && cd.el.settings.webExVersionId,
+                        status: cd.status,
+                        value: cd.value,
+                        isConnected: cd.el && cd.el.isConnected
+                    })));
                     return;
                 } else if (cd.status !== 'rendering') {
                     overallInfo.noShow.push(cd.el.uuid);
