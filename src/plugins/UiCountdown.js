@@ -899,9 +899,14 @@
             // let's find the element in the DOM-tree and create it if not there
             const countdownId = 'br-ui-countdown-' + module.webExVersionId;
             let $countdown = $('br-ui-countdown#' + countdownId);
-            if ($countdown.length === 0) {
-                $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
+
+            if ($countdown.length > 0) {
+                $countdown.get(0).render();
+                return;
             }
+
+            // create a new element for this countdown and configure it, once configured render it
+            $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
 
             // apply the configuration and render it on the DOM-tree once the configuration is loaded
             const countdown = $countdown.get(0);
