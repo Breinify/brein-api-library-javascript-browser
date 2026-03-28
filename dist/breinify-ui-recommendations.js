@@ -304,39 +304,18 @@
                     continue;
                 }
 
-                /*
-                 * Align with recommendations plugin expectation:
-                 * 1. recommenderName
-                 * 2. changed container
-                 * 3. mutation meta data
-                 */
                 const recommenderName = this._recommenderName(rec);
                 const $target = func(recommenderName, $changedContainer, data);
 
                 if (!$target || !$target.jquery || $target.length === 0) {
                     continue;
-                } else if (!$target.is($changedContainer) && $target.has($changedContainer).length === 0) {
+                } else if ($target.find("." + Breinify.plugins.recommendations.marker.container).length > 0 ||
+                    $target.hasClass(Breinify.plugins.recommendations.marker.container)) {
                     continue;
-                }
-
-                const markerKey = this._createMarkerKey(webExId, webExVersionId, rec);
-                let shouldSelect = false;
-
-                $target.each(function () {
-                    const $entry = $(this);
-
-                    if ($entry.find("." + Breinify.plugins.recommendations.marker.container).length > 0 ||
-                        $entry.hasClass(Breinify.plugins.recommendations.marker.container)) {
-                        return;
-                    } else if ($entry.data(markerKey) === "true") {
-                        return;
-                    }
-
-                    $entry.data(markerKey, "true");
-                    shouldSelect = true;
-                });
-
-                if (shouldSelect === true) {
+                } else if ($target.data("br-marked-for-" + webExId + "::" + webExVersionId) === "true") {
+                    continue;
+                } else {
+                    $target.data("br-marked-for-" + webExId + "::" + webExVersionId, "true");
                     selectedRecs.push(rec);
                 }
             }
