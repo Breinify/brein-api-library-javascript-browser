@@ -28,7 +28,8 @@
 
             runtime = {
                 webExVersionId: normalizedWebExVersionId,
-                onLoadHandled: false
+                onLoadHandled: false,
+                onLoadHandling: false
             };
 
             this._runtimeByVersionId[normalizedWebExVersionId] = runtime;
@@ -50,31 +51,42 @@
             /*
              * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
              * This protects against repeated trigger executions caused by DOM changes or history handling.
+             * We additionally guard against parallel/in-flight onLoad handling.
              */
-            if (handlingType === "onLoad" && runtime.onLoadHandled === true) {
-                return;
-            }
-
-            const results = await Promise.all(
-                normalizedRecommendations.map(recommendation =>
-                    Promise.resolve()
-                        .then(() => this._handle(webExId, webExVersionId, recommendation))
-                        .catch(err => {
-                            console.error(err);
-                            return null;
-                        })
-                )
-            );
-
-            const filteredResults = results.filter(entry => $.isPlainObject(entry));
-            if (filteredResults.length === 0) {
-                return;
-            }
-
-            Breinify.plugins.recommendations.render(filteredResults);
-
             if (handlingType === "onLoad") {
-                runtime.onLoadHandled = true;
+                if (runtime.onLoadHandled === true || runtime.onLoadHandling === true) {
+                    return;
+                }
+
+                runtime.onLoadHandling = true;
+            }
+
+            try {
+                const results = await Promise.all(
+                    normalizedRecommendations.map(recommendation =>
+                        Promise.resolve()
+                            .then(() => this._handle(webExId, webExVersionId, recommendation))
+                            .catch(err => {
+                                console.error(err);
+                                return null;
+                            })
+                    )
+                );
+
+                const filteredResults = results.filter(entry => $.isPlainObject(entry));
+                if (filteredResults.length === 0) {
+                    return;
+                }
+
+                Breinify.plugins.recommendations.render(filteredResults);
+
+                if (handlingType === "onLoad") {
+                    runtime.onLoadHandled = true;
+                }
+            } finally {
+                if (handlingType === "onLoad") {
+                    runtime.onLoadHandling = false;
+                }
             }
         },
 
@@ -161,7 +173,7 @@
             }
 
             const func = this._createPositionSelector(position);
-            return $.isFunction(func) ? {[operation]: func} : {};
+            return $.isFunction(func) ? { [operation]: func } : {};
         },
 
         _createPositionSelector: function (position) {
@@ -279,15 +291,15 @@
 
         _createMarkerKey: function (webExId, webExVersionId, rec) {
             const recommenderName = this._recommenderName(rec) || "unknown";
-            return "br-marked-for-" + webExId + "-" + webExVersionId + "-" + recommenderName;
+            return "br-marked-for-" + webExId + "::" + webExVersionId + "::" + recommenderName;
         },
 
         _findRequirements: function (webExId, webExVersionId, recs, $changedContainer, data) {
-
             /*
              * Hot path:
              * - only react to added elements
              * - require exactly one changed element container
+             * - require recommenders to be configured
              */
             if (!$.isPlainObject(data) || data.type !== "added-element") {
                 return false;
@@ -299,7 +311,6 @@
 
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
-            const changedEl = $changedContainer.get(0);
 
             const selectedRecs = [];
             for (let i = 0; i < recs.length; i++) {
@@ -315,40 +326,25 @@
 
                 const recommenderName = this._recommenderName(rec);
                 const $target = func(recommenderName, $changedContainer, data);
-
                 if (!$target || !$target.jquery || $target.length === 0) {
                     continue;
                 }
 
                 /*
-                 * We only support selecting one target here.
-                 * If multiple are returned, use the first one deterministically.
+                 * Keep selection deterministic.
+                 * If multiple are returned, use the first one.
                  */
                 const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
                 const targetEl = $resolvedTarget.get(0);
+                const renderMarker = this._createMarkerKey(webExId, webExVersionId, rec);
+
                 if (!targetEl) {
                     continue;
-                }
-
-                /*
-                 * If the target itself is already a rendered recommendation container, skip immediately.
-                 */
-                if ($resolvedTarget.hasClass(markerContainerClass)) {
+                } else if ($resolvedTarget.hasClass(markerContainerClass)) {
                     continue;
-                }
-
-                /*
-                 * Duplicate protection marker.
-                 */
-                const renderMarker = "br-marked-for-" + webExId + "::" + webExVersionId;
-                if ($resolvedTarget.data(renderMarker) === "true") {
+                } else if ($resolvedTarget.data(renderMarker) === "true") {
                     continue;
-                }
-
-                /*
-                 * Fast subtree check using native DOM first, instead of jQuery .find(...).
-                 */
-                if (targetEl.querySelector(markerSelector) !== null) {
+                } else if (targetEl.querySelector(markerSelector) !== null) {
                     continue;
                 }
 
@@ -379,7 +375,8 @@
             const configOnLoad = [];
             const configOnChange = [];
 
-            for (const rec of recs) {
+            for (let i = 0; i < recs.length; i++) {
+                const rec = recs[i];
                 const position = $.isPlainObject(rec) && $.isPlainObject(rec.position) ? rec.position : {};
 
                 let behavior = Breinify.UTL.isNonEmptyString(position.renderingBehavior);
@@ -412,7 +409,9 @@
             module.findRequirements = function ($container, data) {
                 const result = {};
 
-                if (runtime.onLoadHandled !== true && configOnLoad.length > 0) {
+                if (runtime.onLoadHandled !== true &&
+                    runtime.onLoadHandling !== true &&
+                    configOnLoad.length > 0) {
                     result.onLoad = {
                         activationLogic: config.activationLogic,
                         recommendations: configOnLoad,
