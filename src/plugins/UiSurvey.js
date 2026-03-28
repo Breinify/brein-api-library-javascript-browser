@@ -20,14 +20,15 @@
 
             this.attachShadow({mode: "open"});
 
-            // configuration flags (set from UiSurvey via settings.popup)
-            this.closeOnBackgroundClick = false; // default behavior: don't close on background
-            this.resetOnClose = true;           // informational; actual reset is handled in UiSurvey
+            // configuration flags (set from runtime via settings.popup)
+            this.closeOnBackgroundClick = false;
+            this.resetOnClose = true;
+            this.meta = {};
         }
 
         render(settings) {
 
-            // Only render once
+            // only render once
             if (this.shadowRoot.childNodes.length > 0) {
                 return;
             }
@@ -42,9 +43,8 @@
                         display: none;
                         position: fixed;
                         inset: 0;
-                        z-index: 2147483647; /* very high to be above most things */
+                        z-index: 2147483647;
                         font-family: inherit;
-                        /* base font-size for everything inside the popup */
                         --br-ui-base-font-size: 20px;
                         font-size: var(--br-ui-base-font-size);
                     }
@@ -141,23 +141,15 @@
                                 Survey content will appear here…
                             </div>
                         </div>
-                        <div class="br-popup-footer">
-                            <!-- Navigation and CTA controls will go here -->
-                        </div>
+                        <div class="br-popup-footer"></div>
                     </div>
                 </div>
             `;
 
-            // attach the configuration style to the popup (it's otherwise not available in the shadow-root)
-            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot), '#' + popupBaseStyleId);
-
+            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot), "#" + popupBaseStyleId);
             this._bindBaseEvents();
         }
 
-        /**
-         * Styles for the survey pages rendered inside the popup body.
-         * Any future page-related styling should go here.
-         */
         _ensurePageStyle() {
             return `
                 :host {
@@ -166,9 +158,6 @@
                     --br-survey-line-height-tight: 1.2;
                 }
 
-                /* -------------------------------------------------- */
-                /* Question page + answers                            */
-                /* -------------------------------------------------- */
                 .br-survey-page--question {
                     display: flex;
                     flex-direction: column;
@@ -230,17 +219,15 @@
 
                 .br-survey-answer__title {
                     font-weight: 600;
-                    font-size: .9em;
+                    font-size: 0.9em;
                     margin: 0;
                     line-height: var(--br-survey-line-height-tight);
                 }
 
-                /* add spacing only when a description exists */
                 .br-survey-answer--has-description .br-survey-answer__title {
                     margin-bottom: 0.2em;
                 }
-                
-                /* reduce padding if an image exists */
+
                 .br-survey-answer--has-image {
                     padding: 0.5em 1em 0.5em 0.5em;
                 }
@@ -277,7 +264,6 @@
                     justify-content: center;
                 }
 
-                /* title-only answers (no image, no description) */
                 .br-survey-answer--simple {
                     align-items: center;
                     min-height: 2.8em;
@@ -285,9 +271,6 @@
                     padding-bottom: 0.7em;
                 }
 
-                /* -------------------------------------------------- */
-                /* Recommendation page + skeleton                     */
-                /* -------------------------------------------------- */
                 .br-survey-page--recommendation {
                     display: flex;
                     flex-direction: column;
@@ -333,21 +316,12 @@
                     margin-bottom: 0.35em;
                 }
 
-                .br-survey-skeleton-line--short {
-                    width: 60%;
-                }
-
-                .br-survey-skeleton-line--medium {
-                    width: 80%;
-                }
+                .br-survey-skeleton-line--short { width: 60%; }
+                .br-survey-skeleton-line--medium { width: 80%; }
 
                 @keyframes br-survey-skeleton-pulse {
-                    0% {
-                        background-position: 200% 0;
-                    }
-                    100% {
-                        background-position: -200% 0;
-                    }
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
                 }
 
                 .br-survey-reco-card {
@@ -373,7 +347,7 @@
                     height: 100%;
                     background: #ddd;
                 }
-                
+
                 .br-survey-reco-card-thumb-inner img {
                     width: 100%;
                 }
@@ -384,9 +358,6 @@
                     margin: 0;
                 }
 
-                /* -------------------------------------------------- */
-                /* Footer controls                                    */
-                /* -------------------------------------------------- */
                 .br-survey-footer-controls {
                     display: flex;
                     justify-content: flex-end;
@@ -400,7 +371,7 @@
                 }
 
                 .br-survey-footer-controls--with-hint .br-survey-hint {
-                    margin-right: auto; /* push buttons to the right, keep their own gap */
+                    margin-right: auto;
                 }
 
                 .br-survey-hint {
@@ -410,21 +381,20 @@
                     max-width: 60%;
                     white-space: normal;
                     text-align: left;
-                    /* reserve enough height so footer doesn't jump */
-                    min-height: 2.4em; /* tweak as needed for two lines */
+                    min-height: 2.4em;
                 }
-                
+
                 .br-survey-hint-title {
                     font-weight: 600;
                     margin: 0 0 0.15em;
                 }
-                
+
                 .br-survey-hint-list {
                     margin: 0;
-                    padding: 0 0 0 1.1em; /* indent bullets only */
+                    padding: 0 0 0 1.1em;
                     list-style: disc;
                 }
-                
+
                 .br-survey-hint-list li {
                     margin: 0.1em 0;
                     padding: 0;
@@ -432,8 +402,7 @@
                     white-space: normal;
                     line-height: var(--br-survey-line-height-tight);
                 }
-                
-                /* invisible, but preserves layout/height */
+
                 .br-survey-hint--hidden {
                     visibility: hidden;
                 }
@@ -473,7 +442,6 @@
                     border-color: #000;
                 }
 
-                /* disabled state: softer color, no hover, not-allowed cursor */
                 .br-survey-btn--next:disabled,
                 .br-survey-btn--next[disabled] {
                     background: #ddd;
@@ -500,8 +468,7 @@
                 .br-survey-btn--back:hover {
                     background: #eee;
                 }
-                
-                /* ensure popup body scrolls smoothly */
+
                 .br-popup-body {
                     overflow-y: auto;
                     -webkit-overflow-scrolling: touch;
@@ -515,7 +482,6 @@
 
             if (backdrop) {
                 backdrop.addEventListener("click", () => {
-                    // desktop-only behavior for background-close
                     if (window.innerWidth && window.innerWidth <= 640) {
                         return;
                     }
@@ -524,15 +490,12 @@
                     }
                 });
             }
+
             if (closeBtn) {
                 closeBtn.addEventListener("click", () => this.close("close-button"));
             }
         }
 
-        /**
-         * Decide if backdrop click should close the popup.
-         * Defaults to false unless explicitly overridden.
-         */
         _shouldCloseOnBackgroundClick() {
             if (typeof this.closeOnBackgroundClick === "boolean") {
                 return this.closeOnBackgroundClick;
@@ -573,16 +536,12 @@
             }));
         }
 
-        /**
-         * Replace the popup body with arbitrary content.
-         */
         setBodyContent(contentNode) {
             const body = this.shadowRoot.querySelector(".br-popup-body");
             if (!body) {
                 return;
             }
 
-            // Clear current content
             while (body.firstChild) {
                 body.removeChild(body.firstChild);
             }
@@ -592,9 +551,6 @@
             }
         }
 
-        /**
-         * Replace the popup footer with arbitrary content.
-         */
         setFooterContent(contentNode) {
             const footer = this.shadowRoot.querySelector(".br-popup-footer");
             if (!footer) {
@@ -611,46 +567,22 @@
         }
     }
 
-    class UiSurvey extends HTMLElement {
+    class UiSurveyTrigger extends HTMLElement {
         $shadowRoot = null;
         settings = null;
         webExVersionId = null;
+        openHandler = null;
+        isRendered = false;
 
         constructor() {
             super();
-
             this.attachShadow({mode: "open"});
-
-            this.webExVersionId = null;
             this.$shadowRoot = $(this.shadowRoot);
             this.settings = {};
-            this._selectedAnswers = {};
-
-            this._nodesById = {};
-            this._edges = [];
-            this._currentNodeId = null;
-            this._history = [];
-
-            this._resetOnClose = true;
-
-            // history integration
-            this._historyIntegrationAttached = false;
-            this._boundPopStateHandler = null;
-            this._sessionId = null;
+            this.webExVersionId = null;
+            this.openHandler = null;
         }
 
-        disconnectedCallback() {
-            if (this._boundPopStateHandler) {
-                window.removeEventListener("popstate", this._boundPopStateHandler);
-                this._boundPopStateHandler = null;
-            }
-        }
-
-        /**
-         * Inject minimal default styles into the shadow root.
-         * These are intentionally neutral so the component works
-         * on any site without clashing with page styles.
-         */
         _ensureBaseStyle() {
             const styleId = "br-ui-survey-style";
             if (this.$shadowRoot.find("#" + styleId).length > 0) {
@@ -663,7 +595,6 @@
                     box-sizing: border-box;
                     font-family: inherit;
                     color: inherit;
-                    /* allow integrator to override if needed */
                     --br-ui-base-font-size: 20px;
                     font-size: var(--br-ui-base-font-size);
                 }
@@ -671,19 +602,21 @@
                 *, *::before, *::after { box-sizing: border-box; }
 
                 .br-survey-root { width: 100%; }
-                .br-survey-container { width: 100%; }
                 .br-survey-hidden { display: none !important; }
 
-                /* -------------------------------------------------- */
-                /* Trigger banner styling (desktop + mobile)          */
-                /* -------------------------------------------------- */
                 .br-survey-trigger {
                     display: inline-block;
                     cursor: pointer;
                     width: 100%;
                 }
 
-                .br-survey-trigger-image { width: 100%; height: auto; border: 0; }
+                .br-survey-trigger-image {
+                    width: 100%;
+                    height: auto;
+                    border: 0;
+                    display: block;
+                }
+
                 .br-survey-trigger-image.br-survey-trigger-desktop { display: block; }
                 .br-survey-trigger-image.br-survey-trigger-mobile { display: none; }
 
@@ -694,225 +627,327 @@
             </style>`));
         }
 
-        /**
-         * Helper to read popup.closeOnBackgroundClick from config.
-         * default: false
-         */
-        _getCloseOnBackgroundClickSetting() {
-            if ($.isPlainObject(this.settings) &&
-                $.isPlainObject(this.settings.popup) &&
-                typeof this.settings.popup.closeOnBackgroundClick === "boolean") {
-                return this.settings.popup.closeOnBackgroundClick;
+        _createTrigger() {
+            const triggerCfg = (this.settings && this.settings.trigger) || {};
+
+            const desktopUrl = Breinify.UTL.isNonEmptyString(triggerCfg.bannerUrl);
+            const mobileUrl = Breinify.UTL.isNonEmptyString(triggerCfg.mobileBannerUrl) || desktopUrl;
+
+            const $root = $('<div class="br-survey-root"></div>');
+            const $trigger = $("<div/>", {
+                class: "br-survey-trigger",
+                role: "button",
+                tabindex: 0,
+                "aria-label": "Start survey"
+            });
+
+            if (desktopUrl !== null) {
+                $trigger.append($('<img class="br-survey-trigger-image br-survey-trigger-desktop" alt="Start survey"/>').attr("src", desktopUrl));
             }
+
+            if (mobileUrl !== null) {
+                $trigger.append($('<img class="br-survey-trigger-image br-survey-trigger-mobile" alt="Start survey"/>').attr("src", mobileUrl));
+            }
+
+            const openSurvey = (evt) => {
+                if (evt) {
+                    evt.preventDefault();
+                }
+
+                if ($.isFunction(this.openHandler)) {
+                    this.openHandler(this);
+                }
+            };
+
+            $trigger.on("click", openSurvey);
+            $trigger.on("keydown", (evt) => {
+                if (evt.key === "Enter" || evt.key === " ") {
+                    openSurvey(evt);
+                }
+            });
+
+            $root.append($trigger);
+            this.$shadowRoot.append($root);
+        }
+
+        render(webExVersionId, settings, openHandler) {
+            this.webExVersionId = webExVersionId;
+            this.settings = $.isPlainObject(settings) ? settings : {};
+            this.openHandler = $.isFunction(openHandler) ? openHandler : null;
+
+            if (this.isRendered === true) {
+                return;
+            }
+
+            this._ensureBaseStyle();
+            Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
+            this._createTrigger();
+            this.isRendered = true;
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:rendered", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExVersionId: this.webExVersionId
+                }
+            }));
+        }
+    }
+
+    const _private = {
+        runtimeByWebExVersionId: {},
+
+        getRuntime: function (module, settings) {
+            const webExVersionId = Breinify.UTL.isNonEmptyString(module && module.webExVersionId);
+            if (webExVersionId === null) {
+                return null;
+            }
+
+            let runtime = this.runtimeByWebExVersionId[webExVersionId];
+            if ($.isPlainObject(runtime)) {
+                return runtime;
+            }
+
+            runtime = {
+                module: module,
+                settings: $.isPlainObject(settings) ? settings : {},
+                webExVersionId: webExVersionId,
+                triggers: [],
+                _selectedAnswers: {},
+                _nodesById: {},
+                _edges: [],
+                _currentNodeId: null,
+                _history: [],
+                _resetOnClose: true,
+                _historyIntegrationAttached: false,
+                _boundPopStateHandler: null,
+                _sessionId: null
+            };
+
+            this._loadStructureFromSettings(runtime);
+            this.runtimeByWebExVersionId[webExVersionId] = runtime;
+            return runtime;
+        },
+
+        cleanupTriggers: function (runtime) {
+            runtime.triggers = (runtime.triggers || []).filter(function (trigger) {
+                return trigger && trigger.isConnected === true;
+            });
+        },
+
+        registerTrigger: function (runtime, trigger) {
+            this.cleanupTriggers(runtime);
+
+            if (!trigger) {
+                return;
+            }
+
+            if (runtime.triggers.indexOf(trigger) === -1) {
+                runtime.triggers.push(trigger);
+            }
+        },
+
+        dispatchToTriggers: function (runtime, eventType, detail) {
+            this.cleanupTriggers(runtime);
+
+            const normalizedDetail = $.extend(true, {
+                webExVersionId: runtime.webExVersionId,
+                sessionId: runtime._sessionId || null
+            }, $.isPlainObject(detail) ? detail : {});
+
+            runtime.triggers.forEach(function (trigger) {
+                trigger.dispatchEvent(new CustomEvent(eventType, {
+                    bubbles: true,
+                    cancelable: false,
+                    detail: normalizedDetail
+                }));
+            });
+        },
+
+        getPopup: function (runtime) {
+            let popup = document.querySelector(popupElementName);
+            if (!popup) {
+                popup = document.createElement(popupElementName);
+                document.body.appendChild(popup);
+                popup.render(runtime.settings);
+            }
+
+            popup.closeOnBackgroundClick = this._getCloseOnBackgroundClickSetting(runtime);
+            runtime._resetOnClose = this._getResetOnCloseSetting(runtime);
+            return popup;
+        },
+
+        _getCloseOnBackgroundClickSetting: function (runtime) {
+            if ($.isPlainObject(runtime.settings) &&
+                $.isPlainObject(runtime.settings.popup) &&
+                typeof runtime.settings.popup.closeOnBackgroundClick === "boolean") {
+                return runtime.settings.popup.closeOnBackgroundClick;
+            }
+
             return false;
-        }
+        },
 
-        /**
-         * Helper to read popup.resetOnClose from config.
-         * default: true
-         */
-        _getResetOnCloseSetting() {
-            if ($.isPlainObject(this.settings) &&
-                $.isPlainObject(this.settings.popup) &&
-                typeof this.settings.popup.resetOnClose === "boolean") {
-                return this.settings.popup.resetOnClose;
+        _getResetOnCloseSetting: function (runtime) {
+            if ($.isPlainObject(runtime.settings) &&
+                $.isPlainObject(runtime.settings.popup) &&
+                typeof runtime.settings.popup.resetOnClose === "boolean") {
+                return runtime.settings.popup.resetOnClose;
             }
+
             return true;
-        }
+        },
 
-        /**
-         * Reset dynamic survey state for a new session.
-         * Keeps nodes/edges, resets position + selections.
-         */
-        _resetSurveyState() {
-            this._currentNodeId = null;
-            this._selectedAnswers = {};
-            this._history = [];
-            this._sessionId = null;
-        }
+        _resetSurveyState: function (runtime) {
+            runtime._currentNodeId = null;
+            runtime._selectedAnswers = {};
+            runtime._history = [];
+            runtime._sessionId = null;
+        },
 
-        /**
-         * Ensure we are listening to popstate exactly once.
-         */
-        _ensureHistoryIntegration() {
-            if (this._historyIntegrationAttached) {
+        _ensureHistoryIntegration: function (runtime) {
+            if (runtime._historyIntegrationAttached === true) {
                 return;
             }
 
-            this._historyIntegrationAttached = true;
-            this._boundPopStateHandler = (event) => this._onPopState(event);
-            window.addEventListener("popstate", this._boundPopStateHandler);
-        }
+            runtime._historyIntegrationAttached = true;
+            runtime._boundPopStateHandler = (event) => this._onPopState(runtime, event);
+            window.addEventListener("popstate", runtime._boundPopStateHandler);
+        },
 
-        /**
-         * Start a new survey session id, if none exists yet.
-         */
-        _ensureSessionId() {
-            if (this._sessionId) {
+        _ensureSessionId: function (runtime) {
+            if (runtime._sessionId) {
                 return;
             }
-            this._sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 5);
-        }
 
-        /**
-         * Push a history entry for the current node.
-         */
-        _pushHistoryStateForCurrentPage() {
+            runtime._sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 5);
+        },
+
+        _pushHistoryStateForCurrentPage: function (runtime) {
             if (typeof window === "undefined" || !window.history) {
                 return;
             }
 
-            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
+            const nodeId = Breinify.UTL.isNonEmptyString(runtime._currentNodeId);
             const state = {
                 brUiSurvey: true,
-                webExVersionId: this.webExVersionId,
+                webExVersionId: runtime.webExVersionId,
                 nodeId: nodeId,
-                sessionId: this._sessionId
+                sessionId: runtime._sessionId
             };
 
             try {
                 window.history.pushState(state, "", window.location.href);
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn("Unable to pushState for survey navigation:", e);
             }
-        }
+        },
 
-        /**
-         * Handle browser Back/Forward.
-         */
-        _onPopState(event) {
+        _onPopState: function (runtime, event) {
             let reason = "unspecified";
 
             const popup = document.querySelector(popupElementName);
             const state = event.state;
-            const prevNodeId = this._currentNodeId;
+            const prevNodeId = runtime._currentNodeId;
 
-            // Case 1: This popstate belongs to some survey state
             if (state && state.brUiSurvey === true) {
-                // If it belongs to another survey instance, ignore it
-                if (state.webExVersionId !== this.webExVersionId) {
+                if (state.webExVersionId !== runtime.webExVersionId) {
                     return;
                 }
 
-                // If it is from an "old" session, ignore and make sure we're reset
-                if (!this._sessionId || !state.sessionId || state.sessionId !== this._sessionId) {
+                if (!runtime._sessionId || !state.sessionId || state.sessionId !== runtime._sessionId) {
                     if (popup && popup.hasAttribute("open")) {
-                        popup.close("history", {webExVersionId: this.webExVersionId, sessionId: this._sessionId});
+                        popup.close("history", {
+                            webExVersionId: runtime.webExVersionId,
+                            sessionId: runtime._sessionId
+                        });
                     }
-                    this._resetSurveyState();
+                    this._resetSurveyState(runtime);
                     return;
                 }
 
                 const nodeId = Breinify.UTL.isNonEmptyString(state.nodeId);
-                if (!nodeId || !this._nodesById || !this._nodesById[nodeId]) {
+                if (!nodeId || !runtime._nodesById || !runtime._nodesById[nodeId]) {
                     return;
                 }
 
-                // no-op if we're already on that page
-                if (this._currentNodeId === nodeId) {
+                if (runtime._currentNodeId === nodeId) {
                     return;
                 }
 
-                const fromStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
+                const fromStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
 
-                if (Array.isArray(this._history) &&
-                    this._history.length > 0 &&
-                    this._history[this._history.length - 1] === nodeId) {
+                if (Array.isArray(runtime._history) &&
+                    runtime._history.length > 0 &&
+                    runtime._history[runtime._history.length - 1] === nodeId) {
                     reason = "back";
-
-                    // BACK: step back in our intra-survey history
-                    this._currentNodeId = this._history.pop();
-                } else if (this._currentNodeId) {
+                    runtime._currentNodeId = runtime._history.pop();
+                } else if (runtime._currentNodeId) {
                     reason = "forward";
-
-                    // FORWARD: move forward from the current node
-                    this._history.push(this._currentNodeId);
-                    this._currentNodeId = nodeId;
+                    runtime._history.push(runtime._currentNodeId);
+                    runtime._currentNodeId = nodeId;
                 } else {
                     reason = "forward";
-
-                    // Initial survey state for this instance (e.g., entering via Forward)
-                    this._currentNodeId = nodeId;
+                    runtime._currentNodeId = nodeId;
                 }
 
-                const toStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
-
-                this._pruneSelectedAnswersToActivePath();
+                const toStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
+                this._pruneSelectedAnswersToActivePath(runtime);
 
                 if (popup) {
-                    this._renderCurrentPage(popup);
+                    this._renderCurrentPage(runtime, popup);
+
                     if (!popup.hasAttribute("open")) {
                         popup.open();
                     }
 
-                    // semantic: page changed due to history navigation
-                    if (prevNodeId !== this._currentNodeId) {
-                        this._fireNavigatedEvent(prevNodeId, this._currentNodeId, reason, fromStepNumber, toStepNumber);
+                    if (prevNodeId !== runtime._currentNodeId) {
+                        this._fireNavigatedEvent(runtime, prevNodeId, runtime._currentNodeId, reason, fromStepNumber, toStepNumber);
                     }
                 }
 
                 return;
             }
 
-            // Case 2: We left survey history (state is null or not brUiSurvey)
             if (popup && popup.hasAttribute("open")) {
                 popup.close();
             }
-            this._resetSurveyState();
-        }
 
-        _fireAnswerClickedEvent(nodeId, answerId) {
-            this._fireAnswerEvent("br-ui-survey:answer-clicked", nodeId, answerId);
-        }
+            this._resetSurveyState(runtime);
+        },
 
-        _fireNavigatedEvent(fromNodeId, toNodeId, reason, fromStepNumber, toStepNumber) {
-            this._dispatchSurveyEvent("br-ui-survey:navigated", this._buildEventDetail({
-                fromNodeId: fromNodeId,
-                toNodeId: toNodeId,
-                fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
-                toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
-                extra: {
-                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
-                }
-            }));
-        }
-
-        /**
-         * Return an array of "page nodes" (currently just question nodes).
-         */
-        _getPageNodes() {
-            if (!$.isPlainObject(this.settings) ||
-                !$.isPlainObject(this.settings.survey) ||
-                !Array.isArray(this.settings.survey.nodes)) {
+        _getPageNodes: function (runtime) {
+            if (!$.isPlainObject(runtime.settings) ||
+                !$.isPlainObject(runtime.settings.survey) ||
+                !Array.isArray(runtime.settings.survey.nodes)) {
                 return [];
             }
 
-            // for now we treat "question" as a page; can be extended later
-            return this.settings.survey.nodes.filter(function (n) {
+            return runtime.settings.survey.nodes.filter(function (n) {
                 return $.isPlainObject(n) && n.type === "question";
             });
-        }
+        },
 
-        _getTotalPageCount() {
-            return this._getPageNodes().length;
-        }
+        _getTotalPageCount: function (runtime) {
+            return this._getPageNodes(runtime).length;
+        },
 
-        _getPageIndex(nodeId) {
+        _getPageIndex: function (runtime, nodeId) {
             if (!nodeId) {
                 return -1;
             }
-            const nodes = this._getPageNodes();
+
+            const nodes = this._getPageNodes(runtime);
             for (let i = 0; i < nodes.length; i++) {
                 const n = nodes[i];
                 if ($.isPlainObject(n) && n.id === nodeId) {
                     return i;
                 }
             }
-            return -1;
-        }
 
-        _getAnswerFromNode(node, answerId) {
+            return -1;
+        },
+
+        _getAnswerFromNode: function (node, answerId) {
             if (!$.isPlainObject(node) ||
                 !$.isPlainObject(node.data) ||
                 !Array.isArray(node.data.answers) ||
@@ -927,30 +962,156 @@
                     return a;
                 }
             }
+
             return null;
-        }
+        },
 
-        _fireRenderedEvent() {
-            this._dispatchSurveyEvent("br-ui-survey:rendered", {});
-        }
-
-        _fireOpenedEvent() {
-            this._dispatchPageSurveyEvent("br-ui-survey:opened", this._currentNodeId, {});
-        }
-
-        _fireAnswerSelectedEvent(nodeId, answerId) {
-            this._fireAnswerEvent("br-ui-survey:answer-selected", nodeId, answerId);
-        }
-
-        _fireAnswerEvent(eventType, nodeId, answerId) {
+        _getPageContext: function (runtime, nodeId, prefix) {
             const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
-            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
+            const node = resolvedNodeId !== null && runtime._nodesById ? runtime._nodesById[resolvedNodeId] : null;
+
+            const ctx = {
+                nodeId: resolvedNodeId,
+                pageType: node && node.type ? node.type : null,
+                pageIndex: this._getPageIndex(runtime, resolvedNodeId),
+                totalPages: this._getTotalPageCount(runtime)
+            };
+
+            const p = Breinify.UTL.isNonEmptyString(prefix);
+            if (p === null) {
+                return ctx;
+            }
+
+            const out = {};
+            out[p + "NodeId"] = ctx.nodeId;
+            out[p + "PageType"] = ctx.pageType;
+            out[p + "PageIndex"] = ctx.pageIndex;
+            out.totalPages = ctx.totalPages;
+
+            return out;
+        },
+
+        _getStepNumber: function (runtime) {
+            return (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
+        },
+
+        _hasOutgoingEdges: function (runtime, nodeId) {
+            const nid = Breinify.UTL.isNonEmptyString(nodeId);
+            if (nid === null || !Array.isArray(runtime._edges)) {
+                return false;
+            }
+
+            return runtime._edges.some((e) => $.isPlainObject(e) && e.source === nid);
+        },
+
+        _getNextNodeIdFromAnswer: function (runtime, nodeId, answerId) {
+            if (!nodeId || !answerId || !Array.isArray(runtime._edges)) {
+                return null;
+            }
+
+            let edge = runtime._edges.find((e) => {
+                if (!$.isPlainObject(e) || e.source !== nodeId) {
+                    return false;
+                }
+
+                if (e.answer === answerId || e.answerId === answerId || e.sourceHandle === answerId) {
+                    return true;
+                }
+
+                if ($.isPlainObject(e.data)) {
+                    if (e.data.answerId === answerId || e.data.sourceAnswerId === answerId) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+
+            if (!edge) {
+                edge = runtime._edges.find((e) => $.isPlainObject(e) && e.source === nodeId);
+            }
+
+            return $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.target) : null;
+        },
+
+        _isFinalStep: function (runtime, nodeId) {
+            const nid = Breinify.UTL.isNonEmptyString(nodeId);
+            if (nid === null) {
+                return true;
+            }
+
+            const node = runtime._nodesById && runtime._nodesById[nid] ? runtime._nodesById[nid] : null;
+            if ($.isPlainObject(node) && node.type === "question") {
+                const selectedAnswerId = $.isPlainObject(runtime._selectedAnswers)
+                    ? Breinify.UTL.isNonEmptyString(runtime._selectedAnswers[nid])
+                    : null;
+
+                if (selectedAnswerId === null) {
+                    return true;
+                }
+
+                const nextNodeId = this._getNextNodeIdFromAnswer(runtime, nid, selectedAnswerId);
+                return nextNodeId === null;
+            }
+
+            return !this._hasOutgoingEdges(runtime, nid);
+        },
+
+        _getStepContext: function (runtime, nodeId, stepNumber) {
+            const sn = typeof stepNumber === "number" ? stepNumber : this._getStepNumber(runtime);
+
+            return {
+                stepNumber: sn,
+                canGoBack: Array.isArray(runtime._history) && runtime._history.length > 0,
+                isFirstStep: sn === 1,
+                isFinalStep: this._isFinalStep(runtime, nodeId)
+            };
+        },
+
+        _buildEventDetail: function (runtime, opts) {
+            const o = $.isPlainObject(opts) ? opts : {};
+
+            const nodeId = Breinify.UTL.isNonEmptyString(o.nodeId);
+            const fromNodeId = Breinify.UTL.isNonEmptyString(o.fromNodeId);
+            const toNodeId = Breinify.UTL.isNonEmptyString(o.toNodeId);
+
+            return Object.assign({},
+                nodeId !== null ? this._getPageContext(runtime, nodeId, null) : {},
+                fromNodeId !== null ? this._getPageContext(runtime, fromNodeId, "from") : {},
+                toNodeId !== null ? this._getPageContext(runtime, toNodeId, "to") : {},
+
+                nodeId !== null ? this._getStepContext(runtime, nodeId, o.stepNumber) : {},
+                toNodeId !== null ? this._getStepContext(runtime, toNodeId, o.toStepNumber) : {},
+                fromNodeId !== null ? {fromStepNumber: o.fromStepNumber ?? null} : {},
+                toNodeId !== null ? {toStepNumber: o.toStepNumber ?? null} : {},
+
+                $.isPlainObject(o.extra) ? o.extra : {}
+            );
+        },
+
+        _fireOpenedEvent: function (runtime) {
+            this.dispatchToTriggers(runtime, "br-ui-survey:opened", this._buildEventDetail(runtime, {
+                nodeId: runtime._currentNodeId
+            }));
+        },
+
+        _fireAnswerClickedEvent: function (runtime, nodeId, answerId) {
+            this._fireAnswerEvent(runtime, "br-ui-survey:answer-clicked", nodeId, answerId);
+        },
+
+        _fireAnswerSelectedEvent: function (runtime, nodeId, answerId) {
+            this._fireAnswerEvent(runtime, "br-ui-survey:answer-selected", nodeId, answerId);
+        },
+
+        _fireAnswerEvent: function (runtime, eventType, nodeId, answerId) {
+            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
+            const node = resolvedNodeId !== null && runtime._nodesById ? runtime._nodesById[resolvedNodeId] : null;
             const answer = this._getAnswerFromNode(node, answerId);
 
             const questionLabel = node && node.data && typeof node.data.question === "string" ? node.data.question : null;
             const answerLabel = answer && typeof answer.title === "string" ? answer.title : null;
 
-            this._dispatchSurveyEvent(eventType, this._buildEventDetail({
+            this.dispatchToTriggers(runtime, eventType, this._buildEventDetail(runtime, {
                 nodeId: resolvedNodeId,
                 extra: {
                     answerId: answerId,
@@ -959,216 +1120,195 @@
                     questionLabel: questionLabel
                 }
             }));
-        }
+        },
 
-        _getPageContext(nodeId, prefix) {
-            const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
-            const node = resolvedNodeId !== null && this._nodesById ? this._nodesById[resolvedNodeId] : null;
-
-            const ctx = {
-                nodeId: resolvedNodeId,
-                pageType: node && node.type ? node.type : null,
-                pageIndex: this._getPageIndex(resolvedNodeId),
-                totalPages: this._getTotalPageCount()
-            };
-
-            const p = Breinify.UTL.isNonEmptyString(prefix);
-            if (p === null) {
-                return ctx;
-            } else {
-                const out = {};
-                out[p + "NodeId"] = ctx.nodeId;
-                out[p + "PageType"] = ctx.pageType;
-                out[p + "PageIndex"] = ctx.pageIndex;
-
-                // total pages is an overall constant and is not prefixed since it's node independent
-                out["totalPages"] = ctx.totalPages;
-                return out;
-            }
-        }
-
-        _buildEventDetail(opts) {
-            const o = $.isPlainObject(opts) ? opts : {};
-
-            const nodeId = Breinify.UTL.isNonEmptyString(o.nodeId);
-            const fromNodeId = Breinify.UTL.isNonEmptyString(o.fromNodeId);
-            const toNodeId = Breinify.UTL.isNonEmptyString(o.toNodeId);
-
-            return Object.assign({},
-                // page context
-                nodeId !== null ? this._getPageContext(nodeId, null) : {},
-                fromNodeId !== null ? this._getPageContext(fromNodeId, "from") : {},
-                toNodeId !== null ? this._getPageContext(toNodeId, "to") : {},
-
-                // step context
-                nodeId !== null ? this._getStepContext(nodeId, o.stepNumber) : {},
-                toNodeId !== null ? this._getStepContext(toNodeId, o.toStepNumber) : {},
-                fromNodeId !== null ? {fromStepNumber: o.fromStepNumber ?? null} : {},
-                toNodeId !== null ? {toStepNumber: o.toStepNumber ?? null} : {},
-
-                // event-specific fields
-                $.isPlainObject(o.extra) ? o.extra : {}
-            );
-        }
-
-        _dispatchPageSurveyEvent(eventType, nodeId, detail) {
-            const normalizedDetails = $.isPlainObject(detail) ? detail : {};
-            const ctx = this._getPageContext(nodeId);
-
-            // ctx has nodeId/pageType/pageIndex/totalPages; normalizedDetails can extend/override
-            this._dispatchSurveyEvent(eventType, Object.assign({}, ctx, normalizedDetails));
-        }
-
-        _dispatchSurveyEvent(eventType, detail) {
-            const normalizedDetails = $.isPlainObject(detail) ? detail : {};
-
-            // enforce common fields
-            if (typeof normalizedDetails.webExVersionId === "undefined") {
-                normalizedDetails.webExVersionId = this.webExVersionId;
-            }
-            if (typeof normalizedDetails.sessionId === "undefined") {
-                normalizedDetails.sessionId = this._sessionId || null;
-            }
-
-            this.dispatchEvent(new CustomEvent(eventType, {
-                bubbles: true,
-                cancelable: false,
-                detail: normalizedDetails
-            }));
-        }
-
-        /**
-         * Creates the clickable trigger banner (desktop + mobile).
-         */
-        _createTrigger($root) {
-            const triggerCfg = (this.settings && this.settings.trigger) || {};
-
-            const desktopUrl = triggerCfg.bannerUrl;
-            const mobileUrl = triggerCfg.mobileBannerUrl || desktopUrl;
-
-            const $trigger = $("<div/>", {
-                class: "br-survey-trigger",
-                role: "button",
-                tabindex: 0,
-                "aria-label": "Start survey"
-            });
-
-            // Desktop image (required)
-            if (desktopUrl) {
-                $trigger.append($(`<img src="${desktopUrl}" class="br-survey-trigger-image br-survey-trigger-desktop" alt="Start survey"/>`));
-            }
-
-            // Mobile image (optional, fallback to desktop)
-            if (mobileUrl) {
-                $trigger.append($(`<img src="${mobileUrl}" class="br-survey-trigger-image br-survey-trigger-mobile" alt="Start survey"/>`));
-            }
-
-            $trigger.on("click", (evt) => {
-                evt.preventDefault();
-                this._openSurvey();
-            });
-
-            // by default, we just append the trigger to the root instance
-            $root.append($trigger);
-            return $trigger;
-        }
-
-        /**
-         * Opens the survey and renders the current page.
-         */
-        _openSurvey() {
-
-            // get or create a singleton popup element on <body>
-            let popup = document.querySelector(popupElementName);
-
-            if (!popup) {
-                popup = document.createElement(popupElementName);
-                document.body.appendChild(popup);
-
-                popup.render(this.settings);
-            }
-
-            // configure popup behavior from settings
-            popup.closeOnBackgroundClick = this._getCloseOnBackgroundClickSetting();
-            this._resetOnClose = this._getResetOnCloseSetting();
-
-            // listen for popup close to optionally reset state
-            const handleClosed = () => {
-                if (this._resetOnClose) {
-                    this._resetSurveyState();
+        _fireNavigatedEvent: function (runtime, fromNodeId, toNodeId, reason, fromStepNumber, toStepNumber) {
+            this.dispatchToTriggers(runtime, "br-ui-survey:navigated", this._buildEventDetail(runtime, {
+                fromNodeId: fromNodeId,
+                toNodeId: toNodeId,
+                fromStepNumber: typeof fromStepNumber === "number" ? fromStepNumber : null,
+                toStepNumber: typeof toStepNumber === "number" ? toStepNumber : null,
+                extra: {
+                    reason: Breinify.UTL.isNonEmptyString(reason) || "unspecified"
                 }
-                popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
-            };
-            popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
+            }));
+        },
 
-            // determine current node if not yet set
-            if (this._currentNodeId === null) {
-                this._currentNodeId = this._findFirstNodeId();
+        _findFirstNodeId: function (runtime) {
+            if (!$.isPlainObject(runtime.settings) ||
+                !$.isPlainObject(runtime.settings.survey) ||
+                !Array.isArray(runtime.settings.survey.nodes) ||
+                !Array.isArray(runtime._edges)) {
+                return null;
             }
 
-            // start a new session if needed
-            this._ensureSessionId();
+            const nodes = runtime.settings.survey.nodes;
+            const startNode = nodes.find((n) => $.isPlainObject(n) && n.type === "start");
+            if (!$.isPlainObject(startNode)) {
+                return null;
+            }
 
-            // set the meta information and attach it to the popup
-            popup.meta = {
-                webExVersionId: this.webExVersionId,
-                sessionId: this._sessionId
-            };
+            const startNodeId = Breinify.UTL.isNonEmptyString(startNode.id);
+            if (startNodeId === null) {
+                return null;
+            }
 
-            // render whatever we have as current node (or an error if missing)
-            this._renderCurrentPage(popup);
+            const edge = runtime._edges.find((e) => $.isPlainObject(e) && e.source === startNodeId);
+            return $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.target) : null;
+        },
 
-            // history integration
-            this._ensureHistoryIntegration();
-            this._pushHistoryStateForCurrentPage();
+        _loadStructureFromSettings: function (runtime) {
+            runtime._nodesById = {};
+            runtime._edges = [];
+            runtime._currentNodeId = null;
+            runtime._selectedAnswers = {};
+            runtime._history = [];
 
-            // open the popup
-            popup.open();
-
-            // fire opened-event once popup and first page are visible
-            this._fireOpenedEvent();
-        }
-
-        _renderCurrentPage(popup) {
-            if (!popup || typeof popup.setBodyContent !== "function") {
+            if (!$.isPlainObject(runtime.settings) || !$.isPlainObject(runtime.settings.survey)) {
                 return;
             }
 
-            const nodeId = Breinify.UTL.isNonEmptyString(this._currentNodeId);
-            const node = nodeId !== null && this._nodesById ? this._nodesById[nodeId] : null;
-
-            if (!$.isPlainObject(node)) {
-                const fallback = document.createElement("div");
-                fallback.className = "br-survey-page br-survey-page--error";
-                fallback.textContent = "The survey is not correctly configured.";
-                popup.setBodyContent(fallback);
-            } else if (node.type === "question") {
-                const questionPage = this._createQuestionPage(node);
-                popup.setBodyContent(questionPage);
-            } else if (node.type === "recommendation") {
-                const recLoadingPage = this._createRecommendationPage(node);
-                this._requestRecommendations(popup, recLoadingPage, node);
-            } else {
-                const placeholder = document.createElement("div");
-                placeholder.className = "br-survey-page br-survey-page--unsupported";
-                placeholder.textContent = "This step type is not yet supported.";
-                popup.setBodyContent(placeholder);
+            if (Array.isArray(runtime.settings.survey.nodes)) {
+                runtime.settings.survey.nodes.forEach((node) => {
+                    if (node && node.id) {
+                        runtime._nodesById[node.id] = node;
+                    }
+                });
             }
 
-            if (typeof popup.setFooterContent === "function") {
-                const footerNode = this._createFooterControls(node);
-                popup.setFooterContent(footerNode);
+            if (Array.isArray(runtime.settings.survey.edges)) {
+                runtime._edges = runtime.settings.survey.edges.slice();
             }
-        }
+        },
 
-        _createQuestionPage(node) {
+        _resolveSelectedAnswers: function (runtime) {
+            const nodes = (((runtime.settings || {}).survey || {}).nodes) || [];
+            const nodeById = Object.create(null);
+
+            for (const n of nodes) {
+                if (n && typeof n.id === "string") {
+                    nodeById[n.id] = n;
+                }
+            }
+
+            const byQuestionId = Object.create(null);
+            const missingQuestions = [];
+            const missingAnswers = [];
+
+            for (const [questionId, answerId] of Object.entries(runtime._selectedAnswers || {})) {
+                const node = nodeById[questionId] || null;
+
+                if (!node) {
+                    missingQuestions.push(questionId);
+                    byQuestionId[questionId] = {
+                        questionId: questionId,
+                        question: null,
+                        answerId: answerId,
+                        title: null,
+                        values: null,
+                        answer: null,
+                        node: null
+                    };
+                    continue;
+                }
+
+                const question = node && node.data ? node.data.question : null;
+                const answers = Array.isArray(node && node.data ? node.data.answers : null) ? node.data.answers : [];
+                const answer = answers.find(a => a && a._id === answerId) || null;
+
+                if (!answer) {
+                    missingAnswers.push({questionId: questionId, answerId: answerId});
+                }
+
+                byQuestionId[questionId] = {
+                    questionId: questionId,
+                    question: question,
+                    answerId: answerId,
+                    title: answer && answer.title ? answer.title : null,
+                    values: answer && answer.values ? answer.values : null,
+                    answer: answer,
+                    node: node
+                };
+            }
+
+            return {
+                byQuestionId: byQuestionId,
+                missingQuestions: missingQuestions,
+                missingAnswers: missingAnswers
+            };
+        },
+
+        _buildAnswerAttributes: function (runtime) {
+            const resolved = this._resolveSelectedAnswers(runtime);
+            const attributes = Object.create(null);
+
+            for (const r of Object.values(resolved.byQuestionId)) {
+                const vals = Array.isArray(r.values) ? r.values : [];
+                for (const kv of vals) {
+                    if (!kv || typeof kv.key !== "string") {
+                        continue;
+                    }
+                    attributes[kv.key] = kv.value;
+                }
+            }
+
+            return {
+                resolved: resolved,
+                attributes: attributes
+            };
+        },
+
+        _pruneSelectedAnswersToActivePath: function (runtime) {
+            if (!$.isPlainObject(runtime._selectedAnswers)) {
+                return;
+            }
+
+            const allowed = Object.create(null);
+
+            if (Array.isArray(runtime._history)) {
+                runtime._history.forEach((id) => {
+                    const nid = Breinify.UTL.isNonEmptyString(id);
+                    if (nid !== null) {
+                        allowed[nid] = true;
+                    }
+                });
+            }
+
+            const current = Breinify.UTL.isNonEmptyString(runtime._currentNodeId);
+            if (current !== null) {
+                allowed[current] = true;
+            }
+
+            Object.keys(runtime._selectedAnswers).forEach((qid) => {
+                if (allowed[qid] !== true) {
+                    delete runtime._selectedAnswers[qid];
+                }
+            });
+        },
+
+        _createPlaceholders: function (runtime, node) {
+            if (!$.isPlainObject(node) ||
+                !$.isPlainObject(node.data) ||
+                !$.isPlainObject(node.data.placeholdersSnippets)) {
+                return {};
+            }
+
+            return Object.fromEntries(
+                Object.entries(node.data.placeholdersSnippets).flatMap(([key, snippetId]) => {
+                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                    return func == null ? [] : [[key, func]];
+                })
+            );
+        },
+
+        _createQuestionPage: function (runtime, node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const questionText = Breinify.UTL.isNonEmptyString(data.question) || "";
             const answers = Array.isArray(data.answers) ? data.answers : [];
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
-            const selectedAnswerId = nodeId !== null && this._selectedAnswers
-                ? this._selectedAnswers[nodeId]
+            const selectedAnswerId = nodeId !== null && runtime._selectedAnswers
+                ? runtime._selectedAnswers[nodeId]
                 : null;
 
             const container = document.createElement("div");
@@ -1213,7 +1353,6 @@
                         itemEl.classList.add("br-survey-answer--selected");
                     }
 
-                    // optional media (image) on the left
                     if (hasImage) {
                         itemEl.classList.add("br-survey-answer--has-image");
 
@@ -1228,7 +1367,6 @@
                         itemEl.appendChild(mediaEl);
                     }
 
-                    // content (title + description) on the right
                     const contentEl = document.createElement("div");
                     contentEl.className = "br-survey-answer__content";
 
@@ -1246,15 +1384,13 @@
 
                     itemEl.appendChild(contentEl);
 
-                    // selection handling on single tap/click
                     itemEl.addEventListener("click", () => {
-                        this._handleAnswerClick(nodeId, answerId, container, itemEl);
+                        this._handleAnswerClick(runtime, nodeId, answerId, container, itemEl);
                     });
 
-                    // double-tap / double-click to go forward immediately
                     itemEl.addEventListener("dblclick", (evt) => {
                         evt.preventDefault();
-                        this._handleAnswerDoubleClick(nodeId, answerId);
+                        this._handleAnswerDoubleClick(runtime, nodeId, answerId);
                     });
 
                     listEl.appendChild(itemEl);
@@ -1264,19 +1400,12 @@
             }
 
             return container;
-        }
+        },
 
-        /**
-         * Create a recommendation page.
-         * Step 1: show skeleton
-         * Step 2 (fake async): replace with placeholder "results"
-         */
-        _createRecommendationPage(node) {
+        _createRecommendationPage: function (runtime, node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
-            const titleText = Breinify.UTL.isNonEmptyString(data.searchTitle)
-                || "Unlocking your personalized picks…";
-            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle)
-                || "We are analyzing your vibes… Almost there!";
+            const titleText = Breinify.UTL.isNonEmptyString(data.searchTitle) || "Unlocking your personalized picks…";
+            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle) || "We are analyzing your vibes… Almost there!";
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
@@ -1292,7 +1421,6 @@
             subtitleEl.textContent = subtitleText;
             container.appendChild(subtitleEl);
 
-            // skeleton grid
             const grid = document.createElement("div");
             grid.className = "br-survey-reco-grid";
 
@@ -1317,27 +1445,24 @@
             }
 
             container.appendChild(grid);
-
             return container;
-        }
+        },
 
-        _requestRecommendations(popup, container, node) {
+        _requestRecommendations: function (runtime, popup, container, node) {
             const _self = this;
-
-            // get the data to be used for the page
             const data = $.isPlainObject(node.data) ? node.data : {};
 
-            // attach the container
             popup.setBodyContent(container);
-            const $container = $(container);
-            const $grid = $container.find('.br-survey-reco-grid');
 
-            // create the payload for the recommender
+            const $container = $(container);
+            const $grid = $container.find(".br-survey-reco-grid");
+
             const itemSnippetId = Breinify.UTL.isNonEmptyString(data.renderResultSnippet);
             const preconfig = Breinify.UTL.isNonEmptyString(data.preconfiguredRecommendation);
             const queryLabel = Breinify.UTL.isNonEmptyString(data.queryLabel) || preconfig;
-            const buildAttributes = this._buildAnswerAttributes();
+            const buildAttributes = this._buildAnswerAttributes(runtime);
             const additionalOtherParameters = buildAttributes.attributes;
+
             const recPayload = {
                 recommendationQueryName: queryLabel,
                 namedRecommendations: [
@@ -1348,7 +1473,6 @@
                 }
             };
 
-            // determine the product snippet to use
             let snippet = Breinify.plugins.snippetManager.getSnippet(itemSnippetId);
             if (snippet === null) {
                 snippet = function () {
@@ -1359,23 +1483,19 @@
                         '  </div>' +
                         '  <div class="br-survey-reco-card-title">%%name%%</div>' +
                         '</div>';
-                }
+                };
             }
 
-            // determine default title and subtitle
-            const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) ||
-                "Your Recommendations";
-            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) ||
-                "Vibes that gets you";
+            const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) || "Your Recommendations";
+            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "Vibes that gets you";
 
-            // fire it and handle the result
             Breinify.plugins.recommendations.render({
                 position: {
                     append: function () {
                         return $container;
                     }
                 },
-                placeholders: this._createPlaceholders(node),
+                placeholders: this._createPlaceholders(runtime, node),
                 templates: {
                     container: function () {
                         return $grid;
@@ -1387,12 +1507,11 @@
                 },
                 process: {
                     attachedContainer: function ($attachedContainer, $itemContainer, recData, option) {
-
-                        // resolve title / subtitle from recData.additionalData → data → defaults
                         const additional = recData && $.isPlainObject(recData.additionalData) ? recData.additionalData : {};
 
                         const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
                         const resolvedSubtitle = Breinify.UTL.isNonEmptyString(additional.subtitle) || defaultResultSubtitle;
+
                         const $titleEl = $container.find(".br-survey-page-title.br-survey-reco-title");
                         if ($titleEl.length) {
                             $titleEl.text(resolvedTitle);
@@ -1407,187 +1526,16 @@
                             }
                         }
 
-                        // remove skeleton cards; recommender will append items into $itemContainer / $grid
                         $attachedContainer.empty();
                     },
                     createActivity: function (event, settings) {
-                        settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(_self.webExVersionId);
-                    },
-                }
-            });
-        }
-
-        _resolveSelectedAnswers() {
-            const nodes = (((this.settings || {}).survey || {}).nodes) || [];
-
-            // Index nodes by node.id
-            const nodeById = Object.create(null);
-            for (const n of nodes) {
-                if (n && typeof n.id === "string") {
-                    nodeById[n.id] = n;
-                }
-            }
-
-            const byQuestionId = Object.create(null);
-            const missingQuestions = [];
-            const missingAnswers = [];
-
-            for (const [questionId, answerId] of Object.entries(this._selectedAnswers || {})) {
-                const node = nodeById[questionId] || null;
-
-                if (!node) {
-                    missingQuestions.push(questionId);
-                    byQuestionId[questionId] = {
-                        questionId,
-                        question: null,
-                        answerId,
-                        title: null,
-                        values: null,
-                        answer: null,
-                        node: null
-                    };
-                    continue;
-                }
-
-                const question = node?.data?.question ?? null;
-                const answers = Array.isArray(node?.data?.answers) ? node.data.answers : [];
-                const answer = answers.find(a => a && a._id === answerId) || null;
-
-                if (!answer) {
-                    missingAnswers.push({questionId, answerId});
-                }
-
-                byQuestionId[questionId] = {
-                    questionId,
-                    question,
-                    answerId,
-                    title: answer?.title ?? null,
-                    values: answer?.values ?? null,
-                    answer,
-                    node
-                };
-            }
-
-            return {byQuestionId, missingQuestions, missingAnswers};
-        }
-
-        _buildAnswerAttributes() {
-            const resolved = this._resolveSelectedAnswers();
-
-            const attributes = Object.create(null);
-
-            for (const r of Object.values(resolved.byQuestionId)) {
-                const vals = Array.isArray(r.values) ? r.values : [];
-                for (const kv of vals) {
-                    if (!kv || typeof kv.key !== "string") continue;
-                    attributes[kv.key] = kv.value;
-                }
-            }
-
-            return {resolved, attributes};
-        }
-
-        /**
-         * Remove selected answers that are no longer part of the active path
-         * (current node + history stack).
-         *
-         * This fixes back/forward navigation where answers from "future" pages
-         * would otherwise remain in _selectedAnswers.
-         */
-        _pruneSelectedAnswersToActivePath() {
-            if (!$.isPlainObject(this._selectedAnswers)) {
-                return;
-            }
-
-            const allowed = Object.create(null);
-
-            if (Array.isArray(this._history)) {
-                this._history.forEach((id) => {
-                    const nid = Breinify.UTL.isNonEmptyString(id);
-                    if (nid !== null) {
-                        allowed[nid] = true;
+                        settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(runtime.webExVersionId);
                     }
-                });
-            }
-
-            const current = Breinify.UTL.isNonEmptyString(this._currentNodeId);
-            if (current !== null) {
-                allowed[current] = true;
-            }
-
-            Object.keys(this._selectedAnswers).forEach((qid) => {
-                if (allowed[qid] !== true) {
-                    delete this._selectedAnswers[qid];
                 }
             });
-        }
+        },
 
-        _createPlaceholders(node) {
-            if (!$.isPlainObject(node) ||
-                !$.isPlainObject(node.data) ||
-                !$.isPlainObject(node.data.placeholdersSnippets)) {
-                return {};
-            }
-
-            return Object.fromEntries(
-                Object.entries(node.data.placeholdersSnippets).flatMap(([key, snippetId]) => {
-                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
-                    return func == null ? [] : [[key, func]];
-                })
-            );
-        }
-
-        _handleAnswerClick(nodeId, answerId, container, clickedButton) {
-            if (nodeId === null || answerId === null) {
-                return;
-            }
-
-            if (!$.isPlainObject(this._selectedAnswers)) {
-                this._selectedAnswers = {};
-            }
-
-            this._selectedAnswers[nodeId] = answerId;
-            this._fireAnswerClickedEvent(nodeId, answerId);
-
-            if (!container || !container.querySelectorAll) {
-                return;
-            }
-
-            const buttons = container.querySelectorAll(".br-survey-answer");
-            buttons.forEach((btn) => {
-                if (btn === clickedButton) {
-                    btn.classList.add("br-survey-answer--selected");
-                } else {
-                    btn.classList.remove("br-survey-answer--selected");
-                }
-            });
-
-            // update only the footer (to show Next + hint) without re-rendering the body
-            const popup = document.querySelector(popupElementName);
-            if (popup && typeof popup.setFooterContent === "function") {
-                const node = this._nodesById[nodeId];
-                const footerNode = this._createFooterControls(node);
-                popup.setFooterContent(footerNode);
-            }
-        }
-
-        /**
-         * Double-tap handler: move to next step using the selected answer.
-         */
-        _handleAnswerDoubleClick(nodeId, answerId) {
-            if (nodeId === null || answerId === null) {
-                return;
-            }
-
-            // go forward directly, same as pressing "Next" for this answer
-            this._goForward(nodeId, answerId);
-        }
-
-        /**
-         * Create footer controls (Back / Next) based on current node + state.
-         * Also shows a small hint when an answer is selected.
-         */
-        _createFooterControls(node) {
+        _createFooterControls: function (runtime, node) {
             const wrapper = document.createElement("div");
             wrapper.className = "br-survey-footer-controls";
 
@@ -1597,15 +1545,10 @@
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
             const nodeType = Breinify.UTL.isNonEmptyString(node.type) || node.type || null;
-            const selectedAnswerId = nodeId !== null && this._selectedAnswers
-                ? Breinify.UTL.isNonEmptyString(this._selectedAnswers[nodeId])
+            const selectedAnswerId = nodeId !== null && runtime._selectedAnswers
+                ? Breinify.UTL.isNonEmptyString(runtime._selectedAnswers[nodeId])
                 : null;
 
-            // ------------------------------------------------------------
-            // Hint block: always present to keep footer height stable
-            // - visible with content on question pages
-            // - invisible (but space reserved) on other pages
-            // ------------------------------------------------------------
             const hintEl = document.createElement("div");
             hintEl.className = "br-survey-hint";
 
@@ -1621,29 +1564,22 @@
 
             list.appendChild(li1);
             list.appendChild(li2);
-
             hintEl.appendChild(titleEl);
             hintEl.appendChild(list);
 
             if (nodeType === "question") {
                 li1.textContent = "single tap to select";
                 li2.textContent = "double tap to select & answer";
-
                 wrapper.classList.add("br-survey-footer-controls--with-hint");
             } else {
                 li1.textContent = "...";
                 li2.textContent = "...";
-
-                // keep same footprint but hide visually
                 hintEl.classList.add("br-survey-hint--hidden");
             }
 
             wrapper.appendChild(hintEl);
 
-            // ------------------------------------------------------------
-            // Back button when we have history
-            // ------------------------------------------------------------
-            if (Array.isArray(this._history) && this._history.length > 0) {
+            if (Array.isArray(runtime._history) && runtime._history.length > 0) {
                 const btnBack = document.createElement("button");
                 btnBack.type = "button";
                 btnBack.className = "br-survey-btn br-survey-btn--back";
@@ -1656,9 +1592,6 @@
                 wrapper.appendChild(btnBack);
             }
 
-            // ------------------------------------------------------------
-            // Next button only when an answer is selected (for questions)
-            // ------------------------------------------------------------
             if (nodeType === "question") {
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
@@ -1667,249 +1600,269 @@
                 btnNext.disabled = selectedAnswerId === null;
 
                 btnNext.addEventListener("click", () => {
-                    this._goForward(nodeId, selectedAnswerId);
+                    this._goForward(runtime, nodeId, selectedAnswerId);
                 });
 
                 wrapper.appendChild(btnNext);
             }
 
             return wrapper;
-        }
+        },
 
-        _goForward(nodeId, answerId) {
+        _renderCurrentPage: function (runtime, popup) {
+            if (!popup || typeof popup.setBodyContent !== "function") {
+                return;
+            }
+
+            const nodeId = Breinify.UTL.isNonEmptyString(runtime._currentNodeId);
+            const node = nodeId !== null && runtime._nodesById ? runtime._nodesById[nodeId] : null;
+
+            if (!$.isPlainObject(node)) {
+                const fallback = document.createElement("div");
+                fallback.className = "br-survey-page br-survey-page--error";
+                fallback.textContent = "The survey is not correctly configured.";
+                popup.setBodyContent(fallback);
+            } else if (node.type === "question") {
+                popup.setBodyContent(this._createQuestionPage(runtime, node));
+            } else if (node.type === "recommendation") {
+                const recLoadingPage = this._createRecommendationPage(runtime, node);
+                this._requestRecommendations(runtime, popup, recLoadingPage, node);
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.className = "br-survey-page br-survey-page--unsupported";
+                placeholder.textContent = "This step type is not yet supported.";
+                popup.setBodyContent(placeholder);
+            }
+
+            if (typeof popup.setFooterContent === "function") {
+                popup.setFooterContent(this._createFooterControls(runtime, node));
+            }
+        },
+
+        _handleAnswerClick: function (runtime, nodeId, answerId, container, clickedButton) {
+            if (nodeId === null || answerId === null) {
+                return;
+            }
+
+            if (!$.isPlainObject(runtime._selectedAnswers)) {
+                runtime._selectedAnswers = {};
+            }
+
+            runtime._selectedAnswers[nodeId] = answerId;
+            this._fireAnswerClickedEvent(runtime, nodeId, answerId);
+
+            if (!container || !container.querySelectorAll) {
+                return;
+            }
+
+            const buttons = container.querySelectorAll(".br-survey-answer");
+            buttons.forEach((btn) => {
+                if (btn === clickedButton) {
+                    btn.classList.add("br-survey-answer--selected");
+                } else {
+                    btn.classList.remove("br-survey-answer--selected");
+                }
+            });
+
+            const popup = document.querySelector(popupElementName);
+            if (popup && typeof popup.setFooterContent === "function") {
+                const node = runtime._nodesById[nodeId];
+                popup.setFooterContent(this._createFooterControls(runtime, node));
+            }
+        },
+
+        _handleAnswerDoubleClick: function (runtime, nodeId, answerId) {
+            if (nodeId === null || answerId === null) {
+                return;
+            }
+
+            this._goForward(runtime, nodeId, answerId);
+        },
+
+        _goForward: function (runtime, nodeId, answerId) {
             if (!nodeId || !answerId) {
                 return;
             }
 
-            // fire "answer-selected" event tied to this page transition
-            this._fireAnswerSelectedEvent(nodeId, answerId);
+            this._fireAnswerSelectedEvent(runtime, nodeId, answerId);
 
-            const nextNodeId = this._getNextNodeIdFromAnswer(nodeId, answerId);
-
+            const nextNodeId = this._getNextNodeIdFromAnswer(runtime, nodeId, answerId);
             if (nextNodeId !== null) {
-                const fromStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
+                const fromStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
 
-                // remember where we came from (intra-survey history)
-                if (!Array.isArray(this._history)) {
-                    this._history = [];
+                if (!Array.isArray(runtime._history)) {
+                    runtime._history = [];
                 }
-                this._history.push(nodeId);
-                const toStepNumber = (Array.isArray(this._history) ? this._history.length : 0) + 1;
 
-                const prevNodeId = this._currentNodeId;
-                this._currentNodeId = nextNodeId;
+                runtime._history.push(nodeId);
+                const toStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
+
+                const prevNodeId = runtime._currentNodeId;
+                runtime._currentNodeId = nextNodeId;
 
                 const popup = document.querySelector(popupElementName);
                 if (popup) {
-                    this._renderCurrentPage(popup);
+                    this._renderCurrentPage(runtime, popup);
                 }
 
-                // push new history entry so browser Back goes to previous page
-                this._pushHistoryStateForCurrentPage();
-                this._fireNavigatedEvent(prevNodeId, this._currentNodeId, "forward", fromStepNumber, toStepNumber);
+                this._pushHistoryStateForCurrentPage(runtime);
+                this._fireNavigatedEvent(runtime, prevNodeId, runtime._currentNodeId, "forward", fromStepNumber, toStepNumber);
             } else {
                 console.warn("No next edge found for", nodeId, answerId);
             }
-        }
+        },
 
-        _getStepNumber() {
-            return (Array.isArray(this._history) ? this._history.length : 0) + 1;
-        }
-
-        _getStepContext(nodeId, stepNumber) {
-            const sn = typeof stepNumber === "number" ? stepNumber : this._getStepNumber();
-
-            return {
-                stepNumber: sn,
-                canGoBack: Array.isArray(this._history) && this._history.length > 0,
-                isFirstStep: sn === 1,
-                isFinalStep: this._isFinalStep(nodeId)
-            };
-        }
-
-        _hasOutgoingEdges(nodeId) {
-            const nid = Breinify.UTL.isNonEmptyString(nodeId);
-            if (nid === null || !Array.isArray(this._edges)) {
-                return false;
-            }
-            return this._edges.some((e) => $.isPlainObject(e) && e.source === nid);
-        }
-
-        _isFinalStep(nodeId) {
-            const nid = Breinify.UTL.isNonEmptyString(nodeId);
-            if (nid === null) {
-                return true;
-            }
-
-            const node = this._nodesById && this._nodesById[nid] ? this._nodesById[nid] : null;
-
-            // If it's a question, "final" means: no valid next step for the selected answer
-            if ($.isPlainObject(node) && node.type === "question") {
-                const selectedAnswerId = $.isPlainObject(this._selectedAnswers)
-                    ? Breinify.UTL.isNonEmptyString(this._selectedAnswers[nid])
-                    : null;
-
-                // If no answer selected, user cannot proceed => treat as "final" from navigation perspective
-                // (If you prefer "unknown", we can add a separate flag instead.)
-                if (selectedAnswerId === null) {
-                    return true;
-                }
-
-                const nextNodeId = this._getNextNodeIdFromAnswer(nid, selectedAnswerId);
-                return nextNodeId === null;
-            }
-
-            // Otherwise, final means: no outgoing edges at all
-            return !this._hasOutgoingEdges(nid);
-        }
-
-        _goBack() {
+        _goBack: function () {
             if (typeof window !== "undefined" &&
                 window.history &&
                 typeof window.history.back === "function") {
                 window.history.back();
             }
-        }
+        },
 
-        /**
-         * Try to resolve next node id from edges + answer.
-         * Supports common edge shapes and falls back
-         * to "first edge from node" if nothing matches.
-         */
-        _getNextNodeIdFromAnswer(nodeId, answerId) {
-            if (!nodeId || !answerId || !Array.isArray(this._edges)) {
-                return null;
-            }
-
-            // Match any edge that:
-            // - comes from the current node AND
-            // - references this answer in one of the known fields
-            let edge = this._edges.find((e) => {
-                if (!$.isPlainObject(e) || e.source !== nodeId) {
-                    return false;
-                }
-
-                if (e.answer === answerId) {
-                    return true;
-                }
-                if (e.answerId === answerId) {
-                    return true;
-                }
-                if (e.sourceHandle === answerId) {
-                    return true;
-                }
-
-                if ($.isPlainObject(e.data)) {
-                    if (e.data.answerId === answerId) {
-                        return true;
-                    }
-                    if (e.data.sourceAnswerId === answerId) {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
-
-            // Fallback: any outgoing edge from this node
-            if (!edge) {
-                edge = this._edges.find((e) =>
-                    $.isPlainObject(e) &&
-                    e.source === nodeId
-                );
-            }
-
-            return $.isPlainObject(edge)
-                ? Breinify.UTL.isNonEmptyString(edge.target)
-                : null;
-        }
-
-        _findFirstNodeId() {
-
-            if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey) ||
-                !Array.isArray(this.settings.survey.nodes) || !Array.isArray(this._edges)) {
-                return null;
-            }
-
-            const nodes = this.settings.survey.nodes;
-
-            // find the start node in the nodes array
-            const startNode = nodes.find((n) => $.isPlainObject(n) && n.type === "start");
-            if (!$.isPlainObject(startNode)) {
-                return null;
-            }
-
-            // make sure the node has an id
-            const startNodeId = Breinify.UTL.isNonEmptyString(startNode.id);
-            if (startNodeId === null) {
-                return null;
-            }
-
-            // find the first edge leaving the start node
-            const edge = this._edges.find((e) => $.isPlainObject(e) && e.source === startNodeId);
-
-            return $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.target) : null;
-        }
-
-        _loadStructureFromSettings() {
-
-            // prepare survey graph structures
-            this._nodesById = {};
-            this._edges = [];
-            this._currentNodeId = null;
-            this._selectedAnswers = {};
-            this._history = [];
-            // do not touch _sessionId here: it is per "render config" not per structure
-
-            if (!$.isPlainObject(this.settings) || !$.isPlainObject(this.settings.survey)) {
+        openSurvey: function (webExVersionId) {
+            const runtime = this.runtimeByWebExVersionId[webExVersionId];
+            if (!$.isPlainObject(runtime)) {
                 return;
             }
 
-            if (Array.isArray(this.settings.survey.nodes)) {
-                this.settings.survey.nodes.forEach((node) => {
-                    if (node && node.id) {
-                        this._nodesById[node.id] = node;
+            const popup = this.getPopup(runtime);
+
+            const handleClosed = (evt) => {
+                const detail = evt && evt.detail ? evt.detail : null;
+                if (detail && detail.webExVersionId && detail.webExVersionId !== runtime.webExVersionId) {
+                    return;
+                }
+
+                if (runtime._resetOnClose) {
+                    this._resetSurveyState(runtime);
+                }
+
+                popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
+            };
+
+            popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
+
+            if (runtime._currentNodeId === null) {
+                runtime._currentNodeId = this._findFirstNodeId(runtime);
+            }
+
+            this._ensureSessionId(runtime);
+
+            popup.meta = {
+                webExVersionId: runtime.webExVersionId,
+                sessionId: runtime._sessionId
+            };
+
+            this._renderCurrentPage(runtime, popup);
+            this._ensureHistoryIntegration(runtime);
+            this._pushHistoryStateForCurrentPage(runtime);
+            popup.open();
+
+            this._fireOpenedEvent(runtime);
+        },
+
+        _resolveAnchorCandidates: function (config) {
+            const position = $.isPlainObject(config) && $.isPlainObject(config.position) ? config.position : null;
+            if (position == null) {
+                return {
+                    operation: null,
+                    $anchors: $()
+                };
+            }
+
+            const operation = Breinify.UTL.isNonEmptyString(position.operation);
+            if (operation === null) {
+                return {
+                    operation: null,
+                    $anchors: $()
+                };
+            }
+
+            let $anchors = $();
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+
+            if (selector !== null) {
+                $anchors = $(selector);
+            } else if (snippet !== null) {
+                const positionFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
+                $anchors = $.isFunction(positionFunc) ? $(positionFunc()) : $();
+            }
+
+            $anchors = $anchors.filter(function () {
+                return this && this.nodeType === 1;
+            });
+
+            return {
+                operation: operation,
+                $anchors: $anchors
+            };
+        },
+
+        ensureTriggers: function (runtime) {
+            const resolved = this._resolveAnchorCandidates(runtime.settings);
+            const operation = resolved.operation;
+            const $anchors = resolved.$anchors;
+
+            if (operation === null || !$anchors || $anchors.length === 0) {
+                return;
+            }
+
+            const markerKey = "br.uiSurvey.trigger." + runtime.webExVersionId;
+
+            $anchors.each((idx, anchor) => {
+                const $anchor = $(anchor);
+                let trigger = $anchor.data(markerKey);
+
+                if (!trigger) {
+                    trigger = document.createElement(generalSurveyElementName);
+                    trigger.setAttribute("data-br-survey-webexversionid", runtime.webExVersionId);
+
+                    const attached = Breinify.UTL.dom.attachByOperation(operation, $anchor, $(trigger));
+                    if (attached !== true) {
+                        return;
                     }
+
+                    $anchor.data(markerKey, trigger);
+                } else if (trigger.isConnected !== true) {
+                    const attached = Breinify.UTL.dom.attachByOperation(operation, $anchor, $(trigger));
+                    if (attached !== true) {
+                        return;
+                    }
+                }
+
+                this.registerTrigger(runtime, trigger);
+
+                Breinify.plugins.uiSurvey.attachEventListeners(
+                    trigger,
+                    runtime.webExVersionId,
+                    function (eventName, detail) {
+                        const metadata = {
+                            version: runtime.module.version,
+                            created: runtime.module.created,
+                            campaignName: Breinify.UTL.isNonEmptyString(runtime.module.campaignName)
+                        };
+                        eventHandler.sendActivity(metadata, eventName, detail);
+                    }
+                );
+
+                trigger.render(runtime.webExVersionId, runtime.settings, () => {
+                    this.openSurvey(runtime.webExVersionId);
                 });
-            }
-
-            if (Array.isArray(this.settings.survey.edges)) {
-                this._edges = this.settings.survey.edges.slice();
-            }
+            });
         }
-
-        render(webExVersionId, settings) {
-            this.settings = settings;
-            this.webExVersionId = webExVersionId;
-            this.$shadowRoot.empty();
-
-            // first add the base style and load structure
-            this._ensureBaseStyle();
-            this._loadStructureFromSettings();
-
-            // second let's add the style snippet - if any
-            Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
-
-            // add trigger banner
-            const $root = $('<div class="br-survey-root"></div>');
-            this._createTrigger($root);
-            this.$shadowRoot.append($root);
-
-            // fire "rendered" once banner is actually in the DOM
-            this._fireRenderedEvent();
-        }
-    }
+    };
 
     const eventHandler = {
-
         _determineEventType: function (eventName, metadata, detail) {
             switch (eventName) {
-                case 'rendered':
-                    return 'renderedElement'
-                case 'opened':
-                case 'popup-closed':
-                case 'answer-selected':
-                    return 'clickedElement'
+                case "rendered":
+                    return "renderedElement";
+                case "opened":
+                case "popup-closed":
+                case "answer-selected":
+                    return "clickedElement";
                 default:
                     return null;
             }
@@ -1917,32 +1870,32 @@
 
         _determineTags: function (eventName, metadata, detail) {
             switch (eventName) {
-                case 'rendered':
+                case "rendered":
                     return {
-                        actionType: 'rendered',
-                        action: 'render banner/button/text',
-                        elementType: 'br-survey-root'
+                        actionType: "rendered",
+                        action: "render banner/button/text",
+                        elementType: "br-survey-root"
                     };
-                case 'opened':
+                case "opened":
                     return {
-                        actionType: 'trigger',
-                        action: 'open survey',
-                        elementType: 'br-survey-root'
+                        actionType: "trigger",
+                        action: "open survey",
+                        elementType: "br-survey-root"
                     };
-                case 'popup-closed':
+                case "popup-closed":
                     return {
-                        actionType: 'trigger',
-                        action: 'closed survey',
-                        elementType: Breinify.UTL.isNonEmptyString(detail?.reason) ? detail.reason : 'unspecified'
+                        actionType: "trigger",
+                        action: "closed survey",
+                        elementType: Breinify.UTL.isNonEmptyString(detail && detail.reason) ? detail.reason : "unspecified"
                     };
-                case 'answer-selected':
+                case "answer-selected":
                     return {
-                        actionType: 'click',
-                        action: 'selected answer',
-                        elementType: 'br-survey-answer',
-                        stepNumber: typeof detail?.stepNumber === 'number' ? detail.stepNumber : null,
-                        answer: Breinify.UTL.isNonEmptyString(detail?.answerLabel),
-                        question: Breinify.UTL.isNonEmptyString(detail?.questionLabel)
+                        actionType: "click",
+                        action: "selected answer",
+                        elementType: "br-survey-answer",
+                        stepNumber: typeof (detail && detail.stepNumber) === "number" ? detail.stepNumber : null,
+                        answer: Breinify.UTL.isNonEmptyString(detail && detail.answerLabel),
+                        question: Breinify.UTL.isNonEmptyString(detail && detail.questionLabel)
                     };
                 default:
                     return {};
@@ -1951,7 +1904,7 @@
 
         sendActivity: function (metadata, eventName, detail) {
             if (Breinify.UTL.isNonEmptyString(eventName) === null ||
-                Breinify.UTL.isNonEmptyString(detail?.webExVersionId) === null) {
+                Breinify.UTL.isNonEmptyString(detail && detail.webExVersionId) === null) {
                 return;
             }
 
@@ -1959,11 +1912,12 @@
             if (type == null) {
                 return;
             }
+
             const user = {};
             const tags = $.extend(true, {
                 campaignWebExId: detail.webExVersionId,
                 widget: metadata.campaignName,
-                widgetType: 'survey'
+                widgetType: "survey"
             }, this._determineTags(eventName, metadata, detail));
 
             Breinify.plugins.activities.generic(type, user, tags);
@@ -1971,24 +1925,20 @@
     };
 
     Breinify.plugins._add("uiSurvey", {
-
         attachEventListeners: function (surveyEl, webExVersionId, callback, selection) {
             if (!surveyEl) {
                 return;
             }
 
-            // prevent double-binding if register() runs more than once
             const markerKey = "__brUiSurveyListeners::" + webExVersionId;
             if (surveyEl[markerKey] === true) {
                 return;
             }
             surveyEl[markerKey] = true;
 
-            // make sure we have a fallback if none is passed
-            const handler = typeof callback === "function" ? callback : function (eventName, detail) {
+            const handler = typeof callback === "function" ? callback : function () {
             };
 
-            // normalize selection into a map: { "<name>": true }
             let allowed = null;
             if (Array.isArray(selection)) {
                 allowed = Object.create(null);
@@ -2014,7 +1964,6 @@
                 };
             };
 
-            // Events dispatched by UiSurvey element
             if (isAllowed("rendered")) {
                 surveyEl.addEventListener("br-ui-survey:rendered", wrap("rendered"));
             }
@@ -2031,12 +1980,9 @@
                 surveyEl.addEventListener("br-ui-survey:answer-selected", wrap("answer-selected"));
             }
 
-            // Popup event is dispatched by popup element; listen globally
             if (isAllowed("popup-closed")) {
                 document.addEventListener("br-ui-survey:popup-closed", function (evt) {
                     const d = evt && evt.detail ? evt.detail : null;
-
-                    // if webExVersionId is present, filter so multiple surveys don't spam each other
                     if (d && d.webExVersionId && d.webExVersionId !== webExVersionId) {
                         return;
                     }
@@ -2047,52 +1993,33 @@
         },
 
         render: function (module, config) {
-
-            // check if we already have the element (just defensive)
-            const webExElId = "br-survey-" + webExVersionId;
-
-            let $survey = $("#" + webExElId);
-            if ($survey.length === 0) {
-
-                // make sure we have the survey root element at this point to attach it if needed
-                if (!window.customElements.get(generalSurveyElementName)) {
-                    window.customElements.define(generalSurveyElementName, UiSurvey);
-                }
-
-                // otherwise we add the element and attach it, if successful we continue
-                $survey = $("<" + generalSurveyElementName + "/>").attr("id", webExElId);
-                if (Breinify.plugins.webExperiences.attach(config, $survey) === false) {
-                    return;
-                }
+            if (!window.customElements.get(generalSurveyElementName)) {
+                window.customElements.define(generalSurveyElementName, UiSurveyTrigger);
             }
 
-            // if we made it here we can now ensure that the survey element is known
             if (!window.customElements.get(popupElementName)) {
                 window.customElements.define(popupElementName, UiSurveyPopup);
             }
 
             const globalStyleId = "br-survey-global-style";
-            if ($('#' + globalStyleId).length === 0) {
-                $('body').prepend(`
+            if ($("#" + globalStyleId).length === 0) {
+                $("body").prepend(`
                   <style id="${globalStyleId}">
                     .br-survey-scroll-lock { overflow: hidden !important; touch-action: none !important; overscroll-behavior: none !important; }
                   </style>
                 `);
             }
 
-            // get the actual DOM element
-            const metadata = {
-                version: module.version,
-                created: module.created,
-                campaignName: Breinify.UTL.isNonEmptyString(module.campaignName)
-            };
+            const runtime = _private.getRuntime(module, config);
+            if (!$.isPlainObject(runtime)) {
+                return;
+            }
 
-            const survey = $survey.get(0);
-            this.attachEventListeners(survey, webExVersionId, function (eventName, detail) {
-                eventHandler.sendActivity(metadata, eventName, detail);
-            });
+            _private.ensureTriggers(runtime);
+        },
 
-            survey.render(webExVersionId, config);
+        open: function (webExVersionId) {
+            _private.openSurvey(webExVersionId);
         }
     });
 })();
