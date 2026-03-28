@@ -336,21 +336,31 @@
 
             switch (condition.operator) {
                 case "equals":
-                    matcher = function (v) { return v === expected; };
+                    matcher = function (v) {
+                        return v === expected;
+                    };
                     break;
                 case "contains":
-                    matcher = function (v) { return v.includes(expected); };
+                    matcher = function (v) {
+                        return v.includes(expected);
+                    };
                     break;
                 case "startsWith":
-                    matcher = function (v) { return v.startsWith(expected); };
+                    matcher = function (v) {
+                        return v.startsWith(expected);
+                    };
                     break;
                 case "endsWith":
-                    matcher = function (v) { return v.endsWith(expected); };
+                    matcher = function (v) {
+                        return v.endsWith(expected);
+                    };
                     break;
                 case "regex":
                     try {
                         const re = new RegExp(expected);
-                        matcher = function (v) { return re.test(v); };
+                        matcher = function (v) {
+                            return re.test(v);
+                        };
                     } catch (e) {
                         return false;
                     }
@@ -512,6 +522,52 @@
             }
         },
 
+        /**
+         * Attaches a web-experience element to one or more resolved anchor elements based on the configured
+         * `position` of the experience.
+         *
+         * The method supports two attachment modes:
+         * - `single`: attaches one existing element to one resolved anchor
+         * - `multi`: creates one new element per resolved anchor by using a supplier function
+         *
+         * The anchor elements are resolved from `webExpSettings.position`. A valid position must define:
+         * - `operation`: one of `append`, `prepend`, `before`, or `after`
+         * - either `selector` or `snippet`
+         *
+         * Supported values for `elOrSupplier`:
+         * - a jQuery-wrapped element or DOM element, used for `single` attachment
+         * - a supplier function returning a new element instance, used for `multi` attachment
+         *
+         * For `multi`, the supplier must return a fresh element for each anchor. The framework uses
+         * the optional `placement.key` together with the anchor element to keep attachment stable and
+         * prevent duplicate instances for the same experience at the same anchor.
+         *
+         * Return behavior:
+         * - in `single` mode, returns `true` if the element is attached or already correctly attached
+         *   and `false` otherwise
+         * - in `multi` mode, returns `true` if at least one instance is attached or already present
+         *   at a valid anchor and `false` otherwise
+         *
+         * @param {Object} webExpSettings
+         * the web-experience settings containing the `position` definition used to resolve anchor elements
+         *
+         * @param {jQuery|Element|Function} elOrSupplier
+         * either the element to attach in `single` mode or a supplier function creating a new element for
+         * each anchor in `multi` mode
+         *
+         * @param {Object} [placement]
+         * optional placement configuration
+         *
+         * @param {String} [placement.cardinality='single']
+         * determines whether the attachment is handled as `single` or `multi`
+         *
+         * @param {String} [placement.key]
+         * stable identifier used in `multi` mode to deduplicate per-anchor instances for the same experience
+         *
+         * @return {boolean}
+         * returns `true` if attachment succeeded, or if the required attachment state was already satisfied;
+         * otherwise returns `false`
+         */
         attach: function (webExpSettings, elOrSupplier, placement) {
 
             placement = $.extend(true, {
