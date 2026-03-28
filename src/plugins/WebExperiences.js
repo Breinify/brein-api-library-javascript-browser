@@ -14,10 +14,6 @@
 
         setup: function (configuration, module) {
 
-            /*
-             * If a module only defines ready, normalize it to onChange so the
-             * web-experience framework can work with one unified lifecycle hook.
-             */
             if ($.isFunction(module.ready) && !$.isFunction(module.onChange)) {
                 module.onChange = module.ready;
                 module.ready = null;
@@ -31,10 +27,6 @@
             const _self = this;
             const currentIsValidPage = $.isFunction(module.isValidPage) ? module.isValidPage : null;
 
-            /*
-             * Checks if the current page is valid for this module. If true, the
-             * trigger framework may continue with findRequirements and onChange.
-             */
             module.isValidPage = function () {
                 return _self.checkActivityLogic(configuration, module) === true &&
                     (currentIsValidPage === null || currentIsValidPage.call(module) === true);
@@ -42,54 +34,37 @@
         },
 
         setupDynamicRequirements: function (configuration, module) {
+            const _self = this;
 
-            /*
-             * Only wrap if needed:
-             * - ATTRIBUTE activation needs DOM observation
-             * - dynamic position observation needs DOM observation
-             * - an existing custom findRequirements must continue to work
-             */
-            const needsDynamicRequirements = this.hasAttributeActivation(configuration) === true ||
-                this.hasDynamicPosition(configuration) === true ||
-                $.isFunction(module.findRequirements);
-
-            if (needsDynamicRequirements !== true || module._webExpDynamicRequirementsWrapped === true) {
+            if (module._webExpDynamicRequirementsWrapped === true) {
                 return;
             }
 
-            const _self = this;
             const originalFindRequirements = $.isFunction(module.findRequirements) ? module.findRequirements : null;
+            const hasAttributeActivation = this.hasAttributeActivation(configuration) === true;
+            const hasDynamicPosition = this.hasDynamicPosition(configuration) === true;
+
+            if (hasAttributeActivation !== true && hasDynamicPosition !== true) {
+                return;
+            }
 
             module._webExpDynamicRequirementsWrapped = true;
             module.renderingBehavior = "onChange";
 
             module.findRequirements = function ($el, data) {
 
-                /*
-                 * Fast exit: removed elements are never relevant for activation.
-                 */
+                // fastest possible exit
                 if (data?.type === "removed-element") {
                     return false;
                 }
 
-                /*
-                 * Resolve all framework-level targets first. If none match, we can
-                 * stop immediately and avoid any additional module-specific work.
-                 */
                 const targets = _self.resolveTargets(configuration, module, $el, data);
                 if (targets === null) {
                     return false;
                 }
 
-                /*
-                 * Keep the last resolved targets so a module may use them later if needed.
-                 */
                 module._lastResolvedTargets = targets;
 
-                /*
-                 * If the module had no custom requirements, the framework-level match
-                 * is already sufficient.
-                 */
                 if (originalFindRequirements === null) {
                     return true;
                 }
@@ -99,42 +74,45 @@
         },
 
         resolveTargets: function (configuration, module, $el, data) {
-            const result = {
-                attribute: null,
-                position: null
-            };
-
-            const needsAttribute = this.hasAttributeActivation(configuration) === true;
-            const needsDynamicPosition = this.hasDynamicPosition(configuration) === true;
+            const type = data?.type;
+            const root = $el && $el.length > 0 ? $el.get(0) : null;
 
             /*
-             * Nothing framework-dynamic to resolve.
-             */
-            if (needsAttribute !== true && needsDynamicPosition !== true) {
-                return result;
-            }
-
-            /*
-             * ATTRIBUTE activation:
-             * Only react to:
+             * We only care about:
              * - added elements
              * - attribute changes of data-br-webexpid
              */
-            if (needsAttribute === true) {
-                result.attribute = this.findAttributeTarget(module, $el, data);
-                if (result.attribute === null) {
+            if (type === "attribute-change" && data?.attribute !== "data-br-webexpid") {
+                return null;
+            } else if (type !== "added-element" && type !== "attribute-change") {
+                return null;
+            }
+
+            const result = {
+                attributeTarget: null,
+                positionTargets: null
+            };
+
+            /*
+             * ------------------------------------------
+             * ATTRIBUTE TARGET RESOLUTION
+             * ------------------------------------------
+             */
+            if (this.hasAttributeActivation(configuration) === true) {
+                result.attributeTarget = this.findAttributeTarget(module, root, type);
+                if (result.attributeTarget === null) {
                     return null;
                 }
             }
 
             /*
-             * Dynamic position observation:
-             * Only resolve if the configured position itself is meant to be observed
-             * on each change.
+             * ------------------------------------------
+             * POSITION TARGET RESOLUTION
+             * ------------------------------------------
              */
-            if (needsDynamicPosition === true) {
-                result.position = this.findPositionTarget(configuration, $el, data);
-                if (result.position === null) {
+            if (this.hasDynamicPosition(configuration) === true) {
+                result.positionTargets = this.resolvePositionTargets(configuration, root, type);
+                if (result.positionTargets === null || result.positionTargets.length === 0) {
                     return null;
                 }
             }
@@ -142,7 +120,121 @@
             return result;
         },
 
-        checkActivityLogic: function (configuration, module) {
+        findAttributeTarget: function (module, root, type) {
+            if (!Breinify.UTL.dom.isNodeType(root, 1)) {
+                return null;
+            }
+
+            // direct hit
+            if (this._isMatchingWebExpDiv(module, root)) {
+                return root;
+            }
+
+            // on attribute-change only the changed element matters
+            if (type === "attribute-change") {
+                return null;
+            }
+
+            // on added-element we scan the subtree
+            if (!$.isFunction(root.querySelectorAll)) {
+                return null;
+            }
+
+            const matches = root.querySelectorAll("div[data-br-webexpid]");
+            for (let i = 0; i < matches.length; i++) {
+                if (this._isMatchingWebExpDiv(module, matches[i])) {
+                    return matches[i];
+                }
+            }
+
+            return null;
+        },
+
+        resolvePositionTargets: function (configuration, root) {
+            const position = $.isPlainObject(configuration?.position) ? configuration.position : null;
+            if (position === null) {
+                return null;
+            }
+
+            const selector = Breinify.UTL.isNonEmptyString(position.selector);
+            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+
+            if (selector !== null) {
+                return this._resolveSelectorTargets(selector, root);
+            } else if (snippet !== null) {
+                return this._resolveSnippetTargets(snippet);
+            } else {
+                return null;
+            }
+        },
+
+        _resolveSelectorTargets: function (selector, root) {
+            let $targets = null;
+
+            if (Breinify.UTL.dom.isNodeType(root, 1)) {
+                const targets = [];
+
+                if ($.isFunction(root.matches) && root.matches(selector)) {
+                    targets.push(root);
+                }
+
+                if ($.isFunction(root.querySelectorAll)) {
+                    const nested = root.querySelectorAll(selector);
+                    for (let i = 0; i < nested.length; i++) {
+                        targets.push(nested[i]);
+                    }
+                }
+
+                $targets = $(targets);
+            } else {
+                $targets = $(selector);
+            }
+
+            return this._normalizeTargetElements($targets);
+        },
+
+        _resolveSnippetTargets: function (snippetId) {
+            if (Breinify.plugins._isAdded("snippetManager") !== true) {
+                return null;
+            }
+
+            const snippetFn = Breinify.plugins.snippetManager.getSnippet(snippetId);
+            if (!$.isFunction(snippetFn)) {
+                return null;
+            }
+
+            try {
+                return this._normalizeTargetElements($(snippetFn()));
+            } catch (e) {
+                return null;
+            }
+        },
+
+        _normalizeTargetElements: function ($targets) {
+            if (!$targets || $targets.length === 0) {
+                return null;
+            }
+
+            const seen = [];
+            const result = [];
+
+            $targets.each(function () {
+                if (!Breinify.UTL.dom.isNodeType(this, 1)) {
+                    return;
+                }
+
+                if ($.inArray(this, seen) > -1) {
+                    return;
+                }
+
+                seen.push(this);
+                result.push(this);
+            });
+
+            return result.length > 0 ? result : null;
+        },
+
+        checkActivityLogic: function (configuration) {
             if (!$.isPlainObject(configuration?.activationLogic)) {
                 return true;
             }
@@ -151,7 +243,7 @@
             const paths = $.isArray(logic.paths) ? logic.paths : [];
 
             let isValidPage = paths.length === 0;
-            let hasAttributeActivation = false;
+            let hasAttribute = false;
 
             for (let i = 0; i < paths.length && isValidPage === false; i++) {
                 const path = $.isPlainObject(paths[i]) ? paths[i] : {};
@@ -159,31 +251,24 @@
                 const value = Breinify.UTL.isNonEmptyString(path.value);
 
                 if (type === "ATTRIBUTE") {
-                    hasAttributeActivation = true;
+                    hasAttribute = true;
                     continue;
                 } else if (type === "ALL_PATHS") {
                     isValidPage = true;
-                } else if (value === null) {
-                    console.warn("found invalid activation-logic value, skipping");
                 } else if (type === "STATIC_PATHS") {
                     if (value === window.location.pathname) {
                         isValidPage = true;
                     }
                 } else if (type === "REGEX") {
                     try {
-                        if (new RegExp(value).test(window.location.pathname) === true) {
+                        if (value !== null && new RegExp(value).test(window.location.pathname) === true) {
                             isValidPage = true;
                         }
                     } catch (e) {
-                        console.warn("found invalid activation-logic regex, skipping");
+                        // invalid regex
                     }
-                } else {
-                    console.warn('found undefined path type "' + type + '" in the activation logic, skipping');
                 }
 
-                /*
-                 * Search parameters are AND-combined.
-                 */
                 if (isValidPage === true && $.isArray(path.searchParameters) && path.searchParameters.length > 0) {
                     for (let j = 0; j < path.searchParameters.length && isValidPage === true; j++) {
                         isValidPage = this.checkSearchParams(path.searchParameters[j]);
@@ -191,12 +276,7 @@
                 }
             }
 
-            /*
-             * ATTRIBUTE activation is page-independent by design. If no path matched
-             * but ATTRIBUTE exists, the page is still considered valid so DOM observation
-             * can happen.
-             */
-            if (isValidPage !== true && hasAttributeActivation === true) {
+            if (isValidPage !== true && hasAttribute === true) {
                 isValidPage = true;
             }
 
@@ -207,8 +287,8 @@
             const paths = $.isArray(configuration?.activationLogic?.paths) ? configuration.activationLogic.paths : [];
 
             for (let i = 0; i < paths.length; i++) {
-                const path = $.isPlainObject(paths[i]) ? paths[i] : {};
-                if (Breinify.UTL.isNonEmptyString(path.type) === "ATTRIBUTE") {
+                const type = Breinify.UTL.isNonEmptyString(paths[i]?.type);
+                if (type === "ATTRIBUTE") {
                     return true;
                 }
             }
@@ -217,127 +297,8 @@
         },
 
         hasDynamicPosition: function (configuration) {
-            const renderingBehavior = Breinify.UTL.isNonEmptyString(configuration?.position?.renderingBehavior);
-            return renderingBehavior !== null && renderingBehavior.toLowerCase() === "onchange";
-        },
-
-        findAttributeTarget: function (module, $el, data) {
-            const type = data?.type;
-
-            /*
-             * Fast exits:
-             * - removed elements are irrelevant
-             * - attribute changes are only relevant for data-br-webexpid
-             * - all other mutation types are irrelevant here
-             */
-            if (type === "removed-element") {
-                return null;
-            } else if (type === "attribute-change" && data?.attribute !== "data-br-webexpid") {
-                return null;
-            } else if (type !== "attribute-change" && type !== "added-element") {
-                return null;
-            }
-
-            const root = $el && $el.length > 0 ? $el.get(0) : null;
-            if (!Breinify.UTL.dom.isNodeType(root, 1)) {
-                return null;
-            }
-
-            /*
-             * Direct hit.
-             */
-            if (this._isMatchingWebExpDiv(module, root) === true) {
-                return root;
-            }
-
-            /*
-             * For attribute changes we only care about the changed element itself.
-             * No subtree scan is needed.
-             */
-            if (type === "attribute-change") {
-                return null;
-            }
-
-            /*
-             * For added elements we scan the added subtree for the first matching target.
-             */
-            if (!$.isFunction(root.querySelectorAll)) {
-                return null;
-            }
-
-            const nodes = root.querySelectorAll("div[data-br-webexpid]");
-            for (let i = 0; i < nodes.length; i++) {
-                if (this._isMatchingWebExpDiv(module, nodes[i]) === true) {
-                    return nodes[i];
-                }
-            }
-
-            return null;
-        },
-
-        findPositionTarget: function (configuration, $el, data) {
-            const position = $.isPlainObject(configuration?.position) ? configuration.position : null;
-            if (position === null) {
-                return null;
-            }
-
-            const selector = Breinify.UTL.isNonEmptyString(position.selector);
-            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
-            const type = data?.type;
-
-            /*
-             * Fast exit: removed elements are never relevant.
-             */
-            if (type === "removed-element") {
-                return null;
-            }
-
-            /*
-             * Selector-based dynamic positioning:
-             * Only search in the changed subtree / changed node so onChange stays cheap.
-             */
-            if (selector !== null) {
-                const root = $el && $el.length > 0 ? $el.get(0) : null;
-                if (!Breinify.UTL.dom.isNodeType(root, 1)) {
-                    return null;
-                }
-
-                if ($.isFunction(root.matches) && root.matches(selector) === true) {
-                    return root;
-                }
-
-                if ($.isFunction(root.querySelector)) {
-                    const match = root.querySelector(selector);
-                    return Breinify.UTL.dom.isNodeType(match, 1) ? match : null;
-                }
-
-                return null;
-            }
-
-            /*
-             * Snippet-based positioning:
-             * We cannot optimize against the changed subtree because the snippet controls
-             * the lookup itself, so we execute it once and validate the result.
-             */
-            if (snippet !== null) {
-                if (Breinify.plugins._isAdded("snippetManager") !== true) {
-                    return null;
-                }
-
-                const snippetFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
-                if (!$.isFunction(snippetFunc)) {
-                    return null;
-                }
-
-                try {
-                    const $anchor = $(snippetFunc());
-                    return $anchor.length > 0 && Breinify.UTL.dom.isNodeType($anchor.get(0), 1) ? $anchor.get(0) : null;
-                } catch (e) {
-                    return null;
-                }
-            }
-
-            return null;
+            const behavior = Breinify.UTL.isNonEmptyString(configuration?.position?.renderingBehavior);
+            return behavior !== null && behavior.toLowerCase() === "onchange";
         },
 
         _isMatchingWebExpDiv: function (module, el) {
@@ -345,10 +306,10 @@
                 return false;
             }
 
-            const id = Breinify.UTL.isNonEmptyString(el.getAttribute("data-br-webexpid"));
-            const expected = Breinify.UTL.isNonEmptyString(module?.webExId);
+            const foundWebExpId = Breinify.UTL.isNonEmptyString(el.getAttribute("data-br-webexpid"));
+            const expectedWebExpId = Breinify.UTL.isNonEmptyString(module?.webExId);
 
-            return id !== null && expected !== null && id === expected;
+            return foundWebExpId !== null && expectedWebExpId !== null && foundWebExpId === expectedWebExpId;
         },
 
         checkSearchParams: function (condition) {
@@ -357,12 +318,12 @@
             }
 
             const params = new URLSearchParams(window.location.search);
-            const targetName = condition.param.toLowerCase();
+            const targetName = String(condition.param).toLowerCase();
             const values = [];
 
-            for (const [key, val] of params.entries()) {
-                if (key.toLowerCase() === targetName) {
-                    values.push(val);
+            for (const [key, value] of params.entries()) {
+                if (String(key).toLowerCase() === targetName) {
+                    values.push(value);
                 }
             }
 
@@ -375,32 +336,22 @@
 
             switch (condition.operator) {
                 case "equals":
-                    matcher = function (v) {
-                        return v === expected;
-                    };
+                    matcher = function (v) { return v === expected; };
                     break;
                 case "contains":
-                    matcher = function (v) {
-                        return v.includes(expected);
-                    };
+                    matcher = function (v) { return v.includes(expected); };
                     break;
                 case "startsWith":
-                    matcher = function (v) {
-                        return v.startsWith(expected);
-                    };
+                    matcher = function (v) { return v.startsWith(expected); };
                     break;
                 case "endsWith":
-                    matcher = function (v) {
-                        return v.endsWith(expected);
-                    };
+                    matcher = function (v) { return v.endsWith(expected); };
                     break;
                 case "regex":
                     try {
                         const re = new RegExp(expected);
-                        matcher = function (v) {
-                            return re.test(v);
-                        };
-                    } catch (err) {
+                        matcher = function (v) { return re.test(v); };
+                    } catch (e) {
                         return false;
                     }
                     break;
@@ -412,8 +363,8 @@
         },
 
         _checkActivationSnippet: function (logicSnippet) {
-            const snippet = Breinify.UTL.isNonEmptyString(logicSnippet);
-            if (snippet === null) {
+            const snippetId = Breinify.UTL.isNonEmptyString(logicSnippet);
+            if (snippetId === null) {
                 return true;
             }
 
@@ -421,7 +372,7 @@
                 return false;
             }
 
-            const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippet);
+            const activationSnippet = Breinify.plugins.snippetManager.getSnippet(snippetId);
             if (!$.isFunction(activationSnippet)) {
                 return false;
             }
@@ -429,19 +380,19 @@
             try {
                 return activationSnippet() === true;
             } catch (e) {
-                console.error("[breinify] error occurred while executing activationSnippet:", e);
+                console.error("[breinify] error occurred while executing activationSnippet: ", e);
                 return false;
             }
         },
 
         determineId: function (id) {
-            const normId = Breinify.UTL.isNonEmptyString(id);
-            if (normId === null) {
+            const normalizedId = Breinify.UTL.isNonEmptyString(id);
+            if (normalizedId === null) {
                 return null;
-            } else if (normId.indexOf(this.idPrefix) === 0) {
-                return normId;
+            } else if (normalizedId.indexOf(this.idPrefix) === 0) {
+                return normalizedId;
             } else {
-                return this.idPrefix + normId;
+                return this.idPrefix + normalizedId;
             }
         },
 
@@ -450,12 +401,12 @@
                 return null;
             }
 
-            const op = Breinify.UTL.isNonEmptyString(operation);
-            if (op === null) {
+            const normalizedOperation = Breinify.UTL.isNonEmptyString(operation);
+            if (normalizedOperation === null) {
                 return null;
             }
 
-            const normalizedOperation = op.toLowerCase();
+            const operationLc = normalizedOperation.toLowerCase();
             const el = $el.get(0);
             const parent = el.parentNode;
 
@@ -463,98 +414,83 @@
                 return null;
             }
 
-            if (normalizedOperation === "append" || normalizedOperation === "prepend") {
+            if (operationLc === "append" || operationLc === "prepend") {
                 return parent;
-            } else if (normalizedOperation === "before") {
+            } else if (operationLc === "before") {
                 return el.nextElementSibling;
-            } else if (normalizedOperation === "after") {
+            } else if (operationLc === "after") {
                 return el.previousElementSibling;
             } else {
                 return null;
             }
+        },
+
+        _normalizeElementSupplierResult: function (value) {
+            if (value == null) {
+                return null;
+            }
+
+            if (value.jquery) {
+                return value.length > 0 ? value.eq(0) : null;
+            }
+
+            if (Breinify.UTL.dom.isNodeType(value, 1)) {
+                return $(value);
+            }
+
+            return null;
+        },
+
+        _createElementInstance: function (elementOrSupplier, context) {
+            if ($.isFunction(elementOrSupplier)) {
+                return this._normalizeElementSupplierResult(elementOrSupplier(context));
+            }
+
+            return this._normalizeElementSupplierResult(elementOrSupplier);
         }
     };
 
     const WebExperiences = {
 
-        determineActivationLogicType: function (configuration) {
-            if (!$.isPlainObject(configuration?.activationLogic)) {
-                return "NONE";
-            }
-
-            const logic = configuration.activationLogic;
-            const paths = $.isArray(logic.paths) ? logic.paths : [];
-
-            let hasAttribute = false;
-            let hasPath = false;
-
-            for (let i = 0; i < paths.length; i++) {
-                const path = $.isPlainObject(paths[i]) ? paths[i] : {};
-                const type = Breinify.UTL.isNonEmptyString(path.type);
-                const value = Breinify.UTL.isNonEmptyString(path.value);
-
-                if (type === "ATTRIBUTE") {
-                    hasAttribute = true;
-                } else if (type === "ALL_PATHS") {
-                    hasPath = true;
-                } else if (type === "STATIC_PATHS" || type === "REGEX") {
-                    if (value === null) {
-                        return "INVALID";
-                    }
-                    hasPath = true;
-                } else {
-                    return "INVALID";
-                }
-            }
-
-            if (hasAttribute === true && hasPath === true) {
-                return "ATTRIBUTE_AND_PATH";
-            } else if (hasAttribute === true) {
-                return "BY_ATTRIBUTE";
-            } else if (hasPath === true) {
-                return "BY_PATH";
-            } else {
-                return "NONE";
-            }
-        },
-
         isBootstrapped: function (id) {
-            const normId = _private.determineId(id);
-            if (normId === null) {
+            const normalizedId = _private.determineId(id);
+            if (normalizedId === null) {
                 return false;
             }
 
-            return Breinify.plugins.api.isModule(normId) === true;
+            return Breinify.plugins.api.isModule(normalizedId) === true;
         },
 
         bootstrap: function (id, configuration, module) {
-
             if (typeof module !== "object") {
-                console.error('the module is not a valid module and cannot be setup (id: ' + id + ')');
+                console.error("the module is not a valid module and cannot be setup (id: " + id + ")");
                 return;
             }
 
             id = _private.determineId(id);
             if (id === null) {
-                console.error('the id "' + id + '" is not a valid identifier');
+                console.error("the id \"" + id + "\" is not a valid identifier");
                 return;
             }
 
             if (Breinify.plugins._isAdded("trigger") !== true) {
-                console.error('the trigger plugin is not available, skipping setup of the web-experience with id "' + id + '"');
+                console.error("the trigger plugin is not available, skipping setup of the web-experiences with id \"" + id + "\"");
                 return;
             } else if (Breinify.plugins.api.isModule(id) === true) {
                 return;
-            } else {
-                Breinify.plugins.trigger.init();
             }
+
+            Breinify.plugins.trigger.init();
 
             _private.setup(configuration, module);
             Breinify.plugins.api.addModule(id, module);
         },
 
         style: function (settings, $el, selector) {
-            const snippetId = $.isPlainObject(settings?.style) ? Breinify.UTL.isNonEmptyString(settings.style.snippet) : null;
+            const snippetId = $.isPlainObject(settings?.style)
+                ? Breinify.UTL.isNonEmptyString(settings.style.snippet)
+                : null;
+
             if (snippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
                 return;
             }
@@ -565,27 +501,26 @@
             }
 
             try {
-                const normalizedSelector = Breinify.UTL.isNonEmptyString(selector);
-                if (normalizedSelector === null) {
+                selector = Breinify.UTL.isNonEmptyString(selector);
+                if (selector === null) {
                     $el.prepend($(snippet));
                 } else {
-                    $el.find(normalizedSelector).after($(snippet));
+                    $el.find(selector).after($(snippet));
                 }
             } catch (e) {
                 // invalid snippet
             }
         },
 
-        attach: function (webExpSettings, $el, placement) {
+        attach: function (webExpSettings, elementOrSupplier, placement) {
+
             placement = $.extend(true, {
                 cardinality: "single"
             }, $.isPlainObject(placement) ? placement : {});
 
-            if (!$el || $el.length === 0) {
-                return false;
-            }
-
-            const position = $.isPlainObject(webExpSettings?.position) ? webExpSettings.position : null;
+            const position = $.isPlainObject(webExpSettings) && $.isPlainObject(webExpSettings.position)
+                ? webExpSettings.position
+                : null;
             if (position === null) {
                 return false;
             }
@@ -595,97 +530,117 @@
                 return false;
             }
 
-            const normalizedOperation = operation.toLowerCase();
-            const cardinality = Breinify.UTL.isNonEmptyString(placement.cardinality) || "single";
-            if (cardinality !== "single") {
+            let targets = null;
+            if ($.isArray(elementOrSupplier?._lastResolvedTargets?.positionTargets)) {
+                targets = elementOrSupplier._lastResolvedTargets.positionTargets;
+            }
+
+            if (!$.isArray(targets) || targets.length === 0) {
+                targets = _private.resolvePositionTargets(webExpSettings, null, null);
+            }
+
+            if (!$.isArray(targets) || targets.length === 0) {
                 return false;
             }
 
-            let $anchor = null;
-            const selector = Breinify.UTL.isNonEmptyString(position.selector);
-            const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
+            const isSupplier = $.isFunction(elementOrSupplier);
+            const cardinality = isSupplier === true
+                ? (Breinify.UTL.isNonEmptyString(placement.cardinality) || "single").toLowerCase()
+                : "single";
 
-            if (selector !== null) {
-                $anchor = $(selector);
-            } else if (snippet !== null) {
-                if (Breinify.plugins._isAdded("snippetManager") !== true) {
+            /*
+             * --------------------------------------------------
+             * BACKWARD-COMPATIBLE SINGLE INSTANCE MODE
+             * --------------------------------------------------
+             */
+            if (cardinality !== "multi") {
+                const $el = _private._createElementInstance(elementOrSupplier, {
+                    index: 0,
+                    anchor: targets[0],
+                    anchors: targets
+                });
+
+                if (!$el || $el.length === 0) {
                     return false;
                 }
 
-                const positionFunc = Breinify.plugins.snippetManager.getSnippet(snippet);
-                $anchor = $.isFunction(positionFunc) ? $(positionFunc()) : null;
-            } else {
-                return false;
-            }
+                const $candidates = $(targets);
 
-            if (!$anchor || $anchor.length === 0) {
-                return false;
-            }
+                const currentAnchor = _private._resolveCurrentAnchor(operation, $el);
+                if (currentAnchor !== null) {
+                    const isStillValid = $candidates.filter(function () {
+                        return this === currentAnchor;
+                    }).length > 0;
 
-            const $candidates = $anchor.filter(function () {
-                return Breinify.UTL.dom.isNodeType(this, 1);
-            });
-
-            if ($candidates.length === 0) {
-                return false;
-            }
-
-            /*
-             * Step 1:
-             * If already attached at a valid anchor for the current operation,
-             * keep it there and do nothing.
-             */
-            const currentAnchor = _private._resolveCurrentAnchor(normalizedOperation, $el);
-            if (currentAnchor !== null) {
-                const isStillValid = $candidates.filter(function () {
-                    return this === currentAnchor;
-                }).length > 0;
-
-                if (isStillValid === true) {
-                    $el.data("br.webexp.attach.operation", normalizedOperation);
-                    $el.data("br.webexp.attach.anchor", currentAnchor);
-                    return true;
-                }
-            }
-
-            /*
-             * Step 2:
-             * If we previously selected an anchor and it is still valid, prefer it.
-             * This keeps placement deterministic and avoids unnecessary movement.
-             */
-            const previousAnchor = $el.data("br.webexp.attach.anchor");
-            if (previousAnchor != null) {
-                const isPreviousStillValid = $candidates.filter(function () {
-                    return this === previousAnchor;
-                }).length > 0;
-
-                if (isPreviousStillValid === true) {
-                    const attachedToPrevious = Breinify.UTL.dom.attachByOperation(normalizedOperation, $(previousAnchor), $el);
-                    if (attachedToPrevious === true) {
-                        $el.data("br.webexp.attach.operation", normalizedOperation);
-                        $el.data("br.webexp.attach.anchor", previousAnchor);
+                    if (isStillValid) {
+                        $el.data("br.webexp.attach.operation", operation);
+                        $el.data("br.webexp.attach.anchor", currentAnchor);
                         return true;
                     }
                 }
-            }
 
-            /*
-             * Step 3:
-             * Otherwise choose the first candidate in DOM order.
-             */
-            const targetAnchor = $candidates.get(0);
-            if (!Breinify.UTL.dom.isNodeType(targetAnchor, 1)) {
+                const previousAnchor = $el.data("br.webexp.attach.anchor");
+                if (previousAnchor != null) {
+                    const isPreviousStillValid = $candidates.filter(function () {
+                        return this === previousAnchor;
+                    }).length > 0;
+
+                    if (isPreviousStillValid) {
+                        const attachedPrev = Breinify.UTL.dom.attachByOperation(operation, $(previousAnchor), $el);
+                        if (attachedPrev === true) {
+                            $el.data("br.webexp.attach.operation", operation);
+                            $el.data("br.webexp.attach.anchor", previousAnchor);
+                            return true;
+                        }
+                    }
+                }
+
+                const targetAnchor = targets[0];
+                const attached = Breinify.UTL.dom.attachByOperation(operation, $(targetAnchor), $el);
+                if (attached === true) {
+                    $el.data("br.webexp.attach.operation", operation);
+                    $el.data("br.webexp.attach.anchor", targetAnchor);
+                    return true;
+                }
+
                 return false;
             }
 
-            const attached = Breinify.UTL.dom.attachByOperation(normalizedOperation, $(targetAnchor), $el);
-            if (attached === true) {
-                $el.data("br.webexp.attach.operation", normalizedOperation);
-                $el.data("br.webexp.attach.anchor", targetAnchor);
-                return true;
+            /*
+             * --------------------------------------------------
+             * MULTI INSTANCE MODE
+             * --------------------------------------------------
+             *
+             * Only supported when a supplier/constructor is passed.
+             * One new element instance is created per target anchor.
+             */
+            if (isSupplier !== true) {
+                return false;
             }
 
-            return false;
+            let attachedCount = 0;
+
+            for (let i = 0; i < targets.length; i++) {
+                const targetAnchor = targets[i];
+                const $el = _private._createElementInstance(elementOrSupplier, {
+                    index: i,
+                    anchor: targetAnchor,
+                    anchors: targets
+                });
+
+                if (!$el || $el.length === 0) {
+                    continue;
+                }
+
+                const attached = Breinify.UTL.dom.attachByOperation(operation, $(targetAnchor), $el);
+                if (attached === true) {
+                    $el.data("br.webexp.attach.operation", operation);
+                    $el.data("br.webexp.attach.anchor", targetAnchor);
+                    attachedCount++;
+                }
+            }
+
+            return attachedCount > 0;
         }
     };
 
