@@ -520,7 +520,7 @@
              * Fallback resolution:
              * first ATTRIBUTE anchor by web-experience id only.
              */
-            $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0)
+            $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
             return $anchor.length === 1 ? $anchor : null;
         },
 
