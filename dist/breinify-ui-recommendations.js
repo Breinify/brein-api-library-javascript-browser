@@ -62,12 +62,10 @@
             }
 
             try {
-                const activationLogic = $.isPlainObject(config) ? config.activationLogic : null;
-
                 const results = await Promise.all(
                     normalizedRecommendations.map(recommendation =>
                         Promise.resolve()
-                            .then(() => this._handle(webExId, webExVersionId, recommendation, activationLogic))
+                            .then(() => this._handle(webExId, webExVersionId, recommendation, config))
                             .catch(err => {
                                 console.error(err);
                                 return null;
@@ -374,7 +372,7 @@
 
                 const func = $.isFunction(rec._positionSelector)
                     ? rec._positionSelector
-                    : this._createPositionSelector(webExId, activationLogic, rec.position, rec);
+                    : this._createPositionSelector(webExId, configuration, rec.position, rec);
                 rec._positionSelector = func;
 
                 if (!$.isFunction(func)) {

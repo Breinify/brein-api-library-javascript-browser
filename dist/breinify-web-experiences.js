@@ -470,8 +470,8 @@
 
     const WebExperiences = {
 
-        hasAttributeActivation: function (activationLogic) {
-            return _private.hasAttributeActivation(activationLogic);
+        hasAttributeActivation: function (configuration) {
+            return _private.hasAttributeActivation(configuration);
         },
 
         isBootstrapped: function (id) {
