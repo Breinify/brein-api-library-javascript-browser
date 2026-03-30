@@ -69,7 +69,10 @@
                     return true;
                 }
 
-                return originalFindRequirements.call(module, $el, data) === true;
+                const requirementResult = originalFindRequirements.call(module, $el, data);
+                return requirementResult === true || $.isPlainObject(requirementResult)
+                    ? requirementResult
+                    : false;
             };
         },
 
