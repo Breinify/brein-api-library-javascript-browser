@@ -42,7 +42,7 @@
                 return;
             }
 
-            const handlingType = Breinify.UTL.isNonEmptyString(config?.type);
+            const handlingType = Breinify.UTL.isNonEmptyString(config && config.type);
             const runtime = this.getRuntime(webExVersionId);
             if (runtime === null) {
                 return;
@@ -62,10 +62,12 @@
             }
 
             try {
+                const activationLogic = $.isPlainObject(config) ? config.activationLogic : null;
+
                 const results = await Promise.all(
                     normalizedRecommendations.map(recommendation =>
                         Promise.resolve()
-                            .then(() => this._handle(webExId, webExVersionId, recommendation))
+                            .then(() => this._handle(webExId, webExVersionId, recommendation, activationLogic))
                             .catch(err => {
                                 console.error(err);
                                 return null;
@@ -90,7 +92,7 @@
             }
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig) {
+        _handle: async function (webExId, webExVersionId, singleConfig, activationLogic) {
             if (!$.isPlainObject(singleConfig)) {
                 return null;
             }
@@ -99,10 +101,10 @@
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
             config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
-            config.position = this._createPosition(singleConfig.position);
+            config.position = this._createPosition(webExId, activationLogic, singleConfig.position, singleConfig);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
+            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process, singleConfig);
             this._applyStyle(singleConfig.style);
 
             /*
@@ -128,7 +130,7 @@
             }
         },
 
-        _createProcess: function (webExId, webExVersionId, config) {
+        _createProcess: function (webExId, webExVersionId, config, recommenderConfig) {
             let resolvedProcesses;
             if ($.isPlainObject(config)) {
                 resolvedProcesses = Object.fromEntries(
@@ -141,14 +143,39 @@
                 resolvedProcesses = {};
             }
 
-            let createActivityFunc = null;
-            if ($.isFunction(resolvedProcesses.createActivity)) {
-                createActivityFunc = resolvedProcesses.createActivity;
-            }
+            const originalAttachedContainer = $.isFunction(resolvedProcesses.attachedContainer)
+                ? resolvedProcesses.attachedContainer
+                : null;
+
+            resolvedProcesses.attachedContainer = function ($container, $itemContainer, data, option) {
+                if ($container && $container.length === 1) {
+                    $container.attr("data-br-rec-webexpid", webExId);
+
+                    const positionId = Breinify.UTL.isNonEmptyString(recommenderConfig?.position?.positionId);
+                    if (positionId !== null) {
+                        $container.attr("data-br-rec-positionid", positionId);
+                    }
+
+                    const recommenderName = Breinify.UTL.isNonEmptyString(
+                        recommenderConfig?.recommender?.preconfiguredRecommendation
+                    );
+                    if (recommenderName !== null) {
+                        $container.attr("data-br-rec-name", recommenderName);
+                    }
+                }
+
+                if ($.isFunction(originalAttachedContainer)) {
+                    originalAttachedContainer.call(this, $container, $itemContainer, data, option);
+                }
+            };
+
+            const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
+                ? resolvedProcesses.createActivity
+                : null;
 
             resolvedProcesses.createActivity = function (event, settings) {
-                if ($.isFunction(createActivityFunc)) {
-                    createActivityFunc.call(this, event, settings);
+                if ($.isFunction(originalCreateActivity)) {
+                    originalCreateActivity.call(this, event, settings);
                 }
 
                 settings.activityTags.campaignWebExId = webExVersionId;
@@ -157,9 +184,25 @@
             return resolvedProcesses;
         },
 
-        _createPosition: function (position) {
+        _createPosition: function (webExId, activationLogic, position, singleConfig) {
             if (!$.isPlainObject(position)) {
+                position = {};
+            }
+
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
+            const func = this._createPositionSelector(webExId, activationLogic, position, singleConfig);
+            if (!$.isFunction(func)) {
                 return {};
+            }
+
+            /*
+             * ATTRIBUTE activation forces anchor resolution through data-br-webexpid / data-br-webexppos.
+             * The configured operation is ignored in that case and we always append into the resolved host.
+             */
+            if (hasAttributeActivation === true) {
+                return {
+                    append: func
+                };
             }
 
             let operation = Breinify.UTL.isNonEmptyString(position.operation);
@@ -172,14 +215,27 @@
                 return {};
             }
 
-            const func = this._createPositionSelector(position);
-            return $.isFunction(func) ? { [operation]: func } : {};
+            return { [operation]: func };
         },
 
-        _createPositionSelector: function (position) {
+        _createPositionSelector: function (webExId, activationLogic, position, singleConfig) {
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
+            if (hasAttributeActivation === true) {
+                return this._createAttributePositionSelector(webExId, position, singleConfig);
+            }
+
             if (!$.isPlainObject(position)) {
                 return null;
-            } else if ($.isFunction(position._func)) {
+            }
+
+            const resolvedRenderTarget = singleConfig && singleConfig._resolvedRenderTarget;
+            if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
+                return function () {
+                    return $(resolvedRenderTarget);
+                };
+            }
+
+            if ($.isFunction(position._func)) {
                 return position._func;
             }
 
@@ -192,8 +248,10 @@
                 position._func = function () {
                     return $(selector);
                 };
-            } else {
+            } else if (Breinify.plugins._isAdded("snippetManager")) {
                 position._func = Breinify.plugins.snippetManager.getSnippet(snippet);
+            } else {
+                position._func = null;
             }
 
             return $.isFunction(position._func) ? position._func : null;
@@ -294,13 +352,7 @@
             return "br-marked-for-" + webExId + "::" + webExVersionId + "::" + recommenderName;
         },
 
-        _findRequirements: function (webExId, webExVersionId, recs, $changedContainer, data) {
-            /*
-             * Hot path:
-             * - only react to added elements
-             * - require exactly one changed element container
-             * - require recommenders to be configured
-             */
+        _findRequirements: function (webExId, webExVersionId, activationLogic, recs, $changedContainer, data) {
             if (!$.isPlainObject(data) || data.type !== "added-element") {
                 return false;
             } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
@@ -309,6 +361,7 @@
                 return false;
             }
 
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
 
@@ -319,7 +372,11 @@
                     continue;
                 }
 
-                const func = this._createPositionSelector(rec.position);
+                const func = $.isFunction(rec._positionSelector)
+                    ? rec._positionSelector
+                    : this._createPositionSelector(webExId, activationLogic, rec.position, rec);
+                rec._positionSelector = func;
+
                 if (!$.isFunction(func)) {
                     continue;
                 }
@@ -330,29 +387,140 @@
                     continue;
                 }
 
-                /*
-                 * Keep selection deterministic.
-                 * If multiple are returned, use the first one.
-                 */
                 const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
                 const targetEl = $resolvedTarget.get(0);
-                const renderMarker = this._createMarkerKey(webExId, webExVersionId, rec);
-
                 if (!targetEl) {
                     continue;
-                } else if ($resolvedTarget.hasClass(markerContainerClass)) {
+                }
+
+                const renderMarker = this._createMarkerKey(webExId, webExVersionId, rec);
+                if ($resolvedTarget.data(renderMarker) === "true") {
                     continue;
-                } else if ($resolvedTarget.data(renderMarker) === "true") {
+                }
+
+                /*
+                 * ATTRIBUTE mode:
+                 * - allow multiple recommenders inside the same attribute host
+                 * - skip only if this exact recommender is already rendered there
+                 */
+                if (hasAttributeActivation === true) {
+                    const existingSelector = this._createRenderedRecommendationSelector(webExId, rec.position, rec);
+                    if (existingSelector !== null && $resolvedTarget.find(existingSelector).length > 0) {
+                        continue;
+                    }
+                }
+                /*
+                 * Non-ATTRIBUTE mode:
+                 * - keep the existing fast protection: do not render into an already rendered recommender container
+                 */
+                else if ($resolvedTarget.hasClass(markerContainerClass)) {
                     continue;
                 } else if (targetEl.querySelector(markerSelector) !== null) {
                     continue;
                 }
 
                 $resolvedTarget.data(renderMarker, "true");
-                selectedRecs.push(rec);
+
+                const selectedRec = $.extend(true, {}, rec);
+                selectedRec._resolvedRenderTarget = targetEl;
+                selectedRecs.push(selectedRec);
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
+        },
+
+        _ensureAttributeSnippetExecuted: function (position) {
+            if (!$.isPlainObject(position)) {
+                return;
+            } else if (position._attributeSnippetExecuted === true) {
+                return;
+            }
+
+            position._attributeSnippetExecuted = true;
+
+            const snippetId = Breinify.UTL.isNonEmptyString(position.snippet);
+            if (snippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
+                return;
+            }
+
+            const snippetFunc = Breinify.plugins.snippetManager.getSnippet(snippetId);
+            if (!$.isFunction(snippetFunc)) {
+                return;
+            }
+
+            try {
+                snippetFunc();
+            } catch (e) {
+                // keep attribute resolution resilient
+            }
+        },
+
+        _resolveAttributeAnchor: function (webExId, position, recommender) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null) {
+                return null;
+            }
+
+            this._ensureAttributeSnippetExecuted(position);
+
+            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            let $anchor = null;
+
+            /*
+             * Preferred resolution:
+             * exact ATTRIBUTE anchor by web-experience id + position id.
+             */
+            if (positionId !== null) {
+                $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
+                if ($anchor.length === 1) {
+                    return $anchor;
+                }
+            }
+
+            /*
+             * Fallback resolution:
+             * first ATTRIBUTE anchor by web-experience id only.
+             */
+            $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]').eq(0);
+            return $anchor.length === 1 ? $anchor : null;
+        },
+
+        _createAttributePositionSelector: function (webExId, position, recommender) {
+            const _self = this;
+            const resolvedRenderTarget = recommender && recommender._resolvedRenderTarget;
+
+            if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
+                return function () {
+                    return $(resolvedRenderTarget);
+                };
+            }
+
+            return function () {
+                return _self._resolveAttributeAnchor(webExId, position, recommender);
+            };
+        },
+
+        _createRenderedRecommendationSelector: function (webExId, position, recommender) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null) {
+                return null;
+            }
+
+            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            if (positionId !== null) {
+                return '[data-br-rec-webexpid="' + normalizedWebExId + '"][data-br-rec-positionid="' + positionId + '"]';
+            }
+
+            const recommenderName = this._recommenderName(recommender);
+            if (recommenderName !== null) {
+                return '[data-br-rec-webexpid="' + normalizedWebExId + '"][data-br-rec-name="' + recommenderName + '"]';
+            }
+
+            /*
+             * Legacy fallback:
+             * if neither positionId nor recommender name is available, we can only identify by webExId.
+             */
+            return '[data-br-rec-webexpid="' + normalizedWebExId + '"]';
         }
     };
 
@@ -422,6 +590,7 @@
                 const selectedRecommenders = _private._findRequirements(
                     webExId,
                     webExVersionId,
+                    config.activationLogic,
                     configOnChange,
                     $container,
                     data

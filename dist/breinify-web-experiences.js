@@ -284,16 +284,24 @@
         },
 
         hasAttributeActivation: function (configuration) {
-            const paths = $.isArray(configuration?.activationLogic?.paths) ? configuration.activationLogic.paths : [];
+            if (!$.isPlainObject(configuration)) {
+                return false;
+            } else if (typeof configuration._hasAttributeActivation === "boolean") {
+                return configuration._hasAttributeActivation;
+            } else {
 
-            for (let i = 0; i < paths.length; i++) {
-                const type = Breinify.UTL.isNonEmptyString(paths[i]?.type);
-                if (type === "ATTRIBUTE") {
-                    return true;
+                const paths = $.isArray(configuration?.activationLogic?.paths) ? configuration.activationLogic.paths : [];
+                for (let i = 0; i < paths.length; i++) {
+                    const type = Breinify.UTL.isNonEmptyString(paths[i]?.type);
+                    if (type === "ATTRIBUTE") {
+                        configuration._hasAttributeActivation = true;
+                        return true;
+                    }
                 }
-            }
 
-            return false;
+                configuration._hasAttributeActivation = false;
+                return false;
+            }
         },
 
         hasDynamicPosition: function (configuration) {
@@ -461,6 +469,10 @@
     };
 
     const WebExperiences = {
+
+        hasAttributeActivation: function (activationLogic) {
+            return _private.hasAttributeActivation(activationLogic);
+        },
 
         isBootstrapped: function (id) {
             const normalizedId = _private.determineId(id);
