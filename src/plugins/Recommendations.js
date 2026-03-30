@@ -24,7 +24,12 @@
             parentContainer: "brrc-pcont",
             container: "brrc-cont",
             item: "brrc-item",
-            data: "recommendation"
+            data: "recommendation",
+
+            refreshing: "brrc-refreshing",
+            refreshModePrefix: "brrc-refresh-mode-",
+            refreshData: "brrc-refreshing",
+            refreshModeData: "brrc-refresh-mode"
         },
         splitTest: {
             defaultGroup: "Breinify",
@@ -45,13 +50,134 @@
             }
         },
 
+        _resolveRefreshMode: function (option) {
+            const configuredMode = Breinify.UTL.isNonEmptyString(option?.render?.refreshBehavior?.mode);
+            if (configuredMode === null) {
+                return "keep";
+            }
+
+            const mode = configuredMode.toLowerCase();
+            if (mode === "keep" || mode === "loading" || mode === "loading-if-empty") {
+                return mode;
+            } else {
+                return "keep";
+            }
+        },
+
+        _createRefreshContext: function (option, $parent, $itemContainer) {
+            const mode = this._resolveRefreshMode(option);
+
+            return {
+                mode: mode,
+                previousParent: $parent,
+                previousItemContainer: $itemContainer,
+                hadItems: $itemContainer.find("." + this.marker.item).length > 0
+            };
+        },
+
+        _setRefreshState: function ($container, option, state, context) {
+            if (!$container || !$container.jquery || $container.length !== 1) {
+                return;
+            }
+
+            const mode = Breinify.UTL.isNonEmptyString(context?.mode) || this._resolveRefreshMode(option);
+
+            $container
+                .attr("data-" + this.marker.refreshData, state === "refreshing" ? "true" : "false")
+                .attr("data-" + this.marker.refreshModeData, mode);
+
+            $container
+                .toggleClass(this.marker.refreshing, state === "refreshing")
+                .removeClass(
+                    this.marker.refreshModePrefix + "keep",
+                    this.marker.refreshModePrefix + "loading",
+                    this.marker.refreshModePrefix + "loading-if-empty"
+                );
+
+            if (state === "refreshing") {
+                $container.addClass(this.marker.refreshModePrefix + mode);
+            }
+
+            this._process(option?.process?.refreshStateChange, $container, state, {
+                mode: mode,
+                option: option,
+                context: context || {}
+            });
+        },
+
+        _prepareRefreshState: function (option, $parent, $itemContainer) {
+            const refreshContext = option?.render?.refreshContext;
+            if (!$.isPlainObject(refreshContext)) {
+                return;
+            }
+
+            const mode = this._resolveRefreshMode(option);
+            refreshContext.mode = mode;
+
+            if (mode === "keep") {
+                return;
+            }
+
+            if (mode === "loading-if-empty" && refreshContext.hadItems === true) {
+                return;
+            }
+
+            this._setRefreshState($parent, option, "refreshing", refreshContext);
+        },
+
+        _finalizeRefreshState: function (option, state, $newContainer) {
+            const refreshContext = option?.render?.refreshContext;
+            if (!$.isPlainObject(refreshContext)) {
+                return;
+            }
+
+            const $previousParent = refreshContext.previousParent;
+            const $effectiveContainer = $newContainer && $newContainer.jquery && $newContainer.length === 1
+                ? $newContainer
+                : $previousParent;
+
+            /*
+             * If we refreshed successfully and got a new container, the old one is usually already replaced.
+             * We still notify the outer usage against the effective/new container.
+             */
+            if (state === "refreshed") {
+                this._process(option?.process?.refreshStateChange, $effectiveContainer, "refreshed", {
+                    mode: refreshContext.mode,
+                    option: option,
+                    context: refreshContext
+                });
+                return;
+            }
+
+            /*
+             * For errors or cancelations we still have the old container in place and need to
+             * remove the visual refresh markers from it.
+             */
+            if ($previousParent && $previousParent.jquery && $previousParent.length === 1) {
+                $previousParent
+                    .attr("data-" + this.marker.refreshData, "false")
+                    .removeClass(
+                        this.marker.refreshing,
+                        this.marker.refreshModePrefix + "keep",
+                        this.marker.refreshModePrefix + "loading",
+                        this.marker.refreshModePrefix + "loading-if-empty"
+                    );
+
+                this._process(option?.process?.refreshStateChange, $previousParent, state, {
+                    mode: refreshContext.mode,
+                    option: option,
+                    context: refreshContext
+                });
+            }
+        },
+
         _refresh: function (refreshOptions) {
             const _self = this;
 
             let optionsVersion = null;
             if ($.isPlainObject(refreshOptions)) {
                 optionsVersion = new Date().getTime();
-                this.refreshOptions = $.extend(true, refreshOptions, {
+                this.refreshOptions = $.extend(true, {}, refreshOptions, {
                     optionsVersion: optionsVersion
                 });
             } else if ($.isPlainObject(this.refreshOptions)) {
@@ -71,10 +197,7 @@
             const settings = {};
             $parents.each(function () {
                 const $parent = $(this);
-                const $itemContainer = $parent.hasClass(_self.marker.container) ?
-                    $parent :
-                    $parent.find("." + _self.marker.container);
-
+                const $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find("." + _self.marker.container);
                 if ($itemContainer.length === 0) {
                     return;
                 }
@@ -101,8 +224,7 @@
                     settings[recGroup] = [];
                 }
 
-                const cpyOption = $.extend(true, {}, option, {});
-
+                const cpyOption = $.extend(true, {}, option);
                 cpyOption.meta = {
                     processId: null,
                     optionsVersion: optionsVersion
@@ -112,8 +234,17 @@
                         return $parent;
                     }
                 };
+                if (!$.isPlainObject(cpyOption.recommender)) {
+                    cpyOption.recommender = {};
+                }
                 cpyOption.recommender.payload = recPayload;
 
+                if (!$.isPlainObject(cpyOption.render)) {
+                    cpyOption.render = {};
+                }
+                cpyOption.render.refreshContext = _self._createRefreshContext(option, $parent, $itemContainer);
+
+                _self._prepareRefreshState(cpyOption, $parent, $itemContainer);
                 settings[recGroup].push(cpyOption);
             });
 
@@ -129,11 +260,11 @@
                 value = value.apply(null, params);
             }
 
-            if (value === null || typeof value === "undefined") {
+            if (value === null) {
                 return null;
             } else if (typeof value === "string") {
                 return $(value);
-            } else if (value && value.jquery) {
+            } else if (value instanceof $) {
                 return value;
             } else {
                 return null;
@@ -179,6 +310,13 @@
                     }, settings));
                 });
                 return;
+            } else {
+                cb(null, {
+                    error: true,
+                    errorDescription: "missing position operation",
+                    externalRendering: false
+                });
+                return;
             }
 
             /*
@@ -189,13 +327,13 @@
              * 3. data defining the reasoning/type of the call (i.e., added-element (dom-tree change), or
              *    determine-container)
              */
-            const recommenderName = this._recommenderName(option?.recommender?.payload);
+            const recommenderName = this._recommenderName(option && option.recommender && option.recommender.payload);
             const $anchor = this._determineSelector(selector, recommenderName, null, {
                 type: "determine-container",
                 option: option,
                 data: data
             });
-            if (!$anchor || !$anchor.jquery || $anchor.length === 0) {
+            if ($anchor === null || $anchor.length === 0) {
                 cb(null, {
                     error: true,
                     errorDescription: "unable to find anchor",
@@ -204,8 +342,9 @@
                 return;
             }
 
+            const $resolvedAnchor = $anchor.length === 1 ? $anchor : $anchor.eq(0);
             const $container = this._determineSelector(option.templates.container);
-            if (!$container || !$container.jquery || $container.length === 0) {
+            if ($container === null || $container.length === 0) {
                 cb(null, {
                     error: true,
                     errorDescription: "unable to find container",
@@ -221,8 +360,8 @@
              * Execute the method on the $anchor, for some reason the assignment to a variable of
              * $anchor[method] causes issues, thus we do it "twice".
              */
-            if ($.isFunction($anchor[method])) {
-                $anchor[method]($container);
+            if ($.isFunction($resolvedAnchor[method])) {
+                $resolvedAnchor[method]($container);
 
                 $container.addClass(this.marker.parentContainer);
                 cb($container, {
@@ -245,7 +384,9 @@
             const optionsVersion = typeof refreshOptions.optionsVersion === "number" ? refreshOptions.optionsVersion : null;
             const overridePayload = $.isPlainObject(refreshOptions.payload) ? refreshOptions.payload : {};
 
-            if ($.isPlainObject(option.recommender) && $.isPlainObject(option.recommender.payload)) {
+            if ($.isPlainObject(option) &&
+                $.isPlainObject(option.recommender) &&
+                $.isPlainObject(option.recommender.payload)) {
                 return $.extend(true, {}, option.recommender.payload, overridePayload, {
                     optionsVersion: optionsVersion
                 });
@@ -255,7 +396,7 @@
                 });
             } else {
                 return {
-                    optionsVersion: Renderer.refreshOptions.optionsVersion
+                    optionsVersion: optionsVersion
                 };
             }
         },
@@ -300,7 +441,7 @@
         },
 
         _setupItemData: function ($recItem, idx, data) {
-            const normIdx = typeof idx === "number" ? (idx < 0 ? idx : idx + 1) : null;
+            const normIdx = typeof idx === "number" ? idx < 0 ? idx : idx + 1 : null;
 
             $recItem.addClass(this.marker.item)
                 .attr("data-" + this.marker.item, "true")
@@ -313,10 +454,18 @@
          * Replaces all placeholders in text and attributes, the returned element is the same as
          * passed in under `$entry`.
          *
-         * @param $entry the element to check for replacements
-         * @param replacements the replacements to apply
-         * @param option the defined options
-         * @returns {*} the `$entry`, just for chaining purposes
+         * @param {jQuery} $entry
+         * the element to check for replacements
+         *
+         * @param {Object} replacements
+         * the replacements to apply
+         *
+         * @param {Object} option
+         * the defined options
+         *
+         * @returns {jQuery}
+         * the `$entry`, just for chaining purposes
+         *
          * @private
          */
         _replacePlaceholders: function ($entry, replacements, option) {
@@ -371,10 +520,19 @@
         /**
          * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
          * the modified text, will return `null` if no replacement took place.
-         * @param value the value to replace
-         * @param data the data to replace values from
-         * @param option options to modify the behavior
-         * @returns {string|null} the replaced value or `null` if no replacement took place
+         *
+         * @param {string} value
+         * the value to replace
+         *
+         * @param {Object} data
+         * the data to replace values from
+         *
+         * @param {Object} option
+         * options to modify the behavior
+         *
+         * @returns {string|null}
+         * the replaced value or `null` if no replacement took place
+         *
          * @private
          */
         _replace: function (value, data, option) {
@@ -461,26 +619,32 @@
             // should never be set outside, will be sent when rendering is started
             processId: null
         },
+
         recommender: null,
+
         activity: {
             renderType: "renderedRecommendation",
             clickedType: "clickedRecommendation"
         },
+
         bindings: {
             selector: "a,.br-rec-click",
             specificSelectors: {}
         },
+
         splitTests: {
             control: {
                 containerSelector: null
             }
         },
+
         position: {
             before: null,
             after: null,
             prepend: null,
             append: null,
             replace: null,
+
             /**
              * If used, it must be a function taking in data and a callback, i.e.:
              * `function(data, callback) { ... }`, whereby the callback has to be triggered with
@@ -498,18 +662,51 @@
              */
             externalRender: null
         },
+
+        /**
+         * Rendering and refresh visualization settings.
+         *
+         * IMPORTANT:
+         * The plugin manages the refresh state markers only.
+         * The actual visualization of loading, skeletons, overlays, spinners, etc. must be implemented
+         * by the outer usage through CSS and/or the `process.refreshStateChange(...)` callback.
+         */
+        render: {
+            refreshBehavior: {
+                /*
+                 * Defines how refreshes should be visualized while updated recommendations are loaded.
+                 *
+                 * Possible values:
+                 *   - "keep":
+                 *       Keep the current rendered content unchanged while the refresh is in-flight.
+                 *
+                 *   - "loading":
+                 *       Mark the currently rendered container as refreshing immediately.
+                 *       The outer usage can use the refresh markers to show a skeleton, overlay, spinner, etc.
+                 *
+                 *   - "loading-if-empty":
+                 *       Only mark the container as refreshing when no recommendation items are currently rendered.
+                 */
+                mode: "keep"
+            }
+        },
+
         placeholderSettings: {
             /**
              * Method to determine what to replace the placeholder with if nothing was resolved, i.e.,
              * if anything else did not resolve to a value.
-             * @param placeholder the placeholder that could not be resolved
-             * @returns {null|string} `null` if the placeholder should not be replaced,
-             * otherwise a string (can be empty)
+             *
+             * @param {string} placeholder
+             * the placeholder that could not be resolved
+             *
+             * @returns {null|string}
+             * `null` if the placeholder should not be replaced, otherwise a string (can be empty)
              */
-            replaceWith: function () {
+            replaceWith: function (placeholder) {
                 return "";
             }
         },
+
         placeholders: {
             "random::uuid": function () {
                 return Breinify.UTL.uuid();
@@ -517,12 +714,13 @@
             "marker::container": Renderer.marker.container,
             "marker::item": Renderer.marker.item,
             "marker::recommender": function (data) {
-                return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
+                return Breinify.UTL.isNonEmptyString(data && data.payload && data.payload.recommenderName);
             },
             "data::json": function (data) {
                 return JSON.stringify(data);
             }
         },
+
         /*
          * Defines HTML templates or jQuery instances that define how a container or item of the rendered recommender
          * should look like. In the case a binding is utilized (instead of rendering) these templates are considered
@@ -532,53 +730,262 @@
             container: null,
             item: null
         },
+
         process: {
-            stoppedPropagation: function () {
-                // by default, nothing to when an event is canceled
+            /**
+             * Called when a click was handled and the caller explicitly requested that propagation should stop.
+             *
+             * @param {Event} event
+             * the click event
+             *
+             * @param {jQuery} $itemEl
+             * the effective clicked element
+             *
+             * @param {jQuery} $container
+             * the resolved recommendation container
+             *
+             * @param {Object} recommendationData
+             * the mapped recommendation response attached to the container
+             *
+             * @param {Object} additionalEventData
+             * additional click metadata
+             *
+             * @param {Object} option
+             * the resolved render option
+             */
+            stoppedPropagation: function (event, $itemEl, $container, recommendationData, additionalEventData, option) {
+                // by default, nothing to do when propagation was stopped
             },
-            error: function () {
+
+            /**
+             * Called whenever an error occurred during retrieval, mapping, modification, or rendering.
+             *
+             * @param {Object|Error} error
+             * the error object or mapped error information
+             */
+            error: function (error) {
                 // by default, ignored
             },
-            canceled: function () {
+
+            /**
+             * Called when a render process was canceled before completion.
+             *
+             * @param {Object} option
+             * the resolved render option
+             *
+             * @param {Object} result
+             * the mapped recommendation result that was available at cancel time
+             */
+            canceled: function (option, result) {
                 // by default, ignored
             },
-            init: function () {
+
+            /**
+             * Called once after the final render option has been resolved and before retrieval starts.
+             *
+             * @param {Object} option
+             * the fully resolved render option for this render cycle
+             */
+            init: function (option) {
                 // by default, nothing to initialize
             },
-            pre: function () {
-                // by default, nothing to execute pre/before rendering of recommendation starts
+
+            /**
+             * Called right before the recommendation is rendered.
+             *
+             * @param {Object} data
+             * the mapped recommendation response used for rendering
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             */
+            pre: function (data, option) {
+                // by default, nothing to execute before rendering starts
             },
-            attachedContainer: function () {
+
+            /**
+             * Called after the outer recommendation container was attached to the DOM and after the
+             * effective item container was resolved.
+             *
+             * @param {jQuery} $container
+             * the top-level rendered container that was attached to the anchor
+             *
+             * @param {jQuery} $itemContainer
+             * the effective container holding the recommendation items; this may be the same instance
+             * as `$container` if no nested item container exists
+             *
+             * @param {Object} data
+             * the mapped recommendation response used for rendering
+             *
+             * @param {Object} option
+             * the fully resolved render option used for this render cycle
+             */
+            attachedContainer: function ($container, $itemContainer, data, option) {
                 // by default, nothing to do when the recommendation container is attached
             },
-            attachedItem: function () {
+
+            /**
+             * Called after one individual recommendation item was attached and bound.
+             *
+             * @param {jQuery} $itemContainer
+             * the effective container holding the recommendation items
+             *
+             * @param {jQuery} $item
+             * the newly attached recommendation item
+             *
+             * @param {Object} data
+             * the mapped recommendation data of the attached item
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             */
+            attachedItem: function ($itemContainer, $item, data, option) {
                 // by default, nothing to execute after attachment of an item
             },
-            attached: function () {
-                // by default, nothing to after all items and the container have been attachment
+
+            /**
+             * Called after all recommendation items were attached.
+             *
+             * @param {jQuery} $container
+             * the top-level rendered container
+             *
+             * @param {jQuery} $itemContainer
+             * the effective item container
+             *
+             * @param {Object} data
+             * the mapped recommendation response
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             */
+            attached: function ($container, $itemContainer, data, option) {
+                // by default, nothing to do after all items were attached
             },
-            post: function () {
+
+            /**
+             * Called after rendering completed successfully for this recommendation.
+             *
+             * @param {jQuery} $container
+             * the top-level rendered container
+             *
+             * @param {jQuery} $itemContainer
+             * the effective item container
+             *
+             * @param {Object} data
+             * the mapped recommendation response
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             */
+            post: function ($container, $itemContainer, data, option) {
                 // by default, nothing to execute after recommendation rendering is complete
             },
-            finalize: function () {
-                // by default, nothing to execute after the process (control or test) is finished
+
+            /**
+             * Called after the process finished, regardless of control/test rendering branch.
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             *
+             * @param {Object} result
+             * the mapped recommendation result
+             *
+             * @param {jQuery|null} $container
+             * the rendered container if one exists, otherwise `null`
+             */
+            finalize: function (option, result, $container) {
+                // by default, nothing to execute after the process finished
             },
-            clickedItem: function () {
+
+            /**
+             * Called when a recommendation or control item was clicked and resolved successfully.
+             *
+             * @param {Event} event
+             * the click event
+             *
+             * @param {Object} settings
+             * the click handling settings object
+             */
+            clickedItem: function (event, settings) {
                 // by default, nothing to execute after an item is clicked
             },
-            createActivity: function () {
-                // by default, nothing to do, when an activity is created and ready to send
+
+            /**
+             * Called right before an activity is sent or scheduled.
+             *
+             * The outer usage can enrich `settings.activityTags`, `settings.activityUser`, or control
+             * `settings.additionalEventData.sendActivities` / `settings.additionalEventData.scheduleActivities`.
+             *
+             * @param {Event} event
+             * the activity-related event
+             *
+             * @param {Object} settings
+             * the activity settings object that will be used for sending the activity
+             */
+            createActivity: function (event, settings) {
+                // by default, nothing to do when an activity is created and ready to send
+            },
+
+            /**
+             * Called when a refresh state changes.
+             *
+             * IMPORTANT:
+             * This is the intended extension point to add or remove skeletons, loading overlays,
+             * dimming states, or other refresh-related visuals.
+             *
+             * The plugin only manages state markers:
+             *   - class "brrc-refreshing"
+             *   - class "brrc-refresh-mode-<mode>"
+             *   - data-brrc-refreshing="true|false"
+             *   - data-brrc-refresh-mode="<mode>"
+             *
+             * State values:
+             *   - "refreshing"
+             *   - "refreshed"
+             *   - "refresh-error"
+             *   - "refresh-canceled"
+             *
+             * @param {jQuery} $container
+             * the container relevant for the current state transition
+             *
+             * @param {string} state
+             * the refresh state
+             *
+             * @param {Object} details
+             * additional details containing:
+             *   - mode
+             *   - option
+             *   - context
+             */
+            refreshStateChange: function ($container, state, details) {
+                // by default, nothing to do when refresh state changes
             }
         },
+
         data: {
-            modify: function () {
-                /*
-                 * Nothing to do, by default we keep the result and option untouched.
-                 * The method can be used to:
-                 *  - split: return [{result: result, option: option}]
-                 *  - change: return {result: modResult, option: option}
-                 *  - do nothing: return null
-                 */
+            /**
+             * Allows changing the mapped recommendation response before it is rendered.
+             *
+             * Supported return values:
+             *   - `null`:
+             *       keep original `result` and `option`
+             *
+             *   - `{ result: ..., option: ... }`:
+             *       replace the result/option pair
+             *
+             *   - `[{ result: ..., option: ... }, ...]`:
+             *       split the recommendation into multiple render operations
+             *
+             * @param {Object} result
+             * the mapped recommendation result
+             *
+             * @param {Object} option
+             * the fully resolved render option
+             *
+             * @returns {null|Object|Object[]|Promise}
+             * the modification result or a promise resolving to one
+             */
+            modify: function (result, option) {
                 return null;
             }
         }
@@ -774,11 +1181,6 @@
             }
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags at this point,
-         * for Breinify a lot of knowledge can be applied already, additional
-         * knowledge may be applied within the createActivity process.
-         */
         createRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
@@ -786,10 +1188,6 @@
             return activityTags;
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags within
-         * a rendered recommendation activity.
-         */
         createRenderedRecommendationTags: function ($container, result) {
             const activityTags = this.createRecommendationTags(result, {}, {});
 
@@ -805,10 +1203,6 @@
             return activityTags;
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags within
-         * a clicked recommendation activity.
-         */
         createClickedRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             return this.createRecommendationTags(recommendationData, recommendation, additionalEventData);
         },
@@ -816,17 +1210,16 @@
         _isCanceled: function (processId) {
             const now = new Date().getTime();
 
-            // find expired processes
             const expiredProcesses = [];
-            $.each(canceledRequests, function (canceledProcessId, canceledRequest) {
+            $.each(canceledRequests, function (processId, canceledRequest) {
                 if (now - canceledRequest.cancellationTime > 60 * 1000) {
-                    expiredProcesses.push(canceledProcessId);
+                    expiredProcesses.push(processId);
                 }
             });
 
-            // delete the expired processes that were found
             for (let i = 0; i < expiredProcesses.length; i++) {
-                delete canceledRequests[expiredProcesses[i]];
+                const expiredProcessId = expiredProcesses[i];
+                delete canceledRequests[expiredProcessId];
             }
 
             const canceledRequest = canceledRequests[processId];
@@ -862,17 +1255,13 @@
             const data = $.isPlainObject(recData) ? recData : {};
 
             let $container = Renderer._determineSelector(option.templates.container);
-            $container = this._setupContainer($container, option, data);
-            if ($container === null) {
+            if ($container === null || $container.length === 0) {
                 return;
             }
 
+            this._setupContainer($container, option, data);
             this._applyBindings(option, $container);
 
-            /*
-             * There is currently no item bound to the container (which is expected when being
-             * on a non-control group), see _handleRecommendationClick(...)
-             */
             let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
                 $items.each(function (idx) {
@@ -897,24 +1286,25 @@
         _renderRecommendations: function (options, error, data) {
             const _self = this;
 
-            // first check if we had any errors and if so, run the process and finalize
             if (error !== null) {
                 $.each(options, function (name, option) {
                     Renderer._process(option.process.error, error);
 
                     const errorResponse = _self._mapError(data, error);
                     _self._handleRender(errorResponse, option, null);
+                    Renderer._finalizeRefreshState(option, "refresh-error", null);
                 });
+
                 return;
             }
 
-            // fire each named recommendation, with the option
             let recStatus = "undefined";
             $.each(options, function (name, option) {
                 let result = data[name];
 
                 if (_self._isCanceled(option.meta.processId)) {
                     Renderer._process(option.process.canceled, option, result);
+                    Renderer._finalizeRefreshState(option, "refresh-canceled", null);
                 } else if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
                         code: -1,
@@ -931,6 +1321,7 @@
                             error: true
                         }
                     }, option, null);
+                    Renderer._finalizeRefreshState(option, "refresh-error", null);
                 } else if (result.status.error === true) {
                     Renderer._process(option.process.error, $.extend({
                         name: name,
@@ -938,9 +1329,9 @@
                     }, result.status));
 
                     _self._handleRender(result, option, null);
+                    Renderer._finalizeRefreshState(option, "refresh-error", null);
                 } else if ($.isFunction(option.data.modify)) {
 
-                    // the method used in any case to handle the modified responses
                     const handleModifyResult = function (modifyResults) {
                         if ($.isArray(modifyResults)) {
                             // nothing to change
@@ -958,24 +1349,23 @@
                         }
                     };
 
-                    // the result will be a promise
                     let modifyResponse = option.data.modify(result, option);
                     if ($.isFunction(option.data.modify.constructor) &&
                         option.data.modify.constructor.name === "AsyncFunction" &&
-                        window.Promise &&
-                        modifyResponse instanceof window.Promise) {
+                        window.Promise && modifyResponse instanceof window.Promise) {
                         modifyResponse
-                            .then(function (modifiedResult) {
-                                handleModifyResult(modifiedResult);
+                            .then(function (result) {
+                                handleModifyResult(result);
                             })
-                            .catch(function (modifyError) {
+                            .catch(function (error) {
                                 Renderer._process(option.process.error, {
                                     code: -1,
                                     error: true,
-                                    message: modifyError.message,
-                                    name: modifyError.name,
-                                    result: modifyError
+                                    message: error.message,
+                                    name: error.name,
+                                    result: error
                                 });
+                                Renderer._finalizeRefreshState(option, "refresh-error", null);
                             });
                     } else {
                         handleModifyResult(modifyResponse);
@@ -993,7 +1383,6 @@
         _mapError: function (data, error) {
             const errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
 
-            // if we do not have additional data for the error, we return here with a 500
             if (!$.isPlainObject(data) || typeof data.httpStatus !== "number") {
                 return {
                     status: {
@@ -1002,9 +1391,7 @@
                         error: true
                     }
                 };
-            }
-            // we have a valid response, that we assume to be an error
-            else if (data.httpStatus === 200) {
+            } else if (data.httpStatus === 200) {
                 return {
                     status: {
                         code: 500,
@@ -1012,9 +1399,7 @@
                         error: true
                     }
                 };
-            }
-            // we have an actual HTTP status code (indicating an error) from the response, we utilize this
-            else {
+            } else {
                 return {
                     status: {
                         code: data.httpStatus,
@@ -1027,30 +1412,24 @@
 
         _handleRender: function (result, option, $container) {
 
-            // if we have a forbidden status, we just ignore the handling completely
             if ($.isPlainObject(result) && $.isPlainObject(result.status) && result.status.code === 403) {
                 return;
             }
 
-            // determine the options to use
             const renderOption = $.extend(true, {
                 activity: {
                     type: defaultRenderOption.activity.renderType
                 }
             }, defaultRenderOption, option);
 
-            // create the settings
             const settings = {
-                isControl: $.isPlainObject(result) &&
-                    $.isPlainObject(result.splitTestData) &&
-                    result.splitTestData.isControl === true,
+                isControl: $.isPlainObject(result) && $.isPlainObject(result.splitTestData) && result.splitTestData.isControl === true,
                 $recContainer: $container,
                 additionalEventData: {},
                 recommendationData: result,
                 option: renderOption
             };
 
-            // create the event (and wrap it within the customer-event if available)
             let event = {
                 bubbles: true,
                 cancelable: false,
@@ -1066,8 +1445,6 @@
         },
 
         _triggerEvent: function (eventName, data) {
-
-            // trigger the Breinify ready event on both jQuery instances
             $(document).trigger(eventName, data);
             if (typeof window.$ === "function" && typeof window.$.fn === "function" && $ !== window.$) {
                 window.$(document).trigger(eventName, data);
@@ -1079,18 +1456,21 @@
 
             if (result.splitTestData.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
-                this._applyBindings(option, $container);
+                if ($container !== null) {
+                    this._applyBindings(option, $container);
+                }
 
                 this._handleRender(result, option, $container);
                 Renderer._process(option.process.finalize, option, result, $container);
+                Renderer._finalizeRefreshState(option, "refreshed", $container);
 
                 return "not-rendered-control";
             } else if (Renderer.refreshOptions !== null &&
                 option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
 
-                // just append the container with the data, refresh will do the rest
                 Renderer._appendContainer(option, result, function ($container) {
                     if ($container === null) {
+                        Renderer._finalizeRefreshState(option, "refresh-error", null);
                         return;
                     }
 
@@ -1102,27 +1482,24 @@
                     _self._setupContainer($itemContainer, option, result);
                 });
 
-                // we have refreshed data, so we have to fire again
                 return "out-of-date";
             } else if (result.status.code === 7120) {
-
-                // the recommendation is supposed to be ignored, but there is no split-test
                 this._handleRender(result, option, null);
                 Renderer._process(option.process.finalize, option, result, null);
+                Renderer._finalizeRefreshState(option, "refreshed", null);
 
                 return "not-rendered-ignored";
             } else {
-
-                // we have a normal recommendation call
-                this._renderRecommendation(option, result, function ($container) {
+                this._renderRecommendation(option, result, function ($container, settings) {
                     if ($container === null) {
+                        Renderer._finalizeRefreshState(option, "refresh-error", null);
                         return;
                     }
 
                     _self._applyBindings(option, $container);
-
                     _self._handleRender(result, option, $container);
                     Renderer._process(option.process.finalize, option, result, $container);
+                    Renderer._finalizeRefreshState(option, "refreshed", $container);
                 });
 
                 return "rendered";
@@ -1130,28 +1507,12 @@
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
-
-            /*
-             * Try resolving the recommendation container from $el.
-             * NOTE: In shadow DOM scenarios the click observer may pass the shadow host as $el on purpose,
-             * which means $el might not be inside the rendered recommendation DOM.
-             */
             let $container = $el.closest("." + Renderer.marker.container);
             $container = $container.length === 1 ? $container : $el.closest("[data-" + Renderer.marker.container + "=\"true\"]");
 
-            /*
-             * Resolve the deepest real click target (if provided by the click observer).
-             * This is shadow-DOM safe (avoids retargeting issues) and is used as a fallback:
-             *  - to find the container when $el is the host
-             *  - to find the clicked item (.brrc-item) reliably
-             */
             const actualTarget = additionalEventData && additionalEventData.actualTarget;
             const $clickedEl = Breinify.UTL.dom.isNodeType(actualTarget, 1) ? $(actualTarget) : null;
 
-            /*
-             * If $el was not sufficient to locate the container, fall back to the real click target.
-             * If we still cannot find exactly one container, abort (no valid recommendation click context).
-             */
             if ($container.length !== 1) {
                 if ($clickedEl === null) {
                     return;
@@ -1172,20 +1533,16 @@
             }
 
             const enhancedAdditionalEventData = $.extend(true, {}, additionalEventData, {
-                // semantic click anchor (it may be the host on purpose)
                 semanticTarget: $el && $el.length === 1 ? $el.get(0) : null
             });
             const $itemEl = $clickedEl === null ? $el : $clickedEl;
+
             if (containerData.data.splitTestData.isControl === true) {
                 this._handleControlClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
             } else {
                 this._handleRecommendationClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
             }
 
-            /*
-             * Some integrations want to stop further propagation after we handled the click
-             * (e.g., to prevent other observers from reacting to the same interaction).
-             */
             if (enhancedAdditionalEventData.stopPropagation === true) {
                 event.stopPropagation();
                 Renderer._process(option.process.stoppedPropagation, event, $itemEl, $container,
@@ -1194,15 +1551,12 @@
         },
 
         _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
-
-            // search for any item-element that would identify a recommendation click
             let $recItem = $el.closest("." + Renderer.marker.item);
             if ($recItem.length !== 1) {
                 const semanticTarget = additionalEventData && additionalEventData.semanticTarget;
                 if (Breinify.UTL.dom.isNodeType(semanticTarget, 1)) {
                     const $semantic = $(semanticTarget);
 
-                    // host might be the item itself or inside it
                     $recItem = $semantic.closest("." + Renderer.marker.item);
                     if ($recItem.length !== 1 && $semantic.is("." + Renderer.marker.item)) {
                         $recItem = $semantic;
@@ -1210,7 +1564,6 @@
                 }
             }
 
-            // if we still do not have exactly one item, this isn't a recommendation click
             if ($recItem.length !== 1) {
                 return;
             }
@@ -1258,8 +1611,6 @@
         },
 
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
-
-            // set the widgetPosition and the type (if possible)
             if (typeof recommendation?.widgetPosition === "number") {
                 activityTags.widgetPosition = recommendation.widgetPosition;
 
@@ -1275,55 +1626,37 @@
             if (id === null) {
                 // nothing more to do
             } else if (type === "com.brein.common.dto.CustomerAssetsDto") {
-                activityTags.assetIds = [];
-                activityTags.assetIds.push(id);
-
-                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["assets::assetTitle"] ?? null);
-                activityTags.assetNames = [];
-                activityTags.assetNames.push(name);
+                activityTags.assetIds = [id];
+                activityTags.assetNames = [
+                    Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["assets::assetTitle"] ?? null)
+                ];
             } else if (type === "com.brein.common.dto.CustomerProductDto") {
-                activityTags.productIds = [];
-                activityTags.productIds.push(id);
-
-                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["product::productName"] ?? null);
-                activityTags.productNames = [];
-                activityTags.productNames.push(name);
+                activityTags.productIds = [id];
+                activityTags.productNames = [
+                    Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["product::productName"] ?? null)
+                ];
             } else {
-
-                // by default, we still bind the id to productIds
-                activityTags.productIds = [];
-                activityTags.productIds.push(id);
+                activityTags.productIds = [id];
             }
         },
 
         _createDefaultTags: function (recommendationData, additionalEventData) {
             const defaultTags = {};
 
-            // get the data for the split-test (should always be there), but just in case
             const splitTestData = $.isPlainObject(recommendationData.splitTestData) ? recommendationData.splitTestData : {
                 active: false
             };
 
-            /*
-             * Determine the group from the split-test, if there is no active split-test,
-             * i.e., there was no split-test information passed, we always name the group
-             * breinify (for simplicity reason).
-             */
-            let groupType;
-            let group;
+            let groupType, group;
             if (splitTestData.active === false) {
                 groupType = Renderer.splitTest.defaultGroupType;
                 group = Renderer.splitTest.defaultGroup;
             } else if (splitTestData.isControl === true) {
                 groupType = Renderer.splitTest.controlGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ?
-                    splitTestData.groupDecision :
-                    Renderer.splitTest.defaultControlGroup;
+                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ? splitTestData.groupDecision : Renderer.splitTest.defaultControlGroup;
             } else {
                 groupType = Renderer.splitTest.testGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ?
-                    splitTestData.groupDecision :
-                    Renderer.splitTest.defaultTestGroup;
+                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ? splitTestData.groupDecision : Renderer.splitTest.defaultTestGroup;
             }
 
             const test = typeof splitTestData.testName === "string" && splitTestData.testName.trim() !== "" ? splitTestData.testName : null;
@@ -1333,28 +1666,15 @@
             defaultTags.groupType = groupType;
             defaultTags.splitTest = test === null ? null : test + (instance === null ? "" : " (" + instance + ")");
 
-            // add some information of the recommender that was used
             const recommendationPayload = $.isPlainObject(recommendationData.payload) ? recommendationData.payload : {};
 
             const queryName = typeof recommendationPayload.queryName === "string" && recommendationPayload.queryName.trim() !== "" ? recommendationPayload.queryName : null;
             const recommenderName = typeof recommendationPayload.recommenderName === "string" && recommendationPayload.recommenderName.trim() !== "" ? recommendationPayload.recommenderName : null;
 
-            /*
-             * We set the widget information we have at this point, widget position
-             * and id must be determined separately from the clicked item.
-             */
             defaultTags.widgetType = recommenderName;
             defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
 
-            /*
-             * We allow to provide additional information via the additionalEventData:
-             * - widgetPosition can be set early
-             * - productIds (must be a non-empty array)
-             * - productNames (must be a non-empty array)
-             * - recType
-             */
             if ($.isPlainObject(additionalEventData) && !$.isEmptyObject(additionalEventData)) {
-
                 if (typeof additionalEventData.widgetPosition === "number" && additionalEventData.widgetPosition > 0) {
                     defaultTags.widgetPosition = additionalEventData.widgetPosition;
                 }
@@ -1374,30 +1694,11 @@
         },
 
         _sendActivity: function (option, event, settings) {
+            const actualTarget = event.data?.actualTarget ?? event.target;
 
-            /*
-             * Resolve the actual clicked target.
-             *
-             * Prefer the normalized target from the click handling path, then fall back
-             * to event.data.actualTarget, and finally to event.target.
-             */
-            const actualTarget =
-                settings?.additionalEventData?.actualTarget ??
-                event.data?.actualTarget ??
-                event.target;
-
-            /*
-             * Resolve the nearest anchor element safely.
-             *
-             * We only call closest(...) if the target is an Element, otherwise we may
-             * run into issues for non-element targets.
-             */
             const anchor = actualTarget instanceof HTMLAnchorElement ? actualTarget :
                 actualTarget instanceof Element ? actualTarget.closest("a") : null;
 
-            /*
-             * Determine whether the user explicitly requested a different browsing context.
-             */
             const openInNewTabByUser = event.metaKey === true ||
                 event.ctrlKey === true ||
                 event.shiftKey === true ||
@@ -1405,35 +1706,21 @@
                 event.which === 2 ||
                 event.button === 1;
 
-            /*
-             * Read the anchor target attribute in a robust way.
-             */
             const rawTarget = anchor instanceof HTMLAnchorElement ? anchor.getAttribute("target") : null;
             const normalizedTarget = typeof rawTarget === "string" ? rawTarget.trim().toLowerCase() : "";
 
-            /*
-             * Determine whether the link opens in another browsing context due to target.
-             */
             const openInNewTabByTarget = normalizedTarget !== "" &&
                 normalizedTarget !== "_self" &&
                 normalizedTarget !== "_top" &&
                 normalizedTarget !== "_parent";
 
-            /*
-             * Final "opens elsewhere" decision.
-             */
             const openInNewTab = openInNewTabByUser || openInNewTabByTarget;
 
-            /*
-             * Inspect href and special anchor behavior to determine whether the current page
-             * is likely to unload.
-             */
             const rawHref = anchor instanceof HTMLAnchorElement ? anchor.getAttribute("href") : null;
             const href = typeof rawHref === "string" ? rawHref.trim() : "";
             const normalizedHref = href.toLowerCase();
 
             const hasDownloadAttribute = anchor instanceof HTMLAnchorElement && anchor.hasAttribute("download");
-
             const isJavaScriptHref = normalizedHref.indexOf("javascript:") === 0;
             const isEmptyHref = href === "";
             const isOnlyHash = href === "#";
@@ -1461,9 +1748,6 @@
                 }
             }
 
-            /*
-             * By default, we assume a click event activity type.
-             */
             let activityType = Breinify.UTL.isNonEmptyString(option.activity.type);
             activityType = activityType === null ? option.activity.clickedType : activityType;
 
@@ -1481,31 +1765,18 @@
                 activityUser: {}
             }, settings);
 
-            /*
-             * Trigger the activity creation process so listeners may enrich/modify the
-             * activity payload or override scheduling behavior.
-             */
             Renderer._process(option.process.createActivity, event, settings);
 
-            /*
-             * Stop immediately if a listener decided the activity must not be sent.
-             */
             if (settings.additionalEventData.sendActivities === false) {
                 return;
             }
 
-            /*
-             * If we have widgetPosition and widgetType, but not widgetId, create it.
-             */
             if (typeof settings.activityTags.widgetPosition === "number" &&
                 typeof settings.activityTags.widgetType === "string" &&
                 typeof settings.activityTags.widgetId !== "string") {
                 settings.activityTags.widgetId = settings.activityTags.widgetType + "-" + settings.activityTags.widgetPosition;
             }
 
-            /*
-             * Decide whether to schedule the activity.
-             */
             let scheduleActivity = null;
             if (settings.additionalEventData.scheduleActivities === null) {
                 scheduleActivity = willReloadPage === true;
@@ -1513,11 +1784,8 @@
                 scheduleActivity = settings.additionalEventData.scheduleActivities;
             }
 
-            /*
-             * Send or schedule the activity if the activities plugin is available.
-             */
             if (!$.isPlainObject(Breinify.plugins.activities)) {
-                // "activities" plugin is not available
+                // activities plugin is not available
             } else if (scheduleActivity === true) {
                 Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
             } else {
@@ -1528,16 +1796,13 @@
         _applyBindings: function (option, $container) {
             const _self = this;
 
-            /*
-             * We register one general click handler, which will trigger on the defined selectors for this
-             * recommendation settings (option).
-             */
-            Breinify.UTL.dom.addClickObserver(option.bindings.selector, "clickedRecommendations", function (event, additionalEventData) {
+            if (!$container || !$container.jquery || $container.length === 0) {
+                return;
+            }
 
-                // by default, we utilize the clicked element as $el ...
+            Breinify.UTL.dom.addClickObserver(option.bindings.selector, "clickedRecommendations", function (event, additionalEventData) {
                 let $el = $(this);
 
-                // ... but we need to check if we are within a shadow-root, if so use the root (parent) as $el
                 const nativeEvent = event.originalEvent || event;
                 const target = nativeEvent.composedPath ? nativeEvent.composedPath()[0] : nativeEvent.target;
                 if (target && typeof target.getRootNode === "function") {
@@ -1547,9 +1812,6 @@
                     }
                 }
 
-                /*
-                 * Normalize the real click target.
-                 */
                 additionalEventData = additionalEventData || {};
                 additionalEventData.actualTarget = Breinify.UTL.dom.isNodeType(target, 1) ? target :
                     (target && target.parentElement ? target.parentElement : null);
@@ -1557,12 +1819,8 @@
                 _self._handleClick(option, $el, event, additionalEventData);
             });
 
-            /*
-             * We allow more strict observers (on specific elements as well). This should be only a last resort,
-             * but is sometimes needed.
-             */
             const specificSelectors = option.bindings.specificSelectors;
-            if ($.isPlainObject(specificSelectors) && $container && $container.jquery && $container.length > 0) {
+            if ($.isPlainObject(specificSelectors)) {
                 const keys = Object.keys(specificSelectors);
                 for (let i = 0; i < keys.length; i++) {
                     const selector = keys[i];
@@ -1582,8 +1840,7 @@
                 return null;
             }
 
-            // attach the data of the recommendation response to the container
-            return this._setupContainer($controlContainer, option, data);
+            return this._setupContainer($controlContainer.eq(0), option, data);
         },
 
         _setupContainer: function ($container, option, data) {
@@ -1591,13 +1848,13 @@
                 return null;
             }
 
-            // check if the container is already marker
-            if (!$container.hasClass(Renderer.marker.container)) {
-                $container.addClass(Renderer.marker.container);
+            const $resolvedContainer = $container.length === 1 ? $container : $container.eq(0);
+
+            if (!$resolvedContainer.hasClass(Renderer.marker.container)) {
+                $resolvedContainer.addClass(Renderer.marker.container);
             }
 
-            // add the additional data to the container
-            return $container
+            return $resolvedContainer
                 .attr("data-" + Renderer.marker.container, "true")
                 .data(Renderer.marker.data, {
                     option: option,
@@ -1610,9 +1867,7 @@
 
             Renderer._process(option.process.pre, data, option);
 
-            // append the container element
             Renderer._appendContainer(option, data, function ($container, settings) {
-
                 if ($container === null || settings.error === true) {
                     cb(null, settings);
                     return;
@@ -1623,20 +1878,9 @@
                     $itemContainer = $container;
                 }
 
-                // store the info needed for clicks on the item's container
                 $itemContainer = _self._setupContainer($itemContainer, option, data);
-                if ($itemContainer === null) {
-                    cb(null, {
-                        error: true,
-                        errorDescription: "unable to setup item container",
-                        externalRendering: settings.externalRendering === true
-                    });
-                    return;
-                }
-
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option);
 
-                // if a third party is rendering, apply the data to the rendered elements
                 if (settings.externalRendering === true) {
                     const itemSelection = $.isFunction(settings.itemSelection) ? settings.itemSelection : function ($itemContainer, idx) {
                         return $itemContainer.children().eq(idx);
@@ -1644,25 +1888,21 @@
 
                     $.each(data.recommendations, function (idx, recommendation) {
                         let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        if ($recItem && $recItem.jquery && $recItem.length === 1) {
+                        if ($recItem instanceof $ && $recItem.length === 1) {
                             Renderer._setupItemData($recItem, idx, recommendation);
                         }
                     });
-                }
-                // if we are rendering append the children for each result
-                else {
+                } else {
                     Renderer._appendItems($itemContainer, data, option);
                     Renderer._process(option.process.attached, $container, $itemContainer, data, option);
                 }
 
-                // next we need to determine if we have to hide a control-group
                 const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
 
-                // we only hide if the control-container is not the same as the container (avoid a misconfiguration)
                 if ($controlContainer !== null &&
                     $controlContainer.length === 1 &&
                     $controlContainer.get(0) !== $container.get(0) &&
-                    $controlContainer.find(".brrc-item").length === 0) {
+                    $controlContainer.find("." + Renderer.marker.item).length === 0) {
                     $controlContainer.hide();
                 }
 
@@ -1674,7 +1914,6 @@
         _retrieveRecommendations: function (payloads, callback) {
             const _self = this;
 
-            // ensure we have the flag in the call mark as plugin related and a unique identifier of the grouped info
             if ($.isArray(payloads)) {
                 const recommendationGroup = Breinify.UTL.uuid();
                 for (let i = 0; i < payloads.length; i++) {
@@ -1683,11 +1922,10 @@
                 }
             }
 
-            // use the default endpoint
             Breinify.recommendation({}, payloads, function (data, errorText) {
                 if (typeof errorText === "string") {
                     callback(new Error(errorText), data);
-                } else if (!$.isArray(data.results)) {
+                } else if (!$.isPlainObject(data) || !$.isArray(data.results)) {
                     callback(new Error("Invalid response received."), data);
                 } else {
                     let result = _self._mapResults(payloads, data.results);
@@ -1720,7 +1958,6 @@
             const recommenderName = Renderer._recommenderName(payload);
             const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
 
-            // add some general information
             recommendationResult.payload = {
                 recommenderName: recommenderName,
                 queryName: queryName,
@@ -1734,18 +1971,15 @@
         _mapResults: function (payloads, results) {
             let allRecommendationResults = {};
 
-            // let's map the responses to a more readable way
             for (let i = 0; i < results.length; i++) {
                 const payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
                 const result = results[i];
                 const recommendationResult = this._mapResult(payload, result);
 
-                // make sure we have the payload (for the name)
                 if (!$.isPlainObject(recommendationResult.payload)) {
                     recommendationResult.payload = {};
                 }
 
-                // determine the name, we need the position of the payload as fallback
                 const name = this._determineName(payload, i, payloads);
                 recommendationResult.payload.name = name;
                 allRecommendationResults[name] = recommendationResult;
@@ -1755,7 +1989,6 @@
         },
 
         _determineErrorResponse: function (recommendationResponse, result) {
-
             if (!$.isPlainObject(recommendationResponse)) {
                 result.status = {
                     error: true,
@@ -1807,11 +2040,6 @@
         },
 
         _determineAdditionalData: function (recommendationResponse, result) {
-
-            /*
-             * Data may be provided under recommendationResponse.additionalData
-             * excluding known attributes like (_breinMetaData, splitTestData)..
-             */
             if ($.isPlainObject(recommendationResponse) &&
                 $.isPlainObject(recommendationResponse.additionalData)) {
 
@@ -1832,15 +2060,9 @@
                 return "response[" + idx + "]";
             }
 
-            /*
-             * The allPayloads is an array which provides information about "other" payloads,
-             * it is used to fix conflicts (i.e., same recommendation requests use the same
-             * named recommendation).
-             */
             const candidates = this._extractCandidateNamesFromPayloads(payloads);
             const candidateUsage = candidates[candidate];
 
-            // check if we have a conflict, if so we need to use a fallback name
             if (typeof candidateUsage === "number" && candidateUsage > 1) {
                 return candidate + "[" + idx + "]";
             }
@@ -1856,8 +2078,6 @@
             }
 
             for (let i = 0; i < payloads.length; i++) {
-
-                // we support direct payloads or an array of options
                 let p = Renderer._createPayload(payloads[i], payloads[i]);
 
                 const candidate = this._extractCandidateNameFromPayload(p);
@@ -1881,8 +2101,6 @@
         },
 
         _determineSplitTestData: function (recommendationResponse, result) {
-
-            // first read if we have split-test data
             if ($.isPlainObject(recommendationResponse) &&
                 $.isPlainObject(recommendationResponse.additionalData) &&
                 $.isPlainObject(recommendationResponse.additionalData.splitTestData)) {
@@ -1892,16 +2110,13 @@
                     isTest: recommendationResponse.statusCode === 200,
                     isControl: recommendationResponse.statusCode === 7120
                 }, recommendationResponse.additionalData.splitTestData);
-            } else if (recommendationResponse.statusCode === 7120) {
-
-                // the recommendation is most likely just disabled
+            } else if ($.isPlainObject(recommendationResponse) && recommendationResponse.statusCode === 7120) {
                 result.splitTestData = {
                     active: false,
                     isTest: false,
                     isControl: false
                 };
             } else {
-
                 result.splitTestData = {
                     active: false,
                     isTest: false,
@@ -1921,8 +2136,9 @@
             for (let i = 0; i < recommendationResponse.result.length; i++) {
                 let asset = recommendationResponse.result[i];
                 let mappedAsset = this._mapAsset(asset);
-
-                mappedAssets.push(mappedAsset);
+                if ($.isPlainObject(mappedAsset)) {
+                    mappedAssets.push(mappedAsset);
+                }
             }
 
             return mappedAssets;
@@ -1956,8 +2172,9 @@
             for (let i = 0; i < recommendationResponse.result.length; i++) {
                 let product = recommendationResponse.result[i];
                 let mappedProduct = this._mapProduct(product);
-
-                mappedProducts.push(mappedProduct);
+                if ($.isPlainObject(mappedProduct)) {
+                    mappedProducts.push(mappedProduct);
+                }
             }
 
             return mappedProducts;
@@ -1970,7 +2187,6 @@
                 return null;
             }
 
-            // price can be in inventory or product
             let price = this._getValue(product, "inventory::productPrice");
             price = price === null ? this._getValue(product, "product::productPrice") : price;
 
@@ -1996,19 +2212,25 @@
             let mappedResults = [];
             for (let i = 0; i < recommendationResponse.result.length; i++) {
                 let result = recommendationResponse.result[i];
-                let mappedResult = {
+                if (!$.isPlainObject(result)) {
+                    continue;
+                }
+
+                mappedResults.push({
                     _recommenderWeight: result.weight,
                     id: result.dataIdExternal,
                     additionalData: result.additionalData
-                };
-
-                mappedResults.push(mappedResult);
+                });
             }
 
             return mappedResults;
         },
 
         _getValue: function (entity, name) {
+            if (!$.isPlainObject(entity) || !$.isPlainObject(entity.additionalData)) {
+                return null;
+            }
+
             let value = entity.additionalData[name];
             return typeof value === "undefined" || value === null ? null : value;
         }
