@@ -637,7 +637,7 @@
                     return false;
                 }
 
-                const $el = isSupplier ? elOrSupplier() : elOrSupplier;
+                const $el = _private._createElementInstance(elOrSupplier);
                 if (!$el || $el.length === 0) {
                     return false;
                 }
@@ -718,7 +718,13 @@
                     return;
                 }
 
-                const $newEl = elOrSupplier();
+                const $newEl = _private._createElementInstance(elOrSupplier, {
+                    anchor: anchor,
+                    $anchor: $candidateAnchor,
+                    operation: operation,
+                    placement: placement,
+                    webExpSettings: webExpSettings
+                });
                 if (!$newEl || $newEl.length === 0) {
                     return;
                 }

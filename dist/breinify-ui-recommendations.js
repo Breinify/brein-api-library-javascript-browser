@@ -92,7 +92,7 @@
             }
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig, activationLogic) {
+        _handle: async function (webExId, webExVersionId, singleConfig, configuration) {
             if (!$.isPlainObject(singleConfig)) {
                 return null;
             }
@@ -101,7 +101,7 @@
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
             config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
-            config.position = this._createPosition(webExId, activationLogic, singleConfig.position, singleConfig);
+            config.position = this._createPosition(webExId, configuration, singleConfig.position, singleConfig);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, webExVersionId, singleConfig.process, singleConfig);
@@ -184,13 +184,13 @@
             return resolvedProcesses;
         },
 
-        _createPosition: function (webExId, activationLogic, position, singleConfig) {
+        _createPosition: function (webExId, configuration, position, singleConfig) {
             if (!$.isPlainObject(position)) {
                 position = {};
             }
 
-            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
-            const func = this._createPositionSelector(webExId, activationLogic, position, singleConfig);
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
+            const func = this._createPositionSelector(webExId, configuration, position, singleConfig);
             if (!$.isFunction(func)) {
                 return {};
             }
@@ -218,8 +218,8 @@
             return { [operation]: func };
         },
 
-        _createPositionSelector: function (webExId, activationLogic, position, singleConfig) {
-            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
+        _createPositionSelector: function (webExId, configuration, position, singleConfig) {
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
             if (hasAttributeActivation === true) {
                 return this._createAttributePositionSelector(webExId, position, singleConfig);
             }
@@ -352,7 +352,7 @@
             return "br-marked-for-" + webExId + "::" + webExVersionId + "::" + recommenderName;
         },
 
-        _findRequirements: function (webExId, webExVersionId, activationLogic, recs, $changedContainer, data) {
+        _findRequirements: function (webExId, webExVersionId, configuration, recs, $changedContainer, data) {
             if (!$.isPlainObject(data) || data.type !== "added-element") {
                 return false;
             } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
@@ -361,7 +361,7 @@
                 return false;
             }
 
-            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(activationLogic) === true;
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
 
@@ -562,7 +562,7 @@
                 const selectedRecommenders = _private._findRequirements(
                     webExId,
                     webExVersionId,
-                    config.activationLogic,
+                    config,
                     configOnChange,
                     $container,
                     data
