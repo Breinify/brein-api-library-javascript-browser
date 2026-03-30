@@ -351,7 +351,7 @@
         },
 
         _findRequirements: function (webExId, webExVersionId, configuration, recs, $changedContainer, data) {
-            if (!$.isPlainObject(data) || data.type !== "added-element") {
+            if (!$.isPlainObject(data)) {
                 return false;
             } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
                 return false;
@@ -360,10 +360,29 @@
             }
 
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
+
+            /*
+             * Hot path:
+             * - always ignore removals
+             * - allow added elements
+             * - allow attribute changes only for ATTRIBUTE activation and only for data-br-webexpid
+             */
+            if (data.type === "removed-element") {
+                return false;
+            } else if (data.type === "attribute-change") {
+                if (hasAttributeActivation !== true || data.attribute !== "data-br-webexpid") {
+                    return false;
+                }
+            } else if (data.type !== "added-element") {
+                return false;
+            }
+
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
 
             const selectedRecs = [];
+            const localSelections = Object.create(null);
+
             for (let i = 0; i < recs.length; i++) {
                 const rec = recs[i];
                 if (!$.isPlainObject(rec)) {
@@ -391,33 +410,51 @@
                     continue;
                 }
 
-                const renderMarker = this._createMarkerKey(webExId, webExVersionId, rec);
-                if ($resolvedTarget.data(renderMarker) === "true") {
+                const markerKey = this._createMarkerKey(webExId, webExVersionId, rec);
+                const alreadySelectedTargets = $.isArray(localSelections[markerKey]) ? localSelections[markerKey] : [];
+
+                let alreadySelected = false;
+                for (let j = 0; j < alreadySelectedTargets.length; j++) {
+                    if (alreadySelectedTargets[j] === targetEl) {
+                        alreadySelected = true;
+                        break;
+                    }
+                }
+
+                if (alreadySelected === true) {
                     continue;
                 }
 
-                /*
-                 * ATTRIBUTE mode:
-                 * - allow multiple recommenders inside the same attribute host
-                 * - skip only if this exact recommender is already rendered there
-                 */
                 if (hasAttributeActivation === true) {
                     const existingSelector = this._createRenderedRecommendationSelector(webExId, rec.position, rec);
+                    const isSpecificAnchor = this._isSpecificAttributeAnchor(webExId, rec.position, $resolvedTarget);
+
+                    if (isSpecificAnchor === true) {
+                        const $existingRendered = this._findRenderedRecommendation(webExId, rec.position, rec, $resolvedTarget);
+
+                        if ($existingRendered && $existingRendered.length === 1) {
+                            const existingParent = $existingRendered.parent().get(0);
+                            const currentTarget = $resolvedTarget.get(0);
+
+                            if (existingParent !== currentTarget) {
+                                $existingRendered.remove();
+                            }
+                        }
+                    }
+
                     if (existingSelector !== null && $resolvedTarget.find(existingSelector).length > 0) {
                         continue;
                     }
-                }
-                /*
-                 * Non-ATTRIBUTE mode:
-                 * - keep the existing fast protection: do not render into an already rendered recommender container
-                 */
-                else if ($resolvedTarget.hasClass(markerContainerClass)) {
+                } else if ($resolvedTarget.hasClass(markerContainerClass)) {
                     continue;
                 } else if (targetEl.querySelector(markerSelector) !== null) {
                     continue;
                 }
 
-                $resolvedTarget.data(renderMarker, "true");
+                if (!$.isArray(localSelections[markerKey])) {
+                    localSelections[markerKey] = [];
+                }
+                localSelections[markerKey].push(targetEl);
 
                 const selectedRec = $.extend(true, {}, rec);
                 selectedRec._resolvedRenderTarget = targetEl;
@@ -425,6 +462,38 @@
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
+        },
+
+        _findRenderedRecommendation: function (webExId, position, recommender, $currentTarget) {
+            const selector = this._createRenderedRecommendationSelector(webExId, position, recommender);
+            if (selector === null) {
+                return null;
+            }
+
+            const $rendered = $(selector);
+            if ($rendered.length === 0) {
+                return null;
+            }
+
+            if ($currentTarget && $currentTarget.length === 1) {
+                for (let i = 0; i < $rendered.length; i++) {
+                    const $candidate = $rendered.eq(i);
+                    if ($currentTarget.has($candidate).length === 0 && !$currentTarget.is($candidate)) {
+                        return $candidate;
+                    }
+                }
+            }
+
+            return $rendered.eq(0);
+        },
+
+        _isSpecificAttributeAnchor: function (webExId, position, $target) {
+            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            if (positionId === null || !$target || $target.length !== 1) {
+                return false;
+            }
+
+            return $target.is('div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]');
         },
 
         _resolveAttributeAnchor: function (webExId, position, recommender) {
