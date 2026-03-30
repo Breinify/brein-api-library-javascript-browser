@@ -599,6 +599,9 @@
              *   }
              * }
              *
+             * The mapped object value is passed through as `additionalEventData`
+             * into the click handling flow.
+             *
              * @type {Object<String, Object>}
              */
             specificSelectors: {}
@@ -607,10 +610,20 @@
         splitTests: {
             control: {
                 /**
-                 * Selector, jQuery instance, or function resolving the control-group container.
+                 * Selector definition resolving the control-group container.
                  *
-                 * If the retrieved result belongs to the control group, this container is used
-                 * instead of rendering a recommendation container.
+                 * Supported values:
+                 * - CSS selector string
+                 * - jQuery instance
+                 * - function
+                 *
+                 * Function signature:
+                 * function () { ... }
+                 *
+                 * Function return value:
+                 * - CSS selector string
+                 * - jQuery instance
+                 * - null
                  *
                  * @type {String|jQuery|Function|null}
                  */
@@ -625,7 +638,31 @@
              * Supported values:
              * - CSS selector string
              * - jQuery instance
-             * - function resolving a jQuery instance
+             * - function
+             *
+             * Function signature:
+             * function (recommenderName, $changedContainer, meta) { ... }
+             *
+             * Parameters:
+             * @param {String|null} recommenderName
+             * the resolved recommender name
+             * @param {jQuery|null} $changedContainer
+             * changed element container for dynamic/onChange resolution,
+             * `null` during normal rendering
+             * @param {Object} meta
+             * metadata describing the resolution context
+             *
+             * Meta shape:
+             * {
+             *   type: "added-element" | "determine-container" | ...,
+             *   option: <render option, if available>,
+             *   data: <recommendation result or mutation metadata, if available>
+             * }
+             *
+             * Function return value:
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -637,7 +674,31 @@
              * Supported values:
              * - CSS selector string
              * - jQuery instance
-             * - function resolving a jQuery instance
+             * - function
+             *
+             * Function signature:
+             * function (recommenderName, $changedContainer, meta) { ... }
+             *
+             * Parameters:
+             * @param {String|null} recommenderName
+             * the resolved recommender name
+             * @param {jQuery|null} $changedContainer
+             * changed element container for dynamic/onChange resolution,
+             * `null` during normal rendering
+             * @param {Object} meta
+             * metadata describing the resolution context
+             *
+             * Meta shape:
+             * {
+             *   type: "added-element" | "determine-container" | ...,
+             *   option: <render option, if available>,
+             *   data: <recommendation result or mutation metadata, if available>
+             * }
+             *
+             * Function return value:
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -649,7 +710,31 @@
              * Supported values:
              * - CSS selector string
              * - jQuery instance
-             * - function resolving a jQuery instance
+             * - function
+             *
+             * Function signature:
+             * function (recommenderName, $changedContainer, meta) { ... }
+             *
+             * Parameters:
+             * @param {String|null} recommenderName
+             * the resolved recommender name
+             * @param {jQuery|null} $changedContainer
+             * changed element container for dynamic/onChange resolution,
+             * `null` during normal rendering
+             * @param {Object} meta
+             * metadata describing the resolution context
+             *
+             * Meta shape:
+             * {
+             *   type: "added-element" | "determine-container" | ...,
+             *   option: <render option, if available>,
+             *   data: <recommendation result or mutation metadata, if available>
+             * }
+             *
+             * Function return value:
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -661,7 +746,31 @@
              * Supported values:
              * - CSS selector string
              * - jQuery instance
-             * - function resolving a jQuery instance
+             * - function
+             *
+             * Function signature:
+             * function (recommenderName, $changedContainer, meta) { ... }
+             *
+             * Parameters:
+             * @param {String|null} recommenderName
+             * the resolved recommender name
+             * @param {jQuery|null} $changedContainer
+             * changed element container for dynamic/onChange resolution,
+             * `null` during normal rendering
+             * @param {Object} meta
+             * metadata describing the resolution context
+             *
+             * Meta shape:
+             * {
+             *   type: "added-element" | "determine-container" | ...,
+             *   option: <render option, if available>,
+             *   data: <recommendation result or mutation metadata, if available>
+             * }
+             *
+             * Function return value:
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -673,7 +782,31 @@
              * Supported values:
              * - CSS selector string
              * - jQuery instance
-             * - function resolving a jQuery instance
+             * - function
+             *
+             * Function signature:
+             * function (recommenderName, $changedContainer, meta) { ... }
+             *
+             * Parameters:
+             * @param {String|null} recommenderName
+             * the resolved recommender name
+             * @param {jQuery|null} $changedContainer
+             * changed element container for dynamic/onChange resolution,
+             * `null` during normal rendering
+             * @param {Object} meta
+             * metadata describing the resolution context
+             *
+             * Meta shape:
+             * {
+             *   type: "added-element" | "determine-container" | ...,
+             *   option: <render option, if available>,
+             *   data: <recommendation result or mutation metadata, if available>
+             * }
+             *
+             * Function return value:
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -685,25 +818,36 @@
              * If used, rendering of the recommendation DOM is delegated to the caller.
              * The function must call the provided callback with the resolved item container.
              *
-             * Signature:
+             * Function signature:
              * function (data, callback) { ... }
              *
+             * Parameters:
+             * @param {Object} data
+             * mapped recommendation result
+             * @param {Function} callback
+             * callback used to hand the externally rendered container back into the framework
+             *
              * Callback signature:
-             * callback($itemContainer, {
+             * callback($itemContainer, settings)
+             *
+             * Callback parameters:
+             * @param {jQuery|null} $itemContainer
+             * rendered item container
+             * @param {Object} [settings]
+             * optional settings overriding external rendering behavior
+             *
+             * Supported callback settings:
+             * {
              *   error: false,
              *   externalRendering: true,
              *   itemSelection: null
-             * })
+             * }
              *
-             * Supported callback settings:
-             * - `error`:
-             *   indicates whether the external render failed
-             * - `externalRendering`:
-             *   should stay `true` for externally rendered content
-             * - `itemSelection`:
-             *   optional function to resolve rendered item elements
-             *   Signature:
-             *   function ($itemContainer, idx, recommendation) { ... }
+             * `itemSelection`, if provided, must use:
+             * function ($itemContainer, idx, recommendation) { ... }
+             *
+             * Return value:
+             * - ignored by the framework
              *
              * @type {Function|null}
              */
@@ -737,6 +881,9 @@
             /**
              * Built-in random UUID placeholder.
              *
+             * Function signature:
+             * function () { ... }
+             *
              * @returns {String}
              */
             "random::uuid": function () {
@@ -760,41 +907,70 @@
             /**
              * Built-in placeholder resolving the recommender name from the payload.
              *
+             * Function signature:
+             * function (data, resolvedValue) { ... }
+             *
+             * Parameters:
              * @param {Object} data
-             * recommendation response data
+             * current replacement data object
+             * @param {*} resolvedValue
+             * value resolved from the placeholder path, if any
              *
              * @returns {String|null}
              */
-            "marker::recommender": function (data) {
+            "marker::recommender": function (data, resolvedValue) {
                 return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
             },
 
             /**
              * Built-in placeholder returning the entire data object as JSON.
              *
+             * Function signature:
+             * function (data, resolvedValue) { ... }
+             *
+             * Parameters:
              * @param {Object} data
-             * recommendation response data
+             * current replacement data object
+             * @param {*} resolvedValue
+             * value resolved from the placeholder path, if any
              *
              * @returns {String}
              */
-            "data::json": function (data) {
+            "data::json": function (data, resolvedValue) {
                 return JSON.stringify(data);
             }
         },
 
-        /*
-         * Defines HTML templates or jQuery instances that define how a container or item of the rendered recommender
-         * should look like. In the case a binding is utilized (instead of rendering) these templates are considered
-         * selectors, which return a selector to select the container and the items in a rendered recommendation.
+        /**
+         * Defines HTML templates, selectors, jQuery instances, or functions used
+         * to resolve the outer container and item template/selection.
+         *
+         * In normal rendering mode these are typically template sources.
+         * In binding-only or externally-rendered scenarios these may also behave as
+         * selectors resolving already existing DOM.
          */
         templates: {
             /**
              * Template or selector used for the outer recommendation container.
              *
              * Supported values:
-             * - HTML string selector
+             * - HTML string
+             * - CSS selector string
              * - jQuery instance
-             * - function resolving either of the above
+             * - function
+             *
+             * Function signature:
+             * function ($context) { ... }
+             *
+             * Parameters:
+             * @param {jQuery} [$context]
+             * optional context container provided by the caller
+             *
+             * Function return value:
+             * - HTML string
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -804,9 +980,23 @@
              * Template or selector used for a single rendered item.
              *
              * Supported values:
-             * - HTML string selector
+             * - HTML string
+             * - CSS selector string
              * - jQuery instance
-             * - function resolving either of the above
+             * - function
+             *
+             * Function signature:
+             * function ($context) { ... }
+             *
+             * Parameters:
+             * @param {jQuery} [$context]
+             * current item/container context
+             *
+             * Function return value:
+             * - HTML string
+             * - CSS selector string
+             * - jQuery instance
+             * - null
              *
              * @type {String|jQuery|Function|null}
              */
@@ -963,6 +1153,16 @@
             /**
              * Called after a recommendation or control item click was resolved.
              *
+             * The `settings` shape differs slightly between control and non-control flows.
+             * Typical fields include:
+             * - `isControl`
+             * - `$recItem` or `$controlItem`
+             * - `$recContainer` or `$controlContainer`
+             * - `recommendationData`
+             * - `recommendation` (non-control only)
+             * - `additionalEventData`
+             * - `option`
+             *
              * @param {Event} event
              * the triggering click event
              * @param {Object} settings
@@ -1006,6 +1206,9 @@
              * exposes refresh state and markers. Any loading UI, skeletons, dimming,
              * spinners, or error visuals should be implemented by the caller.
              *
+             * This hook may be called multiple times for the same container and should
+             * therefore be implemented idempotently.
+             *
              * @param {jQuery} $container
              * the affected parent container
              * @param {String} state
@@ -1034,6 +1237,9 @@
              *   -> split into multiple render operations
              *
              * Async functions are supported as well.
+             *
+             * Returned `option` values are expected to be full render options usable by
+             * the rendering pipeline, not partial patches.
              *
              * @param {Object} result
              * the mapped recommendation result
