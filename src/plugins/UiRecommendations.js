@@ -429,39 +429,11 @@
             return selectedRecs.length > 0 ? selectedRecs : false;
         },
 
-        _ensureAttributeSnippetExecuted: function (position) {
-            if (!$.isPlainObject(position)) {
-                return;
-            } else if (position._attributeSnippetExecuted === true) {
-                return;
-            }
-
-            position._attributeSnippetExecuted = true;
-
-            const snippetId = Breinify.UTL.isNonEmptyString(position.snippet);
-            if (snippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
-                return;
-            }
-
-            const snippetFunc = Breinify.plugins.snippetManager.getSnippet(snippetId);
-            if (!$.isFunction(snippetFunc)) {
-                return;
-            }
-
-            try {
-                snippetFunc();
-            } catch (e) {
-                // keep attribute resolution resilient
-            }
-        },
-
         _resolveAttributeAnchor: function (webExId, position, recommender) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             if (normalizedWebExId === null) {
                 return null;
             }
-
-            this._ensureAttributeSnippetExecuted(position);
 
             const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
             let $anchor = null;
