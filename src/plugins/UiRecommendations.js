@@ -261,7 +261,7 @@
         _createPosition: function (webExId, configuration, position, singleConfig) {
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
             if (hasAttributeActivation === true) {
-                return this._createAttributeActivationPosition(webExId, normalizedPosition, singleConfig);
+                return this._createAttributeActivationPosition(webExId, position, singleConfig);
             }
 
             const normalizedPosition = $.isPlainObject(position) ? position : {};
