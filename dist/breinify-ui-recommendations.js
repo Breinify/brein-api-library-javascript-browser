@@ -569,98 +569,8 @@
 
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
+
             const selectedRecs = [];
-
-            /*
-             * ATTRIBUTE activation must choose exactly one winner per logical recommender:
-             *  - prefer a specific anchor (data-br-webexppos present)
-             *  - otherwise use the fallback anchor
-             * Never allow both a specific and a fallback config for the same recommender
-             * to participate in the same pass.
-             */
-            if (hasAttributeActivation === true) {
-                const candidatesByReservationKey = Object.create(null);
-
-                for (let i = 0; i < recs.length; i++) {
-                    const rec = recs[i];
-                    if (!$.isPlainObject(rec)) {
-                        continue;
-                    }
-
-                    const $resolvedTarget = this._resolveAttributeAnchorFromMutation(webExId, rec.position, $changedContainer);
-                    if ($resolvedTarget === null) {
-                        continue;
-                    }
-
-                    const reservationKey = this._createAttributeReservationKey(webExId, webExVersionId, rec);
-                    if (reservationKey === null) {
-                        continue;
-                    }
-
-                    const targetEl = $resolvedTarget.get(0);
-                    const targetPositionId = Breinify.UTL.isNonEmptyString($resolvedTarget.attr("data-br-webexppos"));
-                    const priority = targetPositionId === null ? 1 : 2;
-
-                    const existingCandidate = candidatesByReservationKey[reservationKey];
-                    if (!$.isPlainObject(existingCandidate)) {
-                        candidatesByReservationKey[reservationKey] = {
-                            rec: rec,
-                            $resolvedTarget: $resolvedTarget,
-                            targetEl: targetEl,
-                            priority: priority
-                        };
-                        continue;
-                    }
-
-                    /*
-                     * Higher priority wins:
-                     *  - specific anchor (with data-br-webexppos) beats fallback
-                     * On ties, keep the first candidate to avoid churn within the same pass.
-                     */
-                    if (priority > existingCandidate.priority) {
-                        candidatesByReservationKey[reservationKey] = {
-                            rec: rec,
-                            $resolvedTarget: $resolvedTarget,
-                            targetEl: targetEl,
-                            priority: priority
-                        };
-                    }
-                }
-
-                const reservationKeys = Object.keys(candidatesByReservationKey);
-                for (let i = 0; i < reservationKeys.length; i++) {
-                    const reservationKey = reservationKeys[i];
-                    const candidate = candidatesByReservationKey[reservationKey];
-                    if (!$.isPlainObject(candidate)) {
-                        continue;
-                    }
-
-                    const rec = candidate.rec;
-                    const $resolvedTarget = candidate.$resolvedTarget;
-                    const targetEl = candidate.targetEl;
-
-                    if (this._validateAndNormalizeAttributeTarget(webExId, rec.position, rec, $resolvedTarget) !== true) {
-                        continue;
-                    }
-
-                    const reservation = this._reserveAttributeTarget(webExId, webExVersionId, rec, $resolvedTarget);
-                    if (reservation === null) {
-                        continue;
-                    }
-
-                    const selectedRec = $.extend(true, {}, rec);
-                    selectedRec._resolvedRenderTarget = targetEl;
-                    selectedRec._attributeReservationKey = reservation.key;
-                    selectedRec._attributeReservationId = reservation.id;
-                    selectedRecs.push(selectedRec);
-                }
-
-                return selectedRecs.length > 0 ? selectedRecs : false;
-            }
-
-            /*
-             * Non-attribute activation keeps the existing behavior.
-             */
             const localSelections = Object.create(null);
 
             for (let i = 0; i < recs.length; i++) {
@@ -669,19 +579,26 @@
                     continue;
                 }
 
-                const func = $.isFunction(rec._positionSelector)
-                    ? rec._positionSelector
-                    : this._createPositionSelector(webExId, configuration, rec.position, rec);
+                let $resolvedTarget = null;
 
-                rec._positionSelector = func;
+                if (hasAttributeActivation === true) {
+                    $resolvedTarget = this._resolveAttributeAnchorFromMutation(webExId, rec.position, $changedContainer);
+                } else {
+                    const func = $.isFunction(rec._positionSelector)
+                        ? rec._positionSelector
+                        : this._createPositionSelector(webExId, configuration, rec.position, rec);
 
-                if (!$.isFunction(func)) {
-                    continue;
+                    rec._positionSelector = func;
+
+                    if (!$.isFunction(func)) {
+                        continue;
+                    }
+
+                    const recommenderName = this._recommenderName(rec);
+                    const $target = func(recommenderName, $changedContainer, data);
+                    $resolvedTarget = this._normalizeGenericResolvedTarget($target);
                 }
 
-                const recommenderName = this._recommenderName(rec);
-                const $target = func(recommenderName, $changedContainer, data);
-                const $resolvedTarget = this._normalizeGenericResolvedTarget($target);
                 if ($resolvedTarget === null) {
                     continue;
                 }
@@ -704,24 +621,46 @@
                     continue;
                 }
 
-                if ($resolvedTarget.hasClass(markerContainerClass)) {
-                    continue;
-                } else if ($resolvedTarget.data(markerKey) === "true") {
-                    continue;
-                } else if (targetEl.querySelector && targetEl.querySelector(markerSelector) !== null) {
-                    continue;
+                if (hasAttributeActivation === true) {
+                    if (this._validateAndNormalizeAttributeTarget(webExId, rec.position, rec, $resolvedTarget) !== true) {
+                        continue;
+                    }
+
+                    const reservation = this._reserveAttributeTarget(webExId, webExVersionId, rec, $resolvedTarget);
+                    if (reservation === null) {
+                        continue;
+                    }
+
+                    if (!$.isArray(localSelections[markerKey])) {
+                        localSelections[markerKey] = [];
+                    }
+                    localSelections[markerKey].push(targetEl);
+
+                    const selectedRec = $.extend(true, {}, rec);
+                    selectedRec._resolvedRenderTarget = targetEl;
+                    selectedRec._attributeReservationKey = reservation.key;
+                    selectedRec._attributeReservationId = reservation.id;
+                    selectedRecs.push(selectedRec);
+                } else {
+                    if ($resolvedTarget.hasClass(markerContainerClass)) {
+                        continue;
+                    } else if ($resolvedTarget.data(markerKey) === "true") {
+                        continue;
+                    } else if (targetEl.querySelector && targetEl.querySelector(markerSelector) !== null) {
+                        continue;
+                    }
+
+                    $resolvedTarget.data(markerKey, "true");
+
+                    if (!$.isArray(localSelections[markerKey])) {
+                        localSelections[markerKey] = [];
+                    }
+                    localSelections[markerKey].push(targetEl);
+
+                    const selectedRec = $.extend(true, {}, rec);
+                    selectedRec._resolvedRenderTarget = targetEl;
+                    selectedRecs.push(selectedRec);
                 }
-
-                $resolvedTarget.data(markerKey, "true");
-
-                if (!$.isArray(localSelections[markerKey])) {
-                    localSelections[markerKey] = [];
-                }
-                localSelections[markerKey].push(targetEl);
-
-                const selectedRec = $.extend(true, {}, rec);
-                selectedRec._resolvedRenderTarget = targetEl;
-                selectedRecs.push(selectedRec);
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
@@ -809,6 +748,31 @@
             };
         },
 
+        _matchesLogicalRecommenderIdentity: function (meta, webExId, configuredPositionId, recommenderName) {
+            if (!$.isPlainObject(meta)) {
+                return false;
+            }
+
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const normalizedConfiguredPositionId = Breinify.UTL.isNonEmptyString(configuredPositionId);
+            const normalizedRecommenderName = Breinify.UTL.isNonEmptyString(recommenderName);
+
+            if (Breinify.UTL.isNonEmptyString(meta.webExId) !== normalizedWebExId) {
+                return false;
+            }
+
+            if (normalizedRecommenderName !== null) {
+                return Breinify.UTL.isNonEmptyString(meta.recommenderName) === normalizedRecommenderName;
+            }
+
+            if (normalizedConfiguredPositionId !== null) {
+                const metaPositionId = Breinify.UTL.isNonEmptyString(meta.positionId);
+                return metaPositionId === normalizedConfiguredPositionId || metaPositionId === null;
+            }
+
+            return Breinify.UTL.isNonEmptyString(meta.positionId) === null;
+        },
+
         _matchesRenderedRecommendationIdentity: function (meta, webExId, positionId, recommenderName) {
             if (!$.isPlainObject(meta)) {
                 return false;
@@ -835,31 +799,6 @@
             }
 
             return true;
-        },
-
-        _matchesLogicalRecommenderIdentity: function (meta, webExId, configuredPositionId, recommenderName) {
-            if (!$.isPlainObject(meta)) {
-                return false;
-            }
-
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            const normalizedConfiguredPositionId = Breinify.UTL.isNonEmptyString(configuredPositionId);
-            const normalizedRecommenderName = Breinify.UTL.isNonEmptyString(recommenderName);
-
-            if (Breinify.UTL.isNonEmptyString(meta.webExId) !== normalizedWebExId) {
-                return false;
-            }
-
-            if (normalizedRecommenderName !== null) {
-                return Breinify.UTL.isNonEmptyString(meta.recommenderName) === normalizedRecommenderName;
-            }
-
-            if (normalizedConfiguredPositionId !== null) {
-                const metaPositionId = Breinify.UTL.isNonEmptyString(meta.positionId);
-                return metaPositionId === normalizedConfiguredPositionId || metaPositionId === null;
-            }
-
-            return Breinify.UTL.isNonEmptyString(meta.positionId) === null;
         },
 
         _cleanupStaleAttributeRenderedRecommendations: function (webExId, position, recommender, $activeTarget) {
