@@ -36,6 +36,16 @@
             return runtime;
         },
 
+        _getSnippetFunction: function (snippetId) {
+            const normalizedSnippetId = Breinify.UTL.isNonEmptyString(snippetId);
+            if (normalizedSnippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
+                return null;
+            }
+
+            const func = Breinify.plugins.snippetManager.getSnippet(normalizedSnippetId);
+            return $.isFunction(func) ? func : null;
+        },
+
         handle: async function (webExId, webExVersionId, recommendations, config) {
             const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
             if (normalizedRecommendations.length === 0) {
@@ -133,7 +143,7 @@
             if ($.isPlainObject(config)) {
                 resolvedProcesses = Object.fromEntries(
                     Object.entries(config).flatMap(([key, snippetId]) => {
-                        const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                        const func = this._getSnippetFunction(snippetId);
                         return func == null ? [] : [[key, func]];
                     })
                 );
@@ -149,13 +159,13 @@
                 if ($container && $container.length === 1) {
                     $container.attr("data-br-rec-webexpid", webExId);
 
-                    const positionId = Breinify.UTL.isNonEmptyString(recommenderConfig?.position?.positionId);
+                    const positionId = Breinify.UTL.isNonEmptyString(recommenderConfig && recommenderConfig.position && recommenderConfig.position.positionId);
                     if (positionId !== null) {
                         $container.attr("data-br-rec-positionid", positionId);
                     }
 
                     const recommenderName = Breinify.UTL.isNonEmptyString(
-                        recommenderConfig?.recommender?.preconfiguredRecommendation
+                        recommenderConfig && recommenderConfig.recommender && recommenderConfig.recommender.preconfiguredRecommendation
                     );
                     if (recommenderName !== null) {
                         $container.attr("data-br-rec-name", recommenderName);
@@ -246,10 +256,8 @@
                 position._func = function () {
                     return $(selector);
                 };
-            } else if (Breinify.plugins._isAdded("snippetManager")) {
-                position._func = Breinify.plugins.snippetManager.getSnippet(snippet);
             } else {
-                position._func = null;
+                position._func = this._getSnippetFunction(snippet);
             }
 
             return $.isFunction(position._func) ? position._func : null;
@@ -260,12 +268,9 @@
                 return {};
             }
 
-            const containerSnippetId = Breinify.UTL.isNonEmptyString(templates.container);
-            const itemSnippetId = Breinify.UTL.isNonEmptyString(templates.item);
-
             return {
-                container: Breinify.plugins.snippetManager.getSnippet(containerSnippetId),
-                item: Breinify.plugins.snippetManager.getSnippet(itemSnippetId)
+                container: this._getSnippetFunction(templates.container),
+                item: this._getSnippetFunction(templates.item)
             };
         },
 
@@ -293,7 +298,7 @@
 
             return Object.fromEntries(
                 Object.entries(placeholders).flatMap(([key, snippetId]) => {
-                    const func = Breinify.plugins.snippetManager.getSnippet(snippetId);
+                    const func = this._getSnippetFunction(snippetId);
                     return func == null ? [] : [[key, func]];
                 })
             );
@@ -318,12 +323,9 @@
             queryLabel = queryLabel === null ? namedRec : queryLabel;
 
             let recommendationForItems = null;
-            const recForItemsSnippetId = Breinify.UTL.isNonEmptyString(recommender.itemsForRecommendation);
-            if (recForItemsSnippetId !== null) {
-                const func = Breinify.plugins.snippetManager.getSnippet(recForItemsSnippetId);
-                if ($.isFunction(func)) {
-                    recommendationForItems = await func();
-                }
+            const func = this._getSnippetFunction(recommender.itemsForRecommendation);
+            if ($.isFunction(func)) {
+                recommendationForItems = await func();
             }
 
             if (!$.isArray(recommendationForItems)) {
@@ -342,7 +344,7 @@
         },
 
         _recommenderName: function (rec) {
-            return Breinify.UTL.isNonEmptyString(rec?.recommender?.preconfiguredRecommendation);
+            return Breinify.UTL.isNonEmptyString(rec && rec.recommender && rec.recommender.preconfiguredRecommendation);
         },
 
         _createMarkerKey: function (webExId, webExVersionId, rec) {
@@ -464,6 +466,9 @@
 
             const positionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
 
+            /*
+             * Prefer the exact specific anchor inside the changed subtree.
+             */
             if (positionId !== null) {
                 const $specific = this._findAttributeAnchorInRoot(
                     root,
@@ -474,6 +479,10 @@
                 }
             }
 
+            /*
+             * Fallback to a generic anchor inside the changed subtree only.
+             * Specific anchors are explicitly excluded.
+             */
             return this._findAttributeAnchorInRoot(
                 root,
                 'div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])'
@@ -539,19 +548,11 @@
             const isSpecificAnchor = this._isSpecificAttributeAnchor(webExId, position, $resolvedTarget);
 
             /*
-             * If we resolved a specific anchor, prefer it over a previously rendered generic placement.
-             * We only touch the single matching rendered recommender instance.
+             * If we resolved a specific anchor, prefer it over previously rendered generic placement.
+             * We remove matching rendered instances outside the current target before allowing re-render.
              */
             if (isSpecificAnchor === true) {
-                const $existingRendered = this._findRenderedRecommendation(webExId, position, recommender, $resolvedTarget);
-                if ($existingRendered && $existingRendered.length === 1) {
-                    const existingParent = $existingRendered.parent().get(0);
-                    const currentTarget = $resolvedTarget.get(0);
-
-                    if (existingParent !== currentTarget) {
-                        $existingRendered.remove();
-                    }
-                }
+                this._removeRenderedRecommendationsOutsideTarget(webExId, position, recommender, $resolvedTarget);
             }
 
             /*
@@ -560,27 +561,23 @@
             return $resolvedTarget.find(existingSelector).length <= 0;
         },
 
-        _findRenderedRecommendation: function (webExId, position, recommender, $currentTarget) {
+        _removeRenderedRecommendationsOutsideTarget: function (webExId, position, recommender, $currentTarget) {
             const selector = this._createRenderedRecommendationSelector(webExId, position, recommender);
-            if (selector === null) {
-                return null;
+            if (selector === null || !$currentTarget || $currentTarget.length !== 1) {
+                return;
             }
 
             const $rendered = $(selector);
             if ($rendered.length === 0) {
-                return null;
+                return;
             }
 
-            if ($currentTarget && $currentTarget.length === 1) {
-                for (let i = 0; i < $rendered.length; i++) {
-                    const $candidate = $rendered.eq(i);
-                    if ($currentTarget.has($candidate).length === 0 && !$currentTarget.is($candidate)) {
-                        return $candidate;
-                    }
+            $rendered.each(function () {
+                const $candidate = $(this);
+                if ($currentTarget.has($candidate).length === 0 && !$currentTarget.is($candidate)) {
+                    $candidate.remove();
                 }
-            }
-
-            return $rendered.eq(0);
+            });
         },
 
         _isSpecificAttributeAnchor: function (webExId, position, $target) {
@@ -594,7 +591,7 @@
             return $target.is('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]');
         },
 
-        _resolveAttributeAnchor: function (webExId, position, recommender) {
+        _resolveAttributeAnchor: function (webExId, position) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             if (normalizedWebExId === null) {
                 return null;
@@ -618,7 +615,7 @@
             /*
              * Fallback resolution:
              * first generic ATTRIBUTE anchor by web-experience id only.
-             * We explicitly exclude specific anchors here.
+             * Specific anchors are explicitly excluded.
              */
             $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
             return this._normalizeResolvedTarget($anchor);
@@ -635,7 +632,7 @@
             }
 
             return function () {
-                return _self._resolveAttributeAnchor(webExId, position, recommender);
+                return _self._resolveAttributeAnchor(webExId, position);
             };
         },
 
@@ -645,7 +642,7 @@
                 return null;
             }
 
-            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            const positionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
             if (positionId !== null) {
                 return '[data-br-rec-webexpid="' + normalizedWebExId + '"][data-br-rec-positionid="' + positionId + '"]';
             }
@@ -747,18 +744,18 @@
             };
 
             module.onChange = function (data) {
-                if ($.isPlainObject(data?.onLoad)) {
+                if ($.isPlainObject(data && data.onLoad)) {
                     _self.handle(webExId, webExVersionId, data.onLoad);
                 }
 
-                if ($.isPlainObject(data?.onChange)) {
+                if ($.isPlainObject(data && data.onChange)) {
                     _self.handle(webExId, webExVersionId, data.onChange);
                 }
             };
         },
 
         handle: function (webExId, webExVersionId, config) {
-            const recommendations = $.isArray(config?.recommendations) ? config.recommendations : [];
+            const recommendations = $.isArray(config && config.recommendations) ? config.recommendations : [];
             if (recommendations.length === 0) {
                 return;
             }
