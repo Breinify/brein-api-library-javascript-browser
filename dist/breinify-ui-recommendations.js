@@ -375,7 +375,7 @@
                 if (hasAttributeActivation !== true || data.attribute !== "data-br-webexpid") {
                     return false;
                 }
-            } else if (data.type !== "added-element") {
+            } else if (data.type !== "added-element" && data.type !== "full-scan") {
                 return false;
             }
 
@@ -407,7 +407,7 @@
 
                     const recommenderName = this._recommenderName(rec);
                     const $target = func(recommenderName, $changedContainer, data);
-                    $resolvedTarget = this._normalizeResolvedTarget($target);
+                    $resolvedTarget = this._normalizeGenericResolvedTarget($target);
                 }
 
                 if ($resolvedTarget === null) {
@@ -434,10 +434,21 @@
                     if (this._validateAndNormalizeAttributeTarget(webExId, rec.position, rec, $resolvedTarget) !== true) {
                         continue;
                     }
-                } else if ($resolvedTarget.hasClass(markerContainerClass)) {
-                    continue;
-                } else if (targetEl.querySelector(markerSelector) !== null) {
-                    continue;
+                } else {
+                    /*
+                     * Restore old non-ATTRIBUTE protection.
+                     * This is needed especially for before/after/replace where the rendered
+                     * container may not be a descendant of the anchor.
+                     */
+                    if ($resolvedTarget.hasClass(markerContainerClass)) {
+                        continue;
+                    } else if ($resolvedTarget.data(markerKey) === "true") {
+                        continue;
+                    } else if (targetEl.querySelector && targetEl.querySelector(markerSelector) !== null) {
+                        continue;
+                    }
+
+                    $resolvedTarget.data(markerKey, "true");
                 }
 
                 if (!$.isArray(localSelections[markerKey])) {
@@ -451,6 +462,22 @@
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
+        },
+
+        _normalizeGenericResolvedTarget: function ($target) {
+            if (!$target || !$target.jquery || $target.length === 0) {
+                return null;
+            }
+
+            const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
+            const targetEl = $resolvedTarget.get(0);
+            if (!Breinify.UTL.dom.isNodeType(targetEl, 1)) {
+                return null;
+            } else if (targetEl.isConnected !== true) {
+                return null;
+            }
+
+            return $resolvedTarget;
         },
 
         _resolveAttributeAnchorFromMutation: function (webExId, position, $changedContainer) {
@@ -495,17 +522,17 @@
             }
 
             if ($.isFunction(root.matches) && root.matches(selector)) {
-                return this._normalizeResolvedTarget($(root));
+                return this._normalizeAttributeResolvedTarget($(root));
             }
 
             if (!$.isFunction(root.querySelector)) {
                 return null;
             }
 
-            return this._normalizeResolvedTarget($(root.querySelector(selector)));
+            return this._normalizeAttributeResolvedTarget($(root.querySelector(selector)));
         },
 
-        _normalizeResolvedTarget: function ($target) {
+        _normalizeAttributeResolvedTarget: function ($target) {
             if (!$target || !$target.jquery || $target.length === 0) {
                 return null;
             }
@@ -533,9 +560,6 @@
                 return false;
             }
 
-            /*
-             * Never render a recommender into an already rendered recommendation container.
-             */
             if ($resolvedTarget.is('[data-' + Breinify.plugins.recommendations.marker.container + '="true"]')) {
                 return false;
             }
@@ -546,18 +570,10 @@
             }
 
             const isSpecificAnchor = this._isSpecificAttributeAnchor(webExId, position, $resolvedTarget);
-
-            /*
-             * If we resolved a specific anchor, prefer it over previously rendered generic placement.
-             * We remove matching rendered instances outside the current target before allowing re-render.
-             */
             if (isSpecificAnchor === true) {
                 this._removeRenderedRecommendationsOutsideTarget(webExId, position, recommender, $resolvedTarget);
             }
 
-            /*
-             * Do not render again if this exact recommender is already rendered inside this target.
-             */
             return $resolvedTarget.find(existingSelector).length <= 0;
         },
 
@@ -600,25 +616,16 @@
             const positionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
             let $anchor = null;
 
-            /*
-             * Preferred resolution:
-             * exact ATTRIBUTE anchor by web-experience id + position id.
-             */
             if (positionId !== null) {
                 $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
-                $anchor = this._normalizeResolvedTarget($anchor);
+                $anchor = this._normalizeAttributeResolvedTarget($anchor);
                 if ($anchor !== null) {
                     return $anchor;
                 }
             }
 
-            /*
-             * Fallback resolution:
-             * first generic ATTRIBUTE anchor by web-experience id only.
-             * Specific anchors are explicitly excluded.
-             */
             $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
-            return this._normalizeResolvedTarget($anchor);
+            return this._normalizeAttributeResolvedTarget($anchor);
         },
 
         _createAttributePositionSelector: function (webExId, position, recommender) {
