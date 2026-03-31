@@ -36,14 +36,23 @@
             return runtime;
         },
 
-        _getSnippetFunction: function (snippetId) {
+        _getSnippetValue: function (snippetId) {
             const normalizedSnippetId = Breinify.UTL.isNonEmptyString(snippetId);
             if (normalizedSnippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
                 return null;
             }
 
-            const func = Breinify.plugins.snippetManager.getSnippet(normalizedSnippetId);
-            return $.isFunction(func) ? func : null;
+            const snippet = Breinify.plugins.snippetManager.getSnippet(normalizedSnippetId);
+            if (typeof snippet === "string" || $.isFunction(snippet)) {
+                return snippet;
+            } else {
+                return null;
+            }
+        },
+
+        _getSnippetFunction: function (snippetId) {
+            const snippet = this._getSnippetValue(snippetId);
+            return $.isFunction(snippet) ? snippet : null;
         },
 
         handle: async function (webExId, webExVersionId, recommendations, config) {
@@ -269,8 +278,8 @@
             }
 
             return {
-                container: this._getSnippetFunction(templates.container),
-                item: this._getSnippetFunction(templates.item)
+                container: this._getSnippetValue(templates.container),
+                item: this._getSnippetValue(templates.item)
             };
         },
 
