@@ -86,9 +86,10 @@
          */
         addRules: function (rules) {
             const _self = this;
+            let addedCount = 0;
 
             if (!$.isArray(rules) || rules.length === 0) {
-                return;
+                return 0;
             }
 
             $.each(rules, function (idx, rule) {
@@ -101,17 +102,41 @@
                 normalizedRule = $.extend(true, {}, rule);
                 _self._normalizeRule(normalizedRule);
 
-                if (normalizedRule._hasObserve === true && normalizedRule._hasActions === true) {
-                    _self._rules.push(normalizedRule);
+                if (normalizedRule._hasObserve !== true || normalizedRule._hasActions !== true) {
+                    return true;
                 }
+
+                if (_self.hasRule(normalizedRule.id) === true) {
+                    return true;
+                }
+
+                _self._rules.push(normalizedRule);
+                addedCount++;
 
                 return true;
             });
 
-            /*
-             * Invalidate page cache so new rules are picked up immediately.
-             */
-            this._pageCache.href = null;
+            if (addedCount > 0) {
+                _self._pageCache.href = null;
+            }
+
+            return addedCount;
+        },
+
+        hasRule: function (ruleId) {
+            let i;
+
+            if (!Breinify.UTL.isNonEmptyString(ruleId)) {
+                return false;
+            }
+
+            for (i = 0; i < this._rules.length; i++) {
+                if (this._rules[i] && this._rules[i].id === ruleId) {
+                    return true;
+                }
+            }
+
+            return false;
         },
 
         /**
@@ -999,6 +1024,14 @@
     const PlacementManager = {
         _initialized: false,
 
+        isInitialized: function () {
+            return this._initialized === true;
+        },
+
+        hasRule: function (ruleId) {
+            return placementManagerModule.hasRule(ruleId);
+        },
+
         /**
          * Initializes the placementManager plugin.
          *
@@ -1038,6 +1071,7 @@
         add: function (definition) {
             let rules;
             let initialRequirements;
+            let addedCount;
 
             if (this.initialize() !== true) {
                 return false;
@@ -1052,11 +1086,11 @@
                 return false;
             }
 
-            placementManagerModule.addRules(rules);
+            addedCount = placementManagerModule.addRules(rules);
+            if (addedCount === 0) {
+                return true;
+            }
 
-            /*
-             * Execute an immediate full-scan so new rules are applied deterministically.
-             */
             initialRequirements = placementManagerModule.findRequirements($("body"), {
                 type: "full-scan"
             });
