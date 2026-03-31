@@ -111,6 +111,10 @@
              * ready to handle this correctly.
              */
             else if (Breinify.plugins.webExperiences.hasAttributeActivation(config) === true) {
+                if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
+                    return;
+                }
+
                 this._cleanUpAttributeActivation(webExId, webExVersionId, runtime);
             }
 
@@ -138,12 +142,96 @@
 
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandled = true;
+                } else if (Breinify.plugins.webExperiences.hasAttributeActivation(config) === true) {
+                    runtime.anchorState = $.isPlainObject(runtime._nextAnchorState) ? runtime._nextAnchorState : {};
+                    delete runtime._nextAnchorState;
                 }
             } finally {
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandling = false;
                 }
+
+                delete runtime._nextAnchorState;
             }
+        },
+
+        _isAttributeAnchorChanged: function (webExId, recommendations, runtime) {
+            if (!$.isPlainObject(runtime?.anchorState)) {
+                return false;
+            }
+
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
+
+            if (normalizedWebExId === null || normalizedRecommendations.length === 0) {
+                return false;
+            }
+
+            const anchorState = runtime.anchorState;
+            const nextAnchorState = {};
+            let changed = false;
+
+            for (let i = 0; i < normalizedRecommendations.length; i++) {
+                const recommendation = normalizedRecommendations[i];
+                if (!$.isPlainObject(recommendation)) {
+                    continue;
+                }
+
+                const anchorStateKey = this._createAnchorStateKey(normalizedWebExId, recommendation, i);
+                if (anchorStateKey === null) {
+                    continue;
+                }
+
+                const normalizedPositionId = Breinify.UTL.isNonEmptyString(recommendation?.position?.positionId);
+                const recommenderName = this._recommenderName(recommendation);
+
+                const anchor = this._determineAnchor(normalizedWebExId, normalizedPositionId);
+                const $anchor = anchor.$anchor;
+                const anchorElement = $anchor.length === 1 ? $anchor.get(0) : null;
+                const anchorType = anchor.type;
+
+                nextAnchorState[anchorStateKey] = {
+                    anchorStateKey: anchorStateKey,
+                    webExId: normalizedWebExId,
+                    recommenderName: recommenderName,
+                    configuredPositionId: normalizedPositionId,
+                    anchorType: anchorType,
+                    anchorElement: anchorElement
+                };
+
+                const currentState = $.isPlainObject(anchorState[anchorStateKey]) ? anchorState[anchorStateKey] : null;
+                if (currentState === null) {
+                    changed = true;
+                } else if (currentState.anchorElement !== anchorElement) {
+                    changed = true;
+                } else if (currentState.anchorType !== anchorType) {
+                    changed = true;
+                } else if (currentState.configuredPositionId !== normalizedPositionId) {
+                    changed = true;
+                } else if (currentState.recommenderName !== recommenderName) {
+                    changed = true;
+                }
+            }
+
+            if (changed !== true) {
+                const currentKeys = Object.keys(anchorState);
+                const nextKeys = Object.keys(nextAnchorState);
+
+                if (currentKeys.length !== nextKeys.length) {
+                    changed = true;
+                } else {
+                    for (let i = 0; i < currentKeys.length; i++) {
+                        const key = currentKeys[i];
+                        if (!$.isPlainObject(nextAnchorState[key])) {
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            runtime._nextAnchorState = nextAnchorState;
+            return changed;
         },
 
         _cleanUpAttributeActivation: function (webExId, webExVersionId, runtime) {
@@ -162,7 +250,6 @@
                 }
             });
 
-            console.log("uiRecommendations _cleanUpAttributeActivation: " + webExId);
             runtime.anchorState = {};
         },
 
@@ -275,10 +362,10 @@
         },
 
         _createAttributeActivationPosition: function (webExId, position, singleConfig, runtime) {
+            const _self = this;
+
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const normalizedPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
-            const recommenderName = this._recommenderName(singleConfig);
-            const anchorStateKey = this._createAnchorStateKey(webExId, singleConfig, singleConfig?._anchorStateIndex);
 
             return {
                 append: function () {
@@ -286,48 +373,34 @@
                         return $();
                     }
 
-                    let $anchor = $();
-                    let anchorType = null;
-
-                    if (normalizedPositionId !== null) {
-                        $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + normalizedPositionId + '"]').eq(0);
-                        if ($anchor.length === 1) {
-                            anchorType = "specific";
-                        }
-                    }
-
-                    if ($anchor.length !== 1) {
-                        $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
-                        if ($anchor.length === 1) {
-                            anchorType = "fallback";
-                        }
-                    }
-
-                    if ($anchor.length === 1 &&
-                        $.isPlainObject(runtime?.anchorState) &&
-                        recommenderName !== null &&
-                        anchorStateKey !== null) {
-                        runtime.anchorState[anchorStateKey] = {
-                            anchorStateKey: anchorStateKey,
-                            webExId: normalizedWebExId,
-                            recommenderName: recommenderName,
-                            configuredPositionId: normalizedPositionId,
-                            anchorType: anchorType,
-                            anchorElement: $anchor.get(0)
-                        };
-
-                        console.log("uiRecommendations anchorState updated", anchorStateKey, {
-                            recommenderName: recommenderName,
-                            anchorType: anchorType,
-                            positionId: normalizedPositionId,
-                            anchorPositionId: Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexppos")),
-                            anchorElement: $anchor.get(0),
-                            anchorState: runtime.anchorState[anchorStateKey]
-                        });
-                    }
-
-                    return $anchor;
+                    const anchor = _self._determineAnchor(normalizedWebExId, normalizedPositionId);
+                    return anchor.$anchor;
                 }
+            };
+        },
+
+        _determineAnchor: function (webExId, positionId) {
+            if (positionId !== null) {
+                let $anchor = $('div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
+                if ($anchor.length === 1) {
+                    return {
+                        $anchor: $anchor,
+                        type: "specific"
+                    };
+                }
+            }
+
+            let $anchor = $('div[data-br-webexpid="' + webExId + '"]:not([data-br-webexppos])').eq(0);
+            if ($anchor.length === 1) {
+                return {
+                    $anchor: $anchor,
+                    type: "fallback"
+                };
+            }
+
+            return {
+                $anchor: $(),
+                type: null
             };
         },
 
