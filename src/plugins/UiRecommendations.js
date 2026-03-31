@@ -153,17 +153,6 @@
                 return null;
             }
 
-            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
-            if (hasAttributeActivation === true) {
-                console.log("uiRecommendations attribute path", {
-                    webExId: webExId,
-                    webExVersionId: webExVersionId,
-                    configuration: configuration,
-                    recommendation: singleConfig
-                });
-                return null;
-            }
-
             const config = {};
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
