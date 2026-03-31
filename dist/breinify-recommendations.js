@@ -277,7 +277,8 @@
                 cb(null, {
                     error: true,
                     errorDescription: "missing position",
-                    externalRendering: false
+                    externalRendering: false,
+                    attachedContainer: false
                 });
                 return;
             }
@@ -310,7 +311,8 @@
                     cb($target, $.extend(true, {
                         error: false,
                         externalRendering: true,
-                        itemSelection: null
+                        itemSelection: null,
+                        attachedContainer: false
                     }, settings));
                 });
                 return;
@@ -327,7 +329,8 @@
                 cb(null, {
                     error: true,
                     errorDescription: "unable to find anchor",
-                    externalRendering: false
+                    externalRendering: false,
+                    attachedContainer: false
                 });
                 return;
             }
@@ -337,7 +340,8 @@
                 cb(null, {
                     error: true,
                     errorDescription: "unable to find container",
-                    externalRendering: false
+                    externalRendering: false,
+                    attachedContainer: false
                 });
                 return;
             }
@@ -345,6 +349,11 @@
             _self._replacePlaceholders($container, data, option);
 
             if ($.isFunction($anchor[method])) {
+
+                // keep the status before applying (if it was connected or not)
+                const wasConnected = $container.get(0)?.isConnected === true;
+
+                // apply the connection logic
                 $anchor[method]($container);
 
                 $container.addClass(this.marker.parentContainer);
@@ -352,13 +361,15 @@
 
                 cb($container, {
                     error: false,
-                    externalRendering: false
+                    externalRendering: false,
+                    attachedContainer: wasConnected !== true && $container.get(0)?.isConnected === true
                 });
             } else {
                 cb(null, {
                     error: true,
                     errorDescription: "unable to apply method to anchor",
-                    externalRendering: false
+                    externalRendering: false,
+                    attachedContainer: false
                 });
             }
         },
@@ -1885,7 +1896,7 @@
                 return "not-rendered-control";
             } else if (Renderer.refreshOptions !== null &&
                 option?.meta?.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
-                Renderer._appendContainer(option, result, function ($container) {
+                Renderer._appendContainer(option, result, function ($container, settings) {
                     if ($container === null) {
                         return;
                     }
@@ -1900,7 +1911,9 @@
                         return;
                     }
 
-                    Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, result, option);
+                    if (settings?.attachedContainer === true) {
+                        Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, result, option);
+                    }
                 });
 
                 return "out-of-date";
@@ -2412,7 +2425,9 @@
                     return;
                 }
 
-                Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, data, option);
+                if (settings?.attachedContainer === true) {
+                    Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, data, option);
+                }
 
                 if (settings.externalRendering === true) {
                     const itemSelection = $.isFunction(settings.itemSelection)
