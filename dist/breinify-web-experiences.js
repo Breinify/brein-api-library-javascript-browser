@@ -83,11 +83,12 @@
             /*
              * We only care about:
              * - added elements
+             * - full scans
              * - attribute changes of data-br-webexpid
              */
             if (type === "attribute-change" && data?.attribute !== "data-br-webexpid") {
                 return null;
-            } else if (type !== "added-element" && type !== "attribute-change") {
+            } else if (type !== "added-element" && type !== "attribute-change" && type !== "full-scan") {
                 return null;
             }
 

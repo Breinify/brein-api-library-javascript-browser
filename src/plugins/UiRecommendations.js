@@ -751,11 +751,11 @@
             };
 
             module.onChange = function (data) {
-                if ($.isPlainObject(data && data.onLoad)) {
+                if ($.isPlainObject(data) && $.isPlainObject(data.onLoad)) {
                     _self.handle(webExId, webExVersionId, data.onLoad);
                 }
 
-                if ($.isPlainObject(data && data.onChange)) {
+                if ($.isPlainObject(data) && $.isPlainObject(data.onChange)) {
                     _self.handle(webExId, webExVersionId, data.onChange);
                 }
             };
