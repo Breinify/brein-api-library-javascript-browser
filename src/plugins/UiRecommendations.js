@@ -173,6 +173,30 @@
             const nextAnchorState = {};
             let changed = false;
 
+            /*
+             * Build the currently available anchors once for this web-experience.
+             * This avoids repeated DOM queries for every single recommendation.
+             */
+            const anchorByPositionId = Object.create(null);
+            let fallbackAnchorElement = null;
+
+            const anchorElements = document.querySelectorAll('div[data-br-webexpid="' + normalizedWebExId + '"]');
+            for (let i = 0; i < anchorElements.length; i++) {
+                const anchorElement = anchorElements[i];
+                if (!Breinify.UTL.dom.isNodeType(anchorElement, 1) || anchorElement.isConnected !== true) {
+                    continue;
+                }
+
+                const anchorPositionId = Breinify.UTL.isNonEmptyString(anchorElement.getAttribute("data-br-webexppos"));
+                if (anchorPositionId === null) {
+                    if (fallbackAnchorElement === null) {
+                        fallbackAnchorElement = anchorElement;
+                    }
+                } else if (typeof anchorByPositionId[anchorPositionId] === "undefined") {
+                    anchorByPositionId[anchorPositionId] = anchorElement;
+                }
+            }
+
             for (let i = 0; i < normalizedRecommendations.length; i++) {
                 const recommendation = normalizedRecommendations[i];
                 if (!$.isPlainObject(recommendation)) {
@@ -187,10 +211,17 @@
                 const normalizedPositionId = Breinify.UTL.isNonEmptyString(recommendation?.position?.positionId);
                 const recommenderName = this._recommenderName(recommendation);
 
-                const anchor = this._determineAnchor(normalizedWebExId, normalizedPositionId);
-                const $anchor = anchor.$anchor;
-                const anchorElement = $anchor.length === 1 ? $anchor.get(0) : null;
-                const anchorType = anchor.type;
+                let anchorElement = null;
+                let anchorType = null;
+
+                if (normalizedPositionId !== null &&
+                    Breinify.UTL.dom.isNodeType(anchorByPositionId[normalizedPositionId], 1)) {
+                    anchorElement = anchorByPositionId[normalizedPositionId];
+                    anchorType = "specific";
+                } else if (Breinify.UTL.dom.isNodeType(fallbackAnchorElement, 1)) {
+                    anchorElement = fallbackAnchorElement;
+                    anchorType = "fallback";
+                }
 
                 nextAnchorState[anchorStateKey] = {
                     anchorStateKey: anchorStateKey,
@@ -207,10 +238,6 @@
                 } else if (currentState.anchorElement !== anchorElement) {
                     changed = true;
                 } else if (currentState.anchorType !== anchorType) {
-                    changed = true;
-                } else if (currentState.configuredPositionId !== normalizedPositionId) {
-                    changed = true;
-                } else if (currentState.recommenderName !== recommenderName) {
                     changed = true;
                 }
             }
@@ -383,19 +410,19 @@
 
         _determineAnchor: function (webExId, positionId) {
             if (positionId !== null) {
-                let $anchor = $('div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
-                if ($anchor.length === 1) {
+                const specificAnchorElement = document.querySelector('div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]');
+                if (Breinify.UTL.dom.isNodeType(specificAnchorElement, 1) && specificAnchorElement.isConnected === true) {
                     return {
-                        $anchor: $anchor,
+                        $anchor: $(specificAnchorElement),
                         type: "specific"
                     };
                 }
             }
 
-            let $anchor = $('div[data-br-webexpid="' + webExId + '"]:not([data-br-webexppos])').eq(0);
-            if ($anchor.length === 1) {
+            const fallbackAnchorElement = document.querySelector('div[data-br-webexpid="' + webExId + '"]:not([data-br-webexppos])');
+            if (Breinify.UTL.dom.isNodeType(fallbackAnchorElement, 1) && fallbackAnchorElement.isConnected === true) {
                 return {
-                    $anchor: $anchor,
+                    $anchor: $(fallbackAnchorElement),
                     type: "fallback"
                 };
             }
