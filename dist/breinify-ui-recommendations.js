@@ -27,7 +27,15 @@
             runtime = {
                 webExVersionId: normalizedWebExVersionId,
                 onLoadHandled: false,
-                onLoadHandling: false
+                onLoadHandling: false,
+                /*
+                 * Tracks the current anchor resolution state for attribute-based rendering.
+                 * This state is used to determine:
+                 * - which anchor is currently assigned to each recommender
+                 * - whether a fallback or specific anchor is active
+                 * - whether previously rendered content must be cleaned up or moved
+                 */
+                anchorState: {}
             };
 
             this._runtimeByVersionId[normalizedWebExVersionId] = runtime;
@@ -102,7 +110,7 @@
                 const results = await Promise.all(
                     normalizedRecommendations.map((recommendation) =>
                         Promise.resolve()
-                            .then(() => this._handle(webExId, webExVersionId, recommendation, config))
+                            .then(() => this._handle(webExId, webExVersionId, recommendation, config, runtime))
                             .catch(function (err) {
                                 console.error(err);
                                 return null;
@@ -148,7 +156,7 @@
             });
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig, configuration) {
+        _handle: async function (webExId, webExVersionId, singleConfig, configuration, runtime) {
             if (!$.isPlainObject(singleConfig)) {
                 return null;
             }
@@ -157,7 +165,7 @@
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
             config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
-            config.position = this._createPosition(webExId, configuration, singleConfig.position, singleConfig);
+            config.position = this._createPosition(webExId, configuration, singleConfig, runtime);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
@@ -173,47 +181,6 @@
              *  - add: modifications (data.modify <-- singleConfig.modifyData)
              */
             return config;
-        },
-
-        _determineAttributeAnchors: function (webExId) {
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            if (normalizedWebExId === null) {
-                return {
-                    specific: {},
-                    fallback: null
-                };
-            }
-
-            const anchors = {
-                specific: {},
-                fallback: null
-            };
-
-            $('div[data-br-webexpid="' + normalizedWebExId + '"]').each((idx, el) => {
-                const $anchor = this._normalizeAttributeResolvedTarget($(el));
-                if ($anchor === null) {
-                    return;
-                }
-
-                const positionId = Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexppos"));
-                if (positionId === null) {
-                    if (anchors.fallback === null) {
-                        anchors.fallback = $anchor;
-                    }
-
-                    return;
-                }
-
-                if (!$.isPlainObject(anchors.specific)) {
-                    anchors.specific = {};
-                }
-
-                if (!anchors.specific[positionId]) {
-                    anchors.specific[positionId] = $anchor;
-                }
-            });
-
-            return anchors;
         },
 
         _applyStyle: function (config) {
@@ -258,13 +225,13 @@
             return resolvedProcesses;
         },
 
-        _createPosition: function (webExId, configuration, position, singleConfig) {
-            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
-            if (hasAttributeActivation === true) {
-                return this._createAttributeActivationPosition(webExId, position, singleConfig);
+        _createPosition: function (webExId, configuration, singleConfig, runtime) {
+
+            const normalizedPosition = $.isPlainObject(singleConfig?.position) ? singleConfig.position : {};
+            if (Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
+                return this._createAttributeActivationPosition(webExId, normalizedPosition, singleConfig, runtime);
             }
 
-            const normalizedPosition = $.isPlainObject(position) ? position : {};
             const func = this._createPositionSelector(webExId, configuration, normalizedPosition, singleConfig);
             if (!$.isFunction(func)) {
                 return {};
@@ -283,9 +250,10 @@
             return {[operation]: func};
         },
 
-        _createAttributeActivationPosition: function (webExId, position, singleConfig) {
+        _createAttributeActivationPosition: function (webExId, position, singleConfig, runtime) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            const normalizedPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
+            const recommenderName = this._recommenderName(singleConfig);
 
             return {
                 append: function () {
@@ -294,15 +262,39 @@
                     }
 
                     let $anchor = $();
+                    let anchorType = null;
 
-                    if (positionId !== null) {
-                        $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
+                    if (normalizedPositionId !== null) {
+                        $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + normalizedPositionId + '"]').eq(0);
                         if ($anchor.length === 1) {
-                            return $anchor;
+                            anchorType = "specific";
                         }
                     }
 
-                    $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
+                    if ($anchor.length !== 1) {
+                        $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
+                        if ($anchor.length === 1) {
+                            anchorType = "fallback";
+                        }
+                    }
+
+                    if ($anchor.length === 1 && $.isPlainObject(runtime?.anchorState) && recommenderName !== null) {
+                        runtime.anchorState[recommenderName] = {
+                            webExId: normalizedWebExId,
+                            recommenderName: recommenderName,
+                            anchorType: anchorType,
+                            anchorElement: $anchor.get(0)
+                        };
+
+                        console.log("uiRecommendations anchorState updated", recommenderName, {
+                            anchorType: anchorType,
+                            positionId: normalizedPositionId,
+                            anchorPositionId: Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexppos")),
+                            anchorElement: $anchor.get(0),
+                            anchorState: runtime.anchorState[recommenderName]
+                        });
+                    }
+
                     return $anchor;
                 }
             };
