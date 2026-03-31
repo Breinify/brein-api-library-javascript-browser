@@ -28,7 +28,8 @@
             runtime = {
                 webExVersionId: normalizedWebExVersionId,
                 onLoadHandled: false,
-                onLoadHandling: false
+                onLoadHandling: false,
+                attributeReservations: {}
             };
 
             this._runtimeByVersionId[normalizedWebExVersionId] = runtime;
@@ -75,6 +76,100 @@
             };
         },
 
+        _createAttributeReservationKey: function (webExId, webExVersionId, recommender) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const normalizedWebExVersionId = Breinify.UTL.isNonEmptyString(webExVersionId);
+            const recommenderName = this._recommenderName(recommender);
+
+            if (normalizedWebExId === null ||
+                normalizedWebExVersionId === null ||
+                recommenderName === null) {
+                return null;
+            }
+
+            return normalizedWebExId + "::" + normalizedWebExVersionId + "::" + recommenderName;
+        },
+
+        _reserveAttributeTarget: function (webExId, webExVersionId, recommender, $target) {
+            const runtime = this.getRuntime(webExVersionId);
+            const reservationKey = this._createAttributeReservationKey(webExId, webExVersionId, recommender);
+
+            if (runtime === null ||
+                reservationKey === null ||
+                !$target ||
+                !$target.jquery ||
+                $target.length !== 1) {
+                return null;
+            }
+
+            const reservationId = Breinify.UTL.uuid();
+            runtime.attributeReservations[reservationKey] = {
+                id: reservationId,
+                target: $target.get(0)
+            };
+
+            return {
+                key: reservationKey,
+                id: reservationId
+            };
+        },
+
+        _matchesAttributeReservation: function (webExVersionId, reservationKey, reservationId, targetEl) {
+            const runtime = this.getRuntime(webExVersionId);
+            if (runtime === null ||
+                !$.isPlainObject(runtime.attributeReservations) ||
+                typeof reservationKey !== "string" ||
+                typeof reservationId !== "string") {
+                return false;
+            }
+
+            const reservation = runtime.attributeReservations[reservationKey];
+            if (!$.isPlainObject(reservation)) {
+                return false;
+            }
+
+            if (reservation.id !== reservationId) {
+                return false;
+            }
+
+            if (typeof targetEl !== "undefined" && reservation.target !== targetEl) {
+                return false;
+            }
+
+            return true;
+        },
+
+        _releaseAttributeReservation: function (webExVersionId, reservationKey, reservationId) {
+            const runtime = this.getRuntime(webExVersionId);
+            if (runtime === null ||
+                !$.isPlainObject(runtime.attributeReservations) ||
+                typeof reservationKey !== "string") {
+                return;
+            }
+
+            const reservation = runtime.attributeReservations[reservationKey];
+            if (!$.isPlainObject(reservation)) {
+                return;
+            }
+
+            if (typeof reservationId === "string" && reservation.id !== reservationId) {
+                return;
+            }
+
+            delete runtime.attributeReservations[reservationKey];
+        },
+
+        _releaseAttributeReservationForConfig: function (webExVersionId, config) {
+            const reservationKey = Breinify.UTL.isNonEmptyString(config?._attributeReservationKey);
+            const reservationId = Breinify.UTL.isNonEmptyString(config?._attributeReservationId);
+
+            if (reservationKey === null) {
+                return;
+            }
+
+            this._releaseAttributeReservation(webExVersionId, reservationKey, reservationId);
+        },
+
         handle: async function (webExId, webExVersionId, recommendations, config) {
             const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
             if (normalizedRecommendations.length === 0) {
@@ -105,8 +200,9 @@
                     normalizedRecommendations.map((recommendation) =>
                         Promise.resolve()
                             .then(() => this._handle(webExId, webExVersionId, recommendation, config))
-                            .catch(function (err) {
+                            .catch((err) => {
                                 console.error(err);
+                                this._releaseAttributeReservationForConfig(webExVersionId, recommendation);
                                 return null;
                             })
                     )
@@ -141,8 +237,31 @@
             const effectiveConfig = $.extend(true, {}, singleConfig);
 
             if (hasAttributeActivation === true) {
-                const $resolvedTarget = this._resolveAttributeAnchor(webExId, effectiveConfig.position);
+                let $resolvedTarget = null;
+                const existingResolvedRenderTarget = effectiveConfig._resolvedRenderTarget;
+
+                if (Breinify.UTL.dom.isNodeType(existingResolvedRenderTarget, 1)) {
+                    $resolvedTarget = this._normalizeAttributeResolvedTarget($(existingResolvedRenderTarget));
+                } else {
+                    $resolvedTarget = this._resolveAttributeAnchor(webExId, effectiveConfig.position);
+                }
+
                 if ($resolvedTarget === null) {
+                    this._releaseAttributeReservationForConfig(webExVersionId, effectiveConfig);
+                    return null;
+                }
+
+                const reservationKey = Breinify.UTL.isNonEmptyString(effectiveConfig._attributeReservationKey);
+                const reservationId = Breinify.UTL.isNonEmptyString(effectiveConfig._attributeReservationId);
+                if (reservationKey !== null &&
+                    reservationId !== null &&
+                    this._matchesAttributeReservation(
+                        webExVersionId,
+                        reservationKey,
+                        reservationId,
+                        $resolvedTarget.get(0)
+                    ) !== true) {
+                    this._releaseAttributeReservationForConfig(webExVersionId, effectiveConfig);
                     return null;
                 }
 
@@ -152,6 +271,7 @@
                     effectiveConfig,
                     $resolvedTarget
                 ) !== true) {
+                    this._releaseAttributeReservationForConfig(webExVersionId, effectiveConfig);
                     return null;
                 }
 
@@ -210,6 +330,9 @@
             const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
                 ? resolvedProcesses.createActivity
                 : null;
+            const originalFinalize = $.isFunction(resolvedProcesses.finalize)
+                ? resolvedProcesses.finalize
+                : null;
 
             resolvedProcesses.createActivity = function (event, settings) {
                 if ($.isFunction(originalCreateActivity)) {
@@ -217,6 +340,29 @@
                 }
 
                 settings.activityTags.campaignWebExId = webExVersionId;
+            };
+
+            resolvedProcesses.finalize = ($option, result, $container) => {
+                try {
+                    const resolvedRenderTarget = recommenderConfig?._resolvedRenderTarget;
+                    if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
+                        const $activeTarget = this._normalizeAttributeResolvedTarget($(resolvedRenderTarget));
+                        if ($activeTarget !== null) {
+                            this._cleanupStaleAttributeRenderedRecommendations(
+                                webExId,
+                                recommenderConfig.position,
+                                recommenderConfig,
+                                $activeTarget
+                            );
+                        }
+                    }
+                } finally {
+                    this._releaseAttributeReservationForConfig(webExVersionId, recommenderConfig);
+
+                    if ($.isFunction(originalFinalize)) {
+                        originalFinalize.call(this, $option, result, $container);
+                    }
+                }
             };
 
             return resolvedProcesses;
@@ -391,6 +537,11 @@
                 return false;
             }
 
+            const runtime = this.getRuntime(webExVersionId);
+            if (runtime === null) {
+                return false;
+            }
+
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
 
             if (hasAttributeActivation === true) {
@@ -474,6 +625,22 @@
                     if (this._validateAndNormalizeAttributeTarget(webExId, rec.position, rec, $resolvedTarget) !== true) {
                         continue;
                     }
+
+                    const reservation = this._reserveAttributeTarget(webExId, webExVersionId, rec, $resolvedTarget);
+                    if (reservation === null) {
+                        continue;
+                    }
+
+                    if (!$.isArray(localSelections[markerKey])) {
+                        localSelections[markerKey] = [];
+                    }
+                    localSelections[markerKey].push(targetEl);
+
+                    const selectedRec = $.extend(true, {}, rec);
+                    selectedRec._resolvedRenderTarget = targetEl;
+                    selectedRec._attributeReservationKey = reservation.key;
+                    selectedRec._attributeReservationId = reservation.id;
+                    selectedRecs.push(selectedRec);
                 } else {
                     if ($resolvedTarget.hasClass(markerContainerClass)) {
                         continue;
@@ -484,16 +651,16 @@
                     }
 
                     $resolvedTarget.data(markerKey, "true");
-                }
 
-                if (!$.isArray(localSelections[markerKey])) {
-                    localSelections[markerKey] = [];
-                }
-                localSelections[markerKey].push(targetEl);
+                    if (!$.isArray(localSelections[markerKey])) {
+                        localSelections[markerKey] = [];
+                    }
+                    localSelections[markerKey].push(targetEl);
 
-                const selectedRec = $.extend(true, {}, rec);
-                selectedRec._resolvedRenderTarget = targetEl;
-                selectedRecs.push(selectedRec);
+                    const selectedRec = $.extend(true, {}, rec);
+                    selectedRec._resolvedRenderTarget = targetEl;
+                    selectedRecs.push(selectedRec);
+                }
             }
 
             return selectedRecs.length > 0 ? selectedRecs : false;
@@ -548,22 +715,6 @@
             }
 
             return this._resolveAttributeAnchor(webExId, position);
-        },
-
-        _findAttributeAnchorInRoot: function (root, selector) {
-            if (!Breinify.UTL.dom.isNodeType(root, 1)) {
-                return null;
-            }
-
-            if ($.isFunction(root.matches) && root.matches(selector)) {
-                return this._normalizeAttributeResolvedTarget($(root));
-            }
-
-            if (!$.isFunction(root.querySelector)) {
-                return null;
-            }
-
-            return this._normalizeAttributeResolvedTarget($(root.querySelector(selector)));
         },
 
         _normalizeAttributeResolvedTarget: function ($target) {
