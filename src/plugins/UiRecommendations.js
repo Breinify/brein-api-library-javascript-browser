@@ -63,8 +63,8 @@
 
         _createRenderIdentity: function (webExId, singleConfig) {
             const resolvedRenderTarget = singleConfig?._resolvedRenderTarget;
-            let renderedPositionId = null;
 
+            let renderedPositionId;
             if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
                 renderedPositionId = Breinify.UTL.isNonEmptyString($(resolvedRenderTarget).attr("data-br-webexppos"));
             } else {
