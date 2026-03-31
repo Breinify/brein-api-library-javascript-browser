@@ -11,7 +11,6 @@
     if (typeof Breinify !== "object") {
         return;
     }
-    // make sure the plugin isn't loaded yet
     else if (Breinify.plugins._isAdded("recommendations")) {
         return;
     }
@@ -26,6 +25,7 @@
             item: "brrc-item",
             data: "recommendation"
         },
+
         splitTest: {
             defaultGroup: "Breinify",
             defaultTestGroup: "Breinify",
@@ -34,19 +34,24 @@
             testGroupType: "test",
             controlGroupType: "control"
         },
+
         refreshOptions: null,
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
                 func(...args);
                 return true;
-            } else {
-                return false;
             }
+
+            return false;
+        },
+
+        _getRefreshStateChangeHook: function (option) {
+            return $.isFunction(option?.process?.refreshStateChange) ? option.process.refreshStateChange : null;
         },
 
         _setRefreshState: function ($container, option, state, details) {
-            if (!$container || !$container.jquery || $container.length !== 1) {
+            if (!$container?.jquery || $container.length !== 1) {
                 return;
             }
 
@@ -56,21 +61,22 @@
 
             if (state === "refreshing") {
                 $container.addClass("brrc-is-refreshing");
-            } else if (state === "refresh-error") {
+            }
+            else if (state === "refresh-error") {
                 $container.addClass("brrc-refresh-error");
-            } else if (state === "refresh-canceled") {
+            }
+            else if (state === "refresh-canceled") {
                 $container.addClass("brrc-refresh-canceled");
             }
 
-            if ($.isPlainObject(option) &&
-                $.isPlainObject(option.process) &&
-                $.isFunction(option.process.refreshStateChange)) {
-                option.process.refreshStateChange($container, state, details || {}, option);
+            const hook = this._getRefreshStateChangeHook(option);
+            if ($.isFunction(hook)) {
+                hook($container, state, details || {}, option);
             }
         },
 
         _clearRefreshState: function ($container, option, details) {
-            if (!$container || !$container.jquery || $container.length !== 1) {
+            if (!$container?.jquery || $container.length !== 1) {
                 return;
             }
 
@@ -78,27 +84,24 @@
                 .removeAttr("data-brrc-refresh-state")
                 .removeClass("brrc-is-refreshing brrc-refresh-error brrc-refresh-canceled");
 
-            if ($.isPlainObject(option) &&
-                $.isPlainObject(option.process) &&
-                $.isFunction(option.process.refreshStateChange)) {
-                option.process.refreshStateChange($container, "idle", details || {}, option);
+            const hook = this._getRefreshStateChangeHook(option);
+            if ($.isFunction(hook)) {
+                hook($container, "idle", details || {}, option);
             }
         },
 
         _refresh: function (refreshOptions) {
-            const _self = this;
-
             let optionsVersion = null;
             if ($.isPlainObject(refreshOptions)) {
-                optionsVersion = new Date().getTime();
+                optionsVersion = Date.now();
                 this.refreshOptions = $.extend(true, refreshOptions, {
                     optionsVersion: optionsVersion
                 });
-            } else if ($.isPlainObject(this.refreshOptions)) {
+            }
+            else if ($.isPlainObject(this.refreshOptions)) {
                 optionsVersion = this.refreshOptions.optionsVersion;
-            } else {
-
-                // we have no information about refreshing, so just ignore the call
+            }
+            else {
                 return;
             }
 
@@ -109,15 +112,18 @@
 
             let noGroupCount = 0;
             const settings = {};
-            $parents.each(function () {
-                const $parent = $(this);
-                const $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find("." + _self.marker.container);
+
+            $parents.each((idx, parentEl) => {
+                const $parent = $(parentEl);
+                const $itemContainer = $parent.hasClass(this.marker.container)
+                    ? $parent
+                    : $parent.find("." + this.marker.container);
+
                 if ($itemContainer.length === 0) {
                     return;
                 }
 
-                // read the data from the containers and combine it by group
-                const data = $itemContainer.data(_self.marker.data);
+                const data = $itemContainer.data(this.marker.data);
                 if (!$.isPlainObject(data) ||
                     !$.isPlainObject(data.option) ||
                     !$.isPlainObject(data.data)) {
@@ -126,25 +132,23 @@
 
                 const option = data.option;
 
-                // mark current parent as refreshing before we re-request and replace it
-                _self._setRefreshState($parent, option, "refreshing", {
-                    refreshOptions: _self.refreshOptions,
+                this._setRefreshState($parent, option, "refreshing", {
+                    refreshOptions: this.refreshOptions,
                     previousData: data.data
                 });
 
-                // we updated the refreshOptions before, so ensure we get a modified payload here
-                const recPayload = _self._createPayload(option);
+                const recPayload = this._createPayload(option);
 
-                // determine the group to use, if we have to group the information
                 let recGroup = Breinify.UTL.isNonEmptyString(recPayload.recommendationGroup);
                 if (recGroup === null) {
                     recGroup = "no-group-" + (noGroupCount++);
-                    settings[recGroup] = [];
-                } else if (!$.isArray(settings[recGroup])) {
+                }
+
+                if (!$.isArray(settings[recGroup])) {
                     settings[recGroup] = [];
                 }
 
-                const cpyOption = $.extend(true, {}, option, {});
+                const cpyOption = $.extend(true, {}, option);
                 cpyOption.meta = $.extend(true, {}, option.meta, {
                     processId: null,
                     optionsVersion: optionsVersion,
@@ -160,8 +164,7 @@
                 settings[recGroup].push(cpyOption);
             });
 
-            // fire a rerender for each of the groups
-            Object.values(settings).forEach(function (setting) {
+            Object.values(settings).forEach(setting => {
                 Breinify.plugins.recommendations.render(setting);
             });
         },
@@ -172,15 +175,17 @@
                 value = value.apply(null, params);
             }
 
-            if (value === null || typeof value === "undefined") {
-                return null;
-            } else if (typeof value === "string") {
-                return $(value);
-            } else if (value && value.jquery) {
-                return value;
-            } else {
+            if (value == null) {
                 return null;
             }
+            else if (typeof value === "string") {
+                return $(value);
+            }
+            else if (value && value.jquery) {
+                return value;
+            }
+
+            return null;
         },
 
         /**
@@ -204,7 +209,7 @@
          * normalized render identity or `null` if no meaningful identity is available
          */
         _readRenderIdentity: function (option) {
-            const identity = $.isPlainObject(option) && $.isPlainObject(option.meta) && $.isPlainObject(option.meta.renderIdentity)
+            const identity = $.isPlainObject(option?.meta?.renderIdentity)
                 ? option.meta.renderIdentity
                 : null;
             if (!$.isPlainObject(identity)) {
@@ -243,7 +248,7 @@
          * the render option that may contain `meta.renderIdentity`
          */
         _stampRenderIdentity: function ($container, option) {
-            if (!$container || !$container.jquery || $container.length !== 1) {
+            if (!$container?.jquery || $container.length !== 1) {
                 return;
             }
 
@@ -258,26 +263,51 @@
 
             if (identity.webExId !== null) {
                 $container.attr("data-br-rec-webexpid", identity.webExId);
-            } else {
+            }
+            else {
                 $container.removeAttr("data-br-rec-webexpid");
             }
 
             if (identity.positionId !== null) {
                 $container.attr("data-br-rec-positionid", identity.positionId);
-            } else {
+            }
+            else {
                 $container.removeAttr("data-br-rec-positionid");
             }
 
             if (identity.recommenderName !== null) {
                 $container.attr("data-br-rec-name", identity.recommenderName);
-            } else {
+            }
+            else {
                 $container.removeAttr("data-br-rec-name");
             }
         },
 
-        _appendContainer: function (option, data, cb) {
-            const _self = this;
+        _resolveContainerOperation: function (position) {
+            if (!$.isPlainObject(position)) {
+                return null;
+            }
 
+            if (position.before != null) {
+                return { selector: position.before, method: "before" };
+            }
+            if (position.after != null) {
+                return { selector: position.after, method: "after" };
+            }
+            if (position.append != null) {
+                return { selector: position.append, method: "append" };
+            }
+            if (position.prepend != null) {
+                return { selector: position.prepend, method: "prepend" };
+            }
+            if (position.replace != null) {
+                return { selector: position.replace, method: "replaceWith" };
+            }
+
+            return null;
+        },
+
+        _appendContainer: function (option, data, cb) {
             if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
                 cb(null, {
                     error: true,
@@ -287,28 +317,11 @@
                 return;
             }
 
-            let method = null;
-            let selector = null;
-            if (option.position.before != null) {
-                selector = option.position.before;
-                method = "before";
-            } else if (option.position.after != null) {
-                selector = option.position.after;
-                method = "after";
-            } else if (option.position.append != null) {
-                selector = option.position.append;
-                method = "append";
-            } else if (option.position.prepend != null) {
-                selector = option.position.prepend;
-                method = "prepend";
-            } else if (option.position.replace != null) {
-                selector = option.position.replace;
-                method = "replaceWith";
-            } else if (option.position.externalRender != null) {
-                this._applyExternalRender(option, data, function ($target, settings) {
-                    if ($target && $target.jquery && $target.length === 1) {
-                        $target.addClass(_self.marker.parentContainer);
-                        _self._stampRenderIdentity($target, option);
+            if (option.position.externalRender != null) {
+                this._applyExternalRender(option, data, ($target, settings) => {
+                    if ($target?.jquery && $target.length === 1) {
+                        $target.addClass(this.marker.parentContainer);
+                        this._stampRenderIdentity($target, option);
                     }
 
                     cb($target, $.extend(true, {
@@ -320,12 +333,23 @@
                 return;
             }
 
+            const operation = this._resolveContainerOperation(option.position);
+            if (!$.isPlainObject(operation)) {
+                cb(null, {
+                    error: true,
+                    errorDescription: "missing position operation",
+                    externalRendering: false
+                });
+                return;
+            }
+
             const recommenderName = this._recommenderName(option?.recommender?.payload);
-            const $anchor = this._determineSelector(selector, recommenderName, null, {
+            const $anchor = this._determineSelector(operation.selector, recommenderName, null, {
                 type: "determine-container",
                 option: option,
                 data: data
             });
+
             if ($anchor === null || $anchor.length === 0) {
                 cb(null, {
                     error: true,
@@ -345,10 +369,10 @@
                 return;
             }
 
-            _self._replacePlaceholders($container, data, option);
+            this._replacePlaceholders($container, data, option);
 
-            if ($.isFunction($anchor[method])) {
-                $anchor[method]($container);
+            if ($.isFunction($anchor[operation.method])) {
+                $anchor[operation.method]($container);
 
                 $container.addClass(this.marker.parentContainer);
                 this._stampRenderIdentity($container, option);
@@ -357,7 +381,8 @@
                     error: false,
                     externalRendering: false
                 });
-            } else {
+            }
+            else {
                 cb(null, {
                     error: true,
                     errorDescription: "unable to apply method to anchor",
@@ -367,29 +392,26 @@
         },
 
         _createPayload: function (option, def) {
-
-            // check for any refresh-options we may have right now
             const refreshOptions = $.isPlainObject(this.refreshOptions) ? this.refreshOptions : {};
             const optionsVersion = typeof refreshOptions.optionsVersion === "number" ? refreshOptions.optionsVersion : null;
             const overridePayload = $.isPlainObject(refreshOptions.payload) ? refreshOptions.payload : {};
 
-            if ($.isPlainObject(option) &&
-                $.isPlainObject(option.recommender) &&
-                $.isPlainObject(option.recommender.payload)) {
+            if ($.isPlainObject(option?.recommender?.payload)) {
                 return $.extend(true, {}, option.recommender.payload, overridePayload, {
                     optionsVersion: optionsVersion
                 });
-            } else if ($.isPlainObject(def)) {
+            }
+            else if ($.isPlainObject(def)) {
                 return $.extend(true, {}, def, overridePayload, {
                     optionsVersion: optionsVersion
                 });
-            } else {
-                return {
-                    optionsVersion: $.isPlainObject(Renderer.refreshOptions)
-                        ? Renderer.refreshOptions.optionsVersion
-                        : null
-                };
             }
+
+            return {
+                optionsVersion: $.isPlainObject(Renderer.refreshOptions)
+                    ? Renderer.refreshOptions.optionsVersion
+                    : null
+            };
         },
 
         _recommenderName: function (payload) {
@@ -397,34 +419,35 @@
                 $.isArray(payload.namedRecommendations) &&
                 payload.namedRecommendations.length === 1) {
                 return Breinify.UTL.isNonEmptyString(payload.namedRecommendations[0]);
-            } else {
-                return null;
             }
+
+            return null;
         },
 
         _applyExternalRender: function (option, data, cb) {
-            if ($.isFunction(option.position.externalRender)) {
+            if ($.isFunction(option?.position?.externalRender)) {
                 option.position.externalRender(data, cb);
-            } else {
+            }
+            else {
                 cb(null);
             }
         },
 
         _appendItems: function ($container, result, option) {
-            const _self = this;
-
-            let $item = this._determineSelector(option.templates.item, $container);
+            const $item = this._determineSelector(option.templates.item, $container);
             if ($item === null) {
                 return null;
             }
 
-            $.each(result.recommendations, function (idx, recommendation) {
-                let $recItem = _self._replacePlaceholders($item.clone(false), recommendation, option);
-                _self._setupItemData($recItem, idx, recommendation);
+            $.each(result.recommendations, (idx, recommendation) => {
+                const $recItem = this._replacePlaceholders($item.clone(false), recommendation, option);
+                this._setupItemData($recItem, idx, recommendation);
 
                 $container.append($recItem);
-                _self._process(option.process.attachedItem, $container, $recItem, recommendation, option);
+                this._process(option.process.attachedItem, $container, $recItem, recommendation, option);
             });
+
+            return $container;
         },
 
         _isItem: function ($item) {
@@ -432,9 +455,10 @@
         },
 
         _setupItemData: function ($recItem, idx, data) {
-            const normIdx = typeof idx === "number" ? idx < 0 ? idx : idx + 1 : null;
+            const normIdx = typeof idx === "number" ? (idx < 0 ? idx : idx + 1) : null;
 
-            $recItem.addClass(this.marker.item)
+            $recItem
+                .addClass(this.marker.item)
                 .attr("data-" + this.marker.item, "true")
                 .data(this.marker.data, $.extend(true, {
                     widgetPosition: normIdx
@@ -452,46 +476,43 @@
          * @private
          */
         _replacePlaceholders: function ($entry, replacements, option) {
-            const _self = this;
-
             if (!$entry || $entry.length === 0) {
                 return $entry;
             }
 
-            // check the text
             $entry.contents().filter(function () {
                 return Breinify.UTL.dom.isNodeType(this, 3);
-            }).each(function () {
-                const $el = $(this);
-                const replaced = _self._replace($el.text(), replacements, option);
+            }).each((idx, node) => {
+                const $el = $(node);
+                const replaced = this._replace($el.text(), replacements, option);
 
                 if (replaced !== null) {
                     $el.replaceWith(replaced);
                 }
             });
 
-            // check the attributes
             const entryEl = $entry.get(0);
-            if (!entryEl || !entryEl.attributes) {
+            if (!entryEl?.attributes) {
                 return $entry;
             }
 
-            let attributes = entryEl.attributes;
+            const attributes = entryEl.attributes;
             const renaming = {};
+
             for (let i = 0; i < attributes.length; i++) {
                 const attribute = attributes[i];
-                const replaced = _self._replace(attribute.value, replacements, option);
+                const replaced = this._replace(attribute.value, replacements, option);
 
                 if (replaced === null) {
-                    // do nothing
-                } else if (attribute.name.startsWith("data-rename-")) {
-
-                    // we cannot modify the attributes here, otherwise the attribute array we iterate over gets modified
+                    continue;
+                }
+                else if (attribute.name.startsWith("data-rename-")) {
                     renaming[attribute.name] = {
                         name: attribute.name.replace("data-rename-", ""),
                         value: replaced
                     };
-                } else {
+                }
+                else {
                     $entry.attr(attribute.name, replaced);
                 }
             }
@@ -501,9 +522,8 @@
                 $entry.attr(settings.name, settings.value);
             });
 
-            // check also each child
-            $entry.children().each(function () {
-                _self._replacePlaceholders($(this), replacements, option);
+            $entry.children().each((idx, child) => {
+                this._replacePlaceholders($(child), replacements, option);
             });
 
             return $entry;
@@ -512,6 +532,7 @@
         /**
          * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
          * the modified text, will return `null` if no replacement took place.
+         *
          * @param value the value to replace
          * @param data the data to replace values from
          * @param option options to modify the behavior
@@ -519,8 +540,6 @@
          * @private
          */
         _replace: function (value, data, option) {
-            const _self = this;
-
             if (typeof value !== "string" || value.trim() === "") {
                 return null;
             }
@@ -528,41 +547,43 @@
             const replacements = {
                 _counter: 0
             };
-            const regex = /%%([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z](?:(?:::)?[a-zA-Z0-9_])*)*|[a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
-            const result = value.replace(regex, function (match, name) {
-                let placeholderOption = option.placeholders[name];
-                let hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === "string";
-                let recValue = _self._readPath(name, data);
-                let hasRecValue = typeof recValue !== "undefined";
 
-                // if we do not have any value
+            const regex = /%%([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z](?:(?:::)?[a-zA-Z0-9_])*)*|[a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
+            const result = value.replace(regex, (match, name) => {
+                const placeholderOption = option.placeholders[name];
+                const hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === "string";
+                const recValue = this._readPath(name, data);
+                const hasRecValue = typeof recValue !== "undefined";
+
                 let replacement;
                 if (hasPlaceholderOption) {
                     if (typeof placeholderOption === "string") {
                         replacement = placeholderOption;
-                    } else if ($.isFunction(placeholderOption)) {
+                    }
+                    else if ($.isFunction(placeholderOption)) {
                         replacement = placeholderOption.call(option.placeholders, data, hasRecValue ? recValue : null);
-                    } else {
+                    }
+                    else {
                         replacement = null;
                     }
-                } else if (hasRecValue) {
+                }
+                else if (hasRecValue) {
                     replacement = recValue;
-                } else {
+                }
+                else {
                     replacement = null;
                 }
 
-                // check if we should replace with an empty value or not
-                if (replacement === null && $.isFunction(option.placeholderSettings.replaceWith)) {
+                if (replacement === null && $.isFunction(option?.placeholderSettings?.replaceWith)) {
                     replacement = option.placeholderSettings.replaceWith(name);
                 }
 
-                // resolve the placeholders value for the name
                 if (replacement === null) {
                     return match;
-                } else {
-                    replacements._counter++;
-                    return replacement;
                 }
+
+                replacements._counter++;
+                return replacement;
             });
 
             return replacements._counter > 0 ? result : null;
@@ -574,17 +595,13 @@
                 return data[name];
             }
 
-            // read the value by following the path
             let value = data;
             for (let i = 0; i < paths.length; i++) {
-
-                // at this point we always need to have an object, since we have a path to read
                 if (!$.isPlainObject(value)) {
                     return null;
                 }
 
-                let path = paths[i];
-                value = value[path];
+                value = value[paths[i]];
             }
 
             return value;
@@ -628,6 +645,7 @@
              * @type {String|null}
              */
             processId: null,
+
             /**
              * Optional rendering identity used to stamp the outer rendered container
              * with stable DOM metadata.
@@ -997,7 +1015,7 @@
              * @returns {String|null}
              * replacement value or `null` to leave the placeholder untouched
              */
-            replaceWith: function (placeholder) {
+            replaceWith: function () {
                 return "";
             }
         },
@@ -1043,7 +1061,7 @@
              *
              * @returns {String|null}
              */
-            "marker::recommender": function (data, resolvedValue) {
+            "marker::recommender": function (data) {
                 return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
             },
 
@@ -1061,7 +1079,7 @@
              *
              * @returns {String}
              */
-            "data::json": function (data, resolvedValue) {
+            "data::json": function (data) {
                 return JSON.stringify(data);
             }
         },
@@ -1129,194 +1147,18 @@
         },
 
         process: {
-            /**
-             * Called after a click was handled and propagation was explicitly stopped.
-             *
-             * @param {Event} event
-             * the triggering click event
-             * @param {jQuery} $itemEl
-             * the clicked or resolved item element
-             * @param {jQuery} $container
-             * the resolved recommendation container
-             * @param {Object} recommendationData
-             * the stored recommendation container data
-             * @param {Object} additionalEventData
-             * additional event metadata
-             * @param {Object} option
-             * the render option
-             */
-            stoppedPropagation: function (event, $itemEl, $container, recommendationData, additionalEventData, option) {
-                // by default, nothing to do when an event is canceled
-            },
-
-            /**
-             * Called whenever an error occurred in retrieval, processing, or rendering.
-             *
-             * @param {Object|Error} error
-             * error information
-             */
-            error: function (error) {
-                // by default, ignored
-            },
-
-            /**
-             * Called when a render process was canceled before completion.
-             *
-             * @param {Object} option
-             * the render option
-             * @param {Object} result
-             * optional partial result
-             */
-            canceled: function (option, result) {
-                // by default, ignored
-            },
-
-            /**
-             * Called once after the render option was normalized and before retrieval starts.
-             *
-             * Good place to mutate option-level configuration.
-             *
-             * @param {Object} option
-             * the normalized render option
-             */
-            init: function (option) {
-                // by default, nothing to initialize
-            },
-
-            /**
-             * Called immediately before a recommendation starts rendering.
-             *
-             * @param {Object} data
-             * mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
-            pre: function (data, option) {
-                // by default, nothing to execute before rendering starts
-            },
-
-            /**
-             * Called after the container was attached and after the item container was resolved.
-             *
-             * @param {jQuery} $container
-             * the outer attached parent container
-             * @param {jQuery} $itemContainer
-             * the container that actually stores recommendation data/items
-             * @param {Object} data
-             * mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
-            attachedContainer: function ($container, $itemContainer, data, option) {
-                // by default, nothing to do when the recommendation container is attached
-            },
-
-            /**
-             * Called after a single recommendation item was attached.
-             *
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {jQuery} $item
-             * the attached item element
-             * @param {Object} data
-             * single recommendation data
-             * @param {Object} option
-             * the render option
-             */
-            attachedItem: function ($itemContainer, $item, data, option) {
-                // by default, nothing to execute after attachment of an item
-            },
-
-            /**
-             * Called after all recommendation items were attached.
-             *
-             * @param {jQuery} $container
-             * the outer attached parent container
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {Object} data
-             * mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
-            attached: function ($container, $itemContainer, data, option) {
-                // by default, nothing to do after all items and the container were attached
-            },
-
-            /**
-             * Called after the full rendering process finished successfully.
-             *
-             * @param {jQuery} $container
-             * the outer attached parent container
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {Object} data
-             * mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
-            post: function ($container, $itemContainer, data, option) {
-                // by default, nothing to execute after recommendation rendering is complete
-            },
-
-            /**
-             * Called at the end of a render/control/error/cancel flow.
-             *
-             * This is the final lifecycle hook for a single recommendation option.
-             *
-             * @param {Object} option
-             * the render option
-             * @param {Object} result
-             * mapped recommendation result or error-like result
-             * @param {jQuery|null} $container
-             * the rendered container, if one exists
-             */
-            finalize: function (option, result, $container) {
-                // by default, nothing to execute after the process finished
-            },
-
-            /**
-             * Called after a recommendation or control item click was resolved.
-             *
-             * The `settings` shape differs slightly between control and non-control flows.
-             * Typical fields include:
-             * - `isControl`
-             * - `$recItem` or `$controlItem`
-             * - `$recContainer` or `$controlContainer`
-             * - `recommendationData`
-             * - `recommendation` (non-control only)
-             * - `additionalEventData`
-             * - `option`
-             *
-             * @param {Event} event
-             * the triggering click event
-             * @param {Object} settings
-             * resolved click settings/context
-             */
-            clickedItem: function (event, settings) {
-                // by default, nothing to execute after an item is clicked
-            },
-
-            /**
-             * Called right before an activity is sent or scheduled.
-             *
-             * This hook may enrich:
-             * - `settings.activityTags`
-             * - `settings.activityUser`
-             * - `settings.additionalEventData`
-             *
-             * It may also control behavior through:
-             * - `settings.additionalEventData.sendActivities = false`
-             * - `settings.additionalEventData.scheduleActivities = true|false`
-             *
-             * @param {Event} event
-             * the related event
-             * @param {Object} settings
-             * resolved activity settings
-             */
-            createActivity: function (event, settings) {
-                // by default, nothing to do when an activity is created and ready to send
-            },
+            stoppedPropagation: function () {},
+            error: function () {},
+            canceled: function () {},
+            init: function () {},
+            pre: function () {},
+            attachedContainer: function () {},
+            attachedItem: function () {},
+            attached: function () {},
+            post: function () {},
+            finalize: function () {},
+            clickedItem: function () {},
+            createActivity: function () {},
 
             /**
              * Called whenever the refresh state of a rendered recommendation container changes.
@@ -1343,9 +1185,7 @@
              * @param {Object} option
              * the render option
              */
-            refreshStateChange: function ($container, state, details, option) {
-                // by default, nothing to do
-            }
+            refreshStateChange: function () {}
         },
 
         data: {
@@ -1373,14 +1213,7 @@
              *
              * @returns {null|Object|Object[]|Promise<null|Object|Object[]>}
              */
-            modify: function (result, option) {
-                /*
-                 * Nothing to do, by default we keep the result and option untouched.
-                 * The method can be used to:
-                 *  - split: return [{result: result, option: option}]
-                 *  - change: return {result: modResult, option: option}
-                 *  - do nothing: return null
-                 */
+            modify: function () {
                 return null;
             }
         }
@@ -1403,45 +1236,39 @@
          * <p>The method uses the same (but limited or less applied) options as the rendering method</p>
          */
         bind: function () {
-            const _self = this;
-
-            /*
-             * Generate a unique identifier which allows to cancel the rendering in between recommendation
-             * retrieval, and actual rendering.
-             */
             const processId = Breinify.UTL.uuid();
 
             overload.overload({
-                "Object": function (renderOption) {
-                    let option = $.extend(true, {}, defaultRenderOption, renderOption);
+                "Object": renderOption => {
+                    const option = $.extend(true, {}, defaultRenderOption, renderOption);
                     option.meta.processId = processId;
-                    _self._bindContainer(option);
+                    this._bindContainer(option);
                 },
-                "Object,Object": function (splitTestSettings, renderOption) {
-                    let option = $.extend(true, {}, defaultRenderOption, renderOption);
+
+                "Object,Object": (splitTestSettings, renderOption) => {
+                    const option = $.extend(true, {}, defaultRenderOption, renderOption);
                     option.meta.processId = processId;
 
-                    _self._loadSplitTestSeparately(splitTestSettings, function (error, data) {
-
-                        // we need to "fake" the recommendation payload
+                    this._loadSplitTestSeparately(splitTestSettings, (error, data) => {
                         const recPayload = Renderer._createPayload(option);
 
                         if (error === null) {
                             let statusCode = 200;
                             if ($.isArray(splitTestSettings.controlGroups) &&
-                                $.isPlainObject(data.splitTestData) &&
+                                $.isPlainObject(data?.splitTestData) &&
                                 $.inArray(data.splitTestData.groupDecision, splitTestSettings.controlGroups) > -1) {
                                 statusCode = 7120;
                             }
 
-                            _self._bindContainer(option, _self._mapResult(recPayload, {
+                            this._bindContainer(option, this._mapResult(recPayload, {
                                 additionalData: {
                                     splitTestData: data.splitTestData
                                 },
                                 statusCode: statusCode
                             }));
-                        } else {
-                            const errorData = _self._mapResult(recPayload, {
+                        }
+                        else {
+                            const errorData = this._mapResult(recPayload, {
                                 statusCode: 400,
                                 message: error instanceof Error ? error.message : null
                             });
@@ -1458,7 +1285,7 @@
 
         cancel: function (processId) {
             canceledRequests[processId] = {
-                cancellationTime: new Date().getTime(),
+                cancellationTime: Date.now(),
                 status: canceledRequests._status.canceled,
                 processId: processId
             };
@@ -1468,29 +1295,22 @@
          * The render method is used to render the configured recommendations within the given user-interface.
          */
         render: function () {
-            const _self = this;
-
-            /*
-             * Generate a unique identifier which allows to cancel the rendering in between recommendation
-             * retrieval, and actual rendering.
-             */
             const processId = Breinify.UTL.uuid();
 
             overload.overload({
-                "Array": function (renderOptions) {
+                "Array": renderOptions => {
+                    const namedRenderOptions = {};
+                    const recommenderPayload = [];
 
-                    let namedRenderOptions = {};
-                    let recommenderPayload = [];
                     for (let i = 0; i < renderOptions.length; i++) {
-                        let options = this._preRenderRecommendations(processId, {
+                        const options = this._preRenderRecommendations(processId, {
                             temporary: renderOptions[i]
                         });
-                        let recommenderOptions = options.temporary.recommender;
+                        const recommenderOptions = options.temporary.recommender;
 
                         if (!$.isPlainObject(recommenderOptions) ||
                             !$.isPlainObject(recommenderOptions.payload) ||
                             !$.isArray(recommenderOptions.payload.namedRecommendations)) {
-
                             Renderer._process(options.temporary.process.error, {
                                 code: -1,
                                 error: true,
@@ -1500,45 +1320,49 @@
                             return;
                         }
 
-                        let name = this._determineName(recommenderOptions.payload, i, renderOptions);
+                        const name = this._determineName(recommenderOptions.payload, i, renderOptions);
                         namedRenderOptions[name] = options.temporary;
-
                         recommenderPayload.push(recommenderOptions.payload);
                     }
 
-                    this._retrieveRecommendations(recommenderPayload, function (error, data) {
-                        _self._renderRecommendations(namedRenderOptions, error, data);
+                    this._retrieveRecommendations(recommenderPayload, (error, data) => {
+                        this._renderRecommendations(namedRenderOptions, error, data);
                     });
                 },
-                "Object": function (renderOptions) {
-                    _self.render([renderOptions]);
+
+                "Object": renderOptions => {
+                    this.render([renderOptions]);
                 },
-                "Object,Object": function (payload, renderOptions) {
-                    let options = this._preRenderRecommendations(processId, renderOptions);
-                    this._retrieveRecommendations([payload], function (error, data) {
-                        _self._renderRecommendations(options, error, data);
+
+                "Object,Object": (payload, renderOptions) => {
+                    const options = this._preRenderRecommendations(processId, renderOptions);
+                    this._retrieveRecommendations([payload], (error, data) => {
+                        this._renderRecommendations(options, error, data);
                     });
                 },
-                "Array,Object": function (payloads, renderOptions) {
-                    let options = this._preRenderRecommendations(processId, renderOptions);
-                    this._retrieveRecommendations(payloads, function (error, data) {
-                        _self._renderRecommendations(options, error, data);
+
+                "Array,Object": (payloads, renderOptions) => {
+                    const options = this._preRenderRecommendations(processId, renderOptions);
+                    this._retrieveRecommendations(payloads, (error, data) => {
+                        this._renderRecommendations(options, error, data);
                     });
                 },
-                "String,Object": function (recommendationId, renderOptions) {
-                    let options = this._preRenderRecommendations(processId, renderOptions);
+
+                "String,Object": (recommendationId, renderOptions) => {
+                    const options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations([{
                         namedRecommendations: [recommendationId]
-                    }], function (error, data) {
-                        _self._renderRecommendations(options, error, data);
+                    }], (error, data) => {
+                        this._renderRecommendations(options, error, data);
                     });
                 },
-                "String,Object,Object": function (recommendationId, payload, renderOptions) {
-                    let options = this._preRenderRecommendations(processId, renderOptions);
+
+                "String,Object,Object": (recommendationId, payload, renderOptions) => {
+                    const options = this._preRenderRecommendations(processId, renderOptions);
                     this._retrieveRecommendations([$.extend({
                         namedRecommendations: [recommendationId]
-                    }, payload)], function (error, data) {
-                        _self._renderRecommendations(options, error, data);
+                    }, payload)], (error, data) => {
+                        this._renderRecommendations(options, error, data);
                     });
                 }
             }, arguments, this);
@@ -1571,9 +1395,9 @@
             if (Renderer._isItem($el)) {
                 Renderer._setupItemData($el, idx, data);
                 return true;
-            } else {
-                return false;
             }
+
+            return false;
         },
 
         /**
@@ -1584,7 +1408,6 @@
         createRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
-
             return activityTags;
         },
 
@@ -1597,8 +1420,9 @@
 
             activityTags.containerAvailable = $container === null ? null : $container.length > 0;
             activityTags.status = Breinify.UTL.toInteger(result.status.code);
-
-            activityTags.expectedNrOfRecs = $.isPlainObject(result.payload) ? Breinify.UTL.toInteger(result.payload.expectedNumberOfRecommendations) : null;
+            activityTags.expectedNrOfRecs = $.isPlainObject(result.payload)
+                ? Breinify.UTL.toInteger(result.payload.expectedNumberOfRecommendations)
+                : null;
             activityTags.retrievedNrOfRecs = $.isArray(result.recommendations) ? result.recommendations.length : 0;
             activityTags.rendered = activityTags.status === 200 &&
                 activityTags.retrievedNrOfRecs > 0 &&
@@ -1616,52 +1440,53 @@
         },
 
         _isCanceled: function (processId) {
-            const now = new Date().getTime();
-
-            // find expired processes
+            const now = Date.now();
             const expiredProcesses = [];
-            $.each(canceledRequests, function (processId, canceledRequest) {
+
+            $.each(canceledRequests, function (id, canceledRequest) {
                 if (now - canceledRequest.cancellationTime > 60 * 1000) {
-                    expiredProcesses.push(processId);
+                    expiredProcesses.push(id);
                 }
             });
 
-            // delete the expired processes that were found
             for (let i = 0; i < expiredProcesses.length; i++) {
-                const expiredProcessId = expiredProcesses[i];
-                delete canceledRequests[expiredProcessId];
+                delete canceledRequests[expiredProcesses[i]];
             }
 
             const canceledRequest = canceledRequests[processId];
-            if (!$.isPlainObject(canceledRequest)) {
-                return false;
-            }
-
-            return canceledRequest.status === canceledRequests._status.canceled;
+            return $.isPlainObject(canceledRequest) &&
+                canceledRequest.status === canceledRequests._status.canceled;
         },
 
         _loadSplitTestSeparately: function (splitTestSettings, cb) {
-
-            if (Breinify.plugins._isAdded("splitTests") === false) {
+            if (Breinify.plugins._isAdded("splitTests") !== true) {
                 cb(new Error("please ensure that the split-tests plugin is available when using this feature."));
                 return;
             }
 
             const splitTestName = splitTestSettings.name;
-            const splitTestTokens = Breinify.UTL.isNonEmptyString(splitTestSettings.token) === null ? splitTestSettings.tokens : splitTestSettings.token;
-            const splitTestStorage = Breinify.UTL.isNonEmptyString(splitTestSettings.storageKey) === null ? splitTestSettings.storageKeys : splitTestSettings.storageKey;
+            const splitTestTokens = Breinify.UTL.isNonEmptyString(splitTestSettings.token) === null
+                ? splitTestSettings.tokens
+                : splitTestSettings.token;
+            const splitTestStorage = Breinify.UTL.isNonEmptyString(splitTestSettings.storageKey) === null
+                ? splitTestSettings.storageKeys
+                : splitTestSettings.storageKey;
             const splitTestPayload = $.extend(true, {
                 splitTestName: splitTestSettings.name
             }, splitTestSettings.payload);
 
-            Breinify.plugins.splitTests.retrieveSplitTest(splitTestName, splitTestTokens,
-                splitTestPayload, splitTestStorage, function (error, data) {
+            Breinify.plugins.splitTests.retrieveSplitTest(
+                splitTestName,
+                splitTestTokens,
+                splitTestPayload,
+                splitTestStorage,
+                function (error, data) {
                     cb(error, data);
-                });
+                }
+            );
         },
 
         _bindContainer: function (option, recData) {
-            const _self = this;
             const data = $.isPlainObject(recData) ? recData : {};
 
             let $container = Renderer._determineSelector(option.templates.container);
@@ -1678,18 +1503,19 @@
 
             this._applyBindings(option, $container);
 
-            let $items = Renderer._determineSelector(option.templates.item, $container);
+            const $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
-                $items.each(function (idx) {
-                    _self.setRecommendationData($(this), idx, {});
+                $items.each((idx, item) => {
+                    this.setRecommendationData($(item), idx, {});
                 });
             }
         },
 
         _preRenderRecommendations: function (processId, renderOptions) {
             const options = {};
+
             $.each(renderOptions, function (name, renderOption) {
-                let option = $.extend(true, {}, defaultRenderOption, renderOption);
+                const option = $.extend(true, {}, defaultRenderOption, renderOption);
                 option.meta.processId = processId;
 
                 Renderer._process(option.process.init, option);
@@ -1699,37 +1525,41 @@
             return options;
         },
 
+        _isPromiseLike: function (value) {
+            return !!(window.Promise && value instanceof window.Promise);
+        },
+
+        _handleRenderErrorResult: function (name, option, resultOrError, details) {
+            if (option.meta?.refreshParent) {
+                Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", $.extend({
+                    name: name
+                }, details));
+            }
+
+            this._handleRender(resultOrError, option, null);
+            Renderer._process(option.process.finalize, option, resultOrError, null);
+        },
+
         _renderRecommendations: function (options, error, data) {
-            const _self = this;
-
-            // first check if we had any errors and if so, run the process and finalize
             if (error !== null) {
-
-                $.each(options, function (name, option) {
+                $.each(options, (name, option) => {
                     Renderer._process(option.process.error, error);
 
-                    if (option.meta && option.meta.refreshParent) {
-                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
-                            name: name,
-                            error: error
-                        });
-                    }
-
-                    const errorResponse = _self._mapError(data, error);
-                    _self._handleRender(errorResponse, option, null);
-                    Renderer._process(option.process.finalize, option, errorResponse, null);
+                    const errorResponse = this._mapError(data, error);
+                    this._handleRenderErrorResult(name, option, errorResponse, {
+                        error: error
+                    });
                 });
-
                 return;
             }
 
-            // fire each named recommendation, with the option
             let recStatus = "undefined";
-            $.each(options, function (name, option) {
-                let result = data[name];
 
-                if (_self._isCanceled(option.meta.processId)) {
-                    if (option.meta && option.meta.refreshParent) {
+            $.each(options, (name, option) => {
+                const result = data[name];
+
+                if (this._isCanceled(option.meta.processId)) {
+                    if (option.meta?.refreshParent) {
                         Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-canceled", {
                             name: name,
                             result: result
@@ -1738,7 +1568,10 @@
 
                     Renderer._process(option.process.canceled, option, result);
                     Renderer._process(option.process.finalize, option, result, null);
-                } else if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
+                    return;
+                }
+
+                if (!$.isPlainObject(result) || !$.isPlainObject(result.status)) {
                     Renderer._process(option.process.error, {
                         code: -1,
                         error: true,
@@ -1747,87 +1580,83 @@
                         result: result
                     });
 
-                    if (option.meta && option.meta.refreshParent) {
-                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
-                            name: name,
-                            result: result
-                        });
-                    }
-
-                    const errorResult = {
+                    this._handleRenderErrorResult(name, option, {
                         status: {
                             code: 500,
                             message: "unexpected result-type received",
                             error: true
                         }
-                    };
+                    }, {
+                        result: result
+                    });
+                    return;
+                }
 
-                    _self._handleRender(errorResult, option, null);
-                    Renderer._process(option.process.finalize, option, errorResult, null);
-                } else if (result.status.error === true) {
+                if (result.status.error === true) {
                     Renderer._process(option.process.error, $.extend({
                         name: name,
                         result: result
                     }, result.status));
 
-                    if (option.meta && option.meta.refreshParent) {
-                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
-                            name: name,
-                            result: result
-                        });
-                    }
+                    this._handleRenderErrorResult(name, option, result, {
+                        result: result
+                    });
+                    return;
+                }
 
-                    _self._handleRender(result, option, null);
-                    Renderer._process(option.process.finalize, option, result, null);
-                } else if ($.isFunction(option.data.modify)) {
+                if ($.isFunction(option.data.modify)) {
+                    const handleModifyResult = modifyResults => {
+                        let normalizedModifyResults = modifyResults;
 
-                    const handleModifyResult = function (modifyResults) {
-                        if ($.isArray(modifyResults)) {
-                            // nothing to change
-                        } else if ($.isPlainObject(modifyResults) &&
-                            $.isPlainObject(modifyResults.result) &&
-                            $.isPlainObject(modifyResults.option)) {
-                            modifyResults = [modifyResults];
-                        } else {
-                            modifyResults = [{ result: result, option: option }];
+                        if ($.isArray(normalizedModifyResults)) {
+                            // keep as is
+                        }
+                        else if ($.isPlainObject(normalizedModifyResults) &&
+                            $.isPlainObject(normalizedModifyResults.result) &&
+                            $.isPlainObject(normalizedModifyResults.option)) {
+                            normalizedModifyResults = [normalizedModifyResults];
+                        }
+                        else {
+                            normalizedModifyResults = [{ result: result, option: option }];
                         }
 
-                        for (let i = 0; i < modifyResults.length; i++) {
-                            const modifyResult = modifyResults[i];
-                            recStatus = _self._applyRecommendation(modifyResult.result, modifyResult.option);
+                        for (let i = 0; i < normalizedModifyResults.length; i++) {
+                            const modifyResult = normalizedModifyResults[i];
+                            recStatus = this._applyRecommendation(modifyResult.result, modifyResult.option);
                         }
                     };
 
-                    let modifyResponse = option.data.modify(result, option);
-                    if ($.isFunction(option.data.modify.constructor) &&
-                        option.data.modify.constructor.name === "AsyncFunction" &&
-                        window.Promise && modifyResponse instanceof window.Promise) {
+                    const modifyResponse = option.data.modify(result, option);
+                    if (this._isPromiseLike(modifyResponse)) {
                         modifyResponse
-                            .then(result => handleModifyResult(result))
-                            .catch(error => {
+                            .then(handleModifyResult)
+                            .catch(err => {
                                 Renderer._process(option.process.error, {
                                     code: -1,
                                     error: true,
-                                    message: error.message,
-                                    name: error.name,
-                                    result: error
+                                    message: err.message,
+                                    name: err.name,
+                                    result: err
                                 });
 
-                                if (option.meta && option.meta.refreshParent) {
+                                if (option.meta?.refreshParent) {
                                     Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
                                         name: name,
-                                        error: error
+                                        error: err
                                     });
                                 }
 
                                 Renderer._process(option.process.finalize, option, result, null);
                             });
-                    } else {
+                    }
+                    else {
                         handleModifyResult(modifyResponse);
                     }
-                } else {
-                    recStatus = _self._applyRecommendation(result, option);
+
+                    return;
                 }
+
+                recStatus = this._applyRecommendation(result, option);
             });
 
             if (recStatus === "out-of-date") {
@@ -1838,7 +1667,6 @@
         _mapError: function (data, error) {
             const errorMsg = Breinify.UTL.out.normalizeErrorMessage(error);
 
-            // if we do not have additional data for the error, we return here with a 500
             if (!$.isPlainObject(data) || typeof data.httpStatus !== "number") {
                 return {
                     status: {
@@ -1848,8 +1676,8 @@
                     }
                 };
             }
-            // we have a valid response, that we assume to be an error
-            else if (data.httpStatus === 200) {
+
+            if (data.httpStatus === 200) {
                 return {
                     status: {
                         code: 500,
@@ -1858,36 +1686,29 @@
                     }
                 };
             }
-            // we have an actual HTTP status code (indicating an error) from the response, we utilize this
-            else {
-                return {
-                    status: {
-                        code: data.httpStatus,
-                        message: data.responseText,
-                        error: true
-                    }
-                };
-            }
+
+            return {
+                status: {
+                    code: data.httpStatus,
+                    message: data.responseText,
+                    error: true
+                }
+            };
         },
 
         _handleRender: function (result, option, $container) {
-
-            // if we have a forbidden status, we just ignore the handling completely
-            if ($.isPlainObject(result) && $.isPlainObject(result.status) && result.status.code === 403) {
+            if ($.isPlainObject(result?.status) && result.status.code === 403) {
                 return;
             }
 
-            // determine the options to use
             const renderOption = $.extend(true, {
                 activity: {
                     type: defaultRenderOption.activity.renderType
                 }
             }, defaultRenderOption, option);
 
-            // create the settings
             const settings = {
-                isControl: $.isPlainObject(result) &&
-                    $.isPlainObject(result.splitTestData) &&
+                isControl: $.isPlainObject(result?.splitTestData) &&
                     result.splitTestData.isControl === true,
                 $recContainer: $container,
                 additionalEventData: {},
@@ -1895,12 +1716,12 @@
                 option: renderOption
             };
 
-            // create the event (and wrap it within the customer-event if available)
             let event = {
                 bubbles: true,
                 cancelable: false,
                 detail: {}
             };
+
             if (typeof window.CustomEvent === "function") {
                 event = new window.CustomEvent("renderedRecommendation", event);
             }
@@ -1911,26 +1732,27 @@
         },
 
         _triggerEvent: function (eventName, data) {
-
-            // trigger the Breinify ready event on both jQuery instances
             $(document).trigger(eventName, data);
-            if (typeof window.$ === "function" && typeof window.$.fn === "function" && $ !== window.$) {
+
+            if (typeof window.$ === "function" &&
+                typeof window.$.fn === "function" &&
+                $ !== window.$) {
                 window.$(document).trigger(eventName, data);
             }
         },
 
         _applyRecommendation: function (result, option) {
-            const _self = this;
-
             if (result.splitTestData.isControl === true) {
-                const $container = _self._setupControlContainer(option, result);
+                const $container = this._setupControlContainer(option, result);
+
                 if ($container !== null) {
                     this._applyBindings(option, $container);
                     Renderer._clearRefreshState($container, option, {
                         result: result,
                         reason: "control"
                     });
-                } else if (option.meta && option.meta.refreshParent) {
+                }
+                else if (option.meta?.refreshParent) {
                     Renderer._clearRefreshState(option.meta.refreshParent, option, {
                         result: result,
                         reason: "control-no-container"
@@ -1941,11 +1763,11 @@
                 Renderer._process(option.process.finalize, option, result, $container);
 
                 return "not-rendered-control";
-            } else if (Renderer.refreshOptions !== null &&
-                option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
+            }
 
-                // just append the container with the data, refresh will do the rest
-                Renderer._appendContainer(option, result, function ($container) {
+            if (Renderer.refreshOptions !== null &&
+                option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
+                Renderer._appendContainer(option, result, $container => {
                     if ($container === null) {
                         return;
                     }
@@ -1955,13 +1777,14 @@
                         $itemContainer = $container;
                     }
 
-                    _self._setupContainer($itemContainer, option, result);
+                    this._setupContainer($itemContainer, option, result);
                 });
 
                 return "out-of-date";
-            } else if (result.status.code === 7120) {
+            }
 
-                if (option.meta && option.meta.refreshParent) {
+            if (result.status.code === 7120) {
+                if (option.meta?.refreshParent) {
                     Renderer._clearRefreshState(option.meta.refreshParent, option, {
                         result: result,
                         reason: "ignored"
@@ -1972,65 +1795,53 @@
                 Renderer._process(option.process.finalize, option, result, null);
 
                 return "not-rendered-ignored";
-            } else {
+            }
 
-                // we have a normal recommendation call
-                this._renderRecommendation(option, result, function ($container) {
-                    if ($container === null) {
-                        if (option.meta && option.meta.refreshParent) {
-                            Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
-                                result: result,
-                                reason: "render-failed"
-                            });
-                        }
-                        Renderer._process(option.process.finalize, option, result, null);
-                        return;
+            this._renderRecommendation(option, result, $container => {
+                if ($container === null) {
+                    if (option.meta?.refreshParent) {
+                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
+                            result: result,
+                            reason: "render-failed"
+                        });
                     }
 
-                    _self._applyBindings(option, $container);
-                    Renderer._clearRefreshState($container, option, {
-                        result: result,
-                        reason: "rendered"
-                    });
+                    Renderer._process(option.process.finalize, option, result, null);
+                    return;
+                }
 
-                    _self._handleRender(result, option, $container);
-                    Renderer._process(option.process.finalize, option, result, $container);
+                this._applyBindings(option, $container);
+                Renderer._clearRefreshState($container, option, {
+                    result: result,
+                    reason: "rendered"
                 });
 
-                return "rendered";
-            }
+                this._handleRender(result, option, $container);
+                Renderer._process(option.process.finalize, option, result, $container);
+            });
+
+            return "rendered";
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
-
-            /*
-             * Try resolving the recommendation container from $el.
-             * NOTE: In shadow DOM scenarios the click observer may pass the shadow host as $el on purpose,
-             * which means $el might not be inside the rendered recommendation DOM.
-             */
             let $container = $el.closest("." + Renderer.marker.container);
-            $container = $container.length === 1 ? $container : $el.closest("[data-" + Renderer.marker.container + "=\"true\"]");
+            $container = $container.length === 1
+                ? $container
+                : $el.closest("[data-" + Renderer.marker.container + "=\"true\"]");
 
-            /*
-             * Resolve the deepest real click target (if provided by the click observer).
-             * This is shadow-DOM safe (avoids retargeting issues) and is used as a fallback:
-             *  - to find the container when $el is the host
-             *  - to find the clicked item (.brrc-item) reliably
-             */
-            const actualTarget = additionalEventData && additionalEventData.actualTarget;
+            const actualTarget = additionalEventData?.actualTarget;
             const $clickedEl = Breinify.UTL.dom.isNodeType(actualTarget, 1) ? $(actualTarget) : null;
 
-            /*
-             * If $el was not sufficient to locate the container, fall back to the real click target.
-             * If we still cannot find exactly one container, abort (no valid recommendation click context).
-             */
             if ($container.length !== 1) {
                 if ($clickedEl === null) {
                     return;
                 }
 
                 $container = $clickedEl.closest("." + Renderer.marker.container);
-                $container = $container.length === 1 ? $container : $clickedEl.closest("[data-" + Renderer.marker.container + "=\"true\"]");
+                $container = $container.length === 1
+                    ? $container
+                    : $clickedEl.closest("[data-" + Renderer.marker.container + "=\"true\"]");
+
                 if ($container.length !== 1) {
                     return;
                 }
@@ -2044,37 +1855,40 @@
             }
 
             const enhancedAdditionalEventData = $.extend(true, {}, additionalEventData, {
-                // semantic click anchor (it may be the host on purpose)
-                semanticTarget: $el && $el.length === 1 ? $el.get(0) : null
+                semanticTarget: $el?.length === 1 ? $el.get(0) : null
             });
+
             const $itemEl = $clickedEl === null ? $el : $clickedEl;
+
             if (containerData.data.splitTestData.isControl === true) {
                 this._handleControlClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
-            } else {
+            }
+            else {
                 this._handleRecommendationClick(event, $itemEl, $container, containerData.data, enhancedAdditionalEventData, containerData.option);
             }
 
-            /*
-             * Some integrations want to stop further propagation after we handled the click
-             * (e.g., to prevent other observers from reacting to the same interaction).
-             */
             if (enhancedAdditionalEventData.stopPropagation === true) {
                 event.stopPropagation();
-                Renderer._process(option.process.stoppedPropagation, event, $itemEl, $container,
-                    containerData.data, enhancedAdditionalEventData, containerData.option);
+                Renderer._process(
+                    option.process.stoppedPropagation,
+                    event,
+                    $itemEl,
+                    $container,
+                    containerData.data,
+                    enhancedAdditionalEventData,
+                    containerData.option
+                );
             }
         },
 
         _handleRecommendationClick: function (event, $el, $recContainer, recommendationData, additionalEventData, option) {
-
-            // search for any item-element that would identify a recommendation click
             let $recItem = $el.closest("." + Renderer.marker.item);
+
             if ($recItem.length !== 1) {
-                const semanticTarget = additionalEventData && additionalEventData.semanticTarget;
+                const semanticTarget = additionalEventData?.semanticTarget;
                 if (Breinify.UTL.dom.isNodeType(semanticTarget, 1)) {
                     const $semantic = $(semanticTarget);
 
-                    // host might be the item itself or inside it
                     $recItem = $semantic.closest("." + Renderer.marker.item);
                     if ($recItem.length !== 1 && $semantic.is("." + Renderer.marker.item)) {
                         $recItem = $semantic;
@@ -2082,7 +1896,6 @@
                 }
             }
 
-            // if we still do not have exactly one item, this isn't a recommendation click
             if ($recItem.length !== 1) {
                 return;
             }
@@ -2101,14 +1914,19 @@
                 recommendation: recommendation,
                 option: option
             };
+
             Renderer._process(option.process.clickedItem, event, settings);
 
-            settings.activityTags = this.createClickedRecommendationTags(recommendationData, recommendation, additionalEventData);
+            settings.activityTags = this.createClickedRecommendationTags(
+                recommendationData,
+                recommendation,
+                additionalEventData
+            );
+
             this._sendActivity(option, event, settings);
         },
 
         _handleControlClick: function (event, $el, $controlContainer, recommendationData, additionalEventData, option) {
-
             const settings = {
                 isControl: true,
                 $controlItem: $el,
@@ -2117,6 +1935,7 @@
                 recommendationData: recommendationData,
                 option: option
             };
+
             Renderer._process(option.process.clickedItem, event, settings);
 
             settings.activityTags = this._createDefaultTags(recommendationData, additionalEventData);
@@ -2131,7 +1950,6 @@
         },
 
         _applyBreinifyTags: function (activityTags, recommendationData, recommendation, additionalEventData) {
-
             if (typeof recommendation?.widgetPosition === "number") {
                 activityTags.widgetPosition = recommendation.widgetPosition;
 
@@ -2145,52 +1963,73 @@
 
             const id = Breinify.UTL.isNonEmptyString(recommendation?.id);
             if (id === null) {
-                // nothing more to do
-            } else if (type === "com.brein.common.dto.CustomerAssetsDto") {
+                return;
+            }
+
+            if (type === "com.brein.common.dto.CustomerAssetsDto") {
                 activityTags.assetIds = [id];
-
-                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["assets::assetTitle"] ?? null);
-                activityTags.assetNames = [name];
-            } else if (type === "com.brein.common.dto.CustomerProductDto") {
+                activityTags.assetNames = [
+                    Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["assets::assetTitle"] ?? null)
+                ];
+            }
+            else if (type === "com.brein.common.dto.CustomerProductDto") {
                 activityTags.productIds = [id];
-
-                const name = Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["product::productName"] ?? null);
-                activityTags.productNames = [name];
-            } else {
+                activityTags.productNames = [
+                    Breinify.UTL.isNonEmptyString(recommendation?.additionalData?.["product::productName"] ?? null)
+                ];
+            }
+            else {
                 activityTags.productIds = [id];
             }
         },
 
         _createDefaultTags: function (recommendationData, additionalEventData) {
             const defaultTags = {};
+            const splitTestData = $.isPlainObject(recommendationData.splitTestData)
+                ? recommendationData.splitTestData
+                : { active: false };
 
-            const splitTestData = $.isPlainObject(recommendationData.splitTestData) ? recommendationData.splitTestData : {
-                active: false
-            };
+            let groupType;
+            let group;
 
-            let groupType, group;
             if (splitTestData.active === false) {
                 groupType = Renderer.splitTest.defaultGroupType;
                 group = Renderer.splitTest.defaultGroup;
-            } else if (splitTestData.isControl === true) {
+            }
+            else if (splitTestData.isControl === true) {
                 groupType = Renderer.splitTest.controlGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ? splitTestData.groupDecision : Renderer.splitTest.defaultControlGroup;
-            } else {
+                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== ""
+                    ? splitTestData.groupDecision
+                    : Renderer.splitTest.defaultControlGroup;
+            }
+            else {
                 groupType = Renderer.splitTest.testGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== "" ? splitTestData.groupDecision : Renderer.splitTest.defaultTestGroup;
+                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== ""
+                    ? splitTestData.groupDecision
+                    : Renderer.splitTest.defaultTestGroup;
             }
 
-            const test = typeof splitTestData.testName === "string" && splitTestData.testName.trim() !== "" ? splitTestData.testName : null;
-            const instance = typeof splitTestData.selectedInstance === "string" && splitTestData.selectedInstance.trim() !== "" ? splitTestData.selectedInstance : null;
+            const test = typeof splitTestData.testName === "string" && splitTestData.testName.trim() !== ""
+                ? splitTestData.testName
+                : null;
+            const instance = typeof splitTestData.selectedInstance === "string" && splitTestData.selectedInstance.trim() !== ""
+                ? splitTestData.selectedInstance
+                : null;
 
             defaultTags.group = group;
             defaultTags.groupType = groupType;
             defaultTags.splitTest = test === null ? null : test + (instance === null ? "" : " (" + instance + ")");
 
-            const recommendationPayload = $.isPlainObject(recommendationData.payload) ? recommendationData.payload : {};
+            const recommendationPayload = $.isPlainObject(recommendationData.payload)
+                ? recommendationData.payload
+                : {};
 
-            const queryName = typeof recommendationPayload.queryName === "string" && recommendationPayload.queryName.trim() !== "" ? recommendationPayload.queryName : null;
-            const recommenderName = typeof recommendationPayload.recommenderName === "string" && recommendationPayload.recommenderName.trim() !== "" ? recommendationPayload.recommenderName : null;
+            const queryName = typeof recommendationPayload.queryName === "string" && recommendationPayload.queryName.trim() !== ""
+                ? recommendationPayload.queryName
+                : null;
+            const recommenderName = typeof recommendationPayload.recommenderName === "string" && recommendationPayload.recommenderName.trim() !== ""
+                ? recommendationPayload.recommenderName
+                : null;
 
             defaultTags.widgetType = recommenderName;
             defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
@@ -2205,6 +2044,7 @@
                 if (Array.isArray(additionalEventData.productNames) && additionalEventData.productNames.length > 0) {
                     defaultTags.productNames = additionalEventData.productNames;
                 }
+
                 const recType = Breinify.UTL.isNonEmptyString(additionalEventData?.recType);
                 if (recType !== null) {
                     defaultTags.recType = recType;
@@ -2215,11 +2055,13 @@
         },
 
         _sendActivity: function (option, event, settings) {
-
             const actualTarget = event.data?.actualTarget ?? event.target;
 
-            const anchor = actualTarget instanceof HTMLAnchorElement ? actualTarget :
-                actualTarget instanceof Element ? actualTarget.closest("a") : null;
+            const anchor = actualTarget instanceof HTMLAnchorElement
+                ? actualTarget
+                : actualTarget instanceof Element
+                    ? actualTarget.closest("a")
+                    : null;
 
             const openInNewTabByUser = event.metaKey === true ||
                 event.ctrlKey === true ||
@@ -2243,7 +2085,6 @@
             const normalizedHref = href.toLowerCase();
 
             const hasDownloadAttribute = anchor instanceof HTMLAnchorElement && anchor.hasAttribute("download");
-
             const isJavaScriptHref = normalizedHref.indexOf("javascript:") === 0;
             const isEmptyHref = href === "";
             const isOnlyHash = href === "#";
@@ -2260,13 +2101,17 @@
             if (anchor instanceof HTMLAnchorElement) {
                 if (openInNewTab === true) {
                     willReloadPage = false;
-                } else if (hasDownloadAttribute) {
+                }
+                else if (hasDownloadAttribute) {
                     willReloadPage = false;
-                } else if (isEmptyHref || isOnlyHash || isJavaScriptHref) {
+                }
+                else if (isEmptyHref || isOnlyHash || isJavaScriptHref) {
                     willReloadPage = false;
-                } else if (isSamePageHashNavigation) {
+                }
+                else if (isSamePageHashNavigation) {
                     willReloadPage = false;
-                } else {
+                }
+                else {
                     willReloadPage = true;
                 }
             }
@@ -2303,52 +2148,67 @@
             let scheduleActivity = null;
             if (settings.additionalEventData.scheduleActivities === null) {
                 scheduleActivity = willReloadPage === true;
-            } else if (typeof settings.additionalEventData.scheduleActivities === "boolean") {
+            }
+            else if (typeof settings.additionalEventData.scheduleActivities === "boolean") {
                 scheduleActivity = settings.additionalEventData.scheduleActivities;
             }
 
             if (!$.isPlainObject(Breinify.plugins.activities)) {
-                // activities plugin is not available
-            } else if (scheduleActivity === true) {
-                Breinify.plugins.activities.scheduleDelayedActivity(settings.activityUser, settings.activityType, settings.activityTags, 60000);
-            } else {
-                Breinify.plugins.activities.generic(settings.activityType, settings.activityUser, settings.activityTags);
+                return;
+            }
+
+            if (scheduleActivity === true) {
+                Breinify.plugins.activities.scheduleDelayedActivity(
+                    settings.activityUser,
+                    settings.activityType,
+                    settings.activityTags,
+                    60000
+                );
+            }
+            else {
+                Breinify.plugins.activities.generic(
+                    settings.activityType,
+                    settings.activityUser,
+                    settings.activityTags
+                );
             }
         },
 
         _applyBindings: function (option, $container) {
-            const _self = this;
-
-            Breinify.UTL.dom.addClickObserver(option.bindings.selector, "clickedRecommendations", function (event, additionalEventData) {
-
+            Breinify.UTL.dom.addClickObserver(option.bindings.selector, "clickedRecommendations", (event, additionalEventData) => {
                 let $el = $(this);
 
                 const nativeEvent = event.originalEvent || event;
-                const target = nativeEvent.composedPath ? nativeEvent.composedPath()[0] : nativeEvent.target;
+                const target = $.isFunction(nativeEvent.composedPath)
+                    ? nativeEvent.composedPath()[0]
+                    : nativeEvent.target;
+
                 if (target && typeof target.getRootNode === "function") {
                     const root = target.getRootNode();
-                    if (root && root.host) {
+                    if (root?.host) {
                         $el = $(root.host);
                     }
                 }
 
-                additionalEventData = additionalEventData || {};
-                additionalEventData.actualTarget = Breinify.UTL.dom.isNodeType(target, 1) ? target :
-                    (target && target.parentElement ? target.parentElement : null);
+                const enhancedAdditionalEventData = additionalEventData || {};
+                enhancedAdditionalEventData.actualTarget = Breinify.UTL.dom.isNodeType(target, 1)
+                    ? target
+                    : (target?.parentElement || null);
 
-                _self._handleClick(option, $el, event, additionalEventData);
+                this._handleClick(option, $el, event, enhancedAdditionalEventData);
             });
 
             const specificSelectors = option.bindings.specificSelectors;
             if ($.isPlainObject(specificSelectors) && $container !== null) {
                 const keys = Object.keys(specificSelectors);
+
                 for (let i = 0; i < keys.length; i++) {
                     const selector = keys[i];
                     const specificSelector = specificSelectors[selector];
                     const additionalEventData = $.isPlainObject(specificSelector) ? specificSelector : {};
 
-                    $container.find(selector).on("click", function (event) {
-                        _self._handleClick(option, $(this), event, additionalEventData);
+                    $container.find(selector).on("click", event => {
+                        this._handleClick(option, $(event.currentTarget), event, additionalEventData);
                     });
                 }
             }
@@ -2364,7 +2224,7 @@
         },
 
         _setupContainer: function ($container, option, data) {
-            if (!$container || !$container.jquery || $container.length !== 1) {
+            if (!$container?.jquery || $container.length !== 1) {
                 return null;
             }
 
@@ -2381,12 +2241,9 @@
         },
 
         _renderRecommendation: function (option, data, cb) {
-            const _self = this;
-
             Renderer._process(option.process.pre, data, option);
 
-            Renderer._appendContainer(option, data, function ($container, settings) {
-
+            Renderer._appendContainer(option, data, ($container, settings) => {
                 if ($container === null || settings.error === true) {
                     cb(null, settings);
                     return;
@@ -2397,7 +2254,7 @@
                     $itemContainer = $container;
                 }
 
-                $itemContainer = _self._setupContainer($itemContainer, option, data);
+                $itemContainer = this._setupContainer($itemContainer, option, data);
                 if ($itemContainer === null) {
                     cb(null, settings);
                     return;
@@ -2406,23 +2263,25 @@
                 Renderer._process(option.process.attachedContainer, $container, $itemContainer, data, option);
 
                 if (settings.externalRendering === true) {
-                    const itemSelection = $.isFunction(settings.itemSelection) ? settings.itemSelection : function ($resolvedItemContainer, idx) {
-                        return $resolvedItemContainer.children().eq(idx);
-                    };
+                    const itemSelection = $.isFunction(settings.itemSelection)
+                        ? settings.itemSelection
+                        : function ($resolvedItemContainer, idx) {
+                            return $resolvedItemContainer.children().eq(idx);
+                        };
 
-                    $.each(data.recommendations, function (idx, recommendation) {
-                        let $recItem = itemSelection($itemContainer, idx, recommendation);
-                        if ($recItem && $recItem.jquery && $recItem.length === 1) {
+                    $.each(data.recommendations, (idx, recommendation) => {
+                        const $recItem = itemSelection($itemContainer, idx, recommendation);
+                        if ($recItem?.jquery && $recItem.length === 1) {
                             Renderer._setupItemData($recItem, idx, recommendation);
                         }
                     });
-                } else {
+                }
+                else {
                     Renderer._appendItems($itemContainer, data, option);
                     Renderer._process(option.process.attached, $container, $itemContainer, data, option);
                 }
 
                 const $controlContainer = Renderer._determineSelector(option.splitTests.control.containerSelector);
-
                 if ($controlContainer !== null &&
                     $controlContainer.length === 1 &&
                     $controlContainer.get(0) !== $container.get(0) &&
@@ -2436,8 +2295,6 @@
         },
 
         _retrieveRecommendations: function (payloads, callback) {
-            const _self = this;
-
             if ($.isArray(payloads)) {
                 const recommendationGroup = Breinify.UTL.uuid();
                 for (let i = 0; i < payloads.length; i++) {
@@ -2446,20 +2303,21 @@
                 }
             }
 
-            Breinify.recommendation({}, payloads, function (data, errorText) {
+            Breinify.recommendation({}, payloads, (data, errorText) => {
                 if (typeof errorText === "string") {
                     callback(new Error(errorText), data);
-                } else if (!data || !$.isArray(data.results)) {
+                }
+                else if (!data || !$.isArray(data.results)) {
                     callback(new Error("Invalid response received."), data);
-                } else {
-                    let result = _self._mapResults(payloads, data.results);
-                    callback(null, result);
+                }
+                else {
+                    callback(null, this._mapResults(payloads, data.results));
                 }
             });
         },
 
         _mapResult: function (payload, result) {
-            let recommendationResult = {};
+            const recommendationResult = {};
 
             this._determineSplitTestData(result, recommendationResult);
             if (!this._determineErrorResponse(result, recommendationResult)) {
@@ -2469,18 +2327,18 @@
             this._determineAdditionalData(result, recommendationResult);
             this._determineMetaData(result, recommendationResult);
 
-            let numRecommendations = null;
-            if (typeof payload.numRecommendations === "number" && payload.numRecommendations > 0) {
-                numRecommendations = payload.numRecommendations;
-            }
+            const numRecommendations = typeof payload.numRecommendations === "number" && payload.numRecommendations > 0
+                ? payload.numRecommendations
+                : null;
 
-            let queryName = null;
-            if (typeof payload.recommendationQueryName === "string" && payload.recommendationQueryName.trim() !== "") {
-                queryName = payload.recommendationQueryName;
-            }
+            const queryName = typeof payload.recommendationQueryName === "string" &&
+            payload.recommendationQueryName.trim() !== ""
+                ? payload.recommendationQueryName
+                : null;
 
             const recommenderName = Renderer._recommenderName(payload);
-            const isForItems = $.isArray(payload.recommendationForItems) && payload.recommendationForItems.length > 0;
+            const isForItems = $.isArray(payload.recommendationForItems) &&
+                payload.recommendationForItems.length > 0;
 
             recommendationResult.payload = {
                 recommenderName: recommenderName,
@@ -2493,7 +2351,7 @@
         },
 
         _mapResults: function (payloads, results) {
-            let allRecommendationResults = {};
+            const allRecommendationResults = {};
 
             for (let i = 0; i < results.length; i++) {
                 const payload = i < payloads.length && $.isPlainObject(payloads[i]) ? payloads[i] : {};
@@ -2519,15 +2377,17 @@
                     code: 500,
                     message: "invalid result type received"
                 };
-
                 return true;
-            } else if (recommendationResponse.statusCode === 200 || recommendationResponse.statusCode === 7120) {
+            }
+
+            if (recommendationResponse.statusCode === 200 || recommendationResponse.statusCode === 7120) {
                 result.status = {
                     code: recommendationResponse.statusCode,
                     message: recommendationResponse.message,
                     error: false
                 };
-            } else {
+            }
+            else {
                 result.status = {
                     error: true,
                     code: recommendationResponse.statusCode,
@@ -2540,9 +2400,8 @@
 
         _determineRecommendationType: function (recommendationResponse) {
             let type = "com.brein.common.dto.CustomerProductDto";
-            if ($.isPlainObject(recommendationResponse) &&
-                $.isPlainObject(recommendationResponse.additionalData) &&
-                $.isPlainObject(recommendationResponse.additionalData._breinMetaData) &&
+
+            if ($.isPlainObject(recommendationResponse?.additionalData?._breinMetaData) &&
                 typeof recommendationResponse.additionalData._breinMetaData.dataType === "string" &&
                 recommendationResponse.additionalData._breinMetaData.dataType.trim() !== "") {
                 type = recommendationResponse.additionalData._breinMetaData.dataType.trim();
@@ -2556,26 +2415,28 @@
 
             if (type === "com.brein.common.dto.CustomerProductDto") {
                 result.recommendations = this._mapProducts(recommendationResponse);
-            } else if (type === "com.brein.common.dto.CustomerAssetsDto") {
+            }
+            else if (type === "com.brein.common.dto.CustomerAssetsDto") {
                 result.recommendations = this._mapAssets(recommendationResponse);
-            } else {
+            }
+            else {
                 result.recommendations = this._mapAny(recommendationResponse);
             }
         },
 
         _determineAdditionalData: function (recommendationResponse, result) {
-            if ($.isPlainObject(recommendationResponse) &&
-                $.isPlainObject(recommendationResponse.additionalData)) {
-
-                result.additionalData = {};
-                $.each(recommendationResponse.additionalData, function (name, val) {
-                    if (name === "_breinMetaData" || name === "splitTestData") {
-                        return;
-                    }
-
-                    result.additionalData[name] = val;
-                });
+            if (!$.isPlainObject(recommendationResponse?.additionalData)) {
+                return;
             }
+
+            result.additionalData = {};
+            $.each(recommendationResponse.additionalData, function (name, val) {
+                if (name === "_breinMetaData" || name === "splitTestData") {
+                    return;
+                }
+
+                result.additionalData[name] = val;
+            });
         },
 
         _determineName: function (payload, idx, payloads) {
@@ -2602,11 +2463,13 @@
             }
 
             for (let i = 0; i < payloads.length; i++) {
-                let p = Renderer._createPayload(payloads[i], payloads[i]);
+                const payload = Renderer._createPayload(payloads[i], payloads[i]);
+                const candidate = this._extractCandidateNameFromPayload(payload);
 
-                const candidate = this._extractCandidateNameFromPayload(p);
                 if (candidate !== null) {
-                    candidates[candidate] = typeof candidates[candidate] === "number" ? candidates[candidate] + 1 : 1;
+                    candidates[candidate] = typeof candidates[candidate] === "number"
+                        ? candidates[candidate] + 1
+                        : 1;
                 }
             }
 
@@ -2616,31 +2479,26 @@
         _extractCandidateNameFromPayload: function (payload) {
             return $.isPlainObject(payload) &&
             $.isArray(payload.namedRecommendations) &&
-            payload.namedRecommendations.length === 1 ? payload.namedRecommendations[0] : null;
+            payload.namedRecommendations.length === 1
+                ? payload.namedRecommendations[0]
+                : null;
         },
 
         _determineMetaData: function (recommendationResponse, result) {
-            result.meta = {};
-            result.meta.type = this._determineRecommendationType(recommendationResponse);
+            result.meta = {
+                type: this._determineRecommendationType(recommendationResponse)
+            };
         },
 
         _determineSplitTestData: function (recommendationResponse, result) {
-            if ($.isPlainObject(recommendationResponse) &&
-                $.isPlainObject(recommendationResponse.additionalData) &&
-                $.isPlainObject(recommendationResponse.additionalData.splitTestData)) {
-
+            if ($.isPlainObject(recommendationResponse?.additionalData?.splitTestData)) {
                 result.splitTestData = $.extend({
                     active: true,
                     isTest: recommendationResponse.statusCode === 200,
                     isControl: recommendationResponse.statusCode === 7120
                 }, recommendationResponse.additionalData.splitTestData);
-            } else if (recommendationResponse.statusCode === 7120) {
-                result.splitTestData = {
-                    active: false,
-                    isTest: false,
-                    isControl: false
-                };
-            } else {
+            }
+            else {
                 result.splitTestData = {
                     active: false,
                     isTest: false,
@@ -2656,12 +2514,9 @@
                 return [];
             }
 
-            let mappedAssets = [];
+            const mappedAssets = [];
             for (let i = 0; i < recommendationResponse.result.length; i++) {
-                let asset = recommendationResponse.result[i];
-                let mappedAsset = this._mapAsset(asset);
-
-                mappedAssets.push(mappedAsset);
+                mappedAssets.push(this._mapAsset(recommendationResponse.result[i]));
             }
 
             return mappedAssets;
@@ -2670,7 +2525,8 @@
         _mapAsset: function (asset) {
             if (!$.isPlainObject(asset) || typeof asset.dataIdExternal !== "string") {
                 return null;
-            } else if (!$.isPlainObject(asset.additionalData)) {
+            }
+            if (!$.isPlainObject(asset.additionalData)) {
                 return null;
             }
 
@@ -2691,12 +2547,9 @@
                 return [];
             }
 
-            let mappedProducts = [];
+            const mappedProducts = [];
             for (let i = 0; i < recommendationResponse.result.length; i++) {
-                let product = recommendationResponse.result[i];
-                let mappedProduct = this._mapProduct(product);
-
-                mappedProducts.push(mappedProduct);
+                mappedProducts.push(this._mapProduct(recommendationResponse.result[i]));
             }
 
             return mappedProducts;
@@ -2705,7 +2558,8 @@
         _mapProduct: function (product) {
             if (!$.isPlainObject(product) || typeof product.dataIdExternal !== "string") {
                 return null;
-            } else if (!$.isPlainObject(product.additionalData)) {
+            }
+            if (!$.isPlainObject(product.additionalData)) {
                 return null;
             }
 
@@ -2731,23 +2585,21 @@
                 return [];
             }
 
-            let mappedResults = [];
+            const mappedResults = [];
             for (let i = 0; i < recommendationResponse.result.length; i++) {
-                let result = recommendationResponse.result[i];
-                let mappedResult = {
+                const result = recommendationResponse.result[i];
+                mappedResults.push({
                     _recommenderWeight: result.weight,
                     id: result.dataIdExternal,
                     additionalData: result.additionalData
-                };
-
-                mappedResults.push(mappedResult);
+                });
             }
 
             return mappedResults;
         },
 
         _getValue: function (entity, name) {
-            let value = entity.additionalData[name];
+            const value = entity.additionalData[name];
             return typeof value === "undefined" || value === null ? null : value;
         }
     };
