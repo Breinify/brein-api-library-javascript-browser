@@ -31,7 +31,7 @@
                 /*
                  * Tracks the current anchor resolution state for attribute-based rendering.
                  * This state is used to determine:
-                 * - which anchor is currently assigned to each recommender
+                 * - which anchor is currently assigned to each recommender/slot
                  * - whether a fallback or specific anchor is active
                  * - whether previously rendered content must be cleaned up or moved
                  */
@@ -152,8 +152,8 @@
                 return;
             }
 
-            Object.keys(runtime.anchorState).forEach(function (recommenderName) {
-                const state = runtime.anchorState[recommenderName];
+            Object.keys(runtime.anchorState).forEach(function (anchorStateKey) {
+                const state = runtime.anchorState[anchorStateKey];
                 const anchorElement = state && state.anchorElement;
                 if (Breinify.UTL.dom.isNodeType(anchorElement, 1)) {
                     $(anchorElement)
@@ -162,6 +162,7 @@
                 }
             });
 
+            console.log("uiRecommendations _cleanUpAttributeActivation: " + webExId);
             runtime.anchorState = {};
         },
 
@@ -207,6 +208,21 @@
             }
         },
 
+        _createAnchorStateKey: function (webExId, singleConfig, index) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const positionId = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
+
+            if (normalizedWebExId === null) {
+                return null;
+            }
+
+            if (positionId !== null) {
+                return normalizedWebExId + "::pos::" + positionId;
+            }
+
+            return normalizedWebExId + "::fallback::" + index;
+        },
+
         _createProcess: function (webExId, webExVersionId, config) {
             let resolvedProcesses = {};
 
@@ -235,7 +251,6 @@
         },
 
         _createPosition: function (webExId, configuration, singleConfig, runtime) {
-
             const normalizedPosition = $.isPlainObject(singleConfig?.position) ? singleConfig.position : {};
             if (Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
                 return this._createAttributeActivationPosition(webExId, normalizedPosition, singleConfig, runtime);
@@ -256,13 +271,14 @@
                 return {};
             }
 
-            return {[operation]: func};
+            return { [operation]: func };
         },
 
         _createAttributeActivationPosition: function (webExId, position, singleConfig, runtime) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const normalizedPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
             const recommenderName = this._recommenderName(singleConfig);
+            const anchorStateKey = this._createAnchorStateKey(webExId, singleConfig, singleConfig?._anchorStateIndex);
 
             return {
                 append: function () {
@@ -287,20 +303,26 @@
                         }
                     }
 
-                    if ($anchor.length === 1 && $.isPlainObject(runtime?.anchorState) && recommenderName !== null) {
-                        runtime.anchorState[recommenderName] = {
+                    if ($anchor.length === 1 &&
+                        $.isPlainObject(runtime?.anchorState) &&
+                        recommenderName !== null &&
+                        anchorStateKey !== null) {
+                        runtime.anchorState[anchorStateKey] = {
+                            anchorStateKey: anchorStateKey,
                             webExId: normalizedWebExId,
                             recommenderName: recommenderName,
+                            configuredPositionId: normalizedPositionId,
                             anchorType: anchorType,
                             anchorElement: $anchor.get(0)
                         };
 
-                        console.log("uiRecommendations anchorState updated", recommenderName, {
+                        console.log("uiRecommendations anchorState updated", anchorStateKey, {
+                            recommenderName: recommenderName,
                             anchorType: anchorType,
                             positionId: normalizedPositionId,
                             anchorPositionId: Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexppos")),
                             anchorElement: $anchor.get(0),
-                            anchorState: runtime.anchorState[recommenderName]
+                            anchorState: runtime.anchorState[anchorStateKey]
                         });
                     }
 
@@ -459,10 +481,6 @@
                     return false;
                 }
 
-                /*
-                 * Attribute path intentionally disabled for now.
-                 * We still return the recs so `_handle(...)` can log the current configuration.
-                 */
                 return recs.slice();
             }
 
