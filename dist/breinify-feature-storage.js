@@ -35,20 +35,6 @@
             return typeof value === 'number' && isFinite(value) && value >= 0 ? value : 250;
         },
 
-        isDebugEnabled: function () {
-            return _plugin.getConfig('debug', false) === true;
-        },
-
-        debugLog: function () {
-            if (this.isDebugEnabled() !== true || typeof console === 'undefined' || typeof console.log !== 'function') {
-                return;
-            }
-
-            const args = Array.prototype.slice.call(arguments);
-            args.unshift('[featureStorage]');
-            console.log.apply(console, args);
-        },
-
         debugError: function () {
             if (typeof console === 'undefined' || typeof console.error !== 'function') {
                 return;

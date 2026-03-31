@@ -290,7 +290,7 @@
             const config = {};
             config.recommender = await this._createPayload(singleConfig.recommender);
             config.activity = this._createActivitySettings(singleConfig);
-            config.splitTests = this._createSplitTestsSettings(singleConfig.splitTestControl);
+            config.splitTests = this._createSplitTestsSettings(webExId, configuration, singleConfig);
             config.position = this._createPosition(webExId, configuration, singleConfig, runtime);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
@@ -481,21 +481,26 @@
             };
         },
 
-        _createSplitTestsSettings: function (splitTestControl) {
-            if (!$.isPlainObject(splitTestControl)) {
+        _createSplitTestsSettings: function (webExId, configuration, singleConfig) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const splitTestControl = $.isPlainObject(singleConfig?.splitTestControl) ? singleConfig.splitTestControl : null;
+            const containerSelector = $.isPlainObject(splitTestControl) ? Breinify.UTL.isNonEmptyString(splitTestControl.selector) : null;
+
+            if (containerSelector !== null) {
+                return {
+                    control: {
+                        containerSelector: containerSelector
+                    }
+                };
+            } else if (normalizedWebExId !== null && Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
+                return {
+                    control: {
+                        containerSelector: '[data-br-ctrl-webexpid="' + normalizedWebExId + '"]'
+                    }
+                };
+            } else {
                 return {};
             }
-
-            const containerSelector = Breinify.UTL.isNonEmptyString(splitTestControl.selector);
-            if (containerSelector === null) {
-                return {};
-            }
-
-            return {
-                control: {
-                    containerSelector: containerSelector
-                }
-            };
         },
 
         _createPlaceholders: function (placeholders) {
