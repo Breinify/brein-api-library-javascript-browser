@@ -4,7 +4,6 @@
     if (typeof Breinify !== "object") {
         return;
     }
-    // make sure the plugin isn't loaded yet
     else if (Breinify.plugins._isAdded("uiRecommendations")) {
         return;
     }
@@ -45,9 +44,9 @@
             const snippet = Breinify.plugins.snippetManager.getSnippet(normalizedSnippetId);
             if (typeof snippet === "string" || $.isFunction(snippet)) {
                 return snippet;
-            } else {
-                return null;
             }
+
+            return null;
         },
 
         _getSnippetFunction: function (snippetId) {
@@ -56,11 +55,9 @@
         },
 
         _createRenderIdentity: function (webExId, singleConfig) {
-            const positionId = Breinify.UTL.isNonEmptyString(
-                singleConfig && singleConfig.position && singleConfig.position.positionId
-            );
+            const positionId = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
             const recommenderName = Breinify.UTL.isNonEmptyString(
-                singleConfig && singleConfig.recommender && singleConfig.recommender.preconfiguredRecommendation
+                singleConfig?.recommender?.preconfiguredRecommendation
             );
 
             return {
@@ -76,7 +73,7 @@
                 return;
             }
 
-            const handlingType = Breinify.UTL.isNonEmptyString(config && config.type);
+            const handlingType = Breinify.UTL.isNonEmptyString(config?.type);
             const runtime = this.getRuntime(webExVersionId);
             if (runtime === null) {
                 return;
@@ -97,7 +94,7 @@
 
             try {
                 const results = await Promise.all(
-                    normalizedRecommendations.map(recommendation =>
+                    normalizedRecommendations.map((recommendation) =>
                         Promise.resolve()
                             .then(() => this._handle(webExId, webExVersionId, recommendation, config))
                             .catch(function (err) {
@@ -110,6 +107,7 @@
                 const filteredResults = results.filter(function (entry) {
                     return $.isPlainObject(entry);
                 });
+
                 if (filteredResults.length === 0) {
                     return;
                 }
@@ -142,6 +140,7 @@
             config.meta = {
                 renderIdentity: this._createRenderIdentity(webExId, singleConfig)
             };
+
             this._applyStyle(singleConfig.style);
 
             /*
@@ -168,7 +167,8 @@
         },
 
         _createProcess: function (webExId, webExVersionId, config, recommenderConfig) {
-            let resolvedProcesses;
+            let resolvedProcesses = {};
+
             if ($.isPlainObject(config)) {
                 resolvedProcesses = Object.fromEntries(
                     Object.entries(config).flatMap(([key, snippetId]) => {
@@ -176,8 +176,6 @@
                         return func == null ? [] : [[key, func]];
                     })
                 );
-            } else {
-                resolvedProcesses = {};
             }
 
             const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
@@ -196,12 +194,10 @@
         },
 
         _createPosition: function (webExId, configuration, position, singleConfig) {
-            if (!$.isPlainObject(position)) {
-                position = {};
-            }
-
+            const normalizedPosition = $.isPlainObject(position) ? position : {};
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true;
-            const func = this._createPositionSelector(webExId, configuration, position, singleConfig);
+            const func = this._createPositionSelector(webExId, configuration, normalizedPosition, singleConfig);
+
             if (!$.isFunction(func)) {
                 return {};
             }
@@ -216,7 +212,7 @@
                 };
             }
 
-            let operation = Breinify.UTL.isNonEmptyString(position.operation);
+            let operation = Breinify.UTL.isNonEmptyString(normalizedPosition.operation);
             if (operation === null) {
                 return {};
             }
@@ -239,7 +235,7 @@
                 return null;
             }
 
-            const resolvedRenderTarget = singleConfig && singleConfig._resolvedRenderTarget;
+            const resolvedRenderTarget = singleConfig?._resolvedRenderTarget;
             if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
                 return function () {
                     return $(resolvedRenderTarget);
@@ -308,7 +304,9 @@
         },
 
         _createActivitySettings: function (config) {
-            let activityType = $.isPlainObject(config) ? Breinify.UTL.isNonEmptyString(config.activityType) : null;
+            let activityType = $.isPlainObject(config)
+                ? Breinify.UTL.isNonEmptyString(config.activityType)
+                : null;
             activityType = activityType === null ? "clickedRecommendation" : activityType;
 
             return {
@@ -346,7 +344,7 @@
 
         _recommenderName: function (rec) {
             return Breinify.UTL.isNonEmptyString(
-                rec && rec.recommender && rec.recommender.preconfiguredRecommendation
+                rec?.recommender?.preconfiguredRecommendation
             );
         },
 
@@ -358,7 +356,7 @@
         _findRequirements: function (webExId, webExVersionId, configuration, recs, $changedContainer, data) {
             if (!$.isPlainObject(data)) {
                 return false;
-            } else if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
+            } else if (!$changedContainer?.jquery || $changedContainer.length !== 1) {
                 return false;
             } else if (!$.isArray(recs) || recs.length === 0) {
                 return false;
@@ -397,6 +395,7 @@
                     const func = $.isFunction(rec._positionSelector)
                         ? rec._positionSelector
                         : this._createPositionSelector(webExId, configuration, rec.position, rec);
+
                     rec._positionSelector = func;
 
                     if (!$.isFunction(func)) {
@@ -414,7 +413,9 @@
 
                 const targetEl = $resolvedTarget.get(0);
                 const markerKey = this._createMarkerKey(webExId, webExVersionId, rec);
-                const alreadySelectedTargets = $.isArray(localSelections[markerKey]) ? localSelections[markerKey] : [];
+                const alreadySelectedTargets = $.isArray(localSelections[markerKey])
+                    ? localSelections[markerKey]
+                    : [];
 
                 let alreadySelected = false;
                 for (let j = 0; j < alreadySelectedTargets.length; j++) {
@@ -458,12 +459,13 @@
         },
 
         _normalizeGenericResolvedTarget: function ($target) {
-            if (!$target || !$target.jquery || $target.length === 0) {
+            if (!$target?.jquery || $target.length === 0) {
                 return null;
             }
 
             const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
             const targetEl = $resolvedTarget.get(0);
+
             if (!Breinify.UTL.dom.isNodeType(targetEl, 1)) {
                 return null;
             } else if (targetEl.isConnected !== true) {
@@ -475,7 +477,7 @@
 
         _resolveAttributeAnchorFromMutation: function (webExId, position, $changedContainer) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            if (normalizedWebExId === null || !$changedContainer || $changedContainer.length !== 1) {
+            if (normalizedWebExId === null || !$changedContainer?.jquery || $changedContainer.length !== 1) {
                 return null;
             }
 
@@ -484,13 +486,14 @@
                 return null;
             }
 
-            const positionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
+            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
 
             if (positionId !== null) {
                 const $specific = this._findAttributeAnchorInRoot(
                     root,
                     'div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]'
                 );
+
                 if ($specific !== null) {
                     return $specific;
                 }
@@ -519,12 +522,13 @@
         },
 
         _normalizeAttributeResolvedTarget: function ($target) {
-            if (!$target || !$target.jquery || $target.length === 0) {
+            if (!$target?.jquery || $target.length === 0) {
                 return null;
             }
 
             const $resolvedTarget = $target.length === 1 ? $target : $target.eq(0);
             const targetEl = $resolvedTarget.get(0);
+
             if (!Breinify.UTL.dom.isNodeType(targetEl, 1)) {
                 return null;
             } else if (targetEl.tagName !== "DIV") {
@@ -537,7 +541,7 @@
         },
 
         _getRenderedRecommendationMeta: function ($candidate) {
-            if (!$candidate || !$candidate.jquery || $candidate.length !== 1) {
+            if (!$candidate?.jquery || $candidate.length !== 1) {
                 return null;
             }
 
@@ -582,12 +586,14 @@
         },
 
         _validateAndNormalizeAttributeTarget: function (webExId, position, recommender, $resolvedTarget) {
-            if (!$resolvedTarget || $resolvedTarget.length !== 1) {
+            if (!$resolvedTarget?.jquery || $resolvedTarget.length !== 1) {
                 return false;
             }
 
             const targetEl = $resolvedTarget.get(0);
-            if (!Breinify.UTL.dom.isNodeType(targetEl, 1) || targetEl.tagName !== "DIV" || targetEl.isConnected !== true) {
+            if (!Breinify.UTL.dom.isNodeType(targetEl, 1) ||
+                targetEl.tagName !== "DIV" ||
+                targetEl.isConnected !== true) {
                 return false;
             }
 
@@ -598,10 +604,10 @@
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const anchorWebExpId = Breinify.UTL.isNonEmptyString($resolvedTarget.attr("data-br-webexpid"));
             const anchorPositionId = Breinify.UTL.isNonEmptyString($resolvedTarget.attr("data-br-webexppos"));
-            const expectedPositionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
+            const expectedPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
             const expectedRecommenderName = this._recommenderName(recommender);
 
-            const $directRendered = $resolvedTarget.children('[data-br-rec-webexpid]');
+            const $directRendered = $resolvedTarget.children("[data-br-rec-webexpid]");
             let hasExactMatch = false;
 
             $directRendered.each((idx, el) => {
@@ -626,7 +632,12 @@
                     return;
                 }
 
-                if (this._matchesRenderedRecommendationIdentity(meta, normalizedWebExId, expectedPositionId, expectedRecommenderName)) {
+                if (this._matchesRenderedRecommendationIdentity(
+                    meta,
+                    normalizedWebExId,
+                    expectedPositionId,
+                    expectedRecommenderName
+                )) {
                     if (hasExactMatch === true) {
                         $candidate.remove();
                     } else {
@@ -644,12 +655,13 @@
                 return null;
             }
 
-            const positionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
+            const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
             let $anchor = null;
 
             if (positionId !== null) {
                 $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
                 $anchor = this._normalizeAttributeResolvedTarget($anchor);
+
                 if ($anchor !== null) {
                     return $anchor;
                 }
@@ -661,7 +673,7 @@
 
         _createAttributePositionSelector: function (webExId, position, recommender) {
             const _self = this;
-            const resolvedRenderTarget = recommender && recommender._resolvedRenderTarget;
+            const resolvedRenderTarget = recommender?._resolvedRenderTarget;
 
             if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
                 return function () {
@@ -679,8 +691,11 @@
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
-            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
+            const recs = $.isPlainObject(config) && $.isArray(config.recommendations)
+                ? config.recommendations
+                : [];
             const runtime = _private.getRuntime(webExVersionId);
+
             if (runtime === null) {
                 return;
             }
@@ -690,7 +705,7 @@
 
             for (let i = 0; i < recs.length; i++) {
                 const rec = recs[i];
-                const position = $.isPlainObject(rec) && $.isPlainObject(rec.position) ? rec.position : {};
+                const position = $.isPlainObject(rec?.position) ? rec.position : {};
 
                 let behavior = Breinify.UTL.isNonEmptyString(position.renderingBehavior);
                 behavior = behavior === null ? null : behavior.toLowerCase();
@@ -747,18 +762,21 @@
             };
 
             module.onChange = function (data) {
-                if ($.isPlainObject(data) && $.isPlainObject(data.onLoad)) {
+                if ($.isPlainObject(data?.onLoad)) {
                     _self.handle(webExId, webExVersionId, data.onLoad);
                 }
 
-                if ($.isPlainObject(data) && $.isPlainObject(data.onChange)) {
+                if ($.isPlainObject(data?.onChange)) {
                     _self.handle(webExId, webExVersionId, data.onChange);
                 }
             };
         },
 
         handle: function (webExId, webExVersionId, config) {
-            const recommendations = $.isArray(config && config.recommendations) ? config.recommendations : [];
+            const recommendations = $.isArray(config?.recommendations)
+                ? config.recommendations
+                : [];
+
             if (recommendations.length === 0) {
                 return;
             }
