@@ -1895,7 +1895,12 @@
                         $itemContainer = $container;
                     }
 
-                    _self._setupContainer($itemContainer, option, result);
+                    $itemContainer = _self._setupContainer($itemContainer, option, result);
+                    if ($itemContainer === null) {
+                        return;
+                    }
+
+                    Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, result, option);
                 });
 
                 return "out-of-date";
