@@ -62,14 +62,22 @@
         },
 
         _createRenderIdentity: function (webExId, singleConfig) {
-            const positionId = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
+            const resolvedRenderTarget = singleConfig?._resolvedRenderTarget;
+            let renderedPositionId = null;
+
+            if (Breinify.UTL.dom.isNodeType(resolvedRenderTarget, 1)) {
+                renderedPositionId = Breinify.UTL.isNonEmptyString($(resolvedRenderTarget).attr("data-br-webexppos"));
+            } else {
+                renderedPositionId = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
+            }
+
             const recommenderName = Breinify.UTL.isNonEmptyString(
                 singleConfig?.recommender?.preconfiguredRecommendation
             );
 
             return {
                 webExId: Breinify.UTL.isNonEmptyString(webExId),
-                positionId: positionId,
+                positionId: renderedPositionId,
                 recommenderName: recommenderName
             };
         },
