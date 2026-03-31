@@ -748,30 +748,6 @@
             };
         },
 
-        _matchesLogicalRecommenderIdentity: function (meta, webExId, configuredPositionId, recommenderName) {
-            if (!$.isPlainObject(meta)) {
-                return false;
-            }
-
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            const normalizedRecommenderName = Breinify.UTL.isNonEmptyString(recommenderName);
-
-            if (Breinify.UTL.isNonEmptyString(meta.webExId) !== normalizedWebExId) {
-                return false;
-            }
-
-            /*
-             * A recommender is logically unique by webExId + recommenderName.
-             * Position only decides where it should live right now, not whether
-             * an already-rendered block belongs to the same logical recommender.
-             */
-            if (normalizedRecommenderName !== null) {
-                return Breinify.UTL.isNonEmptyString(meta.recommenderName) === normalizedRecommenderName;
-            }
-
-            return false;
-        },
-
         _matchesRenderedRecommendationIdentity: function (meta, webExId, positionId, recommenderName) {
             if (!$.isPlainObject(meta)) {
                 return false;
@@ -800,12 +776,38 @@
             return true;
         },
 
+        _matchesLogicalRecommenderIdentity: function (meta, webExId, configuredPositionId, recommenderName) {
+            if (!$.isPlainObject(meta)) {
+                return false;
+            }
+
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const normalizedConfiguredPositionId = Breinify.UTL.isNonEmptyString(configuredPositionId);
+            const normalizedRecommenderName = Breinify.UTL.isNonEmptyString(recommenderName);
+
+            if (Breinify.UTL.isNonEmptyString(meta.webExId) !== normalizedWebExId) {
+                return false;
+            }
+
+            if (normalizedRecommenderName !== null) {
+                return Breinify.UTL.isNonEmptyString(meta.recommenderName) === normalizedRecommenderName;
+            }
+
+            if (normalizedConfiguredPositionId !== null) {
+                const metaPositionId = Breinify.UTL.isNonEmptyString(meta.positionId);
+                return metaPositionId === normalizedConfiguredPositionId || metaPositionId === null;
+            }
+
+            return Breinify.UTL.isNonEmptyString(meta.positionId) === null;
+        },
+
         _cleanupStaleAttributeRenderedRecommendations: function (webExId, position, recommender, $activeTarget) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             if (normalizedWebExId === null || !$activeTarget?.jquery || $activeTarget.length !== 1) {
                 return false;
             }
 
+            const configuredPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
             const activePositionId = Breinify.UTL.isNonEmptyString($activeTarget.attr("data-br-webexppos"));
             const recommenderName = this._recommenderName(recommender);
             const activeTargetEl = $activeTarget.get(0);
@@ -824,25 +826,17 @@
                     if (this._matchesLogicalRecommenderIdentity(
                         meta,
                         normalizedWebExId,
-                        null,
+                        configuredPositionId,
                         recommenderName
                     ) !== true) {
                         return;
                     }
 
-                    /*
-                     * Any matching logical recommender rendered in a non-active anchor
-                     * is stale and must be removed.
-                     */
                     if (isActiveAnchor !== true) {
                         $candidate.remove();
                         return;
                     }
 
-                    /*
-                     * Inside the active anchor, keep only the exact match for the current
-                     * rendered identity and remove everything else.
-                     */
                     if (this._matchesRenderedRecommendationIdentity(
                         meta,
                         normalizedWebExId,
