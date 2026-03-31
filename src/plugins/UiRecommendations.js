@@ -488,17 +488,21 @@
 
             const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
 
+            /*
+             * Specific recommender:
+             * only match the exact specific anchor inside the changed subtree.
+             */
             if (positionId !== null) {
-                const $specific = this._findAttributeAnchorInRoot(
+                return this._findAttributeAnchorInRoot(
                     root,
                     'div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]'
                 );
-
-                if ($specific !== null) {
-                    return $specific;
-                }
             }
 
+            /*
+             * Generic recommender:
+             * only match the generic anchor.
+             */
             return this._findAttributeAnchorInRoot(
                 root,
                 'div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])'
@@ -656,18 +660,21 @@
             }
 
             const positionId = Breinify.UTL.isNonEmptyString(position?.positionId);
-            let $anchor = null;
 
+            /*
+             * Specific recommender:
+             * only resolve the exact specific anchor.
+             */
             if (positionId !== null) {
-                $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
-                $anchor = this._normalizeAttributeResolvedTarget($anchor);
-
-                if ($anchor !== null) {
-                    return $anchor;
-                }
+                const $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"][data-br-webexppos="' + positionId + '"]').eq(0);
+                return this._normalizeAttributeResolvedTarget($anchor);
             }
 
-            $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
+            /*
+             * Generic recommender:
+             * only resolve the generic anchor.
+             */
+            const $anchor = $('div[data-br-webexpid="' + normalizedWebExId + '"]:not([data-br-webexppos])').eq(0);
             return this._normalizeAttributeResolvedTarget($anchor);
         },
 
