@@ -183,10 +183,101 @@
             }
         },
 
+        /**
+         * Normalizes the optional render identity configured on a render option.
+         *
+         * The method reads `option.meta.renderIdentity` and returns a sanitized object
+         * containing only normalized non-empty string values. If the identity is missing
+         * or all values are empty, `null` is returned.
+         *
+         * This normalization keeps the stamping path small and predictable and ensures
+         * that empty values do not end up as DOM attributes.
+         *
+         * @param {Object} option
+         * the render option that may contain `meta.renderIdentity`
+         *
+         * @returns {{
+         *   webExId: String|null,
+         *   positionId: String|null,
+         *   recommenderName: String|null
+         * }|null}
+         * normalized render identity or `null` if no meaningful identity is available
+         */
+        _readRenderIdentity: function (option) {
+            const identity = $.isPlainObject(option) && $.isPlainObject(option.meta) && $.isPlainObject(option.meta.renderIdentity)
+                ? option.meta.renderIdentity
+                : null;
+            if (!$.isPlainObject(identity)) {
+                return null;
+            }
+
+            const webExId = Breinify.UTL.isNonEmptyString(identity.webExId);
+            const positionId = Breinify.UTL.isNonEmptyString(identity.positionId);
+            const recommenderName = Breinify.UTL.isNonEmptyString(identity.recommenderName);
+
+            if (webExId === null && positionId === null && recommenderName === null) {
+                return null;
+            }
+
+            return {
+                webExId: webExId,
+                positionId: positionId,
+                recommenderName: recommenderName
+            };
+        },
+
+        /**
+         * Applies the normalized render identity to the outer rendered container.
+         *
+         * If a valid render identity is available, the method writes the corresponding
+         * `data-br-rec-*` attributes to the container. If no valid identity exists,
+         * any previously present identity attributes are removed.
+         *
+         * This helper centralizes identity stamping so that all rendering paths
+         * (normal rendering, binding, and external rendering) use the same logic.
+         *
+         * @param {jQuery} $container
+         * the outer rendered recommendation container
+         *
+         * @param {Object} option
+         * the render option that may contain `meta.renderIdentity`
+         */
+        _stampRenderIdentity: function ($container, option) {
+            if (!$container || !$container.jquery || $container.length !== 1) {
+                return;
+            }
+
+            const identity = this._readRenderIdentity(option);
+            if (identity === null) {
+                $container
+                    .removeAttr("data-br-rec-webexpid")
+                    .removeAttr("data-br-rec-positionid")
+                    .removeAttr("data-br-rec-name");
+                return;
+            }
+
+            if (identity.webExId !== null) {
+                $container.attr("data-br-rec-webexpid", identity.webExId);
+            } else {
+                $container.removeAttr("data-br-rec-webexpid");
+            }
+
+            if (identity.positionId !== null) {
+                $container.attr("data-br-rec-positionid", identity.positionId);
+            } else {
+                $container.removeAttr("data-br-rec-positionid");
+            }
+
+            if (identity.recommenderName !== null) {
+                $container.attr("data-br-rec-name", identity.recommenderName);
+            } else {
+                $container.removeAttr("data-br-rec-name");
+            }
+        },
+
         _appendContainer: function (option, data, cb) {
             const _self = this;
 
-            // no position defined to append
             if (!$.isPlainObject(option) || !$.isPlainObject(option.position)) {
                 cb(null, {
                     error: true,
@@ -215,6 +306,11 @@
                 method = "replaceWith";
             } else if (option.position.externalRender != null) {
                 this._applyExternalRender(option, data, function ($target, settings) {
+                    if ($target && $target.jquery && $target.length === 1) {
+                        $target.addClass(_self.marker.parentContainer);
+                        _self._stampRenderIdentity($target, option);
+                    }
+
                     cb($target, $.extend(true, {
                         error: false,
                         externalRendering: true,
@@ -224,14 +320,6 @@
                 return;
             }
 
-            /*
-             * The arguments for the methods align with the UI Recommendations check for requirements, i.e.,
-             * if the recommender is configured to render on DOM tree changes, the same method is called with
-             * 1. recommenderName
-             * 2. modified element
-             * 3. data defining the reasoning/type of the call (i.e., added-element (dom-tree change), or
-             *    determine-container)
-             */
             const recommenderName = this._recommenderName(option?.recommender?.payload);
             const $anchor = this._determineSelector(selector, recommenderName, null, {
                 type: "determine-container",
@@ -257,17 +345,14 @@
                 return;
             }
 
-            // replace values within the container before appending it
             _self._replacePlaceholders($container, data, option);
 
-            /*
-             * Execute the method on the $anchor, for some reason the assignment to a variable of
-             * $anchor[method] causes issues, thus we do it directly.
-             */
             if ($.isFunction($anchor[method])) {
                 $anchor[method]($container);
 
                 $container.addClass(this.marker.parentContainer);
+                this._stampRenderIdentity($container, option);
+
                 cb($container, {
                     error: false,
                     externalRendering: false
@@ -542,7 +627,47 @@
              *
              * @type {String|null}
              */
-            processId: null
+            processId: null,
+            /**
+             * Optional rendering identity used to stamp the outer rendered container
+             * with stable DOM metadata.
+             *
+             * This identity is primarily used by higher-level integrations such as
+             * `uiRecommendations` to associate a rendered recommendation block with:
+             * - the owning web-experience
+             * - an optional attribute-position anchor
+             * - an optional recommender name
+             *
+             * When present, the renderer writes the following attributes onto the
+             * outer parent container:
+             * - `data-br-rec-webexpid`
+             * - `data-br-rec-positionid`
+             * - `data-br-rec-name`
+             *
+             * This metadata is not required for normal recommendation rendering.
+             * It exists to support integration-level reconciliation, deduplication,
+             * refresh handling, and DOM inspection/debugging for dynamic placements.
+             *
+             * Expected shape:
+             * {
+             *   webExId: "...",
+             *   positionId: "...",
+             *   recommenderName: "..."
+             * }
+             *
+             * Notes:
+             * - all properties are optional, but at least one meaningful value should exist
+             * - when `null`, no render identity metadata is written
+             * - callers should treat this as descriptive container identity, not as a
+             *   general-purpose data channel
+             *
+             * @type {{
+             *   webExId: String|null,
+             *   positionId: String|null,
+             *   recommenderName: String|null
+             * }|null}
+             */
+            renderIdentity: null
         },
 
         /**
@@ -1544,6 +1669,8 @@
                 return;
             }
 
+            Renderer._stampRenderIdentity($container, option);
+
             $container = this._setupContainer($container, option, data);
             if ($container === null) {
                 return;
@@ -1551,10 +1678,6 @@
 
             this._applyBindings(option, $container);
 
-            /*
-             * There is currently no item bound to the container (which is expected when being
-             * on a non-control group), see _handleRecommendationClick(...)
-             */
             let $items = Renderer._determineSelector(option.templates.item, $container);
             if ($items !== null) {
                 $items.each(function (idx) {

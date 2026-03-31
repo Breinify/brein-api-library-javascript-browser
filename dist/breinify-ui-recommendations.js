@@ -55,6 +55,21 @@
             return $.isFunction(snippet) ? snippet : null;
         },
 
+        _createRenderIdentity: function (webExId, singleConfig) {
+            const positionId = Breinify.UTL.isNonEmptyString(
+                singleConfig && singleConfig.position && singleConfig.position.positionId
+            );
+            const recommenderName = Breinify.UTL.isNonEmptyString(
+                singleConfig && singleConfig.recommender && singleConfig.recommender.preconfiguredRecommendation
+            );
+
+            return {
+                webExId: Breinify.UTL.isNonEmptyString(webExId),
+                positionId: positionId,
+                recommenderName: recommenderName
+            };
+        },
+
         handle: async function (webExId, webExVersionId, recommendations, config) {
             const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
             if (normalizedRecommendations.length === 0) {
@@ -124,6 +139,9 @@
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
             config.process = this._createProcess(webExId, webExVersionId, singleConfig.process, singleConfig);
+            config.meta = {
+                renderIdentity: this._createRenderIdentity(webExId, singleConfig)
+            };
             this._applyStyle(singleConfig.style);
 
             /*
@@ -161,44 +179,6 @@
             } else {
                 resolvedProcesses = {};
             }
-
-            const originalAttachedContainer = $.isFunction(resolvedProcesses.attachedContainer)
-                ? resolvedProcesses.attachedContainer
-                : null;
-
-            resolvedProcesses.attachedContainer = function ($container, $itemContainer, data, option) {
-                if ($container && $container.length === 1) {
-                    const positionId = Breinify.UTL.isNonEmptyString(
-                        recommenderConfig && recommenderConfig.position && recommenderConfig.position.positionId
-                    );
-                    const recommenderName = Breinify.UTL.isNonEmptyString(
-                        recommenderConfig && recommenderConfig.recommender && recommenderConfig.recommender.preconfiguredRecommendation
-                    );
-
-                    $container.attr("data-br-rec-webexpid", webExId);
-                    if (positionId !== null) {
-                        $container.attr("data-br-rec-positionid", positionId);
-                    } else {
-                        $container.removeAttr("data-br-rec-positionid");
-                    }
-
-                    if (recommenderName !== null) {
-                        $container.attr("data-br-rec-name", recommenderName);
-                    } else {
-                        $container.removeAttr("data-br-rec-name");
-                    }
-
-                    $container.data("br.uiRecommendations.renderMeta", {
-                        webExId: webExId,
-                        positionId: positionId,
-                        recommenderName: recommenderName
-                    });
-                }
-
-                if ($.isFunction(originalAttachedContainer)) {
-                    originalAttachedContainer.call(this, $container, $itemContainer, data, option);
-                }
-            };
 
             const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
                 ? resolvedProcesses.createActivity
