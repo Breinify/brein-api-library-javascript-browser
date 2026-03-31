@@ -209,76 +209,6 @@
             return resolvedProcesses;
         },
 
-        _cleanupRenderedRecommendationsInAnchor: function (webExId, $anchor, keepSelector) {
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            if (normalizedWebExId === null || !$anchor || !$anchor.jquery || $anchor.length !== 1) {
-                return;
-            }
-
-            const $rendered = $anchor.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
-            if ($rendered.length === 0) {
-                return;
-            }
-
-            $rendered.each(function () {
-                const $candidate = $(this);
-
-                if (typeof keepSelector === "string" && keepSelector.trim() !== "" && $candidate.is(keepSelector)) {
-                    return;
-                }
-
-                $candidate.remove();
-            });
-        },
-
-        _cleanupInvalidRenderedRecommendationsForAttributeTarget: function (webExId, $target) {
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            if (normalizedWebExId === null || !$target || !$target.jquery || $target.length !== 1) {
-                return;
-            }
-
-            const currentWebExpId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexpid"));
-            const currentPositionId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexppos"));
-            const $rendered = $target.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
-
-            if ($rendered.length === 0) {
-                return;
-            }
-
-            $rendered.each(function () {
-                const $candidate = $(this);
-                const renderedPositionId = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-positionid"));
-
-                /*
-                 * If this anchor no longer belongs to this web experience,
-                 * everything rendered for that web experience under this anchor is stale.
-                 */
-                if (currentWebExpId !== normalizedWebExId) {
-                    $candidate.remove();
-                    return;
-                }
-
-                /*
-                 * Generic anchor:
-                 * only generic rendered content may remain.
-                 */
-                if (currentPositionId === null) {
-                    if (renderedPositionId !== null) {
-                        $candidate.remove();
-                    }
-                    return;
-                }
-
-                /*
-                 * Specific anchor:
-                 * only the exact same position may remain.
-                 */
-                if (renderedPositionId !== currentPositionId) {
-                    $candidate.remove();
-                }
-            });
-        },
-
         _createPosition: function (webExId, configuration, position, singleConfig) {
             if (!$.isPlainObject(position)) {
                 position = {};
@@ -468,6 +398,17 @@
                 return false;
             }
 
+            /*
+             * ATTRIBUTE mode:
+             * reconcile stale rendered blocks in the changed subtree before deciding what may render.
+             * This keeps mutations like:
+             * specific -> foreign -> generic
+             * deterministic and prevents leftover duplicates.
+             */
+            if (hasAttributeActivation === true) {
+                this._reconcileAttributeMutationRoot(webExId, $changedContainer);
+            }
+
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
 
@@ -520,13 +461,14 @@
                 }
 
                 if (hasAttributeActivation === true) {
-                    if (this._validateAndNormalizeAttributeTarget(webExId, rec.position, rec, $resolvedTarget) !== true) {
+                    const decision = this._resolveAttributeRenderDecision(webExId, rec.position, rec, $resolvedTarget);
+                    if (!$.isPlainObject(decision) || decision.valid !== true || decision.alreadyRendered === true) {
                         continue;
                     }
                 } else {
                     /*
-                     * Restore old non-ATTRIBUTE protection.
-                     * This is needed especially for before/after/replace where the rendered
+                     * Keep the non-ATTRIBUTE hot path strict and cheap.
+                     * This is especially important for before/after/replace where the rendered
                      * container may not be a descendant of the anchor.
                      */
                     if ($resolvedTarget.hasClass(markerContainerClass)) {
@@ -639,51 +581,131 @@
             return $resolvedTarget;
         },
 
-        _validateAndNormalizeAttributeTarget: function (webExId, position, recommender, $resolvedTarget) {
-            if (!$resolvedTarget || $resolvedTarget.length !== 1) {
-                return false;
+        _resolveAttributeRenderDecision: function (webExId, position, recommender, $anchor) {
+            if (!$anchor || !$anchor.jquery || $anchor.length !== 1) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
             }
 
-            const targetEl = $resolvedTarget.get(0);
-            if (!Breinify.UTL.dom.isNodeType(targetEl, 1) || targetEl.tagName !== "DIV" || targetEl.isConnected !== true) {
-                return false;
+            const anchorEl = $anchor.get(0);
+            if (!Breinify.UTL.dom.isNodeType(anchorEl, 1) || anchorEl.tagName !== "DIV" || anchorEl.isConnected !== true) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
             }
 
             /*
              * Never render into an already rendered recommendation container.
              */
-            if ($resolvedTarget.is('[data-' + Breinify.plugins.recommendations.marker.container + '="true"]')) {
-                return false;
+            if ($anchor.is('[data-' + Breinify.plugins.recommendations.marker.container + '="true"]')) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
             }
 
-            /*
-             * First clean up anything stale already sitting directly under this anchor.
-             */
-            this._cleanupInvalidRenderedRecommendationsForAttributeTarget(webExId, $resolvedTarget);
-
-            const existingSelector = this._createRenderedRecommendationSelector(webExId, position, recommender);
-            if (existingSelector === null) {
-                return false;
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
             }
 
-            /*
-             * If we already have the exact rendered block under this exact anchor,
-             * do not render again.
-             */
-            if ($resolvedTarget.children(existingSelector).length > 0) {
-                return false;
+            const currentWebExpId = Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexpid"));
+            if (currentWebExpId !== normalizedWebExId) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
             }
 
-            /*
-             * Before rendering the new instance, remove other rendered blocks for the same webExp
-             * directly under this anchor. This prevents generic/specific leftovers from stacking up.
-             */
-            this._cleanupRenderedRecommendationsInAnchor(webExId, $resolvedTarget, existingSelector);
+            const expectedSelector = this._createRenderedRecommendationSelector(webExId, position, recommender);
+            if (expectedSelector === null) {
+                return {
+                    valid: false,
+                    alreadyRendered: false
+                };
+            }
 
-            return true;
+            const currentPositionId = Breinify.UTL.isNonEmptyString($anchor.attr("data-br-webexppos"));
+            const expectedPositionId = Breinify.UTL.isNonEmptyString(position && position.positionId);
+            const expectedRecommenderName = this._recommenderName(recommender);
+
+            const $renderedChildren = $anchor.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
+
+            let validCount = 0;
+            let hasExact = false;
+
+            $renderedChildren.each(function () {
+                const $candidate = $(this);
+                const renderedPositionId = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-positionid"));
+                const renderedRecommenderName = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-name"));
+
+                let isValidForAnchor = false;
+                let isExact = false;
+
+                /*
+                 * Generic anchor:
+                 * only generic rendered blocks of the same recommender may remain.
+                 */
+                if (currentPositionId === null) {
+                    isValidForAnchor = renderedPositionId === null &&
+                        renderedRecommenderName === expectedRecommenderName;
+
+                    isExact = expectedPositionId === null &&
+                        renderedPositionId === null &&
+                        renderedRecommenderName === expectedRecommenderName;
+                }
+                /*
+                 * Specific anchor:
+                 * only the exact same position may remain.
+                 */
+                else {
+                    isValidForAnchor = renderedPositionId === currentPositionId &&
+                        renderedRecommenderName === expectedRecommenderName;
+
+                    isExact = expectedPositionId === currentPositionId &&
+                        renderedPositionId === currentPositionId &&
+                        renderedRecommenderName === expectedRecommenderName;
+                }
+
+                if (isValidForAnchor !== true) {
+                    $candidate.remove();
+                    return;
+                }
+
+                validCount++;
+                if (isExact === true) {
+                    if (hasExact === false) {
+                        hasExact = true;
+                    } else {
+                        /*
+                         * Duplicate exact instance: keep only the first exact one.
+                         */
+                        $candidate.remove();
+                        validCount--;
+                    }
+                } else {
+                    /*
+                     * Valid for anchor, but not the exact instance currently expected:
+                     * remove it so the render state converges to exactly one expected block.
+                     */
+                    $candidate.remove();
+                    validCount--;
+                }
+            });
+
+            return {
+                valid: true,
+                alreadyRendered: hasExact === true
+            };
         },
 
-        _reconcileAttributeTargetsInRoot: function (webExId, $changedContainer) {
+        _reconcileAttributeMutationRoot: function (webExId, $changedContainer) {
             if (!$changedContainer || !$changedContainer.jquery || $changedContainer.length !== 1) {
                 return;
             }
@@ -693,6 +715,15 @@
                 return;
             }
 
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null) {
+                return;
+            }
+
+            /*
+             * Subtree-local reconciliation only.
+             * This keeps ATTRIBUTE cleanup deterministic without turning the hot path into a global scan.
+             */
             const targets = [];
 
             if (root.tagName === "DIV") {
@@ -714,59 +745,49 @@
                 }
 
                 seen.push(target);
-                this._reconcileRenderedRecommendationsForAttributeTarget(webExId, $(target));
-            }
-        },
 
-        _reconcileRenderedRecommendationsForAttributeTarget: function (webExId, $target) {
-            if (!$target || !$target.jquery || $target.length !== 1) {
-                return;
-            }
+                const $target = $(target);
+                const currentWebExpId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexpid"));
+                const currentPositionId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexppos"));
+                const $renderedChildren = $target.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
 
-            const targetEl = $target.get(0);
-            if (!Breinify.UTL.dom.isNodeType(targetEl, 1) || targetEl.tagName !== "DIV") {
-                return;
-            }
-
-            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            if (normalizedWebExId === null) {
-                return;
-            }
-
-            const currentWebExpId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexpid"));
-            const currentPositionId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexppos"));
-
-            const $rendered = $target.find('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
-            if ($rendered.length === 0) {
-                return;
-            }
-
-            $rendered.each(function () {
-                const $candidate = $(this);
-                const renderedPositionId = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-positionid"));
-
-                /*
-                 * If the anchor no longer belongs to this web experience,
-                 * everything rendered for this web experience below it is stale.
-                 */
-                if (currentWebExpId !== normalizedWebExId) {
-                    $candidate.remove();
-                    return;
+                if ($renderedChildren.length === 0) {
+                    continue;
                 }
 
-                /*
-                 * Validity rules:
-                 * - generic anchor (no data-br-webexppos) may only contain generic rendered recs
-                 * - specific anchor may only contain recs with the exact matching position id
-                 */
-                if (currentPositionId === null) {
-                    if (renderedPositionId !== null) {
+                $renderedChildren.each(function () {
+                    const $candidate = $(this);
+                    const renderedPositionId = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-positionid"));
+
+                    /*
+                     * If the anchor no longer belongs to this web experience,
+                     * everything rendered for that web experience directly below it is stale.
+                     */
+                    if (currentWebExpId !== normalizedWebExId) {
+                        $candidate.remove();
+                        return;
+                    }
+
+                    /*
+                     * Generic anchor:
+                     * only generic rendered content may remain.
+                     */
+                    if (currentPositionId === null) {
+                        if (renderedPositionId !== null) {
+                            $candidate.remove();
+                        }
+                        return;
+                    }
+
+                    /*
+                     * Specific anchor:
+                     * only the exact same position may remain.
+                     */
+                    if (renderedPositionId !== currentPositionId) {
                         $candidate.remove();
                     }
-                } else if (renderedPositionId !== currentPositionId) {
-                    $candidate.remove();
-                }
-            });
+                });
+            }
         },
 
         _resolveAttributeAnchor: function (webExId, position) {
