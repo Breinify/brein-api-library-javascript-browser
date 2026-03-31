@@ -140,20 +140,21 @@
 
         _cleanUpAttributeActivation: function (webExId, webExVersionId, runtime, recommendations) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-            const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
-
-            if (normalizedWebExId === null ||
-                !$.isPlainObject(runtime) ||
-                normalizedRecommendations.length === 0) {
+            if (normalizedWebExId === null || !$.isPlainObject(runtime?.anchorState)) {
                 return;
             }
 
-            console.log("uiRecommendations cleanUpAttributeActivation", {
-                webExId: normalizedWebExId,
-                webExVersionId: webExVersionId,
-                runtime: runtime,
-                recommendations: normalizedRecommendations
+            Object.keys(runtime.anchorState).forEach(function (recommenderName) {
+                const state = runtime.anchorState[recommenderName];
+                const anchorElement = state && state.anchorElement;
+                if (Breinify.UTL.dom.isNodeType(anchorElement, 1)) {
+                    $(anchorElement)
+                        .children('[data-br-rec-webexpid="' + normalizedWebExId + '"]')
+                        .remove();
+                }
             });
+
+            runtime.anchorState = {};
         },
 
         _handle: async function (webExId, webExVersionId, singleConfig, configuration, runtime) {
