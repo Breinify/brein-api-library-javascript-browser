@@ -184,6 +184,8 @@
                     );
                     if (recommenderName !== null) {
                         $container.attr("data-br-rec-name", recommenderName);
+                    } else {
+                        $container.removeAttr("data-br-rec-name");
                     }
                 }
 
@@ -205,6 +207,76 @@
             };
 
             return resolvedProcesses;
+        },
+
+        _cleanupRenderedRecommendationsInAnchor: function (webExId, $anchor, keepSelector) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null || !$anchor || !$anchor.jquery || $anchor.length !== 1) {
+                return;
+            }
+
+            const $rendered = $anchor.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
+            if ($rendered.length === 0) {
+                return;
+            }
+
+            $rendered.each(function () {
+                const $candidate = $(this);
+
+                if (typeof keepSelector === "string" && keepSelector.trim() !== "" && $candidate.is(keepSelector)) {
+                    return;
+                }
+
+                $candidate.remove();
+            });
+        },
+
+        _cleanupInvalidRenderedRecommendationsForAttributeTarget: function (webExId, $target) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null || !$target || !$target.jquery || $target.length !== 1) {
+                return;
+            }
+
+            const currentWebExpId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexpid"));
+            const currentPositionId = Breinify.UTL.isNonEmptyString($target.attr("data-br-webexppos"));
+            const $rendered = $target.children('[data-br-rec-webexpid="' + normalizedWebExId + '"]');
+
+            if ($rendered.length === 0) {
+                return;
+            }
+
+            $rendered.each(function () {
+                const $candidate = $(this);
+                const renderedPositionId = Breinify.UTL.isNonEmptyString($candidate.attr("data-br-rec-positionid"));
+
+                /*
+                 * If this anchor no longer belongs to this web experience,
+                 * everything rendered for that web experience under this anchor is stale.
+                 */
+                if (currentWebExpId !== normalizedWebExId) {
+                    $candidate.remove();
+                    return;
+                }
+
+                /*
+                 * Generic anchor:
+                 * only generic rendered content may remain.
+                 */
+                if (currentPositionId === null) {
+                    if (renderedPositionId !== null) {
+                        $candidate.remove();
+                    }
+                    return;
+                }
+
+                /*
+                 * Specific anchor:
+                 * only the exact same position may remain.
+                 */
+                if (renderedPositionId !== currentPositionId) {
+                    $candidate.remove();
+                }
+            });
         },
 
         _createPosition: function (webExId, configuration, position, singleConfig) {
@@ -396,10 +468,6 @@
                 return false;
             }
 
-            if (hasAttributeActivation === true) {
-                this._reconcileAttributeTargetsInRoot(webExId, $changedContainer);
-            }
-
             const markerContainerClass = Breinify.plugins.recommendations.marker.container;
             const markerSelector = "." + markerContainerClass;
 
@@ -581,16 +649,38 @@
                 return false;
             }
 
+            /*
+             * Never render into an already rendered recommendation container.
+             */
             if ($resolvedTarget.is('[data-' + Breinify.plugins.recommendations.marker.container + '="true"]')) {
                 return false;
             }
+
+            /*
+             * First clean up anything stale already sitting directly under this anchor.
+             */
+            this._cleanupInvalidRenderedRecommendationsForAttributeTarget(webExId, $resolvedTarget);
 
             const existingSelector = this._createRenderedRecommendationSelector(webExId, position, recommender);
             if (existingSelector === null) {
                 return false;
             }
 
-            return $resolvedTarget.find(existingSelector).length <= 0;
+            /*
+             * If we already have the exact rendered block under this exact anchor,
+             * do not render again.
+             */
+            if ($resolvedTarget.children(existingSelector).length > 0) {
+                return false;
+            }
+
+            /*
+             * Before rendering the new instance, remove other rendered blocks for the same webExp
+             * directly under this anchor. This prevents generic/specific leftovers from stacking up.
+             */
+            this._cleanupRenderedRecommendationsInAnchor(webExId, $resolvedTarget, existingSelector);
+
+            return true;
         },
 
         _reconcileAttributeTargetsInRoot: function (webExId, $changedContainer) {
