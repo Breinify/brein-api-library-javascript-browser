@@ -167,7 +167,9 @@
                 return false;
             }
 
-            const anchorState = runtime.anchorState;
+            const anchorState = $.isPlainObject(runtime._nextAnchorState)
+                ? runtime._nextAnchorState
+                : runtime.anchorState;
             const nextAnchorState = {};
             let changed = false;
 
