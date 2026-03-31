@@ -182,8 +182,13 @@
             if (activeRules.length === 0) {
                 return payload.cleanup.length === 0 ? false : payload;
             } else if (type === "removed-element") {
-                return false;
-            } else if (type === "full-scan") {
+                if (this._containsManagedPlacement($el) !== true) {
+                    return false;
+                }
+
+                this._collectDocumentActions(activeRules, actions);
+                return payload.actions.length === 0 && payload.cleanup.length === 0 ? false : payload;
+            }else if (type === "full-scan") {
                 this._collectDocumentActions(activeRules, actions);
                 return payload.actions.length === 0 && payload.cleanup.length === 0 ? false : payload;
             } else if (!$el || $el.length === 0) {
@@ -197,6 +202,24 @@
             }
 
             return false;
+        },
+
+        /**
+         * Checks whether the removed element is, or contains, a placement-manager-owned
+         * node. This is used to selectively react to removals that affect our own
+         * rendered placements.
+         *
+         * @param {jQuery} $el removed element
+         * @returns {boolean} true if the removed subtree affects a managed placement
+         * @private
+         */
+        _containsManagedPlacement: function ($el) {
+            if (!$el || $el.length === 0) {
+                return false;
+            }
+
+            return $el.is("[" + this._markerOwner + "=\"placementManager\"]") ||
+                $el.find("[" + this._markerOwner + "=\"placementManager\"]").length > 0;
         },
 
         /**
