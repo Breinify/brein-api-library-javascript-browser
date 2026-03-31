@@ -10,8 +10,7 @@
 (function () {
     if (typeof Breinify !== "object") {
         return;
-    }
-    else if (Breinify.plugins._isAdded("recommendations")) {
+    } else if (Breinify.plugins._isAdded("recommendations")) {
         return;
     }
 
@@ -1122,43 +1121,186 @@
         },
 
         process: {
-            stoppedPropagation: function () {
+            /**
+             * Called when click handling explicitly stops propagation for a handled recommendation interaction.
+             *
+             * Parameters:
+             * @param {Event} event
+             * the original click event
+             * @param {jQuery} $itemEl
+             * the clicked semantic item element
+             * @param {jQuery} $container
+             * the resolved recommendation container
+             * @param {Object} recommendationData
+             * the mapped recommendation result
+             * @param {Object} additionalEventData
+             * additional event context
+             * @param {Object} option
+             * the render option
+             */
+            stoppedPropagation: function (event, $itemEl, $container, recommendationData, additionalEventData, option) {
             },
 
-            error: function () {
+            /**
+             * Called when recommendation retrieval or rendering fails.
+             *
+             * Parameters:
+             * @param {Object} error
+             * normalized error information
+             */
+            error: function (error) {
             },
 
-            canceled: function () {
+            /**
+             * Called when a rendering process was canceled before completion.
+             *
+             * Parameters:
+             * @param {Object} option
+             * the render option
+             * @param {Object} result
+             * the mapped recommendation result, if available
+             */
+            canceled: function (option, result) {
             },
 
-            init: function () {
+            /**
+             * Called immediately after the render option was normalized and initialized.
+             *
+             * Parameters:
+             * @param {Object} option
+             * the normalized render option
+             */
+            init: function (option) {
             },
 
-            pre: function () {
+            /**
+             * Called before the container is resolved and attached.
+             *
+             * Parameters:
+             * @param {Object} data
+             * the mapped recommendation result
+             * @param {Object} option
+             * the render option
+             */
+            pre: function (data, option) {
             },
 
-            attachedContainer: function () {
+            /**
+             * Called after the outer container and inner item container were resolved and prepared.
+             *
+             * Parameters:
+             * @param {jQuery} $container
+             * the outer rendered container
+             * @param {jQuery} $itemContainer
+             * the resolved item container
+             * @param {Object} data
+             * the mapped recommendation result
+             * @param {Object} option
+             * the render option
+             */
+            attachedContainer: function ($container, $itemContainer, data, option) {
             },
 
-            attachedItem: function () {
+            /**
+             * Called after a single recommendation item was attached.
+             *
+             * Parameters:
+             * @param {jQuery} $container
+             * the item container
+             * @param {jQuery} $item
+             * the attached item element
+             * @param {Object} recommendation
+             * the mapped recommendation item
+             * @param {Object} option
+             * the render option
+             */
+            attachedItem: function ($container, $item, recommendation, option) {
             },
 
-            attached: function () {
+            /**
+             * Called after all items were attached in non-external rendering mode.
+             *
+             * Parameters:
+             * @param {jQuery} $container
+             * the outer rendered container
+             * @param {jQuery} $itemContainer
+             * the resolved item container
+             * @param {Object} data
+             * the mapped recommendation result
+             * @param {Object} option
+             * the render option
+             */
+            attached: function ($container, $itemContainer, data, option) {
             },
 
-            post: function () {
+            /**
+             * Called after rendering and attachment logic completed successfully.
+             *
+             * Parameters:
+             * @param {jQuery} $container
+             * the outer rendered container
+             * @param {jQuery} $itemContainer
+             * the resolved item container
+             * @param {Object} data
+             * the mapped recommendation result
+             * @param {Object} option
+             * the render option
+             */
+            post: function ($container, $itemContainer, data, option) {
             },
 
-            finalize: function () {
+            /**
+             * Called at the very end of a render lifecycle, including success, error, control, or cancellation paths.
+             *
+             * Parameters:
+             * @param {Object} option
+             * the render option
+             * @param {Object} result
+             * the mapped result or error result
+             * @param {jQuery|null} $container
+             * the resolved container, if any
+             */
+            finalize: function (option, result, $container) {
             },
 
-            clickedItem: function () {
+            /**
+             * Called when a recommendation item or control item was clicked.
+             *
+             * Parameters:
+             * @param {Event} event
+             * the original click event
+             * @param {Object} settings
+             * click handling settings/context
+             */
+            clickedItem: function (event, settings) {
             },
 
-            createActivity: function () {
+            /**
+             * Called before an activity is sent, allowing customization of tags, user, and activity behavior.
+             *
+             * Parameters:
+             * @param {Event} event
+             * the original event
+             * @param {Object} settings
+             * activity settings/context
+             */
+            createActivity: function (event, settings) {
             },
 
-            refreshStateChange: function () {
+            /**
+             * Called whenever the refresh state of a rendered recommendation container changes.
+             *
+             * Parameters:
+             * @param {jQuery} $container
+             * the rendered parent container
+             * @param {String} state
+             * one of: idle, refreshing, refresh-error, refresh-canceled
+             * @param {Object} details
+             * additional state transition details
+             * @param {Object} option
+             * the render option
+             */
+            refreshStateChange: function ($container, state, details, option) {
             }
         },
 
@@ -1594,7 +1736,7 @@
                             $.isPlainObject(modifyResults?.option)) {
                             modifyResults = [modifyResults];
                         } else {
-                            modifyResults = [{ result: result, option: option }];
+                            modifyResults = [{result: result, option: option}];
                         }
 
                         for (let i = 0; i < modifyResults.length; i++) {
@@ -1981,7 +2123,7 @@
 
             const splitTestData = $.isPlainObject(recommendationData?.splitTestData)
                 ? recommendationData.splitTestData
-                : { active: false };
+                : {active: false};
 
             let groupType;
             let group;

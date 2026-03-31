@@ -294,7 +294,7 @@
             config.position = this._createPosition(webExId, configuration, singleConfig, runtime);
             config.placeholders = this._createPlaceholders(singleConfig.placeholders);
             config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, webExVersionId, singleConfig.process);
+            config.process = this._createProcess(webExId, webExVersionId, configuration, singleConfig);
             config.meta = {
                 renderIdentity: this._createRenderIdentity(webExId, singleConfig)
             };
@@ -339,22 +339,19 @@
             return normalizedWebExId + "::fallback::" + index;
         },
 
-        _createProcess: function (webExId, webExVersionId, config) {
-            let resolvedProcesses = {};
+        _createProcess: function (webExId, webExVersionId, configuration, singleConfig) {
+            const processConfig = $.isPlainObject(singleConfig?.process) ? singleConfig.process : {};
+            let resolvedProcesses = Object.fromEntries(
+                Object.entries(processConfig).flatMap(([key, snippetId]) => {
+                    const func = this._getSnippetFunction(snippetId);
+                    return func == null ? [] : [[key, func]];
+                })
+            );
 
-            if ($.isPlainObject(config)) {
-                resolvedProcesses = Object.fromEntries(
-                    Object.entries(config).flatMap(([key, snippetId]) => {
-                        const func = this._getSnippetFunction(snippetId);
-                        return func == null ? [] : [[key, func]];
-                    })
-                );
-            }
-
+            // hook into the createActivity
             const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
                 ? resolvedProcesses.createActivity
                 : null;
-
             resolvedProcesses.createActivity = function (event, settings) {
                 if ($.isFunction(originalCreateActivity)) {
                     originalCreateActivity.call(this, event, settings);
@@ -362,6 +359,31 @@
 
                 settings.activityTags.campaignWebExId = webExVersionId;
             };
+
+            // for attribute based activation we also hook into the attachedContainer
+            if (Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
+                const originalAttachedContainer = $.isFunction(resolvedProcesses.attachedContainer)
+                    ? resolvedProcesses.attachedContainer
+                    : null;
+
+                resolvedProcesses.attachedContainer = function ($container, $itemContainer, data, option) {
+                    const isControl = $.isPlainObject(data?.splitTestData) && data.splitTestData.isControl === true;
+                    if (isControl !== true) {
+                        const controlSelector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
+                        if (controlSelector !== null) {
+                            document.querySelectorAll(controlSelector).forEach(function (controlElement) {
+                                if (Breinify.UTL.dom.isNodeType(controlElement, 1)) {
+                                    controlElement.style.setProperty("display", "none", "important");
+                                }
+                            });
+                        }
+                    }
+
+                    if ($.isFunction(originalAttachedContainer)) {
+                        originalAttachedContainer.call(this, $container, $itemContainer, data, option);
+                    }
+                };
+            }
 
             return resolvedProcesses;
         },
@@ -387,7 +409,7 @@
                 return {};
             }
 
-            return { [operation]: func };
+            return {[operation]: func};
         },
 
         _createAttributeActivationPosition: function (webExId, position, singleConfig, runtime) {
