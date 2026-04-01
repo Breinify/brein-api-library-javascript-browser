@@ -64,7 +64,28 @@
         },
 
         /**
-         * Adds rules to the shared registry.
+         * Adds a rule.
+         *
+         * Supported action types:
+         * - attribute
+         *   Applies or updates an attribute on the matched target element.
+         *
+         * - insert-webexperience
+         *   Inserts a managed Breinify web-experience container relative to
+         *   the matched target element.
+         *
+         * - insert-html
+         *   Inserts one managed HTML root element relative to the matched
+         *   target element.
+         *
+         * Supported observe types:
+         * - exists
+         * - attribute
+         *
+         * Observe semantics:
+         * - all observe entries of a rule must match on the full document
+         * - local DOM mutations use OR semantics only to determine whether a
+         *   rule should be re-evaluated
          *
          * @param {Array} rules rules to add
          * @returns {number} number of rules newly added
@@ -306,8 +327,6 @@
                         _self._applyInsertWebExperienceAction(action);
                     } else if (action.type === "insert-html") {
                         _self._applyInsertHtmlAction(action);
-                    } else if (action.type === "replace-html") {
-                        _self._applyReplaceHtmlAction(action);
                     }
 
                     return true;
@@ -485,7 +504,7 @@
                     return true;
                 }
 
-                _self._collectRuleActionsFromElement(rule, $el, actions);
+                _self._collectRuleActionsFromDocument(rule, actions);
                 return true;
             });
         },
@@ -515,7 +534,7 @@
                     return true;
                 }
 
-                _self._collectRuleActionsFromElement(rule, $el, actions);
+                _self._collectRuleActionsFromDocument(rule, actions);
                 return true;
             });
         },
@@ -622,35 +641,6 @@
         },
 
         /**
-         * Collects all missing actions for a rule using local element checks only.
-         *
-         * @param {Object} rule normalized rule
-         * @param {jQuery} $el changed element
-         * @param {Array} actions target action list
-         * @private
-         */
-        _collectRuleActionsFromElement: function (rule, $el, actions) {
-            let i;
-            let action;
-            let $targets;
-
-            for (i = 0; i < rule.actions.length; i++) {
-                action = rule.actions[i];
-                $targets = this._findTargetsLocally($el, action.selector);
-
-                if ($targets.length === 0) {
-                    continue;
-                }
-
-                if (action.singleTarget === true && $targets.length > 1) {
-                    $targets = $targets.first();
-                }
-
-                this._collectActionTargets(actions, $targets, action, rule);
-            }
-        },
-
-        /**
          * Collects still-missing action executions for the provided targets.
          *
          * @param {Array} actions target action list
@@ -719,13 +709,6 @@
                         ruleId: rule.id || null
                     });
                 }
-            } else if (action.type === "replace-html") {
-                actions.push({
-                    type: "replace-html",
-                    $target: $target,
-                    key: action.key,
-                    html: action.html
-                });
             }
         },
 
@@ -802,27 +785,6 @@
                 ruleId: action.ruleId || null,
                 element: $node[0]
             });
-        },
-
-        /**
-         * Applies one replace-html action.
-         *
-         * @param {Object} action prepared replace-html action
-         * @private
-         */
-        _applyReplaceHtmlAction: function (action) {
-            let $node;
-
-            if (!action.$target || action.$target.length === 0) {
-                return;
-            }
-
-            $node = this._createMarkedNodeFromHtml(action.html, action.key);
-            if ($node === null) {
-                return;
-            }
-
-            action.$target.replaceWith($node);
         },
 
         /**
@@ -1048,37 +1010,6 @@
             return $el.is(selector) ||
                 $el.find(selector).length > 0 ||
                 $el.closest(selector).length > 0;
-        },
-
-        /**
-         * Finds matching targets locally using:
-         * - the element itself
-         * - descendants
-         * - closest ancestor
-         *
-         * @param {jQuery} $el changed element
-         * @param {string} selector selector to find
-         * @returns {jQuery} matched targets
-         * @private
-         */
-        _findTargetsLocally: function ($el, selector) {
-            let $targets = $();
-
-            if (!$el || $el.length === 0 || typeof selector !== "string" || selector === "") {
-                return $targets;
-            }
-
-            if ($el.is(selector)) {
-                $targets = $el;
-            } else {
-                $targets = $el.find(selector);
-
-                if ($targets.length === 0) {
-                    $targets = $el.closest(selector);
-                }
-            }
-
-            return $targets;
         },
 
         /**
@@ -1321,26 +1252,6 @@
                     normalizedAction.type,
                     normalizedAction.selector,
                     normalizedAction.position,
-                    normalizedAction.html
-                ].join("::");
-
-                return normalizedAction;
-            } else if (action.type === "replace-html") {
-                if (typeof action.html !== "string" || action.html.trim() === "") {
-                    return null;
-                }
-
-                normalizedAction = {
-                    type: "replace-html",
-                    selector: action.selector,
-                    singleTarget: action.singleTarget === true,
-                    html: action.html
-                };
-
-                normalizedAction.key = [
-                    rule.id || "",
-                    normalizedAction.type,
-                    normalizedAction.selector,
                     normalizedAction.html
                 ].join("::");
 
