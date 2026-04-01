@@ -479,10 +479,13 @@
             const _self = this;
 
             $.each(activeRules, function (idx, rule) {
-                if (_self._ruleMatchesElement(rule, $el, null, false) === true) {
-                    _self._collectRuleActionsFromElement(rule, $el, actions);
+                if (_self._ruleMatchesElement(rule, $el, null, false) !== true) {
+                    return true;
+                } else if (_self._ruleMatchesDocument(rule) !== true) {
+                    return true;
                 }
 
+                _self._collectRuleActionsFromElement(rule, $el, actions);
                 return true;
             });
         },
@@ -506,12 +509,13 @@
             $.each(activeRules, function (idx, rule) {
                 if (rule._hasAttributeTriggers !== true || rule._attributeTriggerMap[attribute] !== true) {
                     return true;
+                } else if (_self._ruleMatchesElement(rule, $el, attribute, true) !== true) {
+                    return true;
+                } else if (_self._ruleMatchesDocument(rule) !== true) {
+                    return true;
                 }
 
-                if (_self._ruleMatchesElement(rule, $el, attribute, true) === true) {
-                    _self._collectRuleActionsFromElement(rule, $el, actions);
-                }
-
+                _self._collectRuleActionsFromElement(rule, $el, actions);
                 return true;
             });
         },
