@@ -1824,6 +1824,10 @@
             }
         },
 
+        isCustomElement: function (name) {
+            return !!(window.customElements && window.customElements.get(name));
+        },
+
         defineElement: function (name, element) {
             if (window.customElements && !window.customElements.get(name)) {
                 window.customElements.define(name, element);
