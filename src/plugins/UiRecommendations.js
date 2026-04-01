@@ -315,13 +315,10 @@
                 runtime: $.isPlainObject(runtime) ? runtime : {},
                 recommenderName: this._recommenderName(singleConfig)
             };
+
             const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
-
             let config = this._mergeConfig(frameworkConfig, createdConfig);
-
-            if ($.isFunction(extensionModule?.finalize)) {
-                config = this._applyExtensionHook(context, config, "finalize", extensionModule);
-            }
+            config = this._applyExtensionHook(context, config, "finalize", extensionModule);
 
             this._applyStyle(singleConfig.style);
 
