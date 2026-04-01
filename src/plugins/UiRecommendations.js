@@ -315,11 +315,14 @@
                 runtime: $.isPlainObject(runtime) ? runtime : {},
                 recommenderName: this._recommenderName(singleConfig),
 
-                ensurePath: function (obj, path, factory) {
+                ensurePath: function (obj, path, leafFactory, nodeFactory) {
                     const root = $.isPlainObject(obj) ? obj : {};
-                    const keys = $.isArray(path) ? path : Array.prototype.slice.call(arguments, 1, -1);
-                    const create = $.isFunction(factory) ? factory : function () {
+                    const keys = $.isArray(path) ? path : Array.prototype.slice.call(arguments, 1, -2);
+                    const createLeaf = $.isFunction(leafFactory) ? leafFactory : function () {
                         return null;
+                    };
+                    const createNode = $.isFunction(nodeFactory) ? nodeFactory : function () {
+                        return {};
                     };
 
                     let current = root;
@@ -328,8 +331,13 @@
                             return;
                         }
 
+                        const isLast = idx === keys.length - 1;
+                        const expectedValue = isLast ? current[key] : current[key];
+
                         if (typeof current[key] === "undefined" || current[key] === null) {
-                            current[key] = create(key, idx, keys);
+                            current[key] = isLast ? createLeaf(key, idx, keys) : createNode(key, idx, keys);
+                        } else if (!isLast && !$.isPlainObject(current[key])) {
+                            current[key] = createNode(key, idx, keys);
                         }
 
                         current = current[key];
@@ -340,16 +348,12 @@
 
                 ensureObject: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, function () {
-                        return {};
-                    });
+                    return this.ensurePath(obj, path, () => {});
                 },
 
                 ensureArray: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, function () {
-                        return [];
-                    });
+                    return this.ensurePath(obj, path, () => []);
                 },
 
                 mergeArray: function (target, values, removeDuplicates) {
