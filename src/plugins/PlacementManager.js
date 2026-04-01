@@ -64,7 +64,7 @@
         },
 
         /**
-         * Adds a rule.
+         * Adds rules.
          *
          * Supported action types:
          * - attribute
