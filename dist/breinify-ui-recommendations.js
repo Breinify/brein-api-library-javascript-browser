@@ -313,7 +313,57 @@
                 webExVersionId: webExVersionId,
                 configuration: $.isPlainObject(configuration) ? configuration : {},
                 runtime: $.isPlainObject(runtime) ? runtime : {},
-                recommenderName: this._recommenderName(singleConfig)
+                recommenderName: this._recommenderName(singleConfig),
+
+                ensurePath: function (obj, path, factory) {
+                    const root = $.isPlainObject(obj) ? obj : {};
+                    const keys = $.isArray(path) ? path : Array.prototype.slice.call(arguments, 1, -1);
+                    const create = $.isFunction(factory) ? factory : function () {
+                        return null;
+                    };
+
+                    let current = root;
+                    $.each(keys, function (idx, key) {
+                        if (typeof key !== "string" || key === "") {
+                            return;
+                        }
+
+                        if (typeof current[key] === "undefined" || current[key] === null) {
+                            current[key] = create(key, idx, keys);
+                        }
+
+                        current = current[key];
+                    });
+
+                    return root;
+                },
+
+                ensureObject: function (obj) {
+                    const path = Array.prototype.slice.call(arguments, 1);
+                    return this.ensurePath(obj, path, function () {
+                        return {};
+                    });
+                },
+
+                ensureArray: function (obj) {
+                    const path = Array.prototype.slice.call(arguments, 1);
+                    return this.ensurePath(obj, path, function () {
+                        return [];
+                    });
+                },
+
+                mergeArray: function (target, values, removeDuplicates) {
+                    const result = $.isArray(target) ? target.slice() : [];
+                    const additions = $.isArray(values) ? values : [];
+
+                    $.each(additions, function (idx, value) {
+                        if (!removeDuplicates || $.inArray(value, result) === -1) {
+                            result.push(value);
+                        }
+                    });
+
+                    return result;
+                }
             };
 
             const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
