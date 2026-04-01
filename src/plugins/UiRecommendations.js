@@ -287,19 +287,46 @@
                 return null;
             }
 
-            const config = {};
-            config.recommender = await this._createPayload(singleConfig.recommender);
-            config.activity = this._createActivitySettings(singleConfig);
-            config.splitTests = this._createSplitTestsSettings(webExId, configuration, singleConfig);
-            config.position = this._createPosition(webExId, configuration, singleConfig, runtime);
-            config.placeholders = this._createPlaceholders(singleConfig.placeholders);
-            config.templates = this._createTemplates(singleConfig.templates);
-            config.process = this._createProcess(webExId, webExVersionId, configuration, singleConfig);
-            config.meta = {
+            const extensionModule = this._getExtensionModule();
+
+            const frameworkConfig = {};
+            frameworkConfig.recommender = await this._createPayload(singleConfig.recommender);
+            frameworkConfig.activity = this._createActivitySettings(singleConfig);
+            frameworkConfig.splitTests = this._createSplitTestsSettings(webExId, configuration, singleConfig);
+            frameworkConfig.position = this._createPosition(webExId, configuration, singleConfig, runtime);
+            frameworkConfig.placeholders = this._createPlaceholders(singleConfig.placeholders);
+            frameworkConfig.templates = this._createTemplates(singleConfig.templates);
+            frameworkConfig.process = this._createProcess(webExId, webExVersionId, configuration, singleConfig);
+            frameworkConfig.meta = {
                 renderIdentity: this._createRenderIdentity(webExId, singleConfig)
             };
 
+            if (!$.isFunction(extensionModule?.create) &&
+                !$.isFunction(extensionModule?.finalize) &&
+                !$.isFunction(extensionModule?.style)) {
+                this._applyStyle(singleConfig.style);
+                return frameworkConfig;
+            }
+
+            const context = {
+                webExId: webExId,
+                webExVersionId: webExVersionId,
+                configuration: $.isPlainObject(configuration) ? configuration : {},
+                runtime: $.isPlainObject(runtime) ? runtime : {}
+            };
+            const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
+
+            let config = this._mergeConfig(frameworkConfig, createdConfig);
+
+            if ($.isFunction(extensionModule?.finalize)) {
+                config = this._applyExtensionHook(context, config, "finalize", extensionModule);
+            }
+
             this._applyStyle(singleConfig.style);
+
+            if ($.isFunction(extensionModule?.style)) {
+                this._applyExtensionStyle(context, extensionModule);
+            }
 
             /*
              * TODO:
@@ -307,6 +334,130 @@
              *  - add: modifications (data.modify <-- singleConfig.modifyData)
              */
             return config;
+        },
+
+        _applyExtensionHook: function (context, config, methodName, extensionModule) {
+            const normalizedMethodName = Breinify.UTL.isNonEmptyString(methodName);
+            const extensionMethod = normalizedMethodName === null ? null : extensionModule?.[normalizedMethodName];
+            if (!$.isFunction(extensionMethod)) {
+                return config;
+            }
+
+            try {
+                const result = extensionMethod(context, config);
+                return $.isPlainObject(result) ? result : config;
+            } catch (e) {
+                console.error(e);
+                return config;
+            }
+        },
+
+        _applyExtensionStyle: function (context, extensionModule) {
+            if (!$.isFunction(extensionModule?.style)) {
+                return;
+            }
+
+            try {
+                const result = extensionModule.style(context);
+                const styleEntries = $.isArray(result) ? result : [result];
+
+                for (let i = 0; i < styleEntries.length; i++) {
+                    const styleEntry = styleEntries[i];
+                    if (!$.isPlainObject(styleEntry)) {
+                        continue;
+                    }
+
+                    const styleId = Breinify.UTL.isNonEmptyString(styleEntry.id);
+                    const css = Breinify.UTL.isNonEmptyString(styleEntry.css);
+
+                    if (styleId === null || css === null) {
+                        continue;
+                    }
+
+                    const domStyleId = "br-ui-recommendations-style-" + styleId;
+                    if (document.getElementById(domStyleId) !== null) {
+                        continue;
+                    }
+
+                    const styleEl = document.createElement("style");
+                    styleEl.id = domStyleId;
+                    styleEl.type = "text/css";
+                    styleEl.appendChild(document.createTextNode(css));
+                    document.head.appendChild(styleEl);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        },
+
+        _getExtensionModule: function () {
+            if (!$.isFunction(Breinify?.plugins?.api?.getModule)) {
+                return null;
+            }
+
+            const extensionModule = Breinify.plugins.api.getModule("uiRecommendationsConfig");
+            return $.isPlainObject(extensionModule) ? extensionModule : null;
+        },
+
+        _mergeFunction: function (frameworkFunc, extensionFunc, extensionFirst) {
+            const normalizedFrameworkFunc = $.isFunction(frameworkFunc) ? frameworkFunc : null;
+            const normalizedExtensionFunc = $.isFunction(extensionFunc) ? extensionFunc : null;
+
+            if (normalizedFrameworkFunc === null) {
+                return normalizedExtensionFunc;
+            } else if (normalizedExtensionFunc === null) {
+                return normalizedFrameworkFunc;
+            } else {
+                return function () {
+                    if (extensionFirst === true) {
+                        normalizedExtensionFunc.apply(this, arguments);
+                        return normalizedFrameworkFunc.apply(this, arguments);
+                    } else {
+                        normalizedFrameworkFunc.apply(this, arguments);
+                        return normalizedExtensionFunc.apply(this, arguments);
+                    }
+                };
+            }
+        },
+
+        _mergeConfig: function (frameworkConfig, initialConfig) {
+            const normalizedFrameworkConfig = $.isPlainObject(frameworkConfig) ? frameworkConfig : {};
+            const normalizedInitialConfig = $.isPlainObject(initialConfig) ? initialConfig : {};
+
+            const mergedConfig = $.extend(true, {}, normalizedFrameworkConfig, normalizedInitialConfig);
+
+            const frameworkProcess = $.isPlainObject(normalizedFrameworkConfig.process)
+                ? normalizedFrameworkConfig.process
+                : {};
+            const preparedProcess = $.isPlainObject(normalizedInitialConfig.process)
+                ? normalizedInitialConfig.process
+                : {};
+
+            const mergedProcess = {};
+            const processKeys = {};
+
+            Object.keys(frameworkProcess).forEach(function (key) {
+                processKeys[key] = true;
+            });
+            Object.keys(preparedProcess).forEach(function (key) {
+                processKeys[key] = true;
+            });
+
+            Object.keys(processKeys).forEach((key) => {
+                const frameworkValue = frameworkProcess[key];
+                const preparedValue = preparedProcess[key];
+
+                if ($.isFunction(frameworkValue) || $.isFunction(preparedValue)) {
+                    mergedProcess[key] = this._mergeFunction(frameworkValue, preparedValue, true);
+                } else if (typeof preparedValue !== "undefined") {
+                    mergedProcess[key] = preparedValue;
+                } else {
+                    mergedProcess[key] = frameworkValue;
+                }
+            });
+
+            mergedConfig.process = mergedProcess;
+            return mergedConfig;
         },
 
         _applyStyle: function (config) {
@@ -342,8 +493,12 @@
         _createProcess: function (webExId, webExVersionId, configuration, singleConfig) {
             const processConfig = $.isPlainObject(singleConfig?.process) ? singleConfig.process : {};
             let resolvedProcesses = Object.fromEntries(
-                Object.entries(processConfig).flatMap(([key, snippetId]) => {
-                    const func = this._getSnippetFunction(snippetId);
+                Object.entries(processConfig).flatMap(([key, value]) => {
+                    if ($.isFunction(value)) {
+                        return [[key, value]];
+                    }
+
+                    const func = this._getSnippetFunction(value);
                     return func == null ? [] : [[key, func]];
                 })
             );
@@ -357,6 +512,7 @@
                     originalCreateActivity.call(this, event, settings);
                 }
 
+                settings.activityTags = $.isPlainObject(settings.activityTags) ? settings.activityTags : {};
                 settings.activityTags.campaignWebExId = webExVersionId;
             };
 
