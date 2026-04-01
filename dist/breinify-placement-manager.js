@@ -170,35 +170,52 @@
             const attribute = typeof normalizedData.attribute === "string" ? normalizedData.attribute : null;
             const activeRules = this._getActiveRules();
             const actions = [];
-            const payload = {
-                actions: actions,
-                cleanup: []
-            };
-
-            if (type === "full-scan") {
-                payload.cleanup = this._collectTrackedCleanup(activeRules);
-            }
+            let cleanup = [];
 
             if (activeRules.length === 0) {
-                return payload.cleanup.length === 0 ? false : payload;
+                if (type === "full-scan") {
+                    cleanup = this._collectTrackedCleanup(activeRules);
+                    return cleanup.length === 0 ? false : {
+                        actions: actions,
+                        cleanup: cleanup
+                    };
+                }
+
+                return false;
             } else if (type === "removed-element") {
                 if (this._containsManagedPlacement($el) !== true) {
                     return false;
                 }
 
+                cleanup = this._collectTrackedCleanup(activeRules);
                 this._collectDocumentActions(activeRules, actions);
-                return payload.actions.length === 0 && payload.cleanup.length === 0 ? false : payload;
-            }else if (type === "full-scan") {
+
+                return actions.length === 0 && cleanup.length === 0 ? false : {
+                    actions: actions,
+                    cleanup: cleanup
+                };
+            } else if (type === "full-scan") {
+                cleanup = this._collectTrackedCleanup(activeRules);
                 this._collectDocumentActions(activeRules, actions);
-                return payload.actions.length === 0 && payload.cleanup.length === 0 ? false : payload;
+
+                return actions.length === 0 && cleanup.length === 0 ? false : {
+                    actions: actions,
+                    cleanup: cleanup
+                };
             } else if (!$el || $el.length === 0) {
                 return false;
             } else if (type === "added-element") {
                 this._collectElementActions($el, activeRules, actions);
-                return actions.length === 0 ? false : payload;
+                return actions.length === 0 ? false : {
+                    actions: actions,
+                    cleanup: cleanup
+                };
             } else if (type === "attribute-change") {
                 this._collectAttributeActions($el, attribute, activeRules, actions);
-                return actions.length === 0 ? false : payload;
+                return actions.length === 0 ? false : {
+                    actions: actions,
+                    cleanup: cleanup
+                };
             }
 
             return false;
@@ -1012,6 +1029,19 @@
             return $targets;
         },
 
+        _isTrackedElement: function (element, key) {
+            let i;
+
+            for (i = 0; i < this._trackedInsertions.length; i++) {
+                if (this._trackedInsertions[i].element === element &&
+                    this._trackedInsertions[i].key === key) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
         /**
          * Checks whether an insert action is already fulfilled.
          *
@@ -1038,9 +1068,16 @@
                 candidate = target.lastElementChild;
             }
 
-            return candidate !== null &&
-                candidate.getAttribute(this._markerKey) === action.key &&
-                candidate.getAttribute(this._markerOwner) === "placementManager";
+            if (!candidate) {
+                return false;
+            }
+
+            if (candidate.getAttribute(this._markerKey) !== action.key ||
+                candidate.getAttribute(this._markerOwner) !== "placementManager") {
+                return false;
+            }
+
+            return this._isTrackedElement(candidate, action.key);
         }
     };
 
