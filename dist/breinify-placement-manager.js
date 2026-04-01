@@ -11,27 +11,6 @@
     const api = Breinify?.plugins?.api;
     const placementManagerModuleName = "placementManagerModule-" + Breinify.UTL.uuid();
 
-    /**
-     * Shared internal module used by the placementManager plugin.
-     *
-     * This module is registered exactly once through Breinify.plugins.api and
-     * manages all placement rules added through the placementManager plugin.
-     *
-     * Observe semantics:
-     * - observe array uses AND semantics
-     * - every observe entry must match
-     * - selector commas provide OR semantics inside a selector
-     *
-     * Supported observe types:
-     * - exists
-     * - attribute
-     *
-     * Supported action types:
-     * - attribute
-     * - insert-webexperience
-     * - insert-html
-     * - replace-html
-     */
     const placementManagerModule = {
         _initialized: false,
 
@@ -68,6 +47,11 @@
          */
         _trackedInsertions: [],
 
+        /*
+         * Debounced reconcile timer used to recover from SPA rerender timing.
+         */
+        _reconcileTimer: null,
+
         /**
          * Initializes the shared placement module.
          */
@@ -83,6 +67,7 @@
          * Adds rules to the shared registry.
          *
          * @param {Array} rules rules to add
+         * @returns {number} number of rules newly added
          */
         addRules: function (rules) {
             const _self = this;
@@ -123,6 +108,12 @@
             return addedCount;
         },
 
+        /**
+         * Checks if a rule with the provided id is already registered.
+         *
+         * @param {string} ruleId rule id
+         * @returns {boolean} true if the rule exists
+         */
         hasRule: function (ruleId) {
             let i;
 
@@ -171,14 +162,12 @@
             const activeRules = this._getActiveRules();
             const actions = [];
             let cleanup = [];
+            let reconcile = false;
 
             if (activeRules.length === 0) {
                 if (type === "full-scan") {
                     cleanup = this._collectTrackedCleanup(activeRules);
-                    return cleanup.length === 0 ? false : {
-                        actions: actions,
-                        cleanup: cleanup
-                    };
+                    return this._createPayload(actions, cleanup, false);
                 }
 
                 return false;
@@ -189,36 +178,49 @@
 
                 cleanup = this._collectTrackedCleanup(activeRules);
                 this._collectDocumentActions(activeRules, actions);
+                reconcile = true;
 
-                return actions.length === 0 && cleanup.length === 0 ? false : {
-                    actions: actions,
-                    cleanup: cleanup
-                };
+                return this._createPayload(actions, cleanup, reconcile);
             } else if (type === "full-scan") {
                 cleanup = this._collectTrackedCleanup(activeRules);
                 this._collectDocumentActions(activeRules, actions);
 
-                return actions.length === 0 && cleanup.length === 0 ? false : {
-                    actions: actions,
-                    cleanup: cleanup
-                };
+                return this._createPayload(actions, cleanup, false);
             } else if (!$el || $el.length === 0) {
                 return false;
             } else if (type === "added-element") {
                 this._collectElementActions($el, activeRules, actions);
-                return actions.length === 0 ? false : {
-                    actions: actions,
-                    cleanup: cleanup
-                };
+                return this._createPayload(actions, cleanup, false);
             } else if (type === "attribute-change") {
                 this._collectAttributeActions($el, attribute, activeRules, actions);
-                return actions.length === 0 ? false : {
-                    actions: actions,
-                    cleanup: cleanup
-                };
+                return this._createPayload(actions, cleanup, false);
             }
 
             return false;
+        },
+
+        /**
+         * Creates a normalized payload or false if there is no work to do.
+         *
+         * @param {Array} actions actions to apply
+         * @param {Array} cleanup tracked entries to cleanup
+         * @param {boolean} reconcile whether to schedule a deferred reconcile
+         * @returns {false|Object} normalized payload or false
+         * @private
+         */
+        _createPayload: function (actions, cleanup, reconcile) {
+            const normalizedActions = $.isArray(actions) ? actions : [];
+            const normalizedCleanup = $.isArray(cleanup) ? cleanup : [];
+
+            if (normalizedActions.length === 0 && normalizedCleanup.length === 0 && reconcile !== true) {
+                return false;
+            }
+
+            return {
+                actions: normalizedActions,
+                cleanup: normalizedCleanup,
+                reconcile: reconcile === true
+            };
         },
 
         /**
@@ -240,45 +242,81 @@
         },
 
         /**
+         * Schedules a debounced full reconcile.
+         *
+         * This is intentionally used only for recovery scenarios such as managed
+         * placement removal during SPA rerendering. It is not part of the hot path.
+         *
+         * @private
+         */
+        _reconcileSoon: function () {
+            const _self = this;
+
+            if (this._reconcileTimer !== null) {
+                return;
+            }
+
+            this._reconcileTimer = window.setTimeout(function () {
+                let requirements;
+
+                _self._reconcileTimer = null;
+                requirements = _self.findRequirements($("body"), {
+                    type: "full-scan"
+                });
+
+                if ($.isPlainObject(requirements)) {
+                    _self.onChange(requirements);
+                } else if (requirements === true) {
+                    _self.onChange({});
+                }
+            }, 0);
+        },
+
+        /**
          * Applies cleanup and actions.
          *
          * @param {Object} data payload from findRequirements
          */
         onChange: function (data) {
             const _self = this;
+            let hadCleanup = false;
 
             if (!$.isPlainObject(data)) {
                 return;
             }
 
             if ($.isArray(data.cleanup) && data.cleanup.length > 0) {
+                hadCleanup = true;
+
                 $.each(data.cleanup, function (idx, trackedEntry) {
                     _self._removeTrackedInsertion(trackedEntry);
                     return true;
                 });
             }
 
-            if (!$.isArray(data.actions) || data.actions.length === 0) {
-                return;
+            if ($.isArray(data.actions) && data.actions.length > 0) {
+                $.each(data.actions, function (idx, action) {
+                    if (!action || !action.$target || action.$target.length === 0) {
+                        return true;
+                    }
+
+                    if (action.type === "attribute") {
+                        _self._applyAttributeAction(action);
+                    } else if (action.type === "insert-webexperience") {
+                        _self._applyInsertWebExperienceAction(action);
+                    } else if (action.type === "insert-html") {
+                        _self._applyInsertHtmlAction(action);
+                    } else if (action.type === "replace-html") {
+                        _self._applyReplaceHtmlAction(action);
+                    }
+
+                    return true;
+                });
             }
 
-            $.each(data.actions, function (idx, action) {
-                if (!action || !action.$target || action.$target.length === 0) {
-                    return true;
-                }
-
-                if (action.type === "attribute") {
-                    _self._applyAttributeAction(action);
-                } else if (action.type === "insert-webexperience") {
-                    _self._applyInsertWebExperienceAction(action);
-                } else if (action.type === "insert-html") {
-                    _self._applyInsertHtmlAction(action);
-                } else if (action.type === "replace-html") {
-                    _self._applyReplaceHtmlAction(action);
-                }
-
-                return true;
-            });
+            if (data.reconcile === true || hadCleanup === true) {
+                this._reconcileSoon();
+            }
         },
 
         /**
@@ -288,7 +326,6 @@
          * @private
          */
         _normalizeRule: function (rule) {
-            const _self = this;
             let normalizedObserve = [];
             let normalizedActions = [];
             let observeSelectors = {};
@@ -482,6 +519,8 @@
         /**
          * Evaluates whether a rule matches the full document.
          *
+         * Full-document semantics remain strict AND across observe entries.
+         *
          * @param {Object} rule normalized rule
          * @returns {boolean} true if the rule currently matches the document
          * @private
@@ -510,7 +549,14 @@
         },
 
         /**
-         * Evaluates whether a rule matches the changed element locally.
+         * Evaluates whether a rule is relevant for the current local mutation.
+         *
+         * Local mutation relevance uses OR semantics:
+         * - if the changed element is locally related to any observed selector,
+         *   the rule is relevant enough to re-evaluate actions
+         *
+         * This is the correct behavior for SPA rerenders where one mutation usually
+         * touches only one of several observed subtrees.
          *
          * @param {Object} rule normalized rule
          * @param {jQuery} $el changed element
@@ -522,26 +568,25 @@
         _ruleMatchesElement: function (rule, $el, attribute, isAttributeEvent) {
             let i;
             let observe;
+            let matched = false;
 
             for (i = 0; i < rule.observe.length; i++) {
                 observe = rule.observe[i];
 
                 if (observe.type === "exists") {
-                    if (this._matchesSelectorLocally($el, observe.selector) !== true) {
-                        return false;
+                    if (this._matchesSelectorLocally($el, observe.selector) === true) {
+                        matched = true;
                     }
                 } else if (observe.type === "attribute") {
-                    if (isAttributeEvent !== true || observe.attribute !== attribute) {
-                        return false;
-                    } else if (this._matchesSelectorLocally($el, observe.selector) !== true) {
-                        return false;
+                    if (isAttributeEvent === true &&
+                        observe.attribute === attribute &&
+                        this._matchesSelectorLocally($el, observe.selector) === true) {
+                        matched = true;
                     }
-                } else {
-                    return false;
                 }
             }
 
-            return true;
+            return matched;
         },
 
         /**
@@ -778,6 +823,9 @@
 
         /**
          * Tracks one inserted DOM element for later page-change validation.
+         *
+         * Tracking is used only for cleanup/bookkeeping. It is intentionally not
+         * part of fulfillment truth. The DOM remains the source of truth.
          *
          * @param {Object} trackedEntry tracked insertion entry
          * @private
@@ -1029,21 +1077,11 @@
             return $targets;
         },
 
-        _isTrackedElement: function (element, key) {
-            let i;
-
-            for (i = 0; i < this._trackedInsertions.length; i++) {
-                if (this._trackedInsertions[i].element === element &&
-                    this._trackedInsertions[i].key === key) {
-                    return true;
-                }
-            }
-
-            return false;
-        },
-
         /**
          * Checks whether an insert action is already fulfilled.
+         *
+         * The DOM is the source of truth here. Tracking is intentionally not used
+         * for fulfillment, only for cleanup/bookkeeping.
          *
          * @param {jQuery} $target action target
          * @param {Object} action normalized insert action
@@ -1068,16 +1106,9 @@
                 candidate = target.lastElementChild;
             }
 
-            if (!candidate) {
-                return false;
-            }
-
-            if (candidate.getAttribute(this._markerKey) !== action.key ||
-                candidate.getAttribute(this._markerOwner) !== "placementManager") {
-                return false;
-            }
-
-            return this._isTrackedElement(candidate, action.key);
+            return candidate !== null &&
+                candidate.getAttribute(this._markerKey) === action.key &&
+                candidate.getAttribute(this._markerOwner) === "placementManager";
         }
     };
 
