@@ -312,7 +312,8 @@
                 webExId: webExId,
                 webExVersionId: webExVersionId,
                 configuration: $.isPlainObject(configuration) ? configuration : {},
-                runtime: $.isPlainObject(runtime) ? runtime : {}
+                runtime: $.isPlainObject(runtime) ? runtime : {},
+                recommenderName: this._recommenderName(singleConfig)
             };
             const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
 
@@ -429,7 +430,7 @@
             const frameworkProcess = $.isPlainObject(normalizedFrameworkConfig.process)
                 ? normalizedFrameworkConfig.process
                 : {};
-            const preparedProcess = $.isPlainObject(normalizedInitialConfig.process)
+            const initialProcess = $.isPlainObject(normalizedInitialConfig.process)
                 ? normalizedInitialConfig.process
                 : {};
 
@@ -439,18 +440,18 @@
             Object.keys(frameworkProcess).forEach(function (key) {
                 processKeys[key] = true;
             });
-            Object.keys(preparedProcess).forEach(function (key) {
+            Object.keys(initialProcess).forEach(function (key) {
                 processKeys[key] = true;
             });
 
             Object.keys(processKeys).forEach((key) => {
                 const frameworkValue = frameworkProcess[key];
-                const preparedValue = preparedProcess[key];
+                const initialValue = initialProcess[key];
 
-                if ($.isFunction(frameworkValue) || $.isFunction(preparedValue)) {
-                    mergedProcess[key] = this._mergeFunction(frameworkValue, preparedValue, true);
-                } else if (typeof preparedValue !== "undefined") {
-                    mergedProcess[key] = preparedValue;
+                if ($.isFunction(frameworkValue) || $.isFunction(initialValue)) {
+                    mergedProcess[key] = this._mergeFunction(frameworkValue, initialValue, true);
+                } else if (typeof initialValue !== "undefined") {
+                    mergedProcess[key] = initialValue;
                 } else {
                     mergedProcess[key] = frameworkValue;
                 }
