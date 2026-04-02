@@ -193,6 +193,54 @@
             });
         },
 
+        isEqual: function (left, right) {
+
+            if (Object.is(left, right)) {
+                return true;
+            } else if (left === null || right === null || typeof left !== typeof right) {
+                return false;
+            } else if ($.isArray(left)) {
+                if (!$.isArray(right) || left.length !== right.length) {
+                    return false;
+                }
+
+                for (let i = 0; i < left.length; i++) {
+                    if (!this.isEqual(left[i], right[i])) {
+                        return false;
+                    }
+                }
+
+                return true;
+            } else if (this.isPlainObject(left)) {
+                if (!this.isPlainObject(right)) {
+                    return false;
+                }
+
+                const leftKeys = Object.keys(left);
+                const rightKeys = Object.keys(right);
+
+                if (leftKeys.length !== rightKeys.length) {
+                    return false;
+                }
+
+                for (let i = 0; i < leftKeys.length; i++) {
+                    const key = leftKeys[i];
+
+                    if (!Object.prototype.hasOwnProperty.call(right, key)) {
+                        return false;
+                    }
+
+                    if (!this.isEqual(left[key], right[key])) {
+                        return false;
+                    }
+                }
+
+                return true;
+            } else {
+                return false;
+            }
+        },
+
         applyFeatureChange: function (name, oldValue, newValue, additional) {
             const normalizedName = this.normalizeName(name);
             if (normalizedName === '') {
@@ -201,7 +249,7 @@
 
             const normalizedOldValue = typeof oldValue === 'undefined' ? null : oldValue;
             const normalizedNewValue = typeof newValue === 'undefined' ? null : newValue;
-            if (normalizedOldValue === normalizedNewValue) {
+            if (this.isEqual(normalizedOldValue, normalizedNewValue)) {
                 return false;
             }
 
