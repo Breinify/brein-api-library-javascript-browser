@@ -386,16 +386,16 @@
 
             const styleEl = document.createElement("style");
             styleEl.id = BrSimpleSlider.STYLE_ELEMENT_ID;
-            styleEl.type = "text/css";
+            //styleEl.type = "text/css";
             styleEl.textContent = BrSimpleSlider.STYLE_CONTENT;
 
-            document.head.appendChild(styleEl);
+            //document.head.appendChild(styleEl);
 
-            // if (hostElement.firstChild) {
-            //     hostElement.insertBefore(styleEl, hostElement.firstChild);
-            // } else {
-            //     hostElement.appendChild(styleEl);
-            // }
+            if (hostElement.firstChild) {
+                hostElement.insertBefore(styleEl, hostElement.firstChild);
+            } else {
+                hostElement.appendChild(styleEl);
+            }
         }
 
         static getGapPx(track) {
