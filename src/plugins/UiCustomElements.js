@@ -380,21 +380,33 @@
         // ---------- statics (methods only; "constants" assigned after the class) ----------
 
         static ensureStylesAdded(hostElement) {
-            if (document.getElementById(BrSimpleSlider.STYLE_ELEMENT_ID)) {
+            if (!(hostElement instanceof HTMLElement)) {
+                return;
+            }
+
+            const root = typeof hostElement.getRootNode === "function"
+                ? hostElement.getRootNode()
+                : document;
+
+            if (!root || typeof root.querySelector !== "function") {
+                return;
+            }
+
+            if (root.querySelector("#" + BrSimpleSlider.STYLE_ELEMENT_ID)) {
                 return;
             }
 
             const styleEl = document.createElement("style");
             styleEl.id = BrSimpleSlider.STYLE_ELEMENT_ID;
-            //styleEl.type = "text/css";
+            styleEl.type = "text/css";
             styleEl.textContent = BrSimpleSlider.STYLE_CONTENT;
 
-            //document.head.appendChild(styleEl);
-
-            if (hostElement.firstChild) {
-                hostElement.insertBefore(styleEl, hostElement.firstChild);
+            if (root instanceof ShadowRoot) {
+                root.appendChild(styleEl);
+            } else if (document.head) {
+                document.head.appendChild(styleEl);
             } else {
-                hostElement.appendChild(styleEl);
+                hostElement.insertBefore(styleEl, hostElement.firstChild);
             }
         }
 
