@@ -389,11 +389,13 @@
             styleEl.type = "text/css";
             styleEl.textContent = BrSimpleSlider.STYLE_CONTENT;
 
-            if (hostElement.firstChild) {
-                hostElement.insertBefore(styleEl, hostElement.firstChild);
-            } else {
-                hostElement.appendChild(styleEl);
-            }
+            document.head.appendChild(styleEl);
+
+            // if (hostElement.firstChild) {
+            //     hostElement.insertBefore(styleEl, hostElement.firstChild);
+            // } else {
+            //     hostElement.appendChild(styleEl);
+            // }
         }
 
         static getGapPx(track) {
