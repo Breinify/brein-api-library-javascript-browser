@@ -17,6 +17,8 @@
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
 
+    const DEFAULT_POS = "_fallback";
+
     const Renderer = {
         marker: {
             parentContainer: "brrc-pcont",
@@ -35,6 +37,7 @@
         },
 
         refreshOptions: null,
+        _defaultPos: DEFAULT_POS,
 
         _process: function (func, ...args) {
             if ($.isFunction(func)) {
@@ -221,6 +224,39 @@
             };
         },
 
+        _resolveRefreshPayloadOverride: function (option) {
+            const refreshOptions = $.isPlainObject(this.refreshOptions)
+                ? this.refreshOptions
+                : null;
+
+            if (!$.isPlainObject(refreshOptions)) {
+                return {};
+            }
+
+            const refreshWebExId = Breinify.UTL.isNonEmptyString(refreshOptions.webExId);
+            const payloadUpdatesByPosition = $.isPlainObject(refreshOptions.payloadUpdatesByPosition)
+                ? refreshOptions.payloadUpdatesByPosition
+                : null;
+
+            if (refreshWebExId === null || !$.isPlainObject(payloadUpdatesByPosition)) {
+                return {};
+            }
+
+            const identity = this._readRenderIdentity(option);
+            const optionWebExId = Breinify.UTL.isNonEmptyString(identity?.webExId);
+            const optionPositionId = Breinify.UTL.isNonEmptyString(identity?.positionId);
+
+            if (optionWebExId === null || optionWebExId !== refreshWebExId) {
+                return {};
+            } else if (optionPositionId !== null && $.isPlainObject(payloadUpdatesByPosition[optionPositionId])) {
+                return payloadUpdatesByPosition[optionPositionId];
+            } else if ($.isPlainObject(payloadUpdatesByPosition[this._defaultPos])) {
+                return payloadUpdatesByPosition[this._defaultPos];
+            } else {
+                return {};
+            }
+        },
+
         /**
          * Applies the normalized render identity to the outer rendered container.
          *
@@ -350,10 +386,7 @@
 
             if ($.isFunction($anchor[method])) {
 
-                // keep the status before applying (if it was connected or not)
                 const wasConnected = $container.get(0)?.isConnected === true;
-
-                // apply the connection logic
                 $anchor[method]($container);
 
                 $container.addClass(this.marker.parentContainer);
@@ -379,9 +412,7 @@
             const optionsVersion = typeof refreshOptions.optionsVersion === "number"
                 ? refreshOptions.optionsVersion
                 : null;
-            const overridePayload = $.isPlainObject(refreshOptions.payload)
-                ? refreshOptions.payload
-                : {};
+            const overridePayload = this._resolveRefreshPayloadOverride(option);
 
             if ($.isPlainObject(option?.recommender?.payload)) {
                 return $.extend(true, {}, option.recommender.payload, overridePayload, {
@@ -391,13 +422,11 @@
                 return $.extend(true, {}, def, overridePayload, {
                     optionsVersion: optionsVersion
                 });
+            } else {
+                return $.extend(true, {}, overridePayload, {
+                    optionsVersion: optionsVersion
+                });
             }
-
-            return {
-                optionsVersion: $.isPlainObject(Renderer.refreshOptions)
-                    ? Renderer.refreshOptions.optionsVersion
-                    : null
-            };
         },
 
         _recommenderName: function (payload) {
@@ -452,16 +481,6 @@
                 }, data));
         },
 
-        /**
-         * Replaces all placeholders in text and attributes, the returned element is the same as
-         * passed in under `$entry`.
-         *
-         * @param $entry the element to check for replacements
-         * @param replacements the replacements to apply
-         * @param option the defined options
-         * @returns {*} the `$entry`, just for chaining purposes
-         * @private
-         */
         _replacePlaceholders: function ($entry, replacements, option) {
             const _self = this;
 
@@ -516,16 +535,6 @@
             return $entry;
         },
 
-        /**
-         * Replaces any occurrences of %%...%% with the appropriate placeholder and returns
-         * the modified text, will return `null` if no replacement took place.
-         *
-         * @param value the value to replace
-         * @param data the data to replace values from
-         * @param option options to modify the behavior
-         * @returns {string|null} the replaced value or `null` if no replacement took place
-         * @private
-         */
         _replace: function (value, data, option) {
             const _self = this;
 
@@ -599,747 +608,94 @@
         }
     };
 
-    /**
-     * Default rendering configuration used by the recommendations plugin.
-     *
-     * The object is deep-cloned and merged with user-provided render settings before
-     * a rendering process starts. All properties documented here represent the
-     * supported shape of a render option.
-     *
-     * High-level structure:
-     * - `meta`: internal runtime metadata for a render process
-     * - `recommender`: payload/settings used to retrieve recommendations
-     * - `activity`: activity names used for rendered/clicked tracking
-     * - `bindings`: click bindings applied to rendered recommendations
-     * - `splitTests`: optional control-group integration settings
-     * - `position`: placement definition describing where/how to attach the container
-     * - `placeholderSettings`: fallback behavior for unresolved placeholders
-     * - `placeholders`: placeholder resolvers used while rendering templates
-     * - `templates`: container and item templates/selectors
-     * - `process`: lifecycle hooks around retrieval, rendering, refresh, and click handling
-     * - `data`: optional response transformation hooks
-     */
     const defaultRenderOption = {
         meta: {
-            /**
-             * Unique identifier of the current rendering process.
-             *
-             * This value is assigned internally when rendering starts and is used to
-             * support cancellation and stale-process detection.
-             *
-             * @type {String|null}
-             */
             processId: null,
-
-            /**
-             * Optional rendering identity used to stamp the outer rendered container
-             * with stable DOM metadata.
-             *
-             * This identity is primarily used by higher-level integrations such as
-             * `uiRecommendations` to associate a rendered recommendation block with:
-             * - the owning web-experience
-             * - an optional attribute-position anchor
-             * - an optional recommender name
-             *
-             * When present, the renderer writes the following attributes onto the
-             * outer parent container:
-             * - `data-br-rec-webexpid`
-             * - `data-br-rec-positionid`
-             * - `data-br-rec-name`
-             *
-             * This metadata is not required for normal recommendation rendering.
-             * It exists to support integration-level reconciliation, deduplication,
-             * refresh handling, and DOM inspection/debugging for dynamic placements.
-             *
-             * Expected shape:
-             * {
-             *   webExId: "...",
-             *   positionId: "...",
-             *   recommenderName: "..."
-             * }
-             *
-             * Notes:
-             * - all properties are optional, but at least one meaningful value should exist
-             * - when `null`, no render identity metadata is written
-             * - callers should treat this as descriptive container identity, not as a
-             *   general-purpose data channel
-             *
-             * @type {{
-             *   webExId: String|null,
-             *   positionId: String|null,
-             *   recommenderName: String|null
-             * }|null}
-             */
             renderIdentity: null
         },
 
-        /**
-         * Recommender settings used to retrieve recommendations.
-         *
-         * Expected shape:
-         * {
-         *   payload: {
-         *     namedRecommendations: ["..."],
-         *     recommendationQueryName: "...",
-         *     ...
-         *   }
-         * }
-         *
-         * @type {Object|null}
-         */
         recommender: null,
 
         activity: {
-            /**
-             * Activity type used when a recommendation was rendered.
-             *
-             * @type {String}
-             */
             renderType: "renderedRecommendation",
-
-            /**
-             * Activity type used when a recommendation item was clicked.
-             *
-             * @type {String}
-             */
             clickedType: "clickedRecommendation"
         },
 
         bindings: {
-            /**
-             * Global selector used for delegated click detection.
-             *
-             * Any matching click inside a rendered recommendation may be interpreted
-             * as a recommendation interaction, depending on container/item resolution.
-             *
-             * @type {String}
-             */
             selector: "a,.br-rec-click",
-
-            /**
-             * Optional map of stricter click bindings applied directly to elements
-             * inside the rendered container.
-             *
-             * Structure:
-             * {
-             *   ".selector": {
-             *     ...additionalEventData
-             *   }
-             * }
-             *
-             * The mapped object value is passed through as `additionalEventData`
-             * into the click handling flow.
-             *
-             * @type {Object<String, Object>}
-             */
             specificSelectors: {}
         },
 
         splitTests: {
             control: {
-                /**
-                 * Selector definition resolving the control-group container.
-                 *
-                 * Supported values:
-                 * - CSS selector string
-                 * - jQuery instance
-                 * - function
-                 *
-                 * Function signature:
-                 * function () { ... }
-                 *
-                 * Function return value:
-                 * - CSS selector string
-                 * - jQuery instance
-                 * - null
-                 *
-                 * @type {String|jQuery|Function|null}
-                 */
                 containerSelector: null
             }
         },
 
         position: {
-            /**
-             * Anchor used for jQuery `before(...)`.
-             *
-             * Supported values:
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function (recommenderName, $changedContainer, meta) { ... }
-             *
-             * Parameters:
-             * @param {String|null} recommenderName
-             * the resolved recommender name
-             * @param {jQuery|null} $changedContainer
-             * changed element container for dynamic/onChange resolution,
-             * `null` during normal rendering
-             * @param {Object} meta
-             * metadata describing the resolution context
-             *
-             * Meta shape:
-             * {
-             *   type: "added-element" | "determine-container" | ...,
-             *   option: <render option, if available>,
-             *   data: <recommendation result or mutation metadata, if available>
-             * }
-             *
-             * Function return value:
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             before: null,
-
-            /**
-             * Anchor used for jQuery `after(...)`.
-             *
-             * Supported values:
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function (recommenderName, $changedContainer, meta) { ... }
-             *
-             * Parameters:
-             * @param {String|null} recommenderName
-             * the resolved recommender name
-             * @param {jQuery|null} $changedContainer
-             * changed element container for dynamic/onChange resolution,
-             * `null` during normal rendering
-             * @param {Object} meta
-             * metadata describing the resolution context
-             *
-             * Meta shape:
-             * {
-             *   type: "added-element" | "determine-container" | ...,
-             *   option: <render option, if available>,
-             *   data: <recommendation result or mutation metadata, if available>
-             * }
-             *
-             * Function return value:
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             after: null,
-
-            /**
-             * Anchor used for jQuery `prepend(...)`.
-             *
-             * Supported values:
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function (recommenderName, $changedContainer, meta) { ... }
-             *
-             * Parameters:
-             * @param {String|null} recommenderName
-             * the resolved recommender name
-             * @param {jQuery|null} $changedContainer
-             * changed element container for dynamic/onChange resolution,
-             * `null` during normal rendering
-             * @param {Object} meta
-             * metadata describing the resolution context
-             *
-             * Meta shape:
-             * {
-             *   type: "added-element" | "determine-container" | ...,
-             *   option: <render option, if available>,
-             *   data: <recommendation result or mutation metadata, if available>
-             * }
-             *
-             * Function return value:
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             prepend: null,
-
-            /**
-             * Anchor used for jQuery `append(...)`.
-             *
-             * Supported values:
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function (recommenderName, $changedContainer, meta) { ... }
-             *
-             * Parameters:
-             * @param {String|null} recommenderName
-             * the resolved recommender name
-             * @param {jQuery|null} $changedContainer
-             * changed element container for dynamic/onChange resolution,
-             * `null` during normal rendering
-             * @param {Object} meta
-             * metadata describing the resolution context
-             *
-             * Meta shape:
-             * {
-             *   type: "added-element" | "determine-container" | ...,
-             *   option: <render option, if available>,
-             *   data: <recommendation result or mutation metadata, if available>
-             * }
-             *
-             * Function return value:
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             append: null,
-
-            /**
-             * Anchor used for jQuery `replaceWith(...)`.
-             *
-             * Supported values:
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function (recommenderName, $changedContainer, meta) { ... }
-             *
-             * Parameters:
-             * @param {String|null} recommenderName
-             * the resolved recommender name
-             * @param {jQuery|null} $changedContainer
-             * changed element container for dynamic/onChange resolution,
-             * `null` during normal rendering
-             * @param {Object} meta
-             * metadata describing the resolution context
-             *
-             * Meta shape:
-             * {
-             *   type: "added-element" | "determine-container" | ...,
-             *   option: <render option, if available>,
-             *   data: <recommendation result or mutation metadata, if available>
-             * }
-             *
-             * Function return value:
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             replace: null,
-
-            /**
-             * Optional third-party rendering hook.
-             *
-             * If used, rendering of the recommendation DOM is delegated to the caller.
-             * The function must call the provided callback with the resolved item container.
-             *
-             * Function signature:
-             * function (data, callback) { ... }
-             *
-             * Parameters:
-             * @param {Object} data
-             * mapped recommendation result
-             * @param {Function} callback
-             * callback used to hand the externally rendered container back into the framework
-             *
-             * Callback signature:
-             * callback($itemContainer, settings)
-             *
-             * Callback parameters:
-             * @param {jQuery|null} $itemContainer
-             * rendered item container
-             * @param {Object} [settings]
-             * optional settings overriding external rendering behavior
-             *
-             * Supported callback settings:
-             * {
-             *   error: false,
-             *   externalRendering: true,
-             *   itemSelection: null
-             * }
-             *
-             * `itemSelection`, if provided, must use:
-             * function ($itemContainer, idx, recommendation) { ... }
-             *
-             * Return value:
-             * - ignored by the framework
-             *
-             * @type {Function|null}
-             */
             externalRender: null
         },
 
         placeholderSettings: {
-            /**
-             * Fallback resolver for placeholders that could not be resolved otherwise.
-             *
-             * This is called only when:
-             * - no explicit placeholder resolver matched
-             * - no value could be read from recommendation data
-             *
-             * Return:
-             * - `null` to keep the original placeholder unchanged
-             * - a string (including empty string) to replace it
-             *
-             * @param {String} placeholder
-             * the unresolved placeholder name
-             *
-             * @returns {String|null}
-             * replacement value or `null` to leave the placeholder untouched
-             */
             replaceWith: function () {
                 return "";
             }
         },
 
         placeholders: {
-            /**
-             * Built-in random UUID placeholder.
-             *
-             * Function signature:
-             * function () { ... }
-             *
-             * @returns {String}
-             */
             "random::uuid": function () {
                 return Breinify.UTL.uuid();
             },
-
-            /**
-             * Built-in placeholder resolving the recommendation container marker class.
-             *
-             * @type {String}
-             */
             "marker::container": Renderer.marker.container,
-
-            /**
-             * Built-in placeholder resolving the recommendation item marker class.
-             *
-             * @type {String}
-             */
             "marker::item": Renderer.marker.item,
-
-            /**
-             * Built-in placeholder resolving the recommender name from the payload.
-             *
-             * Function signature:
-             * function (data, resolvedValue) { ... }
-             *
-             * Parameters:
-             * @param {Object} data
-             * current replacement data object
-             * @param {*} resolvedValue
-             * value resolved from the placeholder path, if any
-             *
-             * @returns {String|null}
-             */
             "marker::recommender": function (data) {
                 return Breinify.UTL.isNonEmptyString(data?.payload?.recommenderName);
             },
-
-            /**
-             * Built-in placeholder returning the entire data object as JSON.
-             *
-             * Function signature:
-             * function (data, resolvedValue) { ... }
-             *
-             * Parameters:
-             * @param {Object} data
-             * current replacement data object
-             * @param {*} resolvedValue
-             * value resolved from the placeholder path, if any
-             *
-             * @returns {String}
-             */
             "data::json": function (data) {
                 return JSON.stringify(data);
             }
         },
 
-        /**
-         * Defines HTML templates, selectors, jQuery instances, or functions used
-         * to resolve the outer container and item template/selection.
-         *
-         * In normal rendering mode these are typically template sources.
-         * In binding-only or externally-rendered scenarios these may also behave as
-         * selectors resolving already existing DOM.
-         */
         templates: {
-            /**
-             * Template or selector used for the outer recommendation container.
-             *
-             * Supported values:
-             * - HTML string
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function ($context) { ... }
-             *
-             * Parameters:
-             * @param {jQuery} [$context]
-             * optional context container provided by the caller
-             *
-             * Function return value:
-             * - HTML string
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             container: null,
-
-            /**
-             * Template or selector used for a single rendered item.
-             *
-             * Supported values:
-             * - HTML string
-             * - CSS selector string
-             * - jQuery instance
-             * - function
-             *
-             * Function signature:
-             * function ($context) { ... }
-             *
-             * Parameters:
-             * @param {jQuery} [$context]
-             * current item/container context
-             *
-             * Function return value:
-             * - HTML string
-             * - CSS selector string
-             * - jQuery instance
-             * - null
-             *
-             * @type {String|jQuery|Function|null}
-             */
             item: null
         },
 
         process: {
-            /**
-             * Called when click handling explicitly stops propagation for a handled recommendation interaction.
-             *
-             * Parameters:
-             * @param {Event} event
-             * the original click event
-             * @param {jQuery} $itemEl
-             * the clicked semantic item element
-             * @param {jQuery} $container
-             * the resolved recommendation container
-             * @param {Object} recommendationData
-             * the mapped recommendation result
-             * @param {Object} additionalEventData
-             * additional event context
-             * @param {Object} option
-             * the render option
-             */
             stoppedPropagation: function (event, $itemEl, $container, recommendationData, additionalEventData, option) {
             },
-
-            /**
-             * Called when recommendation retrieval or rendering fails.
-             *
-             * Parameters:
-             * @param {Object} error
-             * normalized error information
-             */
             error: function (error) {
             },
-
-            /**
-             * Called when a rendering process was canceled before completion.
-             *
-             * Parameters:
-             * @param {Object} option
-             * the render option
-             * @param {Object} result
-             * the mapped recommendation result, if available
-             */
             canceled: function (option, result) {
             },
-
-            /**
-             * Called immediately after the render option was normalized and initialized.
-             *
-             * Parameters:
-             * @param {Object} option
-             * the normalized render option
-             */
             init: function (option) {
             },
-
-            /**
-             * Called before the container is resolved and attached.
-             *
-             * Parameters:
-             * @param {Object} data
-             * the mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
             pre: function (data, option) {
             },
-
-            /**
-             * Called after the outer container and inner item container were resolved and prepared.
-             *
-             * Parameters:
-             * @param {jQuery} $container
-             * the outer rendered container
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {Object} data
-             * the mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
             attachedContainer: function ($container, $itemContainer, data, option) {
             },
-
-            /**
-             * Called after a single recommendation item was attached.
-             *
-             * Parameters:
-             * @param {jQuery} $container
-             * the item container
-             * @param {jQuery} $item
-             * the attached item element
-             * @param {Object} recommendation
-             * the mapped recommendation item
-             * @param {Object} option
-             * the render option
-             */
             attachedItem: function ($container, $item, recommendation, option) {
             },
-
-            /**
-             * Called after all items were attached in non-external rendering mode.
-             *
-             * Parameters:
-             * @param {jQuery} $container
-             * the outer rendered container
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {Object} data
-             * the mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
             attached: function ($container, $itemContainer, data, option) {
             },
-
-            /**
-             * Called after rendering and attachment logic completed successfully.
-             *
-             * Parameters:
-             * @param {jQuery} $container
-             * the outer rendered container
-             * @param {jQuery} $itemContainer
-             * the resolved item container
-             * @param {Object} data
-             * the mapped recommendation result
-             * @param {Object} option
-             * the render option
-             */
             post: function ($container, $itemContainer, data, option) {
             },
-
-            /**
-             * Called at the very end of a render lifecycle, including success, error, control, or cancellation paths.
-             *
-             * Parameters:
-             * @param {Object} option
-             * the render option
-             * @param {Object} result
-             * the mapped result or error result
-             * @param {jQuery|null} $container
-             * the resolved container, if any
-             */
             finalize: function (option, result, $container) {
             },
-
-            /**
-             * Called when a recommendation item or control item was clicked.
-             *
-             * Parameters:
-             * @param {Event} event
-             * the original click event
-             * @param {Object} settings
-             * click handling settings/context
-             */
             clickedItem: function (event, settings) {
             },
-
-            /**
-             * Called before an activity is sent, allowing customization of tags, user, and activity behavior.
-             *
-             * Parameters:
-             * @param {Event} event
-             * the original event
-             * @param {Object} settings
-             * activity settings/context
-             */
             createActivity: function (event, settings) {
             },
-
-            /**
-             * Called whenever the refresh state of a rendered recommendation container changes.
-             *
-             * Parameters:
-             * @param {jQuery} $container
-             * the rendered parent container
-             * @param {String} state
-             * one of: idle, refreshing, refresh-error, refresh-canceled
-             * @param {Object} details
-             * additional state transition details
-             * @param {Object} option
-             * the render option
-             */
             refreshStateChange: function ($container, state, details, option) {
             }
         },
 
         data: {
-            /**
-             * Optional hook to transform, split, or replace a retrieved recommendation result
-             * before it is rendered.
-             *
-             * Supported return values:
-             * - `null`
-             *   -> keep original `{result, option}`
-             * - `{ result: ..., option: ... }`
-             *   -> replace with one modified pair
-             * - `[{ result: ..., option: ... }, ...]`
-             *   -> split into multiple render operations
-             *
-             * Async functions are supported as well.
-             *
-             * Returned `option` values are expected to be full render options usable by
-             * the rendering pipeline, not partial patches.
-             *
-             * @param {Object} result
-             * the mapped recommendation result
-             * @param {Object} option
-             * the render option
-             *
-             * @returns {null|Object|Object[]|Promise<null|Object|Object[]>}
-             */
             modify: function () {
                 return null;
             }
@@ -1353,15 +709,6 @@
             Renderer._refresh(options);
         },
 
-        /**
-         * <p>The bind method is used to bind the functionality provided by this library to given or otherwise loaded.
-         * Use-cases for the usage of the bind (instead of render) method could be:
-         * <ul>
-         *     <li>3rd-party rendering (ex. via backend), but handling of activities (ex. clickedRecommendation)</li>
-         *     <li>using of split-testing within third party rendering</li>
-         * </ul></p>
-         * <p>The method uses the same (but limited or less applied) options as the rendering method</p>
-         */
         bind: function () {
             const _self = this;
             const processId = Breinify.UTL.uuid();
@@ -1418,9 +765,6 @@
             };
         },
 
-        /**
-         * The render method is used to render the configured recommendations within the given user-interface.
-         */
         render: function () {
             const _self = this;
             const processId = Breinify.UTL.uuid();
@@ -1530,21 +874,12 @@
             return false;
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags at this point,
-         * for Breinify a lot of knowledge can be applied already, additional
-         * knowledge may be applied within the createActivity process.
-         */
         createRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             const activityTags = this._createDefaultTags(recommendationData, additionalEventData);
             this._applyBreinifyTags(activityTags, recommendationData, recommendation, additionalEventData);
             return activityTags;
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags within
-         * a rendered recommendation activity.
-         */
         createRenderedRecommendationTags: function ($container, result) {
             const activityTags = this.createRecommendationTags(result, {}, {});
 
@@ -1563,10 +898,6 @@
             return activityTags;
         },
 
-        /**
-         * Determines the default knowledge for the activity-tags within
-         * a clicked recommendation activity.
-         */
         createClickedRecommendationTags: function (recommendationData, recommendation, additionalEventData) {
             return this.createRecommendationTags(recommendationData, recommendation, additionalEventData);
         },
