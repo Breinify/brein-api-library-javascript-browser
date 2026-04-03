@@ -9,8 +9,10 @@
 
     const $ = Breinify.UTL._jquery();
     const ALLOWED_POSITIONS = ["before", "after", "prepend", "append", "replace", "externalRender"];
+    const DEFAULT_POS = "_fallback";
 
     const _private = {
+        _defaultPos: DEFAULT_POS,
         _runtimeByVersionId: {},
 
         getRuntime: function (webExVersionId) {
@@ -206,6 +208,26 @@
                 console.error("[uiRecommendations] unknown selectionLogic: " + normalizedSelectionLogic, mapping);
                 return null;
             }
+        },
+
+        _buildPayloadUpdateForWebExpPos: function (webExId, webExpPos, payload) {
+            const bindings = this._getFeatureBindings();
+            const webExBindings = $.isPlainObject(bindings?.[webExId]) ? bindings[webExId] : {};
+            const webExpPosBindings = $.isPlainObject(webExBindings?.webExpPos) ? webExBindings.webExpPos : {};
+
+            const normalizedPos = Breinify.UTL.isNonEmptyString(webExpPos);
+
+            let posConfig;
+            if (normalizedPos !== null && $.isPlainObject(webExpPosBindings[normalizedPos])) {
+                posConfig = webExpPosBindings[normalizedPos];
+            } else if ($.isPlainObject(webExpPosBindings[this._defaultPos])) {
+                posConfig = webExpPosBindings[this._defaultPos];
+            } else {
+                posConfig = {};
+            }
+
+            const mappings = $.isArray(posConfig.mappings) ? posConfig.mappings : [];
+            return this._buildPayloadUpdateForMappings(mappings, payload);
         },
 
         _applyMappingToPayloadUpdate: function (payloadUpdate, mapping, payload) {
@@ -1242,9 +1264,8 @@
     };
 
     Breinify.plugins._add("uiRecommendations", {
-
-        buildPayloadUpdateForMappings: function (mappings, payload) {
-            return _private._buildPayloadUpdateForMappings(mappings, payload);
+        buildPayloadUpdateForWebExpPos: function (webExId, webExpPos, payload) {
+            return _private._buildPayloadUpdateForWebExpPos(webExId, webExpPos, payload);
         },
 
         register: function (module, webExId, webExVersionId, config) {
