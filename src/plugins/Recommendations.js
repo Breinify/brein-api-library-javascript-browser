@@ -412,20 +412,44 @@
             const optionsVersion = typeof refreshOptions.optionsVersion === "number"
                 ? refreshOptions.optionsVersion
                 : null;
-            const overridePayload = this._resolveRefreshPayloadOverride(option);
+
+            const globalOverridePayload = $.isPlainObject(refreshOptions.payload)
+                ? refreshOptions.payload
+                : {};
+            const specificOverridePayload = this._resolveRefreshPayloadOverride(option);
 
             if ($.isPlainObject(option?.recommender?.payload)) {
-                return $.extend(true, {}, option.recommender.payload, overridePayload, {
-                    optionsVersion: optionsVersion
-                });
+                return $.extend(
+                    true,
+                    {},
+                    option.recommender.payload,
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
             } else if ($.isPlainObject(def)) {
-                return $.extend(true, {}, def, overridePayload, {
-                    optionsVersion: optionsVersion
-                });
+                return $.extend(
+                    true,
+                    {},
+                    def,
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
             } else {
-                return $.extend(true, {}, overridePayload, {
-                    optionsVersion: optionsVersion
-                });
+                return $.extend(
+                    true,
+                    {},
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
             }
         },
 
