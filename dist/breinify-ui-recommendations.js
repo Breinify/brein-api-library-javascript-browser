@@ -634,7 +634,7 @@
             const extensionModule = this._getExtensionModule();
 
             const frameworkConfig = {};
-            frameworkConfig.recommender = await this._createPayload(singleConfig.recommender);
+            frameworkConfig.recommender = await this._createFeatureEnrichedPayload(webExId, singleConfig);
             frameworkConfig.activity = this._createActivitySettings(singleConfig);
             frameworkConfig.splitTests = this._createSplitTestsSettings(webExId, configuration, singleConfig);
             frameworkConfig.position = this._createPosition(webExId, configuration, singleConfig, runtime);
@@ -1100,6 +1100,32 @@
             return {
                 clickedType: activityType
             };
+        },
+
+        _createFeatureEnrichedPayload: async function (webExId, singleConfig) {
+            let recommenderConfig = await this._createPayload(singleConfig?.recommender);
+            if (!$.isPlainObject(recommenderConfig)) {
+                recommenderConfig = {};
+            }
+
+            const webExpPos = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
+            const featureStorage = Breinify.plugins?.featureStorage;
+            const features = $.isFunction(featureStorage?.all) ? featureStorage.all() : {};
+            const featureMeta = $.isFunction(featureStorage?.allMeta) ? featureStorage.allMeta() : {};
+
+            // build payload context (no "changed" on initial render)
+            const payloadContext = {
+                features: features,
+                featureMeta: featureMeta,
+                changed: {}
+            };
+
+            const payloadUpdate = this._buildPayloadUpdateForWebExpPos(webExId, webExpPos, payloadContext);
+            if ($.isPlainObject(payloadUpdate) && $.isPlainObject(recommenderConfig.payload)) {
+                recommenderConfig.payload = $.extend(true, {}, recommenderConfig.payload, payloadUpdate);
+            }
+
+            return recommenderConfig;
         },
 
         _createPayload: async function (recommender) {

@@ -1691,6 +1691,16 @@
             return _private.cloneObject(_private.currentFeatures);
         },
 
+        allMeta: function () {
+            const result = {};
+
+            Object.keys(_private.currentFeatureMeta).forEach(function (name) {
+                result[name] = _private.cloneFeatureMeta(_private.currentFeatureMeta[name]);
+            });
+
+            return result;
+        },
+
         /**
          * Returns metadata for one feature.
          *
