@@ -103,6 +103,117 @@
             return Object.assign({}, value || {});
         },
 
+        _sanitizeForPersistence: function (value, seen) {
+            const self = this;
+            const currentSeen = seen || [];
+
+            if (value === null || typeof value === 'undefined') {
+                return null;
+            }
+
+            const valueType = typeof value;
+
+            if (valueType === 'string' ||
+                valueType === 'number' ||
+                valueType === 'boolean') {
+                return value;
+            }
+
+            if (valueType === 'bigint') {
+                return String(value);
+            }
+
+            if (valueType === 'function' || valueType === 'symbol') {
+                return null;
+            }
+
+            if (typeof Element !== 'undefined' && value instanceof Element) {
+                return {
+                    __type: 'Element',
+                    tagName: value.tagName || null,
+                    id: value.id || null,
+                    className: value.className || null
+                };
+            }
+
+            if (typeof window !== 'undefined' && value === window) {
+                return {
+                    __type: 'Window'
+                };
+            }
+
+            if (typeof document !== 'undefined' && value === document) {
+                return {
+                    __type: 'Document'
+                };
+            }
+
+            if (typeof Date !== 'undefined' && value instanceof Date) {
+                return isNaN(value.getTime()) ? null : value.toISOString();
+            }
+
+            if (typeof RegExp !== 'undefined' && value instanceof RegExp) {
+                return String(value);
+            }
+
+            if (typeof Error !== 'undefined' && value instanceof Error) {
+                return {
+                    __type: 'Error',
+                    name: value.name || 'Error',
+                    message: value.message || '',
+                    stack: typeof value.stack === 'string' ? value.stack : null
+                };
+            }
+
+            if (currentSeen.indexOf(value) > -1) {
+                return {
+                    __type: 'Circular'
+                };
+            }
+
+            const nextSeen = currentSeen.concat([value]);
+
+            if ($.isArray(value)) {
+                return value.map(function (entry) {
+                    return self._sanitizeForPersistence(entry, nextSeen);
+                });
+            }
+
+            if (this.isPlainObject(value)) {
+                const result = {};
+
+                Object.keys(value).forEach(function (key) {
+                    const sanitizedValue = self._sanitizeForPersistence(value[key], nextSeen);
+
+                    if (typeof sanitizedValue !== 'undefined') {
+                        result[key] = sanitizedValue;
+                    }
+                });
+
+                return result;
+            }
+
+            if (typeof value.toJSON === 'function') {
+                try {
+                    return self._sanitizeForPersistence(value.toJSON(), nextSeen);
+                } catch (e) {
+                    return {
+                        __type: 'Unserializable',
+                        valueType: Object.prototype.toString.call(value)
+                    };
+                }
+            }
+
+            try {
+                return JSON.parse(JSON.stringify(value));
+            } catch (e) {
+                return {
+                    __type: 'Unserializable',
+                    valueType: Object.prototype.toString.call(value)
+                };
+            }
+        },
+
         cloneFeatureMeta: function (value) {
             if (!this.isPlainObject(value)) {
                 return null;
@@ -376,14 +487,17 @@
         buildPersistedFeatureEntry: function (name, definition) {
             const normalizedName = this.normalizeName(name);
             const now = Date.now();
+            const currentMeta = Object.prototype.hasOwnProperty.call(this.currentFeatureMeta, normalizedName)
+                ? this.cloneFeatureMeta(this.currentFeatureMeta[normalizedName])
+                : null;
 
             return {
-                value: Object.prototype.hasOwnProperty.call(this.currentFeatures, normalizedName)
-                    ? this.currentFeatures[normalizedName]
-                    : null,
-                meta: Object.prototype.hasOwnProperty.call(this.currentFeatureMeta, normalizedName)
-                    ? this.cloneFeatureMeta(this.currentFeatureMeta[normalizedName])
-                    : null,
+                value: this._sanitizeForPersistence(
+                    Object.prototype.hasOwnProperty.call(this.currentFeatures, normalizedName)
+                        ? this.currentFeatures[normalizedName]
+                        : null
+                ),
+                meta: currentMeta === null ? null : this._sanitizeForPersistence(currentMeta),
                 definition: this.cloneFeatureDefinition(definition),
                 persistedAt: now,
                 expiresAt: now + definition.persistence.ttlInMs
