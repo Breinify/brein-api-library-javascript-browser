@@ -101,7 +101,7 @@
 
                 // Call original ajax, then trigger your cart update logic on success
                 _self.beforeCartRequest(url);
-                return _self.originalAjax.call(this, settings).done(function () {
+                return _self.originalAjax.apply(this, arguments).done(function () {
                     const maybePromise = _self._loadCart();
                     if (maybePromise && typeof maybePromise.then === 'function') {
                         maybePromise.then(cartInfo => {
@@ -143,7 +143,9 @@
             this.originalFetch = window.fetch;
             window.fetch = function () {
                 const args = arguments;
-                const url = args[0];
+
+                const input = args[0];
+                const url = typeof input === 'string' ? input : (input && typeof input.url === 'string' ? input.url : null);
 
                 if (!_self._isCartUrl(url)) {
                     return _self.originalFetch.apply(this, args);
@@ -291,15 +293,6 @@
                 }
             }
 
-            // notify observers about the changes (if any)
-            if (removedItems.length > 0 || addedItems.length > 0) {
-
-                for (let i = 0; i < this.cartObservers.length; i++) {
-                    const observer = this.cartObservers[i];
-                    observer(addedItems, removedItems, newCart);
-                }
-            }
-
             console.log('[shopify] cart diff', {
                 observerCount: this.cartObservers.length,
                 oldCart: oldCart,
@@ -307,6 +300,19 @@
                 addedItems: addedItems,
                 removedItems: removedItems
             });
+
+            // notify observers about the changes (if any)
+            if (removedItems.length > 0 || addedItems.length > 0) {
+
+                for (let i = 0; i < this.cartObservers.length; i++) {
+                    const observer = this.cartObservers[i];
+                    try {
+                        observer(addedItems, removedItems, newCart);
+                    } catch (e) {
+                        console.error('[shopify] cart observer failed', e);
+                    }
+                }
+            }
 
             return {
                 addedItems: addedItems,
