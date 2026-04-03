@@ -44,6 +44,57 @@
             return runtime;
         },
 
+        _hasFeatureBindings: function (webExId) {
+            const bindings = this._getFeatureBindings();
+            const webExBindings = $.isPlainObject(bindings?.[webExId]) ? bindings[webExId] : {};
+            const webExpPos = $.isPlainObject(webExBindings?.webExpPos) ? webExBindings.webExpPos : {};
+
+            return Object.keys(webExpPos).some(function (pos) {
+                const posConfig = $.isPlainObject(webExpPos[pos]) ? webExpPos[pos] : {};
+                return $.isArray(posConfig.mappings) && posConfig.mappings.length > 0;
+            });
+        },
+
+        ensureFeatureObserver: function (webExId, webExVersionId, runtime) {
+            const featureStorage = Breinify.plugins?.featureStorage;
+            if (!$.isFunction(featureStorage?.onChange)) {
+                return;
+            } else if (runtime.featureObserverRegistered === true) {
+                return;
+            } else if (this._hasFeatureBindings(webExId) !== true) {
+                return;
+            }
+
+            const _self = this;
+            const listener = function (payload) {
+                _self._handleFeaturesChanged(webExId, payload);
+            };
+
+            featureStorage.onChange(listener);
+            runtime.featureObserverRegistered = true;
+            runtime.featureObserver = listener;
+        },
+
+        _handleFeaturesChanged: function (webExId, payload) {
+            const relevance = this._isFeatureChangeRelevant(webExId, payload);
+            if (relevance.affected !== true) {
+                return;
+            }
+
+            const payloadByPositionId = {};
+            for (let i = 0; i < relevance.affectedWebExpPos.length; i++) {
+                const pos = relevance.affectedWebExpPos[i];
+                payloadByPositionId[pos] = this._buildPayloadUpdateForWebExpPos(webExId, pos, payload);
+            }
+
+            Breinify.plugins.recommendations.refresh({
+                payloadByPositionId: payloadByPositionId,
+                renderIdentity: {
+                    webExId: webExId
+                }
+            });
+        },
+
         _normalizeMappingValue: function (mappingType, value) {
             const normalizedType = Breinify.UTL.isNonEmptyString(mappingType);
 
@@ -1297,14 +1348,13 @@
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
-            const recs = $.isPlainObject(config) && $.isArray(config.recommendations)
-                ? config.recommendations
-                : [];
+            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
             const runtime = _private.getRuntime(webExVersionId);
-
             if (runtime === null) {
                 return;
             }
+
+            _private.ensureFeatureObserver(webExId, webExVersionId, runtime);
 
             const configOnLoad = [];
             const configOnChange = [];
