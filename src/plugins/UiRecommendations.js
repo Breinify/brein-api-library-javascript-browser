@@ -30,6 +30,9 @@
                 webExVersionId: normalizedWebExVersionId,
                 onLoadHandled: false,
                 onLoadHandling: false,
+                featureObserverRegistered: false,
+                featureObserver: null,
+                lastFeatureRefreshConfig: null,
                 /*
                  * Tracks the current anchor resolution state for attribute-based rendering.
                  * This state is used to determine:
@@ -67,7 +70,7 @@
 
             const _self = this;
             const listener = function (payload) {
-                _self._handleFeaturesChanged(webExId, payload);
+                _self._handleFeaturesChanged(webExId, webExVersionId, payload);
             };
 
             featureStorage.onChange(listener);
@@ -75,7 +78,12 @@
             runtime.featureObserver = listener;
         },
 
-        _handleFeaturesChanged: function (webExId, payload) {
+        _handleFeaturesChanged: function (webExId, webExVersionId, payload) {
+            const runtime = this.getRuntime(webExVersionId);
+            if (runtime === null) {
+                return;
+            }
+
             const relevance = this._isFeatureChangeRelevant(webExId, payload);
             if (relevance.affected !== true) {
                 return;
@@ -87,12 +95,54 @@
                 payloadByPositionId[pos] = this._buildPayloadUpdateForWebExpPos(webExId, pos, payload);
             }
 
-            Breinify.plugins.recommendations.refresh({
+            const refreshConfig = {
                 payloadByPositionId: payloadByPositionId,
                 renderIdentity: {
                     webExId: webExId
                 }
-            });
+            };
+
+            if (Breinify.UTL.equals(runtime.lastFeatureRefreshConfig, refreshConfig) === true) {
+                return;
+            }
+
+            runtime.lastFeatureRefreshConfig = $.extend(true, {}, refreshConfig);
+            Breinify.plugins.recommendations.refresh(refreshConfig);
+        },
+
+        _rememberInitialFeatureRefreshConfig: function (webExId, webExVersionId, recommendations) {
+            const runtime = this.getRuntime(webExVersionId);
+            if (runtime === null) {
+                return;
+            }
+
+            const featureStorage = Breinify.plugins?.featureStorage;
+            const features = $.isFunction(featureStorage?.all) ? featureStorage.all() : {};
+            const featureMeta = $.isFunction(featureStorage?.allMeta) ? featureStorage.allMeta() : {};
+
+            const payloadContext = {
+                features: features,
+                featureMeta: featureMeta,
+                changed: {}
+            };
+
+            const payloadByPositionId = {};
+            const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
+
+            for (let i = 0; i < normalizedRecommendations.length; i++) {
+                const recommendation = normalizedRecommendations[i];
+                const webExpPos = Breinify.UTL.isNonEmptyString(recommendation?.position?.positionId);
+
+                payloadByPositionId[webExpPos === null ? this._defaultPos : webExpPos] =
+                    this._buildPayloadUpdateForWebExpPos(webExId, webExpPos, payloadContext);
+            }
+
+            runtime.lastFeatureRefreshConfig = {
+                payloadByPositionId: payloadByPositionId,
+                renderIdentity: {
+                    webExId: webExId
+                }
+            };
         },
 
         _normalizeMappingValue: function (mappingType, value) {
@@ -531,6 +581,10 @@
 
                 if (filteredResults.length === 0) {
                     return;
+                }
+
+                if (handlingType === "onLoad") {
+                    this._rememberInitialFeatureRefreshConfig(webExId, webExVersionId, filteredResults);
                 }
 
                 Breinify.plugins.recommendations.render(filteredResults);
