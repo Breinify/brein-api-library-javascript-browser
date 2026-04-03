@@ -208,6 +208,55 @@
             }
         },
 
+        _applyMappingToPayloadUpdate: function (payloadUpdate, mapping, payload) {
+            payloadUpdate = $.isPlainObject(payloadUpdate) ? payloadUpdate : {};
+
+            if (!$.isPlainObject(mapping)) {
+                return payloadUpdate;
+            }
+
+            const type = Breinify.UTL.isNonEmptyString(mapping.type);
+            const resolvedValue = this._resolveMappingValue(mapping, payload);
+
+            if (type === null || resolvedValue === null) {
+                return payloadUpdate;
+            } else if (type === "forItems") {
+                payloadUpdate.recommendationForItems = resolvedValue;
+                return payloadUpdate;
+            } else if (type === "blockItems") {
+                payloadUpdate.blockItems = resolvedValue;
+                return payloadUpdate;
+            } else if (type === "parameter") {
+                const payloadKey = Breinify.UTL.isNonEmptyString(mapping.payloadKey);
+                if (payloadKey === null) {
+                    console.error("[uiRecommendations] parameter mapping requires payloadKey", mapping);
+                    return payloadUpdate;
+                }
+
+                payloadUpdate.recommendationAdditionalParameters =
+                    $.isPlainObject(payloadUpdate.recommendationAdditionalParameters)
+                        ? payloadUpdate.recommendationAdditionalParameters
+                        : {};
+
+                payloadUpdate.recommendationAdditionalParameters[payloadKey] = resolvedValue;
+                return payloadUpdate;
+            } else {
+                console.error("[uiRecommendations] unsupported mapping type: " + type, mapping);
+                return payloadUpdate;
+            }
+        },
+
+        _buildPayloadUpdateForMappings: function (mappings, payload) {
+            const normalizedMappings = $.isArray(mappings) ? mappings : [];
+            let payloadUpdate = {};
+
+            for (let i = 0; i < normalizedMappings.length; i++) {
+                payloadUpdate = this._applyMappingToPayloadUpdate(payloadUpdate, normalizedMappings[i], payload);
+            }
+
+            return payloadUpdate;
+        },
+
         _getFeatureBindings: function () {
             const extensionModule = this._getExtensionModule();
             if (!$.isFunction(extensionModule?.getFeatureBindings)) {
@@ -1193,8 +1242,9 @@
     };
 
     Breinify.plugins._add("uiRecommendations", {
-        resolveMappingValue: function (mapping, payload) {
-            return _private._resolveMappingValue(mapping, payload);
+
+        buildPayloadUpdateForMappings: function (mappings, payload) {
+            return _private._buildPayloadUpdateForMappings(mappings, payload);
         },
 
         register: function (module, webExId, webExVersionId, config) {
