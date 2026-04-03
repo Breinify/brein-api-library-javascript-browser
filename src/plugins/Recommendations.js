@@ -170,6 +170,10 @@
                 settings[recGroup].push(cpyOption);
             });
 
+            if ($.isEmptyObject(settings)) {
+                return;
+            }
+
             Object.values(settings).forEach(function (setting) {
                 Breinify.plugins.recommendations.render(setting);
             });
