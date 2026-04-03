@@ -42,6 +42,113 @@
             return runtime;
         },
 
+        _getFeatureBindings: function () {
+            const extensionModule = this._getExtensionModule();
+            if (!$.isFunction(extensionModule?.getFeatureBindings)) {
+                return {};
+            }
+
+            try {
+                const bindings = extensionModule.getFeatureBindings();
+                return $.isPlainObject(bindings) ? bindings : {};
+            } catch (e) {
+                console.error(e);
+                return {};
+            }
+        },
+
+        _normalizeFeatureNames: function (names) {
+            let normalized = [];
+
+            if (typeof names === "string") {
+                normalized = [names];
+            } else if ($.isArray(names)) {
+                normalized = names;
+            }
+
+            return normalized
+                .map(function (name) {
+                    return typeof name === "string" ? name.trim() : "";
+                })
+                .filter(function (name, idx, arr) {
+                    return name !== "" && arr.indexOf(name) === idx;
+                });
+        },
+
+        _getMappingDependencies: function (mapping) {
+            if (!$.isPlainObject(mapping)) {
+                return [];
+            }
+
+            const names = [];
+
+            if (typeof mapping.feature === "string") {
+                names.push(mapping.feature);
+            }
+
+            if ($.isArray(mapping.features)) {
+                $.each(mapping.features, function (idx, name) {
+                    names.push(name);
+                });
+            }
+
+            return this._normalizeFeatureNames(names);
+        },
+
+        _isMappingAffected: function (mapping, changedFeatureNames) {
+            const dependencies = this._getMappingDependencies(mapping);
+            const normalizedChangedFeatureNames = this._normalizeFeatureNames(changedFeatureNames);
+
+            if (dependencies.length === 0 || normalizedChangedFeatureNames.length === 0) {
+                return false;
+            }
+
+            for (let i = 0; i < dependencies.length; i++) {
+                if ($.inArray(dependencies[i], normalizedChangedFeatureNames) > -1) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        _getAffectedWebExpPos: function (webExId, payload) {
+            const bindings = this._getFeatureBindings();
+            const webExBindings = $.isPlainObject(bindings?.[webExId]) ? bindings[webExId] : {};
+            const webExpPos = $.isPlainObject(webExBindings?.webExpPos) ? webExBindings.webExpPos : {};
+            const changed = $.isPlainObject(payload?.changed) ? payload.changed : {};
+            const changedFeatureNames = this._normalizeFeatureNames(Object.keys(changed));
+            const affected = [];
+
+            if (changedFeatureNames.length === 0) {
+                return affected;
+            }
+
+            Object.keys(webExpPos).forEach((pos) => {
+                const posConfig = $.isPlainObject(webExpPos[pos]) ? webExpPos[pos] : {};
+                const mappings = $.isArray(posConfig.mappings) ? posConfig.mappings : [];
+
+                const isAffected = mappings.some((mapping) => {
+                    return this._isMappingAffected(mapping, changedFeatureNames) === true;
+                });
+
+                if (isAffected === true) {
+                    affected.push(pos);
+                }
+            });
+
+            return affected;
+        },
+
+        _isFeatureChangeRelevant: function (webExId, payload) {
+            const affectedWebExpPos = this._getAffectedWebExpPos(webExId, payload);
+
+            return {
+                affected: affectedWebExpPos.length > 0,
+                affectedWebExpPos: affectedWebExpPos
+            };
+        },
+
         _getSnippetValue: function (snippetId) {
             const normalizedSnippetId = Breinify.UTL.isNonEmptyString(snippetId);
             if (normalizedSnippetId === null || Breinify.plugins._isAdded("snippetManager") !== true) {
