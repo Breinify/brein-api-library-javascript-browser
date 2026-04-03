@@ -18,6 +18,7 @@
         currentFeatureMeta: {},
         pendingFeatureChanges: {},
         listeners: [],
+        featureListeners: {},
 
         elementWatchers: {},
         watcherStates: {},
@@ -47,6 +48,22 @@
 
         normalizeName: function (name) {
             return typeof name === 'string' ? name.trim() : '';
+        },
+
+        normalizeNames: function (names) {
+            let normalized = [];
+
+            if (typeof names === 'string') {
+                normalized = [names];
+            } else if ($.isArray(names)) {
+                normalized = names;
+            }
+
+            normalized = normalized
+                .map((name) => this.normalizeName(name))
+                .filter((name, idx, arr) => name !== '' && arr.indexOf(name) === idx);
+
+            return normalized;
         },
 
         isPlainObject: function (value) {
@@ -88,6 +105,48 @@
                 changed: changed,
                 featureMeta: featureMeta
             };
+        },
+
+        notifyFeatureListeners: function (payload) {
+            const self = this;
+            const changedNames = Object.keys(payload.changed || {});
+
+            changedNames.forEach(function (featureName) {
+                const listeners = $.isArray(self.featureListeners[featureName])
+                    ? self.featureListeners[featureName].slice()
+                    : [];
+
+                if (listeners.length === 0) {
+                    return;
+                }
+
+                const featurePayload = {
+                    name: featureName,
+                    value: Object.prototype.hasOwnProperty.call(payload.features, featureName)
+                        ? payload.features[featureName]
+                        : null,
+                    meta: Object.prototype.hasOwnProperty.call(payload.featureMeta, featureName)
+                        ? self.cloneFeatureMeta(payload.featureMeta[featureName])
+                        : null,
+                    change: Object.prototype.hasOwnProperty.call(payload.changed, featureName)
+                        ? self.cloneFeatureMeta(payload.changed[featureName])
+                        : null,
+                    features: payload.features,
+                    changed: payload.changed,
+                    featureMeta: payload.featureMeta
+                };
+
+                listeners.forEach(function (listener) {
+                    try {
+                        listener(featurePayload);
+                    } catch (e) {
+                        self.debugError('feature listener failed', {
+                            feature: featureName,
+                            error: e
+                        });
+                    }
+                });
+            });
         },
 
         ensureDomObserver: function () {
@@ -191,6 +250,8 @@
                     _private.debugError('listener failed', e);
                 }
             });
+
+            this.notifyFeatureListeners(payload);
         },
 
         isEqual: function (left, right) {
@@ -929,10 +990,76 @@
             return this;
         },
 
+        onFeatureChange: function (names, listener) {
+            if (!$.isFunction(listener)) {
+                return this;
+            }
+
+            const normalizedNames = _private.normalizeNames(names);
+            if (normalizedNames.length === 0) {
+                return this;
+            }
+
+            normalizedNames.forEach(function (name) {
+                if (!$.isArray(_private.featureListeners[name])) {
+                    _private.featureListeners[name] = [];
+                }
+
+                if (_private.featureListeners[name].indexOf(listener) === -1) {
+                    _private.featureListeners[name].push(listener);
+                }
+            });
+
+            return this;
+        },
+
         offChange: function (listener) {
             _private.listeners = _private.listeners.filter(function (entry) {
                 return entry !== listener;
             });
+            return this;
+        },
+
+        offFeatureChange: function (names, listener) {
+            const normalizedNames = _private.normalizeNames(names);
+
+            if (normalizedNames.length === 0) {
+                if (!$.isFunction(listener)) {
+                    return this;
+                }
+
+                Object.keys(_private.featureListeners).forEach(function (name) {
+                    _private.featureListeners[name] = _private.featureListeners[name].filter(function (entry) {
+                        return entry !== listener;
+                    });
+
+                    if (_private.featureListeners[name].length === 0) {
+                        delete _private.featureListeners[name];
+                    }
+                });
+
+                return this;
+            }
+
+            normalizedNames.forEach(function (name) {
+                if (!$.isArray(_private.featureListeners[name])) {
+                    return;
+                }
+
+                if ($.isFunction(listener)) {
+                    _private.featureListeners[name] = _private.featureListeners[name].filter(function (entry) {
+                        return entry !== listener;
+                    });
+                } else {
+                    delete _private.featureListeners[name];
+                    return;
+                }
+
+                if (_private.featureListeners[name].length === 0) {
+                    delete _private.featureListeners[name];
+                }
+            });
+
             return this;
         },
 
