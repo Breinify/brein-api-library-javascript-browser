@@ -583,10 +583,7 @@
                     return;
                 }
 
-                if (handlingType === "onLoad") {
-                    this._rememberInitialFeatureRefreshConfig(webExId, webExVersionId, filteredResults);
-                }
-
+                this._rememberInitialFeatureRefreshConfig(webExId, webExVersionId, filteredResults);
                 Breinify.plugins.recommendations.render(filteredResults);
 
                 if (handlingType === "onLoad") {
