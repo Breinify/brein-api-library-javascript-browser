@@ -42,6 +42,172 @@
             return runtime;
         },
 
+        _normalizeMappingValue: function (mappingType, value) {
+            const normalizedType = Breinify.UTL.isNonEmptyString(mappingType);
+
+            if (value == null) {
+                return null;
+            }
+
+            if (normalizedType === "forItems" || normalizedType === "blockItems") {
+
+                // single string → array
+                const single = Breinify.UTL.isNonEmptyString(value);
+                if (single !== null) {
+                    return [single];
+                }
+
+                // array → cleaned array
+                if ($.isArray(value)) {
+                    const normalizedValues = value
+                        .map(function (entry) {
+                            return Breinify.UTL.isNonEmptyString(entry);
+                        })
+                        .filter(function (entry, idx, arr) {
+                            return entry !== null && arr.indexOf(entry) === idx;
+                        });
+
+                    return normalizedValues.length > 0 ? normalizedValues : null;
+                }
+
+                return null;
+            }
+
+            if (normalizedType === "parameter") {
+
+                if (typeof value === "string") {
+                    return Breinify.UTL.isNonEmptyString(value);
+                }
+
+                return value;
+            }
+
+            return value;
+        },
+
+        _selectNewestMappingValue: function (mapping, payload, sourceValues) {
+            const mappingType = Breinify.UTL.isNonEmptyString(mapping?.type);
+            const featureMeta = $.isPlainObject(payload?.featureMeta) ? payload.featureMeta : {};
+
+            let newestValue = null;
+            let newestChangedAt = -1;
+
+            Object.keys(sourceValues).forEach((name) => {
+                const rawValue = sourceValues[name];
+                const normalizedValue = this._normalizeMappingValue(mappingType, rawValue);
+
+                if (normalizedValue === null) {
+                    return;
+                }
+
+                const meta = $.isPlainObject(featureMeta[name]) ? featureMeta[name] : {};
+                const changedAt = typeof meta.changedAt === "number" ? meta.changedAt : 0;
+
+                if (changedAt > newestChangedAt) {
+                    newestChangedAt = changedAt;
+                    newestValue = normalizedValue;
+                }
+            });
+
+            return newestValue;
+        },
+
+        _selectPreferredMappingValue: function (mapping, payload, sourceValues) {
+            const mappingType = Breinify.UTL.isNonEmptyString(mapping?.type);
+            const settings = $.isPlainObject(mapping?.selectionLogicSettings)
+                ? mapping.selectionLogicSettings
+                : {};
+            const preferred = Breinify.UTL.isNonEmptyString(settings.preferred);
+
+            if (preferred !== null && Object.prototype.hasOwnProperty.call(sourceValues, preferred)) {
+                const normalizedPreferredValue = this._normalizeMappingValue(mappingType, sourceValues[preferred]);
+                if (normalizedPreferredValue !== null) {
+                    return normalizedPreferredValue;
+                }
+            }
+
+            const dependencyNames = Object.keys(sourceValues);
+            for (let i = 0; i < dependencyNames.length; i++) {
+                const normalizedValue = this._normalizeMappingValue(
+                    mappingType,
+                    sourceValues[dependencyNames[i]]
+                );
+
+                if (normalizedValue !== null) {
+                    return normalizedValue;
+                }
+            }
+
+            return null;
+        },
+
+        _selectFirstNonEmptyMappingValue: function (mapping, payload, sourceValues) {
+            const mappingType = Breinify.UTL.isNonEmptyString(mapping?.type);
+            const dependencyNames = Object.keys(sourceValues);
+
+            for (let i = 0; i < dependencyNames.length; i++) {
+                const normalizedValue = this._normalizeMappingValue(
+                    mappingType,
+                    sourceValues[dependencyNames[i]]
+                );
+
+                if (normalizedValue !== null) {
+                    return normalizedValue;
+                }
+            }
+
+            return null;
+        },
+
+        _getMappingSourceValues: function (mapping, payload) {
+            const features = $.isPlainObject(payload?.features) ? payload.features : {};
+            const dependencies = this._getMappingDependencies(mapping);
+            const sourceValues = {};
+
+            dependencies.forEach(function (name) {
+                sourceValues[name] = Object.prototype.hasOwnProperty.call(features, name)
+                    ? features[name]
+                    : null;
+            });
+
+            return sourceValues;
+        },
+
+        _resolveMappingValue: function (mapping, payload) {
+            const mappingType = Breinify.UTL.isNonEmptyString(mapping?.type);
+            const sourceValues = this._getMappingSourceValues(mapping, payload);
+            const selectionLogic = mapping?.selectionLogic;
+
+            if ($.isFunction(selectionLogic)) {
+                try {
+                    return selectionLogic({
+                        mapping: mapping,
+                        features: $.isPlainObject(payload?.features) ? payload.features : {},
+                        changed: $.isPlainObject(payload?.changed) ? payload.changed : {},
+                        featureMeta: $.isPlainObject(payload?.featureMeta) ? payload.featureMeta : {},
+                        values: sourceValues,
+                        normalizeValue: (value) => this._normalizeMappingValue(mappingType, value)
+                    });
+                } catch (e) {
+                    console.error(e);
+                    return null;
+                }
+            }
+
+            const normalizedSelectionLogic = Breinify.UTL.isNonEmptyString(selectionLogic);
+
+            if (normalizedSelectionLogic === "preferred") {
+                return this._selectPreferredMappingValue(mapping, payload, sourceValues);
+            } else if (normalizedSelectionLogic === "newest") {
+                return this._selectNewestMappingValue(mapping, payload, sourceValues);
+            } else if (normalizedSelectionLogic === 'firstNonEmpty' || normalizedSelectionLogic === null) {
+                return this._selectFirstNonEmptyMappingValue(mapping, payload, sourceValues);
+            } else {
+                console.error("[uiRecommendations] unknown selectionLogic: " + normalizedSelectionLogic, mapping);
+                return null;
+            }
+        },
+
         _getFeatureBindings: function () {
             const extensionModule = this._getExtensionModule();
             if (!$.isFunction(extensionModule?.getFeatureBindings)) {
@@ -455,7 +621,8 @@
 
                 ensureObject: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, () => {});
+                    return this.ensurePath(obj, path, () => {
+                    });
                 },
 
                 ensureArray: function (obj) {
@@ -1026,15 +1193,8 @@
     };
 
     Breinify.plugins._add("uiRecommendations", {
-
-        // TODO: remove after final implementation
-        resolveFeatureChangeRelevance: function (webExId, payload) {
-            return _private._isFeatureChangeRelevant(webExId, payload);
-        },
-
-        // TODO: remove after final implementation
-        getAffectedWebExpPos: function (webExId, payload) {
-            return _private._getAffectedWebExpPos(webExId, payload);
+        resolveMappingValue: function (mapping, payload) {
+            return _private._resolveMappingValue(mapping, payload);
         },
 
         register: function (module, webExId, webExVersionId, config) {
