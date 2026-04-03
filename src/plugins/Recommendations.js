@@ -101,6 +101,10 @@
                 return;
             }
 
+            const requestedRenderIdentity = $.isPlainObject(this.refreshOptions?.renderIdentity)
+                ? this.refreshOptions.renderIdentity
+                : {};
+
             const $parents = $("." + this.marker.parentContainer);
             if ($parents.length === 0) {
                 return;
@@ -121,6 +125,14 @@
 
                 const data = $itemContainer.data(_self.marker.data);
                 if (!$.isPlainObject(data?.option) || !$.isPlainObject(data?.data)) {
+                    return;
+                }
+
+                const renderedRenderIdentity = $.isPlainObject(data?.option?.meta?.renderIdentity)
+                    ? data.option.meta.renderIdentity
+                    : {};
+
+                if (_self._matchesRenderIdentity(renderedRenderIdentity, requestedRenderIdentity) !== true) {
                     return;
                 }
 
@@ -180,6 +192,33 @@
             return null;
         },
 
+        _matchesRenderIdentity: function (renderedIdentity, requestedIdentity) {
+            const normalizedRenderedIdentity = $.isPlainObject(renderedIdentity) ? renderedIdentity : {};
+            const normalizedRequestedIdentity = $.isPlainObject(requestedIdentity) ? requestedIdentity : {};
+
+            const requestedWebExId = Breinify.UTL.isNonEmptyString(normalizedRequestedIdentity.webExId);
+            const requestedPositionId = Breinify.UTL.isNonEmptyString(normalizedRequestedIdentity.positionId);
+            const requestedRecommenderName = Breinify.UTL.isNonEmptyString(normalizedRequestedIdentity.recommenderName);
+
+            const renderedWebExId = Breinify.UTL.isNonEmptyString(normalizedRenderedIdentity.webExId);
+            const renderedPositionId = Breinify.UTL.isNonEmptyString(normalizedRenderedIdentity.positionId);
+            const renderedRecommenderName = Breinify.UTL.isNonEmptyString(normalizedRenderedIdentity.recommenderName);
+
+            if (requestedWebExId !== null && requestedWebExId !== renderedWebExId) {
+                return false;
+            }
+
+            if (requestedPositionId !== null && requestedPositionId !== renderedPositionId) {
+                return false;
+            }
+
+            if (requestedRecommenderName !== null && requestedRecommenderName !== renderedRecommenderName) {
+                return false;
+            }
+
+            return true;
+        },
+
         /**
          * Normalizes the optional render identity configured on a render option.
          *
@@ -233,25 +272,29 @@
                 return {};
             }
 
-            const refreshWebExId = Breinify.UTL.isNonEmptyString(refreshOptions.webExId);
-            const payloadUpdatesByPosition = $.isPlainObject(refreshOptions.payloadUpdatesByPosition)
-                ? refreshOptions.payloadUpdatesByPosition
+            const requestedRenderIdentity = $.isPlainObject(refreshOptions.renderIdentity)
+                ? refreshOptions.renderIdentity
+                : {};
+
+            const payloadByPositionId = $.isPlainObject(refreshOptions.payloadByPositionId)
+                ? refreshOptions.payloadByPositionId
                 : null;
 
-            if (refreshWebExId === null || !$.isPlainObject(payloadUpdatesByPosition)) {
+            if (!$.isPlainObject(payloadByPositionId)) {
                 return {};
             }
 
-            const identity = this._readRenderIdentity(option);
-            const optionWebExId = Breinify.UTL.isNonEmptyString(identity?.webExId);
-            const optionPositionId = Breinify.UTL.isNonEmptyString(identity?.positionId);
-
-            if (optionWebExId === null || optionWebExId !== refreshWebExId) {
+            const renderedIdentity = this._readRenderIdentity(option);
+            if (this._matchesRenderIdentity(renderedIdentity, requestedRenderIdentity) !== true) {
                 return {};
-            } else if (optionPositionId !== null && $.isPlainObject(payloadUpdatesByPosition[optionPositionId])) {
-                return payloadUpdatesByPosition[optionPositionId];
-            } else if ($.isPlainObject(payloadUpdatesByPosition[this._defaultPos])) {
-                return payloadUpdatesByPosition[this._defaultPos];
+            }
+
+            const positionId = Breinify.UTL.isNonEmptyString(renderedIdentity?.positionId);
+
+            if (positionId !== null && $.isPlainObject(payloadByPositionId[positionId])) {
+                return payloadByPositionId[positionId];
+            } else if ($.isPlainObject(payloadByPositionId[this._defaultPos])) {
+                return payloadByPositionId[this._defaultPos];
             } else {
                 return {};
             }
