@@ -1026,6 +1026,17 @@
     };
 
     Breinify.plugins._add("uiRecommendations", {
+
+        // TODO: remove after final implementation
+        resolveFeatureChangeRelevance: function (webExId, payload) {
+            return _private._isFeatureChangeRelevant(webExId, payload);
+        },
+
+        // TODO: remove after final implementation
+        getAffectedWebExpPos: function (webExId, payload) {
+            return _private._getAffectedWebExpPos(webExId, payload);
+        },
+
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
