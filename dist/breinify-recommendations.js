@@ -101,10 +101,7 @@
                 return;
             }
 
-            const requestedRenderIdentity = $.isPlainObject(this.refreshOptions?.renderIdentity)
-                ? this.refreshOptions.renderIdentity
-                : {};
-
+            const requestedRenderIdentity = $.isPlainObject(this.refreshOptions?.renderIdentity) ? this.refreshOptions.renderIdentity : {};
             const $parents = $("." + this.marker.parentContainer);
             if ($parents.length === 0) {
                 return;
@@ -115,10 +112,8 @@
 
             $parents.each(function () {
                 const $parent = $(this);
-                let $itemContainer = $parent.hasClass(_self.marker.container)
-                    ? $parent
-                    : $parent.find("." + _self.marker.container);
 
+                let $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find("." + _self.marker.container);
                 if ($itemContainer.length === 0) {
                     return;
                 }
@@ -128,23 +123,18 @@
                     return;
                 }
 
-                const renderedRenderIdentity = $.isPlainObject(data?.option?.meta?.renderIdentity)
-                    ? data.option.meta.renderIdentity
-                    : {};
-
+                const renderedRenderIdentity = $.isPlainObject(data?.option?.meta?.renderIdentity) ? data.option.meta.renderIdentity : {};
                 if (_self._matchesRenderIdentity(renderedRenderIdentity, requestedRenderIdentity) !== true) {
                     return;
                 }
 
                 const option = data.option;
-
                 _self._setRefreshState($parent, option, "refreshing", {
                     refreshOptions: _self.refreshOptions,
                     previousData: data.data
                 });
 
                 const recPayload = _self._createPayload(option);
-
                 let recGroup = Breinify.UTL.isNonEmptyString(recPayload.recommendationGroup);
                 if (recGroup === null) {
                     recGroup = "no-group-" + (noGroupCount++);
@@ -166,7 +156,6 @@
                     }
                 };
                 cpyOption.recommender.payload = recPayload;
-
                 settings[recGroup].push(cpyOption);
             });
 
@@ -1297,7 +1286,8 @@
 
                 return "not-rendered-control";
             } else if (Renderer.refreshOptions !== null &&
-                option?.meta?.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
+                typeof option?.meta?.optionsVersion === "number" &&
+                option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
                 Renderer._appendContainer(option, result, function ($container, settings) {
                     if ($container === null) {
                         return;
