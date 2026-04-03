@@ -95,7 +95,7 @@
                 // settings can be a string (url) or an object
                 const url = typeof settings === 'string' ? settings : settings.url;
 
-                if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                if (!_self._isCartUrl(url)) {
                     return _self.originalAjax.apply(this, arguments);
                 }
 
@@ -116,6 +116,27 @@
             };
         },
 
+        _isCartUrl: function (input) {
+            let rawUrl = null;
+
+            if (typeof input === 'string') {
+                rawUrl = input;
+            } else if (input && typeof input.url === 'string') {
+                rawUrl = input.url;
+            }
+
+            if (typeof rawUrl !== 'string' || rawUrl.trim() === '') {
+                return false;
+            }
+
+            try {
+                const pathname = new URL(rawUrl, window.location.origin).pathname;
+                return /^\/cart(?:\/|\.js$)/.test(pathname);
+            } catch (e) {
+                return false;
+            }
+        },
+
         _bindFetch: function() {
             const _self = this;
 
@@ -124,7 +145,7 @@
                 const args = arguments;
                 const url = args[0];
 
-                if (typeof url !== 'string' || !url.startsWith('/cart/')) {
+                if (!_self._isCartUrl(url)) {
                     return _self.originalFetch.apply(this, args);
                 }
 
@@ -278,6 +299,14 @@
                     observer(addedItems, removedItems, newCart);
                 }
             }
+
+            console.log('[shopify] cart diff', {
+                observerCount: this.cartObservers.length,
+                oldCart: oldCart,
+                newCart: newCart,
+                addedItems: addedItems,
+                removedItems: removedItems
+            });
 
             return {
                 addedItems: addedItems,
