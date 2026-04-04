@@ -116,6 +116,10 @@
                 let $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find("." + _self.marker.container);
                 if ($itemContainer.length === 0) {
                     return;
+                } else if ($parent.get(0)?.isConnected !== true) {
+                    return;
+                } else if ($itemContainer.get(0)?.isConnected !== true) {
+                    return;
                 }
 
                 const data = $itemContainer.data(_self.marker.data);
