@@ -13,21 +13,22 @@
 
     const _private = {
         _defaultPos: DEFAULT_POS,
-        _runtimeByVersionId: {},
+        _runtimeByWebExId: {},
 
-        getRuntime: function (webExVersionId) {
-            const normalizedWebExVersionId = Breinify.UTL.isNonEmptyString(webExVersionId);
-            if (normalizedWebExVersionId === null) {
+        getRuntime: function (webExId, webExVersionId) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            if (normalizedWebExId === null) {
                 return null;
             }
 
-            let runtime = this._runtimeByVersionId[normalizedWebExVersionId];
+            let runtime = this._runtimeByWebExId[normalizedWebExId];
             if ($.isPlainObject(runtime)) {
                 return runtime;
             }
 
             runtime = {
-                webExVersionId: normalizedWebExVersionId,
+                webExId: normalizedWebExId,
+                webExVersionId: Breinify.UTL.isNonEmptyString(webExVersionId),
                 onLoadHandled: false,
                 onLoadHandling: false,
                 featureObserverRegistered: false,
@@ -43,7 +44,7 @@
                 anchorState: {}
             };
 
-            this._runtimeByVersionId[normalizedWebExVersionId] = runtime;
+            this._runtimeByWebExId[normalizedWebExId] = runtime;
             return runtime;
         },
 
@@ -79,7 +80,7 @@
         },
 
         _handleFeaturesChanged: function (webExId, webExVersionId, payload) {
-            const runtime = this.getRuntime(webExVersionId);
+            const runtime = this.getRuntime(webExId, webExVersionId);
             if (runtime === null) {
                 return;
             }
@@ -111,7 +112,7 @@
         },
 
         _rememberInitialFeatureRefreshConfig: function (webExId, webExVersionId, recommendations) {
-            const runtime = this.getRuntime(webExVersionId);
+            const runtime = this.getRuntime(webExId, webExVersionId);
             if (runtime === null) {
                 return;
             }
@@ -153,14 +154,11 @@
             }
 
             if (normalizedType === "forItems" || normalizedType === "blockItems") {
-
-                // single string → array
                 const single = Breinify.UTL.isNonEmptyString(value);
                 if (single !== null) {
                     return [single];
                 }
 
-                // array → cleaned array
                 if ($.isArray(value)) {
                     const normalizedValues = value
                         .map(function (entry) {
@@ -177,7 +175,6 @@
             }
 
             if (normalizedType === "parameter") {
-
                 if (typeof value === "string") {
                     return Breinify.UTL.isNonEmptyString(value);
                 }
@@ -231,11 +228,7 @@
 
             const dependencyNames = Object.keys(sourceValues);
             for (let i = 0; i < dependencyNames.length; i++) {
-                const normalizedValue = this._normalizeMappingValue(
-                    mappingType,
-                    sourceValues[dependencyNames[i]]
-                );
-
+                const normalizedValue = this._normalizeMappingValue(mappingType, sourceValues[dependencyNames[i]]);
                 if (normalizedValue !== null) {
                     return normalizedValue;
                 }
@@ -249,11 +242,7 @@
             const dependencyNames = Object.keys(sourceValues);
 
             for (let i = 0; i < dependencyNames.length; i++) {
-                const normalizedValue = this._normalizeMappingValue(
-                    mappingType,
-                    sourceValues[dependencyNames[i]]
-                );
-
+                const normalizedValue = this._normalizeMappingValue(mappingType, sourceValues[dependencyNames[i]]);
                 if (normalizedValue !== null) {
                     return normalizedValue;
                 }
@@ -303,7 +292,7 @@
                 return this._selectPreferredMappingValue(mapping, payload, sourceValues);
             } else if (normalizedSelectionLogic === "newest") {
                 return this._selectNewestMappingValue(mapping, payload, sourceValues);
-            } else if (normalizedSelectionLogic === 'firstNonEmpty' || normalizedSelectionLogic === null) {
+            } else if (normalizedSelectionLogic === "firstNonEmpty" || normalizedSelectionLogic === null) {
                 return this._selectFirstNonEmptyMappingValue(mapping, payload, sourceValues);
             } else {
                 console.error("[uiRecommendations] unknown selectionLogic: " + normalizedSelectionLogic, mapping);
@@ -516,9 +505,7 @@
                 renderedPositionId = Breinify.UTL.isNonEmptyString(singleConfig?.position?.positionId);
             }
 
-            const recommenderName = Breinify.UTL.isNonEmptyString(
-                singleConfig?.recommender?.preconfiguredRecommendation
-            );
+            const recommenderName = Breinify.UTL.isNonEmptyString(singleConfig?.recommender?.preconfiguredRecommendation);
 
             return {
                 webExId: Breinify.UTL.isNonEmptyString(webExId),
@@ -534,7 +521,7 @@
             }
 
             const handlingType = Breinify.UTL.isNonEmptyString(config?.type);
-            const runtime = this.getRuntime(webExVersionId);
+            const runtime = this.getRuntime(webExId, webExVersionId);
             if (runtime === null) {
                 return;
             }
@@ -718,6 +705,7 @@
             Object.keys(runtime.anchorState).forEach(function (anchorStateKey) {
                 const state = runtime.anchorState[anchorStateKey];
                 const anchorElement = state && state.anchorElement;
+
                 if (Breinify.UTL.dom.isNodeType(anchorElement, 1)) {
                     $(anchorElement)
                         .children('[data-br-rec-webexpid="' + normalizedWebExId + '"]')
@@ -778,7 +766,6 @@
                         }
 
                         const isLast = idx === keys.length - 1;
-                        const expectedValue = isLast ? current[key] : current[key];
 
                         if (typeof current[key] === "undefined" || current[key] === null) {
                             current[key] = isLast ? createLeaf(key, idx, keys) : createNode(key, idx, keys);
@@ -794,13 +781,15 @@
 
                 ensureObject: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, () => {
+                    return this.ensurePath(obj, path, function () {
                     });
                 },
 
                 ensureArray: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, () => []);
+                    return this.ensurePath(obj, path, function () {
+                        return [];
+                    });
                 },
 
                 mergeArray: function (target, values, removeDuplicates) {
@@ -1002,10 +991,10 @@
                 })
             );
 
-            // hook into the createActivity
             const originalCreateActivity = $.isFunction(resolvedProcesses.createActivity)
                 ? resolvedProcesses.createActivity
                 : null;
+
             resolvedProcesses.createActivity = function (event, settings) {
                 if ($.isFunction(originalCreateActivity)) {
                     originalCreateActivity.call(this, event, settings);
@@ -1015,7 +1004,6 @@
                 settings.activityTags.campaignWebExId = webExVersionId;
             };
 
-            // for attribute based activation we also hook into the attachedContainer
             if (Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
                 const originalAttachedContainer = $.isFunction(resolvedProcesses.attachedContainer)
                     ? resolvedProcesses.attachedContainer
@@ -1064,12 +1052,13 @@
                 return {};
             }
 
-            return {[operation]: func};
+            return {
+                [operation]: func
+            };
         },
 
-        _createAttributeActivationPosition: function (webExId, position, singleConfig, runtime) {
+        _createAttributeActivationPosition: function (webExId, position) {
             const _self = this;
-
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const normalizedPositionId = Breinify.UTL.isNonEmptyString(position?.positionId);
 
@@ -1087,7 +1076,10 @@
 
         _determineAnchor: function (webExId, positionId) {
             if (positionId !== null) {
-                const specificAnchorElement = document.querySelector('div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]');
+                const specificAnchorElement = document.querySelector(
+                    'div[data-br-webexpid="' + webExId + '"][data-br-webexppos="' + positionId + '"]'
+                );
+
                 if (Breinify.UTL.dom.isNodeType(specificAnchorElement, 1) && specificAnchorElement.isConnected === true) {
                     return {
                         $anchor: $(specificAnchorElement),
@@ -1096,7 +1088,10 @@
                 }
             }
 
-            const fallbackAnchorElement = document.querySelector('div[data-br-webexpid="' + webExId + '"]:not([data-br-webexppos])');
+            const fallbackAnchorElement = document.querySelector(
+                'div[data-br-webexpid="' + webExId + '"]:not([data-br-webexppos])'
+            );
+
             if (Breinify.UTL.dom.isNodeType(fallbackAnchorElement, 1) && fallbackAnchorElement.isConnected === true) {
                 return {
                     $anchor: $(fallbackAnchorElement),
@@ -1197,6 +1192,7 @@
             let activityType = $.isPlainObject(config)
                 ? Breinify.UTL.isNonEmptyString(config.activityType)
                 : null;
+
             activityType = activityType === null ? "clickedRecommendation" : activityType;
 
             return {
@@ -1215,7 +1211,6 @@
             const features = $.isFunction(featureStorage?.all) ? featureStorage.all() : {};
             const featureMeta = $.isFunction(featureStorage?.allMeta) ? featureStorage.allMeta() : {};
 
-            // build payload context (no "changed" on initial render)
             const payloadContext = {
                 features: features,
                 featureMeta: featureMeta,
@@ -1259,9 +1254,7 @@
         },
 
         _recommenderName: function (rec) {
-            return Breinify.UTL.isNonEmptyString(
-                rec?.recommender?.preconfiguredRecommendation
-            );
+            return Breinify.UTL.isNonEmptyString(rec?.recommender?.preconfiguredRecommendation);
         },
 
         _createMarkerKey: function (webExId, webExVersionId, rec) {
@@ -1399,8 +1392,11 @@
         register: function (module, webExId, webExVersionId, config) {
             const _self = this;
 
-            const recs = $.isPlainObject(config) && $.isArray(config.recommendations) ? config.recommendations : [];
-            const runtime = _private.getRuntime(webExVersionId);
+            const recs = $.isPlainObject(config) && $.isArray(config.recommendations)
+                ? config.recommendations
+                : [];
+            const runtime = _private.getRuntime(webExId, webExVersionId);
+
             if (runtime === null) {
                 return;
             }
