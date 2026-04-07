@@ -782,6 +782,7 @@
                 ensureObject: function (obj) {
                     const path = Array.prototype.slice.call(arguments, 1);
                     return this.ensurePath(obj, path, function () {
+                        return {};
                     });
                 },
 
