@@ -747,6 +747,7 @@
                 webExVersionId: webExVersionId,
                 configuration: $.isPlainObject(configuration) ? configuration : {},
                 runtime: $.isPlainObject(runtime) ? runtime : {},
+                recommenderConfig: $.isPlainObject(singleConfig) ? singleConfig : {},
                 recommenderName: this._recommenderName(singleConfig),
 
                 ensurePath: function (obj, path, leafFactory, nodeFactory) {
