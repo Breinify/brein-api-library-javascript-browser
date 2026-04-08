@@ -522,18 +522,15 @@
                 return 0;
             }
 
-            const showArrows = effectiveCfg && effectiveCfg.showArrows !== false;
-            if (!showArrows) {
+            // auto is only relevant when arrows are hidden
+            if (effectiveCfg && effectiveCfg.showArrows !== false) {
                 return 0;
             }
 
             const prevW = this._prevBtn ? this._prevBtn.getBoundingClientRect().width : 0;
             const nextW = this._nextBtn ? this._nextBtn.getBoundingClientRect().width : 0;
 
-            const fallback = 10;
-            const resolved = Math.max(prevW, nextW, 0);
-
-            return resolved > 0 ? resolved : fallback;
+            return Math.max(prevW, nextW, BrSimpleSlider.AUTO_TRACK_INSET_FALLBACK_PX);
         }
 
         _getSliderRawConfig() {
@@ -1704,6 +1701,7 @@
     /* Safari 12/13 compatible "static constants" */
     BrSimpleSlider.STYLE_ELEMENT_ID = "br-simple-slider-style";
 
+    BrSimpleSlider.AUTO_TRACK_INSET_FALLBACK_PX = 32;
     BrSimpleSlider.DEFAULT_CONFIG = {
         minItemWidth: 200,
         maxItemWidth: 280,
