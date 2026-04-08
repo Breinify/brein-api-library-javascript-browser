@@ -143,7 +143,6 @@
 
             let noGroupCount = 0;
             const settings = {};
-            const refreshStateByGroup = {};
             const optionsVersion = Date.now();
 
             $parents.each(function () {
