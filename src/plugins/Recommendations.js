@@ -760,9 +760,7 @@
         },
 
         data: {
-            modify: function () {
-                return null;
-            }
+            modify: null
         }
     };
 
