@@ -105,6 +105,8 @@
 
             if (Breinify.UTL.equals(runtime.lastFeatureRefreshConfig, refreshConfig) === true) {
                 return;
+            } else if (document.querySelector('[data-br-rec-webexpid="' + webExId + '"]') === null) {
+                return;
             }
 
             runtime.lastFeatureRefreshConfig = $.extend(true, {}, refreshConfig);
