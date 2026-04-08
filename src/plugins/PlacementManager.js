@@ -182,6 +182,10 @@
             const attribute = typeof normalizedData.attribute === "string" ? normalizedData.attribute : null;
             const activeRules = this._getActiveRules();
             const actions = [];
+            const evaluationCache = {
+                documentMatches: {},
+                conditionMatches: {}
+            };
             let cleanup = [];
             let reconcile = false;
 
@@ -198,22 +202,22 @@
                 }
 
                 cleanup = this._collectTrackedCleanup(activeRules);
-                this._collectDocumentActions(activeRules, actions);
+                this._collectDocumentActions(activeRules, actions, evaluationCache);
                 reconcile = true;
 
                 return this._createPayload(actions, cleanup, reconcile);
             } else if (type === "full-scan") {
                 cleanup = this._collectTrackedCleanup(activeRules);
-                this._collectDocumentActions(activeRules, actions);
+                this._collectDocumentActions(activeRules, actions, evaluationCache);
 
                 return this._createPayload(actions, cleanup, false);
             } else if (!$el || $el.length === 0) {
                 return false;
             } else if (type === "added-element") {
-                this._collectElementActions($el, activeRules, actions);
+                this._collectElementActions($el, activeRules, actions, evaluationCache);
                 return this._createPayload(actions, cleanup, false);
             } else if (type === "attribute-change") {
-                this._collectAttributeActions($el, attribute, activeRules, actions);
+                this._collectAttributeActions($el, attribute, activeRules, actions, evaluationCache);
                 return this._createPayload(actions, cleanup, false);
             }
 
@@ -415,6 +419,13 @@
             rule._hasAttributeTriggers = hasAttributeTriggers;
         },
 
+        /**
+         * Evaluates an optional dynamic condition for a rule.
+         *
+         * @param {Object} rule normalized rule
+         * @returns {boolean} true if condition passes or is not defined
+         * @private
+         */
         _ruleMatchesCondition: function (rule) {
             if (!rule || $.isFunction(rule.condition) !== true) {
                 return true;
@@ -425,6 +436,75 @@
             } catch (e) {
                 return false;
             }
+        },
+
+        /**
+         * Returns a stable cache key for a rule during one evaluation cycle.
+         *
+         * @param {Object} rule normalized rule
+         * @returns {string} cache key
+         * @private
+         */
+        _getRuleCacheKey: function (rule) {
+            if (rule && typeof rule.id === "string" && rule.id !== "") {
+                return rule.id;
+            }
+
+            return String(rule);
+        },
+
+        /**
+         * Returns cached full-document match state for a rule.
+         *
+         * @param {Object} rule normalized rule
+         * @param {Object} evaluationCache per-cycle cache
+         * @returns {boolean} true if the rule matches the document
+         * @private
+         */
+        _getCachedRuleMatchesDocument: function (rule, evaluationCache) {
+            const cache = evaluationCache && $.isPlainObject(evaluationCache.documentMatches)
+                ? evaluationCache.documentMatches
+                : null;
+            const key = this._getRuleCacheKey(rule);
+
+            if (cache && typeof cache[key] !== "undefined") {
+                return cache[key] === true;
+            }
+
+            const result = this._ruleMatchesDocument(rule) === true;
+
+            if (cache) {
+                cache[key] = result;
+            }
+
+            return result;
+        },
+
+        /**
+         * Returns cached dynamic condition state for a rule.
+         *
+         * @param {Object} rule normalized rule
+         * @param {Object} evaluationCache per-cycle cache
+         * @returns {boolean} true if the rule condition passes
+         * @private
+         */
+        _getCachedRuleMatchesCondition: function (rule, evaluationCache) {
+            const cache = evaluationCache && $.isPlainObject(evaluationCache.conditionMatches)
+                ? evaluationCache.conditionMatches
+                : null;
+            const key = this._getRuleCacheKey(rule);
+
+            if (cache && typeof cache[key] !== "undefined") {
+                return cache[key] === true;
+            }
+
+            const result = this._ruleMatchesCondition(rule) === true;
+
+            if (cache) {
+                cache[key] = result;
+            }
+
+            return result;
         },
 
         /**
@@ -487,15 +567,16 @@
          *
          * @param {Array} activeRules active rules
          * @param {Array} actions target action list
+         * @param {Object} evaluationCache per-cycle cache
          * @private
          */
-        _collectDocumentActions: function (activeRules, actions) {
+        _collectDocumentActions: function (activeRules, actions, evaluationCache) {
             const _self = this;
 
             $.each(activeRules, function (idx, rule) {
-                if (_self._ruleMatchesDocument(rule) !== true) {
+                if (_self._getCachedRuleMatchesDocument(rule, evaluationCache) !== true) {
                     return true;
-                } else if (_self._ruleMatchesCondition(rule) !== true) {
+                } else if (_self._getCachedRuleMatchesCondition(rule, evaluationCache) !== true) {
                     return true;
                 }
 
@@ -510,17 +591,18 @@
          * @param {jQuery} $el changed element
          * @param {Array} activeRules active rules
          * @param {Array} actions target action list
+         * @param {Object} evaluationCache per-cycle cache
          * @private
          */
-        _collectElementActions: function ($el, activeRules, actions) {
+        _collectElementActions: function ($el, activeRules, actions, evaluationCache) {
             const _self = this;
 
             $.each(activeRules, function (idx, rule) {
                 if (_self._ruleMatchesElement(rule, $el, null, false) !== true) {
                     return true;
-                } else if (_self._ruleMatchesDocument(rule) !== true) {
+                } else if (_self._getCachedRuleMatchesDocument(rule, evaluationCache) !== true) {
                     return true;
-                } else if (_self._ruleMatchesCondition(rule) !== true) {
+                } else if (_self._getCachedRuleMatchesCondition(rule, evaluationCache) !== true) {
                     return true;
                 }
 
@@ -536,9 +618,10 @@
          * @param {string|null} attribute changed attribute
          * @param {Array} activeRules active rules
          * @param {Array} actions target action list
+         * @param {Object} evaluationCache per-cycle cache
          * @private
          */
-        _collectAttributeActions: function ($el, attribute, activeRules, actions) {
+        _collectAttributeActions: function ($el, attribute, activeRules, actions, evaluationCache) {
             const _self = this;
 
             if (typeof attribute !== "string" || attribute === "") {
@@ -550,9 +633,9 @@
                     return true;
                 } else if (_self._ruleMatchesElement(rule, $el, attribute, true) !== true) {
                     return true;
-                } else if (_self._ruleMatchesDocument(rule) !== true) {
+                } else if (_self._getCachedRuleMatchesDocument(rule, evaluationCache) !== true) {
                     return true;
-                } else if (_self._ruleMatchesCondition(rule) !== true) {
+                } else if (_self._getCachedRuleMatchesCondition(rule, evaluationCache) !== true) {
                     return true;
                 }
 
