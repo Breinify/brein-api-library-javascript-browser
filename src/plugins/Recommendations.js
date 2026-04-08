@@ -36,7 +36,7 @@
             controlGroupType: "control"
         },
 
-        refreshOptions: null,
+        refreshStateByGroup: {},
         _defaultPos: DEFAULT_POS,
 
         _process: function (func, ...args) {
@@ -46,6 +46,44 @@
             }
 
             return false;
+        },
+
+        _getRefreshGroupKey: function (group) {
+            const normalizedGroup = Breinify.UTL.isNonEmptyString(group);
+            return normalizedGroup === null ? null : normalizedGroup;
+        },
+
+        _getRefreshState: function (group) {
+            const groupKey = this._getRefreshGroupKey(group);
+            if (groupKey === null) {
+                return null;
+            }
+
+            const state = this.refreshStateByGroup[groupKey];
+            return $.isPlainObject(state) ? state : null;
+        },
+
+        _setRefreshStateForGroup: function (group, refreshOptions, optionsVersion) {
+            const groupKey = this._getRefreshGroupKey(group);
+            if (groupKey === null || !$.isPlainObject(refreshOptions) || typeof optionsVersion !== "number") {
+                return;
+            }
+
+            this.refreshStateByGroup[groupKey] = {
+                optionsVersion: optionsVersion,
+                refreshOptions: $.extend(true, {}, refreshOptions, {
+                    optionsVersion: optionsVersion
+                })
+            };
+        },
+
+        _refreshGroup: function (group) {
+            const state = this._getRefreshState(group);
+            if (!$.isPlainObject(state?.refreshOptions)) {
+                return;
+            }
+
+            this._refresh(state.refreshOptions);
         },
 
         _setRefreshState: function ($container, option, state, details) {
@@ -88,20 +126,16 @@
 
         _refresh: function (refreshOptions) {
             const _self = this;
+            const normalizedRefreshOptions = $.isPlainObject(refreshOptions) ? $.extend(true, {}, refreshOptions) : null;
 
-            let optionsVersion = null;
-            if ($.isPlainObject(refreshOptions)) {
-                optionsVersion = Date.now();
-                this.refreshOptions = $.extend(true, {}, refreshOptions, {
-                    optionsVersion: optionsVersion
-                });
-            } else if ($.isPlainObject(this.refreshOptions)) {
-                optionsVersion = this.refreshOptions.optionsVersion;
-            } else {
+            if (!$.isPlainObject(normalizedRefreshOptions)) {
                 return;
             }
 
-            const requestedRenderIdentity = $.isPlainObject(this.refreshOptions?.renderIdentity) ? this.refreshOptions.renderIdentity : {};
+            const requestedRenderIdentity = $.isPlainObject(normalizedRefreshOptions.renderIdentity)
+                ? normalizedRefreshOptions.renderIdentity
+                : {};
+
             const $parents = $("." + this.marker.parentContainer);
             if ($parents.length === 0) {
                 return;
@@ -109,11 +143,16 @@
 
             let noGroupCount = 0;
             const settings = {};
+            const refreshStateByGroup = {};
+            const optionsVersion = Date.now();
 
             $parents.each(function () {
                 const $parent = $(this);
 
-                let $itemContainer = $parent.hasClass(_self.marker.container) ? $parent : $parent.find("." + _self.marker.container);
+                let $itemContainer = $parent.hasClass(_self.marker.container)
+                    ? $parent
+                    : $parent.find("." + _self.marker.container);
+
                 if ($itemContainer.length === 0) {
                     return;
                 } else if ($parent.get(0)?.isConnected !== true) {
@@ -127,22 +166,31 @@
                     return;
                 }
 
-                const renderedRenderIdentity = $.isPlainObject(data?.option?.meta?.renderIdentity) ? data.option.meta.renderIdentity : {};
+                const renderedRenderIdentity = $.isPlainObject(data?.option?.meta?.renderIdentity)
+                    ? data.option.meta.renderIdentity
+                    : {};
+
                 if (_self._matchesRenderIdentity(renderedRenderIdentity, requestedRenderIdentity) !== true) {
                     return;
                 }
 
                 const option = data.option;
-                _self._setRefreshState($parent, option, "refreshing", {
-                    refreshOptions: _self.refreshOptions,
-                    previousData: data.data
-                });
+                const recPayload = _self._createPayload(option, null, $.extend(true, {}, normalizedRefreshOptions, {
+                    optionsVersion: optionsVersion
+                }));
 
-                const recPayload = _self._createPayload(option);
                 let recGroup = Breinify.UTL.isNonEmptyString(recPayload.recommendationGroup);
                 if (recGroup === null) {
                     recGroup = "no-group-" + (noGroupCount++);
                 }
+
+                _self._setRefreshStateForGroup(recGroup, normalizedRefreshOptions, optionsVersion);
+                const refreshState = _self._getRefreshState(recGroup);
+
+                _self._setRefreshState($parent, option, "refreshing", {
+                    refreshOptions: refreshState?.refreshOptions || normalizedRefreshOptions,
+                    previousData: data.data
+                });
 
                 if (!$.isArray(settings[recGroup])) {
                     settings[recGroup] = [];
@@ -151,8 +199,9 @@
                 const cpyOption = $.extend(true, {}, option);
                 cpyOption.meta = $.extend(true, {}, option?.meta, {
                     processId: null,
-                    optionsVersion: optionsVersion,
-                    refreshParent: $parent
+                    optionsVersion: refreshState?.optionsVersion || optionsVersion,
+                    refreshParent: $parent,
+                    refreshGroup: recGroup
                 });
                 cpyOption.position = {
                     replace: function () {
@@ -201,19 +250,11 @@
             const renderedPositionId = Breinify.UTL.isNonEmptyString(normalizedRenderedIdentity.positionId);
             const renderedRecommenderName = Breinify.UTL.isNonEmptyString(normalizedRenderedIdentity.recommenderName);
 
-            if (requestedWebExId !== null && requestedWebExId !== renderedWebExId) {
-                return false;
-            }
-
-            if (requestedPositionId !== null && requestedPositionId !== renderedPositionId) {
-                return false;
-            }
-
-            if (requestedRecommenderName !== null && requestedRecommenderName !== renderedRecommenderName) {
-                return false;
-            }
-
-            return true;
+            return !(
+                (requestedWebExId !== null && requestedWebExId !== renderedWebExId) ||
+                (requestedPositionId !== null && requestedPositionId !== renderedPositionId) ||
+                (requestedRecommenderName !== null && requestedRecommenderName !== renderedRecommenderName)
+            );
         },
 
         /**
@@ -260,21 +301,21 @@
             };
         },
 
-        _resolveRefreshPayloadOverride: function (option) {
-            const refreshOptions = $.isPlainObject(this.refreshOptions)
-                ? this.refreshOptions
+        _resolveRefreshPayloadOverride: function (option, refreshOptions) {
+            const normalizedRefreshOptions = $.isPlainObject(refreshOptions)
+                ? refreshOptions
                 : null;
 
-            if (!$.isPlainObject(refreshOptions)) {
+            if (!$.isPlainObject(normalizedRefreshOptions)) {
                 return {};
             }
 
-            const requestedRenderIdentity = $.isPlainObject(refreshOptions.renderIdentity)
-                ? refreshOptions.renderIdentity
+            const requestedRenderIdentity = $.isPlainObject(normalizedRefreshOptions.renderIdentity)
+                ? normalizedRefreshOptions.renderIdentity
                 : {};
 
-            const payloadByPositionId = $.isPlainObject(refreshOptions.payloadByPositionId)
-                ? refreshOptions.payloadByPositionId
+            const payloadByPositionId = $.isPlainObject(normalizedRefreshOptions.payloadByPositionId)
+                ? normalizedRefreshOptions.payloadByPositionId
                 : null;
 
             if (!$.isPlainObject(payloadByPositionId)) {
@@ -294,6 +335,52 @@
                 return payloadByPositionId[this._defaultPos];
             } else {
                 return {};
+            }
+        },
+
+        _createPayload: function (option, def, refreshOptions) {
+            const normalizedRefreshOptions = $.isPlainObject(refreshOptions) ? refreshOptions : {};
+            const optionsVersion = typeof normalizedRefreshOptions.optionsVersion === "number"
+                ? normalizedRefreshOptions.optionsVersion
+                : null;
+
+            const globalOverridePayload = $.isPlainObject(normalizedRefreshOptions.payload)
+                ? normalizedRefreshOptions.payload
+                : {};
+            const specificOverridePayload = this._resolveRefreshPayloadOverride(option, normalizedRefreshOptions);
+
+            if ($.isPlainObject(option?.recommender?.payload)) {
+                return $.extend(
+                    true,
+                    {},
+                    option.recommender.payload,
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
+            } else if ($.isPlainObject(def)) {
+                return $.extend(
+                    true,
+                    {},
+                    def,
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
+            } else {
+                return $.extend(
+                    true,
+                    {},
+                    globalOverridePayload,
+                    specificOverridePayload,
+                    {
+                        optionsVersion: optionsVersion
+                    }
+                );
             }
         },
 
@@ -444,52 +531,6 @@
                     externalRendering: false,
                     attachedContainer: false
                 });
-            }
-        },
-
-        _createPayload: function (option, def) {
-            const refreshOptions = $.isPlainObject(this.refreshOptions) ? this.refreshOptions : {};
-            const optionsVersion = typeof refreshOptions.optionsVersion === "number"
-                ? refreshOptions.optionsVersion
-                : null;
-
-            const globalOverridePayload = $.isPlainObject(refreshOptions.payload)
-                ? refreshOptions.payload
-                : {};
-            const specificOverridePayload = this._resolveRefreshPayloadOverride(option);
-
-            if ($.isPlainObject(option?.recommender?.payload)) {
-                return $.extend(
-                    true,
-                    {},
-                    option.recommender.payload,
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
-            } else if ($.isPlainObject(def)) {
-                return $.extend(
-                    true,
-                    {},
-                    def,
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
-            } else {
-                return $.extend(
-                    true,
-                    {},
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
             }
         },
 
@@ -1076,7 +1117,7 @@
                 return;
             }
 
-            let recStatus = "undefined";
+            const staleGroups = {};
 
             $.each(options, function (name, option) {
                 const result = data?.[name];
@@ -1144,10 +1185,16 @@
                         }
 
                         for (let i = 0; i < modifyResults.length; i++) {
-                            recStatus = _self._applyRecommendation(
+                            const applyResult = _self._applyRecommendation(
                                 modifyResults[i].result,
                                 modifyResults[i].option
                             );
+                            if ($.isPlainObject(applyResult) && applyResult.status === "out-of-date") {
+                                const staleGroup = Breinify.UTL.isNonEmptyString(applyResult.refreshGroup);
+                                if (staleGroup !== null) {
+                                    staleGroups[staleGroup] = true;
+                                }
+                            }
                         }
                     };
 
@@ -1180,13 +1227,19 @@
                         handleModifyResult(modifyResponse);
                     }
                 } else {
-                    recStatus = _self._applyRecommendation(result, option);
+                    const applyResult = _self._applyRecommendation(result, option);
+                    if ($.isPlainObject(applyResult) && applyResult.status === "out-of-date") {
+                        const staleGroup = Breinify.UTL.isNonEmptyString(applyResult.refreshGroup);
+                        if (staleGroup !== null) {
+                            staleGroups[staleGroup] = true;
+                        }
+                    }
                 }
             });
 
-            if (recStatus === "out-of-date") {
-                Renderer._refresh();
-            }
+            Object.keys(staleGroups).forEach(function (group) {
+                Renderer._refreshGroup(group);
+            });
         },
 
         _mapError: function (data, error) {
@@ -1286,10 +1339,17 @@
                 this._handleRender(result, option, $container);
                 Renderer._process(option?.process?.finalize, option, result, $container);
 
-                return "not-rendered-control";
-            } else if (Renderer.refreshOptions !== null &&
+                return {
+                    status: "not-rendered-control"
+                };
+            }
+
+            const refreshGroup = Breinify.UTL.isNonEmptyString(option?.meta?.refreshGroup);
+            const refreshState = Renderer._getRefreshState(refreshGroup);
+            if ($.isPlainObject(refreshState) &&
                 typeof option?.meta?.optionsVersion === "number" &&
-                option.meta.optionsVersion !== Renderer.refreshOptions.optionsVersion) {
+                option.meta.optionsVersion !== refreshState.optionsVersion) {
+
                 Renderer._appendContainer(option, result, function ($container, settings) {
                     if ($container === null) {
                         return;
@@ -1310,7 +1370,10 @@
                     }
                 });
 
-                return "out-of-date";
+                return {
+                    status: "out-of-date",
+                    refreshGroup: refreshGroup
+                };
             } else if (result?.status?.code === 7120) {
                 if (option?.meta?.refreshParent) {
                     Renderer._clearRefreshState(option.meta.refreshParent, option, {
@@ -1322,7 +1385,9 @@
                 this._handleRender(result, option, null);
                 Renderer._process(option?.process?.finalize, option, result, null);
 
-                return "not-rendered-ignored";
+                return {
+                    status: "not-rendered-ignored"
+                };
             }
 
             this._renderRecommendation(option, result, function ($container) {
@@ -1348,7 +1413,9 @@
                 Renderer._process(option?.process?.finalize, option, result, $container);
             });
 
-            return "rendered";
+            return {
+                status: "rendered"
+            };
         },
 
         _handleClick: function (option, $el, event, additionalEventData) {
