@@ -357,6 +357,9 @@
                 rule.id = "placement-rule-" + Breinify.UTL.uuid();
             }
 
+            if (!$.isFunction(rule.condition)) {
+                rule.condition = null;
+            }
             if (!$.isArray(rule.observe)) {
                 rule.observe = [];
             }
@@ -410,6 +413,18 @@
             rule._hasActions = rule.actions.length > 0;
             rule._attributeTriggerMap = attributeTriggerMap;
             rule._hasAttributeTriggers = hasAttributeTriggers;
+        },
+
+        _ruleMatchesCondition: function (rule) {
+            if (!rule || $.isFunction(rule.condition) !== true) {
+                return true;
+            }
+
+            try {
+                return rule.condition() === true;
+            } catch (e) {
+                return false;
+            }
         },
 
         /**
@@ -478,10 +493,13 @@
             const _self = this;
 
             $.each(activeRules, function (idx, rule) {
-                if (_self._ruleMatchesDocument(rule) === true) {
-                    _self._collectRuleActionsFromDocument(rule, actions);
+                if (_self._ruleMatchesDocument(rule) !== true) {
+                    return true;
+                } else if (_self._ruleMatchesCondition(rule) !== true) {
+                    return true;
                 }
 
+                _self._collectRuleActionsFromDocument(rule, actions);
                 return true;
             });
         },
@@ -501,6 +519,8 @@
                 if (_self._ruleMatchesElement(rule, $el, null, false) !== true) {
                     return true;
                 } else if (_self._ruleMatchesDocument(rule) !== true) {
+                    return true;
+                } else if (_self._ruleMatchesCondition(rule) !== true) {
                     return true;
                 }
 
@@ -531,6 +551,8 @@
                 } else if (_self._ruleMatchesElement(rule, $el, attribute, true) !== true) {
                     return true;
                 } else if (_self._ruleMatchesDocument(rule) !== true) {
+                    return true;
+                } else if (_self._ruleMatchesCondition(rule) !== true) {
                     return true;
                 }
 
