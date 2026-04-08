@@ -444,7 +444,8 @@
                 maxItemWidth: baseConfig.maxItemWidth,
                 showArrows: baseConfig.showArrows,
                 phonePeek: baseConfig.phonePeek,
-                phonePeekItemsPerView: baseConfig.phonePeekItemsPerView
+                phonePeekItemsPerView: baseConfig.phonePeekItemsPerView,
+                trackInset: (baseConfig.trackInset === "auto" || (typeof baseConfig.trackInset === "number" && baseConfig.trackInset >= 0)) ? baseConfig.trackInset : 0
             };
 
             const bps = Array.isArray(baseConfig.breakpoints) ? baseConfig.breakpoints : [];
@@ -461,6 +462,9 @@
                     if (typeof s.phonePeekItemsPerView === "number" && s.phonePeekItemsPerView > 1) cfg.phonePeekItemsPerView = s.phonePeekItemsPerView;
                     if (typeof s.showArrows === "boolean") cfg.showArrows = s.showArrows;
                     if (typeof s.phonePeek === "boolean") cfg.phonePeek = s.phonePeek;
+                    if (s.trackInset === "auto" || (typeof s.trackInset === "number" && s.trackInset >= 0)) {
+                        cfg.trackInset = s.trackInset;
+                    }
                     break;
                 }
             }
@@ -505,6 +509,31 @@
             }
 
             return 1.5;
+        }
+
+        _resolveTrackInsetPx(effectiveCfg) {
+            const inset = effectiveCfg ? effectiveCfg.trackInset : 0;
+
+            if (typeof inset === "number" && inset >= 0) {
+                return inset;
+            }
+
+            if (inset !== "auto") {
+                return 0;
+            }
+
+            const showArrows = effectiveCfg && effectiveCfg.showArrows !== false;
+            if (!showArrows) {
+                return 0;
+            }
+
+            const prevW = this._prevBtn ? this._prevBtn.getBoundingClientRect().width : 0;
+            const nextW = this._nextBtn ? this._nextBtn.getBoundingClientRect().width : 0;
+
+            const fallback = 10;
+            const resolved = Math.max(prevW, nextW, 0);
+
+            return resolved > 0 ? resolved : fallback;
         }
 
         _getSliderRawConfig() {
@@ -643,6 +672,7 @@
                 breakpoints: breakpoints,
 
                 itemWidthMode: (effectiveRawCfg.itemWidthMode === "content") ? "content" : base.itemWidthMode,
+                trackInset: (effectiveRawCfg.trackInset === "auto" || (typeof effectiveRawCfg.trackInset === "number" && effectiveRawCfg.trackInset >= 0)) ? effectiveRawCfg.trackInset : base.trackInset,
 
                 // header config defaults
                 title: (typeof effectiveRawCfg.title === "string") ? effectiveRawCfg.title : base.title,
@@ -1429,13 +1459,28 @@
                 return;
             }
 
-            const trackWidth = track.clientWidth;
-            if (!trackWidth) {
+            const rawTrackWidth = track.clientWidth;
+            if (!rawTrackWidth) {
                 return;
             }
 
             const baseCfg = this._config || BrSimpleSlider.DEFAULT_CONFIG;
             const gap = BrSimpleSlider.getGapPx(track);
+
+            // apply the inset to the actual track
+            const effectiveCfg = BrSimpleSlider.resolveConfigForWidth(baseCfg, rawTrackWidth);
+            const trackInset = this._resolveTrackInsetPx(effectiveCfg);
+            track.style.paddingLeft = trackInset + "px";
+            track.style.paddingRight = trackInset + "px";
+            track.style.scrollPaddingLeft = trackInset + "px";
+            track.style.scrollPaddingRight = trackInset + "px";
+            track.style.boxSizing = "border-box"; // already in CSS, but pure defensiveness (in case someone overrides CSS)
+
+            // available width for item calculation must exclude the insets
+            const trackWidth = rawTrackWidth - (trackInset * 2);
+            if (trackWidth <= 0) {
+                return;
+            }
 
             if (baseCfg.itemWidthMode === "content") {
                 items.forEach((item) => {
@@ -1454,7 +1499,7 @@
                 };
 
                 if (this._prevBtn && this._nextBtn) {
-                    const showArrows = baseCfg.showArrows !== false;
+                    const showArrows = effectiveCfg.showArrows !== false;
                     this._prevBtn.style.display = showArrows ? "" : "none";
                     this._nextBtn.style.display = showArrows ? "" : "none";
                 }
@@ -1466,7 +1511,6 @@
                 this._setActiveIndex(this._activeIndex, false);
             } else {
 
-                const effectiveCfg = BrSimpleSlider.resolveConfigForWidth(baseCfg, trackWidth);
                 const perView = BrSimpleSlider.determineItemsPerView(
                     trackWidth,
                     gap,
@@ -1673,6 +1717,8 @@
 
         // currently allowed item modes are fixed and content (content does NOT support arrows)
         itemWidthMode: "fixed",
+        // defines an inset on the track (the full band not the visible area), can be "auto" or a positive value in px
+        trackInset: 0,
 
         // header defaults
         title: "",
@@ -1773,6 +1819,7 @@
         "  scroll-behavior: smooth;" +
         "  gap: 12px;" +
         "  padding: 0;" +
+        "  box-sizing: border-box;" +
         "  cursor: grab;" +
         "  -ms-overflow-style: none;" +
         "  scrollbar-width: none;" +
