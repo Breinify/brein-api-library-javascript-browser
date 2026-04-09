@@ -873,24 +873,94 @@
          * @private
          */
         _applyCustomAction: function (action) {
-            let ctx;
-            const runId = Breinify.UTL.uuid();
+            const _self = this;
 
             if (!action || $.isFunction(action.code) !== true) {
                 return null;
             }
 
+            const runId = Breinify.UTL.uuid();
             action._lastRunId = runId;
-
-            ctx = {
+            const ctx = {
                 $: $,
-                manager: this,
+                manager: _self,
                 action: action,
                 Breinify: Breinify,
                 window: window,
                 document: document,
                 isLatestRun: function () {
                     return action._lastRunId === runId;
+                },
+                findManaged: function (selector) {
+                    if (typeof selector !== "string" || selector === "") {
+                        return $();
+                    }
+
+                    return $(selector + "[" + _self._markerOwner + '="placementManager"]');
+                },
+                markManaged: function ($node) {
+                    _self._markPlacedNode($node, action.key);
+                    return $node;
+                },
+                findManagedWebExperience: function (webExpId, positionId) {
+                    if (typeof webExpId !== "string" || webExpId === "") {
+                        return $();
+                    }
+
+                    let selector = '[data-br-webexpid="' + webExpId + '"]';
+                    if (typeof positionId === "string" && positionId !== "") {
+                        selector += '[data-br-webexppos="' + positionId + '"]';
+                    }
+
+                    return this.findManaged(selector);
+                },
+                createManagedWebExperience: function (webExpId, positionId) {
+                    return _self._createManagedWebExperienceNode(webExpId, positionId, action.key);
+                },
+                ensureWebExperiencePlacement: function (config) {
+                    if (!$.isPlainObject(config)) {
+                        return $();
+                    }
+
+                    const webExpId = Breinify.UTL.isNonEmptyString(config.webExpId);
+                    if (webExpId === null) {
+                        return $();
+                    }
+
+                    const positionId = Breinify.UTL.isNonEmptyString(config.positionId);
+                    let $nodes = this.findManagedWebExperience(webExpId, positionId);
+                    let $node = $nodes.first();
+
+                    const $target = config.target;
+                    const position = Breinify.UTL.isNonEmptyString(config.position);
+                    if (!$target || $target.length === 0 || position === null) {
+                        $nodes.remove();
+                        return $();
+                    }
+
+                    if ($nodes.length > 1) {
+                        $nodes.slice(1).remove();
+                        $nodes = this.findManagedWebExperience(webExpId, positionId);
+                        $node = $nodes.first();
+                    }
+
+                    const placementAction = {
+                        key: action.key,
+                        position: position
+                    };
+
+                    if ($node.length === 0 || _self._isInsertFulfilled($target, placementAction) !== true) {
+                        if ($node.length === 0) {
+                            $node = _self._createManagedWebExperienceNode(webExpId, positionId, action.key);
+                            if ($node === null) {
+                                return $();
+                            }
+                        }
+
+                        _self._insertNodeAtPosition($target, $node, position);
+                    }
+
+                    return $node;
                 }
             };
 
@@ -904,6 +974,22 @@
                 console.error("[placementManager] custom action failed:", e);
                 return null;
             }
+        },
+
+        _createManagedWebExperienceNode: function (webExpId, positionId, key) {
+            if (Breinify.UTL.isNonEmptyString(webExpId) === null) {
+                return null;
+            }
+
+            const $node = $("<div></div>");
+            $node.attr("data-br-webexpid", webExpId);
+
+            if (Breinify.UTL.isNonEmptyString(positionId) !== null) {
+                $node.attr("data-br-webexppos", positionId);
+            }
+
+            this._markPlacedNode($node, key);
+            return $node;
         },
 
         /**
@@ -925,22 +1011,16 @@
          * @private
          */
         _applyInsertWebExperienceAction: function (action) {
-            let $node;
-
             if (this._isInsertFulfilled(action.$target, action) === true) {
                 return;
             }
 
-            $node = $("<div></div>");
-            $node.attr("data-br-webexpid", action.webExpId);
-
-            if (action.positionId) {
-                $node.attr("data-br-webexppos", action.positionId);
+            const $node = this._createManagedWebExperienceNode(action.webExpId, action.positionId, action.key);
+            if ($node === null) {
+                return;
             }
 
-            this._markPlacedNode($node, action.key);
             this._insertNodeAtPosition(action.$target, $node, action.position);
-
             this._trackInsertedNode({
                 key: action.key,
                 type: action.type,
@@ -958,13 +1038,11 @@
          * @private
          */
         _applyInsertHtmlAction: function (action) {
-            let $node;
-
             if (this._isInsertFulfilled(action.$target, action) === true) {
                 return;
             }
 
-            $node = this._createMarkedNodeFromHtml(action.html, action.key);
+            const $node = this._createMarkedNodeFromHtml(action.html, action.key);
             if ($node === null) {
                 return;
             }
@@ -991,13 +1069,11 @@
          * @private
          */
         _trackInsertedNode: function (trackedEntry) {
-            let i;
-
             if (!$.isPlainObject(trackedEntry) || !trackedEntry.element) {
                 return;
             }
 
-            for (i = 0; i < this._trackedInsertions.length; i++) {
+            for (let i = 0; i < this._trackedInsertions.length; i++) {
                 if (this._trackedInsertions[i].element === trackedEntry.element) {
                     return;
                 }
@@ -1016,8 +1092,6 @@
         _collectTrackedCleanup: function (activeRules) {
             const activeRuleIds = {};
             const toRemove = [];
-            let i;
-            let entry;
 
             $.each(activeRules, function (idx, rule) {
                 if (rule && typeof rule.id === "string" && rule.id !== "") {
@@ -1027,9 +1101,8 @@
                 return true;
             });
 
-            for (i = 0; i < this._trackedInsertions.length; i++) {
-                entry = this._trackedInsertions[i];
-
+            for (let i = 0; i < this._trackedInsertions.length; i++) {
+                const entry = this._trackedInsertions[i];
                 if (!entry || !entry.element) {
                     toRemove.push(entry);
                     continue;
@@ -1060,14 +1133,12 @@
          * @private
          */
         _removeTrackedInsertion: function (trackedEntry) {
-            let remaining = [];
-            let i;
-
             if ($.isPlainObject(trackedEntry) && trackedEntry.element && trackedEntry.element.isConnected === true) {
                 $(trackedEntry.element).remove();
             }
 
-            for (i = 0; i < this._trackedInsertions.length; i++) {
+            let remaining = [];
+            for (let i = 0; i < this._trackedInsertions.length; i++) {
                 if (this._trackedInsertions[i] !== trackedEntry) {
                     remaining.push(this._trackedInsertions[i]);
                 }
@@ -1084,13 +1155,13 @@
          * @private
          */
         _isTrackedInsertionValid: function (trackedEntry) {
-            const node = trackedEntry && trackedEntry.element ? trackedEntry.element : null;
-            let relatedNode = null;
 
+            const node = trackedEntry && trackedEntry.element ? trackedEntry.element : null;
             if (!node || node.nodeType !== 1 || node.isConnected !== true) {
                 return false;
             }
 
+            let relatedNode = null;
             if (trackedEntry.position === "before") {
                 relatedNode = node.nextElementSibling;
                 return !!relatedNode &&
@@ -1126,12 +1197,10 @@
          * @private
          */
         _markPlacedNode: function ($node, key) {
-            if (!$node || $node.length === 0) {
-                return;
+            if ($node && $node.length > 0) {
+                $node.attr(this._markerOwner, "placementManager");
+                $node.attr(this._markerKey, key);
             }
-
-            $node.attr(this._markerOwner, "placementManager");
-            $node.attr(this._markerKey, key);
         },
 
         /**
@@ -1143,15 +1212,12 @@
          * @private
          */
         _createMarkedNodeFromHtml: function (html, key) {
-            let $nodes;
-            let elementNodes;
-
             if (typeof html !== "string" || html.trim() === "") {
                 return null;
             }
 
-            $nodes = $(html);
-            elementNodes = $nodes.filter(function () {
+            const $nodes = $(html);
+            const elementNodes = $nodes.filter(function () {
                 return this && this.nodeType === 1;
             });
 
@@ -1173,10 +1239,8 @@
          */
         _insertNodeAtPosition: function ($target, $node, position) {
             if (!$target || $target.length === 0 || !$node || $node.length === 0) {
-                return;
-            }
-
-            if (position === "before") {
+                // nothing to do
+            } else if (position === "before") {
                 $target.before($node);
             } else if (position === "after") {
                 $target.after($node);
@@ -1199,11 +1263,9 @@
         _matchesSelectorLocally: function ($el, selector) {
             if (!$el || $el.length === 0 || typeof selector !== "string" || selector === "") {
                 return false;
+            } else {
+                return $el.is(selector) || $el.find(selector).length > 0 || $el.closest(selector).length > 0;
             }
-
-            return $el.is(selector) ||
-                $el.find(selector).length > 0 ||
-                $el.closest(selector).length > 0;
         },
 
         /**
@@ -1218,13 +1280,13 @@
          * @private
          */
         _isInsertFulfilled: function ($target, action) {
-            const target = $target && $target.length > 0 ? $target[0] : null;
-            let candidate = null;
 
+            const target = $target && $target.length > 0 ? $target[0] : null;
             if (!target || target.nodeType !== 1) {
                 return false;
             }
 
+            let candidate = null;
             if (action.position === "before") {
                 candidate = target.previousElementSibling;
             } else if (action.position === "after") {
@@ -1289,14 +1351,11 @@
          * @returns {boolean} true if rules were added
          */
         add: function (definition) {
-            let rules;
-            let initialRequirements;
-            let addedCount;
-
             if (this.initialize() !== true) {
                 return false;
             }
 
+            let rules;
             if ($.isPlainObject(definition) && $.isArray(definition.rules)) {
                 rules = definition.rules;
             } else if ($.isPlainObject(definition)) {
@@ -1306,12 +1365,12 @@
                 return false;
             }
 
-            addedCount = placementManagerModule.addRules(rules);
+            const addedCount = placementManagerModule.addRules(rules);
             if (addedCount === 0) {
                 return true;
             }
 
-            initialRequirements = placementManagerModule.findRequirements($("body"), {
+            const initialRequirements = placementManagerModule.findRequirements($("body"), {
                 type: "full-scan"
             });
 
@@ -1367,8 +1426,6 @@
          * @private
          */
         _normalizeAction: function (rule, action) {
-            let normalizedAction;
-            let position;
 
             // make sure we have a valid action and a type defined
             if (!$.isPlainObject(action) || Breinify.UTL.isNonEmptyString(action.type) === null) {
@@ -1387,7 +1444,7 @@
                     return null;
                 }
 
-                normalizedAction = {
+                const normalizedAction = {
                     type: "custom",
                     singleTarget: action.singleTarget === true,
                     code: action.code,
@@ -1408,14 +1465,12 @@
             // all other actions need a selector, so let's ensure this here right now
             if (Breinify.UTL.isNonEmptyString(action.selector) === null) {
                 return null;
-            }
-
-            if (action.type === "attribute") {
+            } else if (action.type === "attribute") {
                 if (typeof action.name !== "string" || action.name === "") {
                     return null;
                 }
 
-                normalizedAction = {
+                const normalizedAction = {
                     type: "attribute",
                     selector: action.selector,
                     singleTarget: action.singleTarget === true,
@@ -1433,14 +1488,14 @@
 
                 return normalizedAction;
             } else if (action.type === "insert-webexperience") {
-                position = this._normalizeInsertPosition(action.position, action.where);
+                const position = this._normalizeInsertPosition(action.position, action.where);
                 if (position === null ||
                     typeof action.webExpId !== "string" ||
                     action.webExpId === "") {
                     return null;
                 }
 
-                normalizedAction = {
+                const normalizedAction = {
                     type: "insert-webexperience",
                     selector: action.selector,
                     singleTarget: action.singleTarget === true,
@@ -1460,14 +1515,14 @@
 
                 return normalizedAction;
             } else if (action.type === "insert-html") {
-                position = this._normalizeInsertPosition(action.position, action.where);
+                const position = this._normalizeInsertPosition(action.position, action.where);
                 if (position === null ||
                     typeof action.html !== "string" ||
                     action.html.trim() === "") {
                     return null;
                 }
 
-                normalizedAction = {
+                const normalizedAction = {
                     type: "insert-html",
                     selector: action.selector,
                     singleTarget: action.singleTarget === true,
@@ -1484,9 +1539,9 @@
                 ].join("::");
 
                 return normalizedAction;
+            } else {
+                return null;
             }
-
-            return null;
         },
 
         /**
@@ -1504,8 +1559,7 @@
          * @private
          */
         _normalizeInsertPosition: function (position, where) {
-            const value = typeof position === "string" && position !== "" ? position : where;
-
+            const value = Breinify.UTL.isNonEmptyString(position) === null ? where : position;
             if (value === "before" || value === "after" || value === "prepend" || value === "append") {
                 return value;
             }
