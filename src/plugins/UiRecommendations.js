@@ -407,6 +407,16 @@
                 this.ensureObject(payloadUpdate, "recommendationAdditionalParameters", "additionalOtherParameters");
                 payloadUpdate.recommendationAdditionalParameters.additionalOtherParameters[payloadKey] = resolvedValue;
                 return payloadUpdate;
+            } else if (type === "additional") {
+                const payloadKey = Breinify.UTL.isNonEmptyString(mapping.payloadKey);
+                if (payloadKey === null) {
+                    console.error("[uiRecommendations] additional mapping requires payloadKey", mapping);
+                    return payloadUpdate;
+                }
+
+                this.ensureObject(payloadUpdate, "recommendationAdditionalParameters");
+                payloadUpdate.recommendationAdditionalParameters[payloadKey] = resolvedValue;
+                return payloadUpdate;
             } else {
                 console.error("[uiRecommendations] unsupported mapping type: " + type, mapping);
                 return payloadUpdate;
