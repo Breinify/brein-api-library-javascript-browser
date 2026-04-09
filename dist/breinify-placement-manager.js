@@ -78,6 +78,20 @@
          *   Inserts one managed HTML root element relative to the matched
          *   target element.
          *
+         * - custom
+         *   Executes caller-provided custom logic.
+         *
+         *   Custom action characteristics:
+         *   - does not require a selector
+         *   - requires code(ctx)
+         *   - may optionally define shouldRun(ctx)
+         *   - generates a stable action key for managed marker usage
+         *
+         *   Custom action hooks:
+         *   - shouldRun(ctx): optional synchronous predicate to determine whether
+         *     the action needs to run
+         *   - code(ctx): required action implementation, may return a Promise
+         *
          * Supported observe types:
          * - exists
          * - attribute
@@ -86,6 +100,13 @@
          * - all observe entries of a rule must match on the full document
          * - local DOM mutations use OR semantics only to determine whether a
          *   rule should be re-evaluated
+         *
+         * Rule evaluation model:
+         * - observe determines whether the rule is relevant to the current page
+         *   state or DOM mutation
+         * - condition determines whether the rule is allowed to apply
+         * - shouldRun(ctx) determines whether a custom action actually needs work
+         * - code(ctx) performs the custom action
          *
          * @param {Array} rules rules to add
          * @returns {number} number of rules newly added
@@ -321,11 +342,21 @@
 
             if ($.isArray(data.actions) && data.actions.length > 0) {
                 $.each(data.actions, function (idx, action) {
-                    if (!action || !action.$target || action.$target.length === 0) {
+                    if (!action) {
+                        return true;
+                    } else if (action.type === "custom") {
+                        const result = _self._applyCustomAction(action);
+                        if (result && $.isFunction(result.then)) {
+                            result.catch(function (e) {
+                                console.error("[placementManager] async custom action failed:", e);
+                            });
+                        }
                         return true;
                     }
 
-                    if (action.type === "attribute") {
+                    if (!action || !action.$target || action.$target.length === 0) {
+                        return true;
+                    } else if (action.type === "attribute") {
                         _self._applyAttributeAction(action);
                     } else if (action.type === "insert-webexperience") {
                         _self._applyInsertWebExperienceAction(action);
@@ -818,6 +849,59 @@
         },
 
         /**
+         * Applies one custom action.
+         *
+         * Execution flow:
+         * - builds a shared execution context
+         * - assigns a run id for stale-run detection
+         * - evaluates optional shouldRun(ctx)
+         * - executes code(ctx) if needed
+         *
+         * Notes:
+         * - shouldRun(ctx) is expected to be synchronous and cheap
+         * - code(ctx) may be synchronous or return a Promise
+         * - async actions can use ctx.isLatestRun() to avoid applying stale work
+         * - shouldRun(ctx) MUST NOT perform DOM writes
+         *
+         * @param {Object} action prepared custom action
+         * @returns {*} return value of code(ctx), possibly a Promise, or null
+         * @private
+         */
+        _applyCustomAction: function (action) {
+            let ctx;
+            const runId = Breinify.UTL.uuid();
+
+            if (!action || $.isFunction(action.code) !== true) {
+                return null;
+            }
+
+            action._lastRunId = runId;
+
+            ctx = {
+                $: $,
+                manager: this,
+                action: action,
+                Breinify: Breinify,
+                window: window,
+                document: document,
+                isLatestRun: function () {
+                    return action._lastRunId === runId;
+                }
+            };
+
+            try {
+                if ($.isFunction(action.shouldRun) && action.shouldRun(ctx) !== true) {
+                    return null;
+                }
+
+                return action.code(ctx);
+            } catch (e) {
+                console.error("[placementManager] custom action failed:", e);
+                return null;
+            }
+        },
+
+        /**
          * Applies one attribute action.
          *
          * @param {Object} action prepared attribute action
@@ -1281,9 +1365,43 @@
             let normalizedAction;
             let position;
 
-            if (!$.isPlainObject(action) || typeof action.type !== "string") {
+            // make sure we have a valid action and a type defined
+            if (!$.isPlainObject(action) || Breinify.UTL.isNonEmptyString(action.type) === null) {
                 return null;
-            } else if (typeof action.selector !== "string" || action.selector === "") {
+            }
+
+            /*
+             * Custom action normalization:
+             * - does not require a selector
+             * - requires code(ctx)
+             * - optionally accepts shouldRun(ctx)
+             * - generates a stable action key for managed marker usage
+             */
+            if (action.type === "custom") {
+                if (!$.isFunction(action.code)) {
+                    return null;
+                }
+
+                normalizedAction = {
+                    type: "custom",
+                    singleTarget: action.singleTarget === true,
+                    code: action.code,
+                    shouldRun: $.isFunction(action.shouldRun) ? action.shouldRun : null,
+                    async: action.async === true
+                };
+
+                normalizedAction.key = [
+                    rule.id || "",
+                    normalizedAction.type,
+                    "custom",
+                    rule.actions ? rule.actions.length : 0
+                ].join("::");
+
+                return normalizedAction;
+            }
+
+            // all other actions need a selector, so let's ensure this here right now
+            if (Breinify.UTL.isNonEmptyString(action.selector) === null) {
                 return null;
             }
 
