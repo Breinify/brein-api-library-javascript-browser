@@ -39,6 +39,11 @@
         domObserverInstalled: false,
         domObserverPendingInstall: false,
 
+        locationWatchers: {},
+        locationWatcherInitialized: false,
+        locationWatcherWarningShown: false,
+        lastLocationHref: null,
+
         requestSources: {},
         originalFetch: null,
         fetchHookInstalled: false,
@@ -101,6 +106,130 @@
 
         cloneObject: function (value) {
             return Object.assign({}, value || {});
+        },
+
+        normalizeLocationWatcher: function (watcher) {
+            if (!this.isPlainObject(watcher)) {
+                return null;
+            }
+
+            const normalizedName = this.normalizeName(watcher.name);
+            if (normalizedName === '' || !$.isFunction(watcher.mapChange)) {
+                return null;
+            }
+
+            return {
+                name: normalizedName,
+                emitInitial: watcher.emitInitial === true,
+                match: $.isFunction(watcher.match) ? watcher.match : null,
+                mapChange: watcher.mapChange
+            };
+        },
+
+        ensureLocationWatcherSupport: function () {
+            if (this.locationWatcherInitialized === true) {
+                return true;
+            } else if (Breinify.plugins._isAdded('trigger') !== true) {
+                if (this.locationWatcherWarningShown !== true) {
+                    this.locationWatcherWarningShown = true;
+                    this.debugError('location watchers require the trigger plugin, but it is not available');
+                }
+
+                return false;
+            }
+
+            const self = this;
+
+            try {
+                Breinify.plugins.trigger.init();
+                Breinify.plugins.trigger.addUrlChangeObserver('featureStorage-location-watchers', function () {
+                    self.reconcileLocationWatchers(false);
+                });
+
+                this.locationWatcherInitialized = true;
+                return true;
+            } catch (e) {
+                this.debugError('failed to initialize location watchers', e);
+                return false;
+            }
+        },
+
+        createLocationUrl: function (href) {
+            if (typeof href !== 'string' || href.trim() === '') {
+                return null;
+            }
+
+            try {
+                return new URL(href);
+            } catch (e) {
+                return null;
+            }
+        },
+
+        reconcileLocationWatchers: function (initial) {
+            const self = this;
+            const newHref = String(window.location.href || '');
+            const oldHref = this.lastLocationHref;
+
+            if (initial !== true && oldHref === newHref) {
+                return;
+            }
+
+            this.lastLocationHref = newHref;
+
+            const oldUrl = this.createLocationUrl(oldHref);
+            const newUrl = this.createLocationUrl(newHref);
+
+            Object.keys(this.locationWatchers).forEach(function (name) {
+                const watcher = self.locationWatchers[name];
+                if (!self.isPlainObject(watcher) || !$.isFunction(watcher.mapChange)) {
+                    return;
+                }
+
+                const ctx = {
+                    watcher: watcher,
+                    initial: initial === true,
+                    oldHref: oldHref,
+                    newHref: newHref,
+                    oldUrl: oldUrl,
+                    newUrl: newUrl
+                };
+
+                try {
+                    if ($.isFunction(watcher.match) && watcher.match(ctx) !== true) {
+                        return;
+                    }
+
+                    const changes = watcher.mapChange(ctx);
+                    if (!$.isArray(changes)) {
+                        return;
+                    }
+
+                    changes.forEach(function (change) {
+                        if (!self.isPlainObject(change)) {
+                            return;
+                        }
+
+                        const featureName = self.normalizeName(change.name);
+                        if (featureName === '') {
+                            return;
+                        }
+
+                        const oldValue = Object.prototype.hasOwnProperty.call(change, 'oldValue')
+                            ? change.oldValue
+                            : (Object.prototype.hasOwnProperty.call(self.currentFeatures, featureName)
+                                ? self.currentFeatures[featureName]
+                                : null);
+
+                        self.applyFeatureChange(featureName, oldValue, change.newValue, change.additional);
+                    });
+                } catch (e) {
+                    self.debugError('location watcher failed', {
+                        watcher: name,
+                        error: e
+                    });
+                }
+            });
         },
 
         _sanitizeForPersistence: function (value, seen) {
@@ -455,13 +584,11 @@
         rememberInlineFeatureDefinition: function (name, additional) {
             const normalizedName = this.normalizeName(name);
             const inlineDefinition = this.extractInlineFeatureDefinition(additional);
-
             if (normalizedName === '' || !this.isPlainObject(inlineDefinition)) {
                 return;
             }
 
-            const resolvedDefinition = this.resolveFeatureDefinition(normalizedName, additional);
-            this.featureDefinitions[normalizedName] = resolvedDefinition;
+            this.featureDefinitions[normalizedName] = this.resolveFeatureDefinition(normalizedName, additional);
         },
 
         getPersistenceStorage: function (definition) {
@@ -1434,6 +1561,119 @@
     const FeatureStorage = {
 
         /**
+         * Adds a location watcher.
+         *
+         * A location watcher maps URL/location changes to one or more feature changes.
+         * It requires the trigger plugin to be available. If trigger is unavailable,
+         * the watcher is still registered, but a warning is logged and it will remain inactive.
+         *
+         * Expected watcher shape:
+         * {
+         *   name: string,
+         *   emitInitial?: boolean,
+         *   match?: function(ctx): boolean,
+         *   mapChange: function(ctx): Array<{
+         *     name: string,
+         *     oldValue?: *,
+         *     newValue: *,
+         *     additional?: Object
+         *   }>
+         * }
+         *
+         * The `ctx` passed to match/mapChange contains:
+         * {
+         *   watcher,
+         *   initial: boolean,
+         *   oldHref: string|null,
+         *   newHref: string,
+         *   oldUrl: URL|null,
+         *   newUrl: URL|null
+         * }
+         *
+         * @param {Object} watcher
+         * @returns {boolean} true if the watcher was accepted
+         */
+        addLocationWatcher: function (watcher) {
+            const normalizedWatcher = _private.normalizeLocationWatcher(watcher);
+            if (normalizedWatcher === null) {
+                return false;
+            }
+
+            _private.locationWatchers[normalizedWatcher.name] = normalizedWatcher;
+
+            if (_private.ensureLocationWatcherSupport() !== true) {
+                _private.debugError('location watcher registered but inactive because trigger plugin is unavailable', {
+                    watcher: normalizedWatcher.name
+                });
+                return true;
+            }
+
+            if (normalizedWatcher.emitInitial === true) {
+                _private.reconcileLocationWatchers(true);
+            }
+
+            return true;
+        },
+
+        /**
+         * Removes a previously registered location watcher by name.
+         *
+         * @param {string} name
+         * @returns {boolean} true if the name was valid
+         */
+        removeLocationWatcher: function (name) {
+            const normalizedName = _private.normalizeName(name);
+            if (normalizedName === '') {
+                return false;
+            }
+
+            delete _private.locationWatchers[normalizedName];
+            return true;
+        },
+
+        /**
+         * Returns one registered location watcher by name.
+         *
+         * @param {string} name
+         * @returns {Object|null}
+         */
+        getLocationWatcher: function (name) {
+            const normalizedName = _private.normalizeName(name);
+            if (normalizedName === '' || !_private.isPlainObject(_private.locationWatchers[normalizedName])) {
+                return null;
+            }
+
+            return {
+                name: _private.locationWatchers[normalizedName].name,
+                emitInitial: _private.locationWatchers[normalizedName].emitInitial === true,
+                match: _private.locationWatchers[normalizedName].match,
+                mapChange: _private.locationWatchers[normalizedName].mapChange
+            };
+        },
+
+        /**
+         * Returns all registered location watchers.
+         *
+         * @returns {Object[]}
+         */
+        getLocationWatchers: function () {
+            const self = this;
+            return Object.keys(_private.locationWatchers).map(function (name) {
+                return self.getLocationWatcher(name);
+            });
+        },
+
+        /**
+         * Removes all registered location watchers.
+         *
+         * @returns {Object} FeatureStorage
+         */
+        clearLocationWatchers: function () {
+            _private.locationWatchers = {};
+            return this;
+        },
+
+        /**
          * Adds an element watcher.
          *
          * The watcher observes the first matching DOM element and maps attribute
@@ -1861,6 +2101,7 @@
             _private.currentFeatures = {};
             _private.currentFeatureMeta = {};
             _private.pendingFeatureChanges = {};
+            _private.lastLocationHref = null;
             return this;
         },
 
