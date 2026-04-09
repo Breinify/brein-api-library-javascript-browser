@@ -15,6 +15,63 @@
         _defaultPos: DEFAULT_POS,
         _runtimeByWebExId: {},
 
+        ensurePath: function (obj, path, leafFactory, nodeFactory) {
+            const root = $.isPlainObject(obj) ? obj : {};
+            const keys = $.isArray(path) ? path : Array.prototype.slice.call(arguments, 1, -2);
+            const createLeaf = $.isFunction(leafFactory) ? leafFactory : function () {
+                return null;
+            };
+            const createNode = $.isFunction(nodeFactory) ? nodeFactory : function () {
+                return {};
+            };
+
+            let current = root;
+            $.each(keys, function (idx, key) {
+                if (typeof key !== "string" || key === "") {
+                    return;
+                }
+
+                const isLast = idx === keys.length - 1;
+
+                if (typeof current[key] === "undefined" || current[key] === null) {
+                    current[key] = isLast ? createLeaf(key, idx, keys) : createNode(key, idx, keys);
+                } else if (!isLast && !$.isPlainObject(current[key])) {
+                    current[key] = createNode(key, idx, keys);
+                }
+
+                current = current[key];
+            });
+
+            return root;
+        },
+
+        ensureObject: function (obj) {
+            const path = Array.prototype.slice.call(arguments, 1);
+            return this.ensurePath(obj, path, function () {
+                return {};
+            });
+        },
+
+        ensureArray: function (obj) {
+            const path = Array.prototype.slice.call(arguments, 1);
+            return this.ensurePath(obj, path, function () {
+                return [];
+            });
+        },
+
+        mergeArray: function (target, values, removeDuplicates) {
+            const result = $.isArray(target) ? target.slice() : [];
+            const additions = $.isArray(values) ? values : [];
+
+            $.each(additions, function (idx, value) {
+                if (!removeDuplicates || $.inArray(value, result) === -1) {
+                    result.push(value);
+                }
+            });
+
+            return result;
+        },
+
         getRuntime: function (webExId, webExVersionId) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             if (normalizedWebExId === null) {
@@ -347,12 +404,8 @@
                     return payloadUpdate;
                 }
 
-                payloadUpdate.recommendationAdditionalParameters =
-                    $.isPlainObject(payloadUpdate.recommendationAdditionalParameters)
-                        ? payloadUpdate.recommendationAdditionalParameters
-                        : {};
-
-                payloadUpdate.recommendationAdditionalParameters[payloadKey] = resolvedValue;
+                this.ensureObject(payloadUpdate, "recommendationAdditionalParameters", "additionalOtherParameters");
+                payloadUpdate.recommendationAdditionalParameters.additionalOtherParameters[payloadKey] = resolvedValue;
                 return payloadUpdate;
             } else {
                 console.error("[uiRecommendations] unsupported mapping type: " + type, mapping);
@@ -752,62 +805,10 @@
                 recommenderConfig: $.isPlainObject(singleConfig) ? singleConfig : {},
                 recommenderName: this._recommenderName(singleConfig),
 
-                ensurePath: function (obj, path, leafFactory, nodeFactory) {
-                    const root = $.isPlainObject(obj) ? obj : {};
-                    const keys = $.isArray(path) ? path : Array.prototype.slice.call(arguments, 1, -2);
-                    const createLeaf = $.isFunction(leafFactory) ? leafFactory : function () {
-                        return null;
-                    };
-                    const createNode = $.isFunction(nodeFactory) ? nodeFactory : function () {
-                        return {};
-                    };
-
-                    let current = root;
-                    $.each(keys, function (idx, key) {
-                        if (typeof key !== "string" || key === "") {
-                            return;
-                        }
-
-                        const isLast = idx === keys.length - 1;
-
-                        if (typeof current[key] === "undefined" || current[key] === null) {
-                            current[key] = isLast ? createLeaf(key, idx, keys) : createNode(key, idx, keys);
-                        } else if (!isLast && !$.isPlainObject(current[key])) {
-                            current[key] = createNode(key, idx, keys);
-                        }
-
-                        current = current[key];
-                    });
-
-                    return root;
-                },
-
-                ensureObject: function (obj) {
-                    const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, function () {
-                        return {};
-                    });
-                },
-
-                ensureArray: function (obj) {
-                    const path = Array.prototype.slice.call(arguments, 1);
-                    return this.ensurePath(obj, path, function () {
-                        return [];
-                    });
-                },
-
-                mergeArray: function (target, values, removeDuplicates) {
-                    const result = $.isArray(target) ? target.slice() : [];
-                    const additions = $.isArray(values) ? values : [];
-
-                    $.each(additions, function (idx, value) {
-                        if (!removeDuplicates || $.inArray(value, result) === -1) {
-                            result.push(value);
-                        }
-                    });
-
-                    return result;
-                }
+                ensurePath: _private.ensurePath.bind(_private),
+                ensureObject: _private.ensureObject.bind(_private),
+                ensureArray: _private.ensureArray.bind(_private),
+                mergeArray: _private.mergeArray.bind(_private)
             };
 
             const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
