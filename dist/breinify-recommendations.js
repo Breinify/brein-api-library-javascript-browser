@@ -348,39 +348,50 @@
                 : {};
             const specificOverridePayload = this._resolveRefreshPayloadOverride(option, normalizedRefreshOptions);
 
+            let payload;
             if ($.isPlainObject(option?.recommender?.payload)) {
-                return $.extend(
-                    true,
-                    {},
-                    option.recommender.payload,
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
+                payload = $.extend(true, {}, option.recommender.payload);
             } else if ($.isPlainObject(def)) {
-                return $.extend(
-                    true,
-                    {},
-                    def,
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
+                payload = $.extend(true, {}, def);
             } else {
-                return $.extend(
-                    true,
-                    {},
-                    globalOverridePayload,
-                    specificOverridePayload,
-                    {
-                        optionsVersion: optionsVersion
-                    }
-                );
+                payload = {};
             }
+
+            payload = this._mergePayloadOverride(payload, globalOverridePayload);
+            payload = this._mergePayloadOverride(payload, specificOverridePayload);
+            payload.optionsVersion = optionsVersion;
+
+            return payload;
+        },
+
+        _mergePayloadOverride: function (target, source) {
+            const _self = this;
+
+            if (!$.isPlainObject(target)) {
+                target = {};
+            }
+
+            if (!$.isPlainObject(source)) {
+                return target;
+            }
+
+            Object.keys(source).forEach(function (key) {
+                const sourceValue = source[key];
+                const targetValue = target[key];
+
+                if ($.isArray(sourceValue)) {
+                    target[key] = sourceValue.slice();
+                } else if ($.isPlainObject(sourceValue)) {
+                    target[key] = _self._mergePayloadOverride(
+                        $.isPlainObject(targetValue) ? $.extend(true, {}, targetValue) : {},
+                        sourceValue
+                    );
+                } else {
+                    target[key] = sourceValue;
+                }
+            });
+
+            return target;
         },
 
         /**
