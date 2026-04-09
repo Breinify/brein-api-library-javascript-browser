@@ -762,8 +762,13 @@
 
             for (i = 0; i < rule.actions.length; i++) {
                 action = rule.actions[i];
-                $targets = $(action.selector);
 
+                if (action.type === "custom") {
+                    actions.push(action);
+                    continue;
+                }
+
+                $targets = $(action.selector);
                 if ($targets.length === 0) {
                     continue;
                 }
