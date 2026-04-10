@@ -1446,7 +1446,7 @@
                     });
                     Renderer._applyRefreshBehavior(
                         option.meta.refreshParent,
-                        Renderer._getRefreshBehavior(option, "onControl")
+                        Renderer._getRefreshBehavior(option.meta.refreshParent, "onControl")
                     );
                 }
 

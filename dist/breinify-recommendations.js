@@ -1431,6 +1431,10 @@
                         result: result,
                         reason: "control"
                     });
+                    Renderer._applyRefreshBehavior(
+                        $container,
+                        Renderer._getRefreshBehavior(option, "onControl")
+                    );
                 } else if (option?.meta?.refreshParent) {
                     Renderer._setRefreshOutcome(option.meta.refreshParent, "control", {
                         result: result,
@@ -1440,6 +1444,10 @@
                         result: result,
                         reason: "control-no-container"
                     });
+                    Renderer._applyRefreshBehavior(
+                        option.meta.refreshParent,
+                        Renderer._getRefreshBehavior(option.meta.refreshParent, "onControl")
+                    );
                 }
 
                 this._handleRender(result, option, $container);
