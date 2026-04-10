@@ -1370,11 +1370,19 @@
 
                 if ($container !== null) {
                     this._applyBindings(option, $container);
+                    Renderer._setRefreshOutcome($container, "control", {
+                        result: result,
+                        reason: "control"
+                    });
                     Renderer._setRefreshState($container, option, "idle", {
                         result: result,
                         reason: "control"
                     });
                 } else if (option?.meta?.refreshParent) {
+                    Renderer._setRefreshOutcome(option.meta.refreshParent, "control", {
+                        result: result,
+                        reason: "control-no-container"
+                    });
                     Renderer._setRefreshState(option.meta.refreshParent, option, "idle", {
                         result: result,
                         reason: "control-no-container"
