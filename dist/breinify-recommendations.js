@@ -1148,6 +1148,10 @@
                     Renderer._process(option?.process?.error, error);
 
                     if (option?.meta?.refreshParent) {
+                        Renderer._setRefreshOutcome(option.meta.refreshParent, "error", {
+                            name: name,
+                            error: error
+                        });
                         Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
                             name: name,
                             error: error
@@ -1186,13 +1190,6 @@
                         result: result
                     });
 
-                    if (option?.meta?.refreshParent) {
-                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
-                            name: name,
-                            result: result
-                        });
-                    }
-
                     const errorResult = {
                         status: {
                             code: 500,
@@ -1200,6 +1197,17 @@
                             error: true
                         }
                     };
+
+                    if (option?.meta?.refreshParent) {
+                        Renderer._setRefreshOutcome(option.meta.refreshParent, "error", {
+                            name: name,
+                            result: errorResult
+                        });
+                        Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
+                            name: name,
+                            result: errorResult
+                        });
+                    }
 
                     _self._handleRender(errorResult, option, null);
                     Renderer._process(option?.process?.finalize, option, errorResult, null);
@@ -1210,6 +1218,10 @@
                     }, result.status));
 
                     if (option?.meta?.refreshParent) {
+                        Renderer._setRefreshOutcome(option.meta.refreshParent, "error", {
+                            name: name,
+                            result: result
+                        });
                         Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
                             name: name,
                             result: result
