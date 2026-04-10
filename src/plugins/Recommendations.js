@@ -1197,6 +1197,10 @@
                             name: name,
                             error: error
                         });
+                        Renderer._applyRefreshBehavior(
+                            option.meta.refreshParent,
+                            Renderer._getRefreshBehavior(option, "onError")
+                        );
                     }
 
                     const errorResponse = _self._mapError(data, error);
@@ -1248,6 +1252,10 @@
                             name: name,
                             result: errorResult
                         });
+                        Renderer._applyRefreshBehavior(
+                            option.meta.refreshParent,
+                            Renderer._getRefreshBehavior(option, "onError")
+                        );
                     }
 
                     _self._handleRender(errorResult, option, null);
@@ -1267,6 +1275,10 @@
                             name: name,
                             result: result
                         });
+                        Renderer._applyRefreshBehavior(
+                            option.meta.refreshParent,
+                            Renderer._getRefreshBehavior(option, "onError")
+                        );
                     }
 
                     _self._handleRender(result, option, null);
@@ -1313,10 +1325,18 @@
                                 });
 
                                 if (option?.meta?.refreshParent) {
+                                    Renderer._setRefreshOutcome(option.meta.refreshParent, "error", {
+                                        name: name,
+                                        error: caughtError
+                                    });
                                     Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
                                         name: name,
                                         error: caughtError
                                     });
+                                    Renderer._applyRefreshBehavior(
+                                        option.meta.refreshParent,
+                                        Renderer._getRefreshBehavior(option, "onError")
+                                    );
                                 }
 
                                 Renderer._process(option?.process?.finalize, option, result, null);
@@ -1431,10 +1451,6 @@
                         result: result,
                         reason: "control"
                     });
-                    Renderer._applyRefreshBehavior(
-                        $container,
-                        Renderer._getRefreshBehavior(option, "onControl")
-                    );
                 } else if (option?.meta?.refreshParent) {
                     Renderer._setRefreshOutcome(option.meta.refreshParent, "control", {
                         result: result,
@@ -1444,6 +1460,9 @@
                         result: result,
                         reason: "control-no-container"
                     });
+                }
+
+                if (option?.meta?.refreshParent) {
                     Renderer._applyRefreshBehavior(
                         option.meta.refreshParent,
                         Renderer._getRefreshBehavior(option, "onControl")
@@ -1498,6 +1517,10 @@
                         result: result,
                         reason: "ignored"
                     });
+                    Renderer._applyRefreshBehavior(
+                        option.meta.refreshParent,
+                        Renderer._getRefreshBehavior(option, "onIgnored")
+                    );
                 }
 
                 this._handleRender(result, option, null);
@@ -1511,10 +1534,18 @@
             this._renderRecommendation(option, result, function ($container) {
                 if ($container === null) {
                     if (option?.meta?.refreshParent) {
+                        Renderer._setRefreshOutcome(option.meta.refreshParent, "error", {
+                            result: result,
+                            reason: "render-failed"
+                        });
                         Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-error", {
                             result: result,
                             reason: "render-failed"
                         });
+                        Renderer._applyRefreshBehavior(
+                            option.meta.refreshParent,
+                            Renderer._getRefreshBehavior(option, "onError")
+                        );
                     }
 
                     Renderer._process(option?.process?.finalize, option, result, null);
