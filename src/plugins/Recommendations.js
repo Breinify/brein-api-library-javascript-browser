@@ -86,41 +86,76 @@
             this._refresh(state.refreshOptions);
         },
 
+        /**
+         * Sets the semantic refresh outcome on a rendered recommendation container.
+         *
+         * Supported outcomes:
+         * - "rendered": refresh completed and replacement content was rendered
+         * - "ignored": refresh completed with a non-rendered ignore outcome (e.g. 7120)
+         * - "control": refresh completed with split-test control behavior
+         * - "error": refresh completed with an error result or invalid response
+         *
+         * Passing `null`, an empty string, or "idle" removes the outcome markers.
+         *
+         * @param {jQuery} $container
+         * the rendered recommendation parent container
+         * @param {string|null} outcome
+         * the semantic refresh outcome
+         * @param {Object=} details
+         * optional details, currently used to expose `result.status.code`
+         */
+        _setRefreshOutcome: function ($container, outcome, details) {
+            if (!$container?.jquery || $container.length !== 1) {
+                return;
+            }
+
+            const normalizedOutcome = Breinify.UTL.isNonEmptyString(outcome);
+            const code = typeof details?.result?.status?.code === "number"
+                ? String(details.result.status.code)
+                : null;
+
+            if (normalizedOutcome === null || normalizedOutcome === "idle") {
+                $container
+                    .removeAttr("data-brrc-refresh-outcome")
+                    .removeAttr("data-brrc-refresh-code");
+                return;
+            }
+
+            $container.attr("data-brrc-refresh-outcome", normalizedOutcome);
+
+            if (code === null) {
+                $container.removeAttr("data-brrc-refresh-code");
+            } else {
+                $container.attr("data-brrc-refresh-code", code);
+            }
+        },
+
         _setRefreshState: function ($container, option, state, details) {
             if (!$container?.jquery || $container.length !== 1) {
                 return;
             }
 
-            $container
-                .attr("data-brrc-refresh-state", state)
-                .removeClass("brrc-is-refreshing brrc-refresh-error brrc-refresh-canceled");
-
-            if (state === "refreshing") {
-                $container.addClass("brrc-is-refreshing");
-            } else if (state === "refresh-error") {
-                $container.addClass("brrc-refresh-error");
-            } else if (state === "refresh-canceled") {
-                $container.addClass("brrc-refresh-canceled");
-            }
-
-            const refreshStateChange = option?.process?.refreshStateChange;
-            if ($.isFunction(refreshStateChange)) {
-                refreshStateChange($container, state, details || {}, option);
-            }
-        },
-
-        _clearRefreshState: function ($container, option, details) {
-            if (!$container?.jquery || $container.length !== 1) {
-                return;
-            }
+            const normalizedState = Breinify.UTL.isNonEmptyString(state);
 
             $container
                 .removeAttr("data-brrc-refresh-state")
                 .removeClass("brrc-is-refreshing brrc-refresh-error brrc-refresh-canceled");
 
+            if (normalizedState !== null && normalizedState !== "idle") {
+                $container.attr("data-brrc-refresh-state", normalizedState);
+
+                if (normalizedState === "refreshing") {
+                    $container.addClass("brrc-is-refreshing");
+                } else if (normalizedState === "refresh-error") {
+                    $container.addClass("brrc-refresh-error");
+                } else if (normalizedState === "refresh-canceled") {
+                    $container.addClass("brrc-refresh-canceled");
+                }
+            }
+
             const refreshStateChange = option?.process?.refreshStateChange;
             if ($.isFunction(refreshStateChange)) {
-                refreshStateChange($container, "idle", details || {}, option);
+                refreshStateChange($container, normalizedState === null ? "idle" : normalizedState, details || {}, option);
             }
         },
 
@@ -1335,12 +1370,12 @@
 
                 if ($container !== null) {
                     this._applyBindings(option, $container);
-                    Renderer._clearRefreshState($container, option, {
+                    Renderer._setRefreshState($container, option, "idle", {
                         result: result,
                         reason: "control"
                     });
                 } else if (option?.meta?.refreshParent) {
-                    Renderer._clearRefreshState(option.meta.refreshParent, option, {
+                    Renderer._setRefreshState(option.meta.refreshParent, option, "idle", {
                         result: result,
                         reason: "control-no-container"
                     });
@@ -1386,7 +1421,7 @@
                 };
             } else if (result?.status?.code === 7120) {
                 if (option?.meta?.refreshParent) {
-                    Renderer._clearRefreshState(option.meta.refreshParent, option, {
+                    Renderer._setRefreshState(option.meta.refreshParent, option, "idle", {
                         result: result,
                         reason: "ignored"
                     });
@@ -1414,7 +1449,11 @@
                 }
 
                 _self._applyBindings(option, $container);
-                Renderer._clearRefreshState($container, option, {
+                Renderer._setRefreshOutcome($container, "rendered", {
+                    result: result,
+                    reason: "rendered"
+                });
+                Renderer._setRefreshState($container, option, "idle", {
                     result: result,
                     reason: "rendered"
                 });
