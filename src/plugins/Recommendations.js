@@ -1421,6 +1421,10 @@
                 };
             } else if (result?.status?.code === 7120) {
                 if (option?.meta?.refreshParent) {
+                    Renderer._setRefreshOutcome(option.meta.refreshParent, "ignored", {
+                        result: result,
+                        reason: "ignored"
+                    });
                     Renderer._setRefreshState(option.meta.refreshParent, option, "idle", {
                         result: result,
                         reason: "ignored"
