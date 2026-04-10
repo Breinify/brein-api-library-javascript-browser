@@ -86,6 +86,30 @@
             this._refresh(state.refreshOptions);
         },
 
+        _getRefreshBehavior: function (option, type) {
+            const behavior = option?.refreshBehavior;
+            if (!$.isPlainObject(behavior)) {
+                return "keep";
+            }
+
+            const value = behavior[type];
+            return typeof value === "string" ? value : "keep";
+        },
+
+        _applyRefreshBehavior: function ($container, behavior) {
+            if (!$container?.jquery || $container.length !== 1) {
+                return;
+            }
+
+            if (behavior === "hide") {
+                $container.hide();
+            } else if (behavior === "remove") {
+                $container.remove();
+            } else {
+                // "keep" => do nothing
+            }
+        },
+
         /**
          * Sets the semantic refresh outcome on a rendered recommendation container.
          *
@@ -764,6 +788,23 @@
             renderIdentity: null
         },
 
+        /**
+         * Defines how an existing rendered recommendation container should behave
+         * when a refresh finishes with a non-rendered terminal outcome.
+         *
+         * Supported values per outcome:
+         * - "keep": keep the currently rendered container visible
+         * - "hide": hide the currently rendered container
+         * - "remove": remove the currently rendered container from the DOM
+         *
+         * Defaults preserve the current behavior.
+         */
+        refreshBehavior: {
+            onError: "keep",
+            onIgnored: "keep",
+            onControl: "keep"
+        },
+
         recommender: null,
 
         activity: {
@@ -1390,6 +1431,10 @@
                         result: result,
                         reason: "control"
                     });
+                    Renderer._applyRefreshBehavior(
+                        $container,
+                        Renderer._getRefreshBehavior(option, "onControl")
+                    );
                 } else if (option?.meta?.refreshParent) {
                     Renderer._setRefreshOutcome(option.meta.refreshParent, "control", {
                         result: result,
@@ -1399,6 +1444,10 @@
                         result: result,
                         reason: "control-no-container"
                     });
+                    Renderer._applyRefreshBehavior(
+                        option.meta.refreshParent,
+                        Renderer._getRefreshBehavior(option, "onControl")
+                    );
                 }
 
                 this._handleRender(result, option, $container);
