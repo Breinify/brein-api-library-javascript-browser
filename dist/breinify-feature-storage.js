@@ -92,7 +92,7 @@
         },
 
         normalizeFeatureListenerOptions: function (options) {
-            const normalizedOptions = this.isPlainObject(options) ? this.cloneObject(options) : {};
+            const normalizedOptions = $.isPlainObject(options) ? this.cloneObject(options) : {};
             const mode = normalizedOptions.mode === 'single' ? 'single' : 'batch';
 
             return {
@@ -100,16 +100,12 @@
             };
         },
 
-        isPlainObject: function (value) {
-            return $.isPlainObject(value);
-        },
-
         cloneObject: function (value) {
             return Object.assign({}, value || {});
         },
 
         normalizeLocationWatcher: function (watcher) {
-            if (!this.isPlainObject(watcher)) {
+            if (!$.isPlainObject(watcher)) {
                 return null;
             }
 
@@ -182,7 +178,7 @@
 
             Object.keys(this.locationWatchers).forEach(function (name) {
                 const watcher = self.locationWatchers[name];
-                if (!self.isPlainObject(watcher) || !$.isFunction(watcher.mapChange)) {
+                if (!$.isPlainObject(watcher) || !$.isFunction(watcher.mapChange)) {
                     return;
                 }
 
@@ -206,7 +202,7 @@
                     }
 
                     changes.forEach(function (change) {
-                        if (!self.isPlainObject(change)) {
+                        if (!$.isPlainObject(change)) {
                             return;
                         }
 
@@ -308,7 +304,7 @@
                 });
             }
 
-            if (this.isPlainObject(value)) {
+            if ($.isPlainObject(value)) {
                 const result = {};
 
                 Object.keys(value).forEach(function (key) {
@@ -344,20 +340,20 @@
         },
 
         cloneFeatureMeta: function (value) {
-            if (!this.isPlainObject(value)) {
+            if (!$.isPlainObject(value)) {
                 return null;
             }
 
             return {
                 oldValue: Object.prototype.hasOwnProperty.call(value, 'oldValue') ? value.oldValue : null,
                 newValue: Object.prototype.hasOwnProperty.call(value, 'newValue') ? value.newValue : null,
-                additional: this.isPlainObject(value.additional) ? this.cloneObject(value.additional) : {},
+                additional: $.isPlainObject(value.additional) ? this.cloneObject(value.additional) : {},
                 changedAt: typeof value.changedAt === 'number' ? value.changedAt : 0
             };
         },
 
         cloneFeatureDefinition: function (value) {
-            if (!this.isPlainObject(value)) {
+            if (!$.isPlainObject(value)) {
                 return null;
             }
 
@@ -443,7 +439,7 @@
             }
 
             this.featureListeners.slice().forEach(function (entry) {
-                if (!self.isPlainObject(entry) || !$.isFunction(entry.listener)) {
+                if (!$.isPlainObject(entry) || !$.isFunction(entry.listener)) {
                     return;
                 }
 
@@ -518,8 +514,8 @@
 
         normalizeFeatureDefinition: function (definition) {
             const defaults = this.getDefaultFeatureDefinition();
-            const normalizedInput = this.isPlainObject(definition) ? definition : {};
-            const inputPersistence = this.isPlainObject(normalizedInput.persistence)
+            const normalizedInput = $.isPlainObject(definition) ? definition : {};
+            const inputPersistence = $.isPlainObject(normalizedInput.persistence)
                 ? normalizedInput.persistence
                 : {};
 
@@ -550,17 +546,17 @@
         extractInlineFeatureDefinition: function (additional) {
             const inlineDefinition = {};
 
-            if (this.isPlainObject(additional) && this.isPlainObject(additional.featureDefinition)) {
-                inlineDefinition.persistence = this.isPlainObject(additional.featureDefinition.persistence)
+            if ($.isPlainObject(additional) && $.isPlainObject(additional.featureDefinition)) {
+                inlineDefinition.persistence = $.isPlainObject(additional.featureDefinition.persistence)
                     ? this.cloneObject(additional.featureDefinition.persistence)
                     : undefined;
             }
 
-            if (this.isPlainObject(additional) && this.isPlainObject(additional.persistence)) {
+            if ($.isPlainObject(additional) && $.isPlainObject(additional.persistence)) {
                 inlineDefinition.persistence = this.cloneObject(additional.persistence);
             }
 
-            return this.isPlainObject(inlineDefinition.persistence) ? inlineDefinition : null;
+            return $.isPlainObject(inlineDefinition.persistence) ? inlineDefinition : null;
         },
 
         resolveFeatureDefinition: function (name, additional) {
@@ -570,7 +566,7 @@
                 : this.getDefaultFeatureDefinition();
             const inlineDefinition = this.extractInlineFeatureDefinition(additional);
 
-            if (!this.isPlainObject(inlineDefinition)) {
+            if (!$.isPlainObject(inlineDefinition)) {
                 return this.normalizeFeatureDefinition(baseDefinition);
             }
 
@@ -584,7 +580,7 @@
         rememberInlineFeatureDefinition: function (name, additional) {
             const normalizedName = this.normalizeName(name);
             const inlineDefinition = this.extractInlineFeatureDefinition(additional);
-            if (normalizedName === '' || !this.isPlainObject(inlineDefinition)) {
+            if (normalizedName === '' || !$.isPlainObject(inlineDefinition)) {
                 return;
             }
 
@@ -592,7 +588,7 @@
         },
 
         getPersistenceStorage: function (definition) {
-            if (!this.isPlainObject(definition) || !this.isPlainObject(definition.persistence)) {
+            if (!$.isPlainObject(definition) || !$.isPlainObject(definition.persistence)) {
                 return null;
             }
 
@@ -687,7 +683,7 @@
                 }
 
                 const parsed = JSON.parse(raw);
-                if (!this.isPlainObject(parsed)) {
+                if (!$.isPlainObject(parsed)) {
                     storage.removeItem(key);
                     return false;
                 }
@@ -714,7 +710,7 @@
                 return false;
             }
 
-            const resolvedDefinition = this.isPlainObject(definition)
+            const resolvedDefinition = $.isPlainObject(definition)
                 ? definition
                 : this.resolveFeatureDefinition(normalizedName, null);
             const storage = this.getPersistenceStorage(resolvedDefinition);
@@ -741,7 +737,7 @@
 
             try {
                 const parsed = JSON.parse(rawValue);
-                return this.isPlainObject(parsed) ? parsed : null;
+                return $.isPlainObject(parsed) ? parsed : null;
             } catch (e) {
                 return null;
             }
@@ -775,7 +771,7 @@
                 const featureName = key.substring(this.persistence.storagePrefix.length);
                 const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
 
-                if (!this.isPlainObject(parsed)) {
+                if (!$.isPlainObject(parsed)) {
                     keysToRemove.push(key);
                     continue;
                 }
@@ -791,7 +787,7 @@
                     continue;
                 }
 
-                if (this.isPlainObject(parsed.meta)) {
+                if ($.isPlainObject(parsed.meta)) {
                     self.currentFeatureMeta[featureName] = self.cloneFeatureMeta(parsed.meta);
                 } else {
                     self.currentFeatureMeta[featureName] = {
@@ -849,7 +845,7 @@
                 }
 
                 const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
-                if (!this.isPlainObject(parsed) || this.isExpiredPersistedFeatureEntry(parsed)) {
+                if (!$.isPlainObject(parsed) || this.isExpiredPersistedFeatureEntry(parsed)) {
                     keysToRemove.push(key);
                 }
             }
@@ -1003,8 +999,8 @@
                 }
 
                 return true;
-            } else if (this.isPlainObject(left)) {
-                if (!this.isPlainObject(right)) {
+            } else if ($.isPlainObject(left)) {
+                if (!$.isPlainObject(right)) {
                     return false;
                 }
 
@@ -1046,7 +1042,7 @@
                 return false;
             }
 
-            const normalizedAdditional = this.isPlainObject(additional) ? this.cloneObject(additional) : {};
+            const normalizedAdditional = $.isPlainObject(additional) ? this.cloneObject(additional) : {};
             const changedAt = Date.now();
 
             this.currentFeatures[normalizedName] = normalizedNewValue;
@@ -1092,7 +1088,7 @@
         },
 
         normalizeElementWatcher: function (watcher) {
-            if (!this.isPlainObject(watcher)) {
+            if (!$.isPlainObject(watcher)) {
                 return null;
             }
 
@@ -1112,8 +1108,12 @@
                         return attributeName !== '' && arr.indexOf(attributeName) === idx;
                     })
                 : [];
+            const observeTextChange = watcher.observeTextChange === true;
+            const observeAttributeChange = attributes.length > 0;
 
-            if (normalizedName === '' || normalizedTargetSelector === '' || attributes.length === 0) {
+            if ((!observeTextChange && !observeAttributeChange) ||
+                normalizedName === '' ||
+                normalizedTargetSelector === '') {
                 return null;
             }
 
@@ -1122,13 +1122,14 @@
                 targetSelector: normalizedTargetSelector,
                 rootSelector: normalizedRootSelector && normalizedRootSelector !== '' ? normalizedRootSelector : null,
                 attributes: attributes,
+                observeTextChange: observeTextChange,
                 emitInitial: watcher.emitInitial === true,
                 mapChange: $.isFunction(watcher.mapChange) ? watcher.mapChange : null
             };
         },
 
         normalizeRequestSource: function (source) {
-            if (!this.isPlainObject(source)) {
+            if (!$.isPlainObject(source)) {
                 return null;
             }
 
@@ -1148,12 +1149,22 @@
             return {
                 element: null,
                 observer: null,
-                lastValues: {}
+                lastValues: {},
+                lastText: null
             };
         },
 
         cloneValues: function (values) {
             return this.cloneObject(values);
+        },
+
+        readWatcherTextValue: function (element) {
+            if (!(element instanceof Element)) {
+                return null;
+            }
+
+            const text = (element.textContent || '').trim();
+            return text === '' ? null : text;
         },
 
         readWatcherAttributeValues: function (element, watcher) {
@@ -1223,7 +1234,10 @@
                 rootTagName: null
             };
 
-            details.attributes[attributeName] = null;
+            if (attributeName !== null) {
+                details.attributes[attributeName] = null;
+            }
+
             return details;
         },
 
@@ -1291,7 +1305,7 @@
 
             const self = this;
             changes.forEach(function (change) {
-                if (!self.isPlainObject(change)) {
+                if (!$.isPlainObject(change)) {
                     return;
                 }
 
@@ -1310,7 +1324,7 @@
             });
         },
 
-        emitWatcherMissing: function (watcher, lastValues) {
+        emitWatcherMissing: function (watcher, lastValues, lastText) {
             const self = this;
 
             watcher.attributes.forEach(function (attributeName) {
@@ -1330,6 +1344,19 @@
                     details: self.createMissingDetails(watcher, attributeName)
                 });
             });
+
+            if (watcher.observeTextChange === true && lastText !== null) {
+                self.emitMappedChanges(watcher, {
+                    watcher: watcher,
+                    element: null,
+                    attribute: null,
+                    oldValue: lastText,
+                    newValue: null,
+                    initial: false,
+                    removed: true,
+                    details: self.createMissingDetails(watcher, null)
+                });
+            }
         },
 
         emitWatcherChange: function (watcher, element, attributeName, oldValue, newValue, initial, removed) {
@@ -1348,65 +1375,103 @@
         },
 
         createElementObserver: function (element, watcher, state) {
-            if (!(element instanceof Element) || watcher.attributes.length === 0) {
+            if (!(element instanceof Element)) {
+                return null;
+            }
+
+            const observerConfig = {};
+
+            if (watcher.attributes.length > 0) {
+                observerConfig.attributes = true;
+                observerConfig.attributeOldValue = true;
+                observerConfig.attributeFilter = watcher.attributes;
+            }
+
+            if (watcher.observeTextChange === true) {
+                observerConfig.childList = true;
+                observerConfig.characterData = true;
+                observerConfig.subtree = true;
+            }
+
+            if ($.isEmptyObject(observerConfig)) {
                 return null;
             }
 
             const self = this;
             const observer = new MutationObserver(function (mutations) {
                 let shouldReconcile = false;
+                let shouldCheckText = false;
 
                 mutations.forEach(function (mutation) {
-                    if (mutation.type !== 'attributes') {
+                    if (mutation.type === 'attributes') {
+                        const attributeName = mutation.attributeName;
+                        if (!attributeName || watcher.attributes.indexOf(attributeName) === -1) {
+                            return;
+                        }
+
+                        const oldValue = state.lastValues[attributeName];
+                        const newValue = element.getAttribute(attributeName);
+                        if (oldValue === newValue) {
+                            return;
+                        }
+
+                        state.lastValues[attributeName] = newValue;
+                        shouldReconcile = true;
+
+                        self.emitWatcherChange(
+                            watcher,
+                            element,
+                            attributeName,
+                            oldValue,
+                            newValue,
+                            false,
+                            false
+                        );
                         return;
                     }
 
-                    const attributeName = mutation.attributeName;
-                    if (!attributeName || watcher.attributes.indexOf(attributeName) === -1) {
-                        return;
+                    if (watcher.observeTextChange === true &&
+                        (mutation.type === 'characterData' || mutation.type === 'childList')) {
+                        shouldCheckText = true;
                     }
-
-                    const oldValue = state.lastValues[attributeName];
-                    const newValue = element.getAttribute(attributeName);
-                    if (oldValue === newValue) {
-                        return;
-                    }
-
-                    state.lastValues[attributeName] = newValue;
-                    shouldReconcile = true;
-
-                    self.emitWatcherChange(
-                        watcher,
-                        element,
-                        attributeName,
-                        oldValue,
-                        newValue,
-                        false,
-                        false
-                    );
                 });
+
+                if (watcher.observeTextChange === true && shouldCheckText === true) {
+                    const oldText = state.lastText;
+                    const newText = self.readWatcherTextValue(element);
+
+                    if (oldText !== newText) {
+                        state.lastText = newText;
+                        shouldReconcile = true;
+
+                        self.emitWatcherChange(
+                            watcher,
+                            element,
+                            null,
+                            oldText,
+                            newText,
+                            false,
+                            false
+                        );
+                    }
+                }
 
                 if (shouldReconcile === true) {
                     self.reconcileWatcherState(watcher);
                 }
             });
 
-            observer.observe(element, {
-                attributes: true,
-                attributeOldValue: true,
-                attributeFilter: watcher.attributes
-            });
-
+            observer.observe(element, observerConfig);
             return observer;
         },
 
         reconcileWatcherState: function (watcher) {
-            if (!this.isPlainObject(watcher) || this.normalizeName(watcher.name) === '') {
+            if (!$.isPlainObject(watcher) || this.normalizeName(watcher.name) === '') {
                 return;
             }
 
             let state = this.watcherStates[watcher.name];
-            if (!this.isPlainObject(state)) {
+            if (!$.isPlainObject(state)) {
                 state = this.createEmptyWatcherState();
                 this.watcherStates[watcher.name] = state;
             }
@@ -1424,27 +1489,35 @@
             }
 
             if (previousElement !== null && currentElement === null) {
-                this.emitWatcherMissing(watcher, state.lastValues);
+                this.emitWatcherMissing(watcher, state.lastValues, state.lastText);
                 state.element = null;
                 state.lastValues = {};
+                state.lastText = null;
                 return;
             }
 
             if (currentElement === null) {
                 state.element = null;
                 state.lastValues = {};
+                state.lastText = null;
                 return;
             }
 
             const oldValues = this.cloneValues(state.lastValues);
+            const oldText = state.lastText;
             const newValues = this.readWatcherAttributeValues(currentElement, watcher);
+            const newText = watcher.observeTextChange === true
+                ? this.readWatcherTextValue(currentElement)
+                : null;
             const isReplacement = previousElement !== null && previousElement !== currentElement;
 
             state.element = currentElement;
             state.lastValues = this.cloneValues(newValues);
+            state.lastText = newText;
             state.observer = this.createElementObserver(currentElement, watcher, state);
 
             const self = this;
+
             watcher.attributes.forEach(function (attributeName) {
                 const oldValue = isReplacement ? oldValues[attributeName] : null;
                 const newValue = newValues[attributeName];
@@ -1478,6 +1551,34 @@
                     );
                 }
             });
+
+            if (watcher.observeTextChange === true) {
+                const previousText = isReplacement ? oldText : null;
+
+                if (isReplacement) {
+                    if (previousText !== newText) {
+                        self.emitWatcherChange(
+                            watcher,
+                            currentElement,
+                            null,
+                            previousText,
+                            newText,
+                            false,
+                            false
+                        );
+                    }
+                } else if (watcher.emitInitial === true) {
+                    self.emitWatcherChange(
+                        watcher,
+                        currentElement,
+                        null,
+                        null,
+                        newText,
+                        true,
+                        false
+                    );
+                }
+            }
         },
 
         reconcileAllWatchers: function () {
@@ -1495,7 +1596,7 @@
             }
 
             const state = this.watcherStates[normalizedName];
-            if (this.isPlainObject(state) && state.observer) {
+            if ($.isPlainObject(state) && state.observer) {
                 state.observer.disconnect();
             }
 
@@ -1531,7 +1632,7 @@
                     }
 
                     changes.forEach(function (change) {
-                        if (!self.isPlainObject(change)) {
+                        if (!$.isPlainObject(change)) {
                             return;
                         }
 
@@ -1639,7 +1740,7 @@
          */
         getLocationWatcher: function (name) {
             const normalizedName = _private.normalizeName(name);
-            if (normalizedName === '' || !_private.isPlainObject(_private.locationWatchers[normalizedName])) {
+            if (normalizedName === '' || !$.isPlainObject(_private.locationWatchers[normalizedName])) {
                 return null;
             }
 
@@ -1677,14 +1778,15 @@
          * Adds an element watcher.
          *
          * The watcher observes the first matching DOM element and maps attribute
-         * changes to one or more feature changes via `mapChange(ctx)`.
+         * and/or text changes to one or more feature changes via `mapChange(ctx)`.
          *
          * Expected watcher shape:
          * {
          *   name: string,
          *   targetSelector: string,
          *   rootSelector?: string|null,
-         *   attributes: string[],
+         *   attributes?: string[],
+         *   observeTextChange?: boolean,
          *   emitInitial?: boolean,
          *   mapChange?: function(ctx): Array<{
          *     name: string,
@@ -1698,7 +1800,7 @@
          * {
          *   watcher,
          *   element,
-         *   attribute,
+         *   attribute: string|null,
          *   oldValue,
          *   newValue,
          *   initial: boolean,
@@ -1746,7 +1848,7 @@
          */
         getElementWatcher: function (name) {
             const normalizedName = _private.normalizeName(name);
-            if (normalizedName === '' || !_private.isPlainObject(_private.elementWatchers[normalizedName])) {
+            if (normalizedName === '' || !$.isPlainObject(_private.elementWatchers[normalizedName])) {
                 return null;
             }
 
@@ -1755,6 +1857,7 @@
                 targetSelector: _private.elementWatchers[normalizedName].targetSelector,
                 rootSelector: _private.elementWatchers[normalizedName].rootSelector,
                 attributes: _private.elementWatchers[normalizedName].attributes.slice(),
+                observeTextChange: _private.elementWatchers[normalizedName].observeTextChange === true,
                 emitInitial: _private.elementWatchers[normalizedName].emitInitial === true,
                 mapChange: _private.elementWatchers[normalizedName].mapChange
             };
@@ -1849,7 +1952,7 @@
          */
         getRequestSource: function (name) {
             const normalizedName = _private.normalizeName(name);
-            if (normalizedName === '' || !_private.isPlainObject(_private.requestSources[normalizedName])) {
+            if (normalizedName === '' || !$.isPlainObject(_private.requestSources[normalizedName])) {
                 return null;
             }
 
@@ -2225,7 +2328,7 @@
             const normalizedNames = _private.normalizeNames(names);
 
             _private.featureListeners = _private.featureListeners.filter(function (entry) {
-                if (!_private.isPlainObject(entry)) {
+                if (!$.isPlainObject(entry)) {
                     return false;
                 }
 
