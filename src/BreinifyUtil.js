@@ -135,16 +135,16 @@
         clickObserver: {
             clickObservers: {},
             defaultSettings: {
-                allowMultiFire: false
+                allowMultiFire: false,
+                useCapture: false
             },
 
             _delegatedRegistry: {},
 
-            _addDelegatedEvent(type, selector, data, handler) {
-                const key = `${type}_${selector}`;
+            _addDelegatedEvent(type, selector, data, handler, useCapture) {
+                const key = `${type}_${selector}_${useCapture === true ? "capture" : "bubble"}`;
                 if (this._delegatedRegistry[key]) return;
 
-                // ensure support of composedPath on event (old browser like IE11 and old Safari only)
                 if (!Event.prototype.composedPath) {
                     Event.prototype.composedPath = function () {
                         let path = [], el = this.target;
@@ -170,7 +170,7 @@
                 };
 
                 this._delegatedRegistry[key] = listener;
-                document.addEventListener(type, listener);
+                document.addEventListener(type, listener, useCapture === true);
             },
 
             add: function (selector, name, settings, callback) {
@@ -179,11 +179,18 @@
                 // we allow only three parameters, so adapt with default settings
                 if ($.isFunction(settings)) {
                     callback = settings;
-                    settings = this.defaultSettings;
+                    settings = $.extend(true, {}, this.defaultSettings);
                 } else if (!$.isPlainObject(settings)) {
-                    settings = this.defaultSettings;
-                } else if (typeof settings.allowMultiFire !== 'boolean') {
+                    settings = $.extend(true, {}, this.defaultSettings);
+                } else {
+                    settings = $.extend(true, {}, this.defaultSettings, settings);
+                }
+
+                if (typeof settings.allowMultiFire !== 'boolean') {
                     settings.allowMultiFire = false;
+                }
+                if (typeof settings.useCapture !== 'boolean') {
+                    settings.useCapture = false;
                 }
 
                 let existingClickObserver = this.clickObservers[selector];
@@ -241,7 +248,7 @@
 
                 // and bind it
                 // $(document).on('click', selector, {selector: selector}, existingClickObserver.handler);
-                this._addDelegatedEvent('click', selector, {selector}, existingClickObserver.handler);
+                this._addDelegatedEvent('click', selector, {selector}, existingClickObserver.handler, settings.useCapture === true);
             }
         },
 
@@ -1067,8 +1074,8 @@
                 _private.domObserver.addClassChangeObserver($el, callback);
             },
 
-            addClickObserver: function (selector, name, callback) {
-                _private.clickObserver.add(selector, name, callback);
+            addClickObserver: function (selector, name, settings, callback) {
+                _private.clickObserver.add(selector, name, settings, callback);
             },
 
             attachByOperation: function (operation, $anchor, $el) {

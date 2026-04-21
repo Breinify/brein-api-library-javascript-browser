@@ -820,7 +820,8 @@
         splitTests: {
             control: {
                 containerSelector: null,
-                hideContainerOnRender: true
+                hideContainerOnRender: true,
+                clickHandlingStrategy: "bubble" // can be "bubble" (down-stream, default) | "capture" (up-stream)
             }
         },
 
@@ -1944,9 +1945,13 @@
         _applyBindings: function (option, $container) {
             const _self = this;
 
+            const clickHandlingStrategy = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.clickHandlingStrategy);
+            const useCapture = clickHandlingStrategy === "capture";
+
             Breinify.UTL.dom.addClickObserver(
                 option?.bindings?.selector,
                 "clickedRecommendations",
+                {useCapture: useCapture},
                 function (event, additionalEventData) {
                     let $el = $(this);
 
