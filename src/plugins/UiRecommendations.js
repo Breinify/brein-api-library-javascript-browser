@@ -1028,7 +1028,9 @@
                     const isControl = $.isPlainObject(data?.splitTestData) && data.splitTestData.isControl === true;
                     if (isControl !== true) {
                         const controlSelector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
-                        if (controlSelector !== null) {
+                        const hideContainerOnRender = typeof option?.splitTests?.control?.hideContainerOnRender === "boolean" ? option.splitTests.control.hideContainerOnRender : true;
+
+                        if (hideContainerOnRender === true && controlSelector !== null) {
                             document.querySelectorAll(controlSelector).forEach(function (controlElement) {
                                 if (Breinify.UTL.dom.isNodeType(controlElement, 1)) {
                                     controlElement.style.setProperty("display", "none", "important");
@@ -1172,17 +1174,20 @@
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const splitTestControl = $.isPlainObject(singleConfig?.splitTestControl) ? singleConfig.splitTestControl : null;
             const containerSelector = $.isPlainObject(splitTestControl) ? Breinify.UTL.isNonEmptyString(splitTestControl.selector) : null;
+            const hideContainerOnRender = $.isPlainObject(splitTestControl) && typeof splitTestControl.hideContainerOnRender === "boolean" ? splitTestControl.hideContainerOnRender : true;
 
             if (containerSelector !== null) {
                 return {
                     control: {
-                        containerSelector: containerSelector
+                        containerSelector: containerSelector,
+                        hideContainerOnRender: hideContainerOnRender
                     }
                 };
             } else if (normalizedWebExId !== null && Breinify.plugins.webExperiences.hasAttributeActivation(configuration) === true) {
                 return {
                     control: {
-                        containerSelector: '[data-br-ctrl-webexpid="' + normalizedWebExId + '"]'
+                        containerSelector: '[data-br-ctrl-webexpid="' + normalizedWebExId + '"]',
+                        hideContainerOnRender: hideContainerOnRender
                     }
                 };
             } else {

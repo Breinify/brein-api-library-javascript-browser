@@ -819,7 +819,8 @@
 
         splitTests: {
             control: {
-                containerSelector: null
+                containerSelector: null,
+                hideContainerOnRender: true
             }
         },
 
