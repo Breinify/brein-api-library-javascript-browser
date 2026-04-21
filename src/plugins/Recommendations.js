@@ -1440,9 +1440,9 @@
 
             if (result?.splitTestData?.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
-                this._applyBindings(option, $container);
 
                 if ($container !== null) {
+                    this._applyBindings(option, $container);
                     Renderer._setRefreshOutcome($container, "control", {
                         result: result,
                         reason: "control"
