@@ -835,6 +835,7 @@
                         position: action.position,
                         webExpId: action.webExpId,
                         positionId: action.positionId,
+                        classes: action.classes,
                         ruleId: rule.id || null
                     });
                 }
@@ -976,7 +977,7 @@
             }
         },
 
-        _createManagedWebExperienceNode: function (webExpId, positionId, key) {
+        _createManagedWebExperienceNode: function (webExpId, positionId, key, classes) {
             if (Breinify.UTL.isNonEmptyString(webExpId) === null) {
                 return null;
             }
@@ -986,6 +987,10 @@
 
             if (Breinify.UTL.isNonEmptyString(positionId) !== null) {
                 $node.attr("data-br-webexppos", positionId);
+            }
+
+            if ($.isArray(classes) && classes.length > 0) {
+                $node.addClass(classes.join(" "));
             }
 
             this._markPlacedNode($node, key);
@@ -1015,7 +1020,12 @@
                 return;
             }
 
-            const $node = this._createManagedWebExperienceNode(action.webExpId, action.positionId, action.key);
+            const $node = this._createManagedWebExperienceNode(
+                action.webExpId,
+                action.positionId,
+                action.key,
+                action.classes
+            );
             if ($node === null) {
                 return;
             }
@@ -1495,13 +1505,26 @@
                     return null;
                 }
 
+                const normalizedClasses = $.isArray(action.classes)
+                    ? action.classes
+                        .map(function (entry) {
+                            return typeof entry === "string" ? entry.trim() : "";
+                        })
+                        .filter(function (entry, idx, arr) {
+                            return entry !== "" && arr.indexOf(entry) === idx;
+                        })
+                    : (typeof action.classes === "string" && action.classes.trim() !== ""
+                        ? action.classes.trim().split(/\s+/)
+                        : []);
+
                 const normalizedAction = {
                     type: "insert-webexperience",
                     selector: action.selector,
                     singleTarget: action.singleTarget === true,
                     position: position,
                     webExpId: action.webExpId,
-                    positionId: typeof action.positionId === "string" && action.positionId !== "" ? action.positionId : null
+                    positionId: typeof action.positionId === "string" && action.positionId !== "" ? action.positionId : null,
+                    classes: normalizedClasses
                 };
 
                 normalizedAction.key = [
@@ -1510,7 +1533,8 @@
                     normalizedAction.selector,
                     normalizedAction.position,
                     normalizedAction.webExpId,
-                    normalizedAction.positionId || ""
+                    normalizedAction.positionId || "",
+                    normalizedAction.classes.join(".")
                 ].join("::");
 
                 return normalizedAction;
