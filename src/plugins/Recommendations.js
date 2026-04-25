@@ -1175,6 +1175,7 @@
             $.each(renderOptions, function (name, renderOption) {
                 const option = $.extend(true, {}, defaultRenderOption, renderOption);
                 option.meta.processId = processId;
+                option.meta.controlBindToken = Renderer._createControlBindToken(option);
 
                 Renderer._process(option?.process?.init, option);
                 options[name] = option;
@@ -2000,10 +2001,104 @@
             );
 
             if ($controlContainer === null || $controlContainer.length === 0) {
+                this._deferControlContainerSetup(option, data);
                 return null;
             }
 
-            return this._setupContainer($controlContainer, option, data);
+            const $container = $controlContainer.eq(0);
+            const bindToken = Breinify.UTL.isNonEmptyString(option?.meta?.controlBindToken);
+            if (bindToken !== null) {
+                $container.attr("data-br-rec-control-bind-token", bindToken);
+            }
+
+            return this._setupContainer($container, option, data);
+        },
+
+        _deferControlContainerSetup: function (option, data) {
+            const _self = this;
+            const selector = Breinify.UTL.isNonEmptyString(
+                option?.splitTests?.control?.containerSelector
+            );
+            const bindToken = Breinify.UTL.isNonEmptyString(option?.meta?.controlBindToken);
+
+            if (selector === null || bindToken === null) {
+                return;
+            }
+
+            const tryBind = function () {
+                const $controlContainer = Renderer._determineSelector(selector);
+
+                if ($controlContainer === null || $controlContainer.length === 0) {
+                    return false;
+                }
+
+                const $container = $controlContainer.eq(0);
+                const currentToken = Breinify.UTL.isNonEmptyString(
+                    $container.attr("data-br-rec-control-bind-token")
+                );
+
+                if (currentToken === bindToken) {
+                    return true;
+                }
+
+                $container.attr("data-br-rec-control-bind-token", bindToken);
+
+                const $setup = _self._setupContainer($container, option, data);
+                if ($setup !== null) {
+                    _self._applyBindings(option, $setup);
+                    Renderer._setRefreshOutcome($setup, "control", {
+                        result: data,
+                        reason: "deferred-control"
+                    });
+                    Renderer._setRefreshState($setup, option, "idle", {
+                        result: data,
+                        reason: "deferred-control"
+                    });
+                }
+
+                return true;
+            };
+
+            if (tryBind() === true) {
+                return;
+            }
+
+            const observer = new MutationObserver(function () {
+                if (tryBind() === true) {
+                    observer.disconnect();
+                }
+            });
+
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            window.setTimeout(function () {
+                observer.disconnect();
+            }, 10000);
+        },
+
+        _createControlBindToken: function (option) {
+
+            const selector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
+            if (selector === null) {
+                return null;
+            }
+
+            const identity = this._readRenderIdentity(option);
+            const processId = Breinify.UTL.isNonEmptyString(option?.meta?.processId);
+
+            if (processId === null || identity === null || identity.webExId === null) {
+                return null;
+            }
+
+            return [
+                processId,
+                identity.webExId || "",
+                identity.positionId || "",
+                identity.recommenderName || ""
+            ].join("::");
         },
 
         _setupContainer: function ($container, option, data) {
