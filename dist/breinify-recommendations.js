@@ -1170,12 +1170,13 @@
         },
 
         _preRenderRecommendations: function (processId, renderOptions) {
+            const _self = this;
             const options = {};
 
             $.each(renderOptions, function (name, renderOption) {
                 const option = $.extend(true, {}, defaultRenderOption, renderOption);
                 option.meta.processId = processId;
-                option.meta.controlBindToken = Renderer._createControlBindToken(option);
+                option.meta.controlBindToken = _self._createControlBindToken(option);
 
                 Renderer._process(option?.process?.init, option);
                 options[name] = option;
@@ -1996,10 +1997,12 @@
         },
 
         _setupControlContainer: function (option, data) {
-            const $controlContainer = Renderer._determineSelector(
-                option?.splitTests?.control?.containerSelector
-            );
+            const selector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
+            if (selector === null) {
+                return null;
+            }
 
+            const $controlContainer = Renderer._determineSelector(selector);
             if ($controlContainer === null || $controlContainer.length === 0) {
                 this._deferControlContainerSetup(option, data);
                 return null;
@@ -2016,9 +2019,7 @@
 
         _deferControlContainerSetup: function (option, data) {
             const _self = this;
-            const selector = Breinify.UTL.isNonEmptyString(
-                option?.splitTests?.control?.containerSelector
-            );
+            const selector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
             const bindToken = Breinify.UTL.isNonEmptyString(option?.meta?.controlBindToken);
 
             if (selector === null || bindToken === null) {
