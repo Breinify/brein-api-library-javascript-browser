@@ -836,6 +836,7 @@
                         webExpId: action.webExpId,
                         positionId: action.positionId,
                         classes: action.classes,
+                        attributes: action.attributes,
                         ruleId: rule.id || null
                     });
                 }
@@ -977,7 +978,7 @@
             }
         },
 
-        _createManagedWebExperienceNode: function (webExpId, positionId, key, classes) {
+        _createManagedWebExperienceNode: function (webExpId, positionId, key, classes, attributes) {
             if (Breinify.UTL.isNonEmptyString(webExpId) === null) {
                 return null;
             }
@@ -991,6 +992,13 @@
 
             if ($.isArray(classes) && classes.length > 0) {
                 $node.addClass(classes.join(" "));
+            }
+
+            if ($.isPlainObject(attributes)) {
+                $.each(attributes, function (name, value) {
+                    $node.attr(name, value);
+                    return true;
+                });
             }
 
             this._markPlacedNode($node, key);
@@ -1024,7 +1032,8 @@
                 action.webExpId,
                 action.positionId,
                 action.key,
-                action.classes
+                action.classes,
+                action.attributes
             );
             if ($node === null) {
                 return;
@@ -1517,6 +1526,8 @@
                         ? action.classes.trim().split(/\s+/)
                         : []);
 
+                const normalizedAttributes = this._normalizeAttributes(action.attributes);
+
                 const normalizedAction = {
                     type: "insert-webexperience",
                     selector: action.selector,
@@ -1524,7 +1535,8 @@
                     position: position,
                     webExpId: action.webExpId,
                     positionId: typeof action.positionId === "string" && action.positionId !== "" ? action.positionId : null,
-                    classes: normalizedClasses
+                    classes: normalizedClasses,
+                    attributes: normalizedAttributes
                 };
 
                 normalizedAction.key = [
@@ -1534,7 +1546,8 @@
                     normalizedAction.position,
                     normalizedAction.webExpId,
                     normalizedAction.positionId || "",
-                    normalizedAction.classes.join(".")
+                    normalizedAction.classes.join("."),
+                    JSON.stringify(normalizedAction.attributes)
                 ].join("::");
 
                 return normalizedAction;
@@ -1589,6 +1602,34 @@
             }
 
             return null;
+        },
+
+        _normalizeAttributes: function (attributes) {
+            const normalizedAttributes = {};
+
+            if (!$.isPlainObject(attributes)) {
+                return normalizedAttributes;
+            }
+
+            $.each(attributes, function (name, value) {
+                const normalizedName = Breinify.UTL.isNonEmptyString(name);
+
+                if (normalizedName === null) {
+                    return true;
+                } else if (normalizedName === "data-br-webexpid" ||
+                    normalizedName === "data-br-webexppos" ||
+                    normalizedName === "data-br-plmt-owner" ||
+                    normalizedName === "data-br-plmt-key") {
+                    return true;
+                }
+
+                normalizedAttributes[normalizedName] =
+                    typeof value === "undefined" || value === null ? "" : String(value);
+
+                return true;
+            });
+
+            return normalizedAttributes;
         }
     };
 
