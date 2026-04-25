@@ -2087,7 +2087,7 @@
                 return null;
             }
 
-            const identity = this._readRenderIdentity(option);
+            const identity = Renderer._readRenderIdentity(option);
             const processId = Breinify.UTL.isNonEmptyString(option?.meta?.processId);
 
             if (processId === null || identity === null || identity.webExId === null) {
