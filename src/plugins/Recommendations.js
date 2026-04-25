@@ -2017,23 +2017,50 @@
             return this._setupContainer($container, option, data);
         },
 
-        _deferControlContainerSetup: function (option, data) {
-            const _self = this;
+        _deferControlContainerLogic: function (option, logic) {
             const selector = Breinify.UTL.isNonEmptyString(option?.splitTests?.control?.containerSelector);
-            const bindToken = Breinify.UTL.isNonEmptyString(option?.meta?.controlBindToken);
-
-            if (selector === null || bindToken === null) {
+            if (selector === null || !$.isFunction(logic)) {
                 return;
             }
 
-            const tryBind = function () {
+            const tryApply = function () {
                 const $controlContainer = Renderer._determineSelector(selector);
 
                 if ($controlContainer === null || $controlContainer.length === 0) {
                     return false;
                 }
 
-                const $container = $controlContainer.eq(0);
+                return logic($controlContainer.eq(0)) === true;
+            };
+
+            if (tryApply() === true) {
+                return;
+            }
+
+            const observer = new MutationObserver(function () {
+                if (tryApply() === true) {
+                    observer.disconnect();
+                }
+            });
+
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            window.setTimeout(function () {
+                observer.disconnect();
+            }, 10000);
+        },
+
+        _deferControlContainerSetup: function (option, data) {
+            const bindToken = Breinify.UTL.isNonEmptyString(option?.meta?.controlBindToken);
+            if (bindToken === null) {
+                return;
+            }
+
+            const _self = this;
+            this._deferControlContainerLogic(option, function ($container) {
                 const currentToken = Breinify.UTL.isNonEmptyString(
                     $container.attr("data-br-rec-control-bind-token")
                 );
@@ -2058,26 +2085,28 @@
                 }
 
                 return true;
-            };
+            });
+        },
 
-            if (tryBind() === true) {
+        _deferControlContainerHide: function (option, $renderedContainer) {
+            const hideContainerOnRender = typeof option?.splitTests?.control?.hideContainerOnRender === "boolean"
+                ? option.splitTests.control.hideContainerOnRender
+                : true;
+
+            if (hideContainerOnRender !== true) {
                 return;
             }
 
-            const observer = new MutationObserver(function () {
-                if (tryBind() === true) {
-                    observer.disconnect();
+            this._deferControlContainerLogic(option, function ($controlContainer) {
+                if ($renderedContainer?.jquery && $controlContainer.get(0) === $renderedContainer.get(0)) {
+                    return true;
+                } else if ($controlContainer.find("." + Renderer.marker.item).length > 0) {
+                    return true;
+                } else {
+                    $controlContainer.hide();
+                    return true;
                 }
             });
-
-            observer.observe(document.documentElement, {
-                childList: true,
-                subtree: true
-            });
-
-            window.setTimeout(function () {
-                observer.disconnect();
-            }, 10000);
         },
 
         _createControlBindToken: function (option) {
@@ -2163,16 +2192,8 @@
                     Renderer._process(option?.process?.attached, $container, $itemContainer, data, option);
                 }
 
-                const $controlContainer = Renderer._determineSelector(
-                    option?.splitTests?.control?.containerSelector
-                );
-
-                if ($controlContainer !== null &&
-                    $controlContainer.length === 1 &&
-                    $controlContainer.get(0) !== $container.get(0) &&
-                    $controlContainer.find(".brrc-item").length === 0) {
-                    $controlContainer.hide();
-                }
+                // apply a deferred logic for hide
+                _self._deferControlContainerHide(option, $container);
 
                 Renderer._process(option?.process?.post, $container, $itemContainer, data, option);
                 cb($container, settings);
