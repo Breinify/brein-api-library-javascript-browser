@@ -91,6 +91,7 @@
                 featureObserverRegistered: false,
                 featureObserver: null,
                 lastFeatureRefreshConfig: null,
+                recommendationBatchLocks: {},
                 /*
                  * Tracks the current anchor resolution state for attribute-based rendering.
                  * This state is used to determine:
@@ -134,6 +135,76 @@
             featureStorage.onChange(listener);
             runtime.featureObserverRegistered = true;
             runtime.featureObserver = listener;
+        },
+
+        _createRecommendationBatchKey: function (webExId, webExVersionId, handlingType, recommendations) {
+            const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
+            const normalizedWebExVersionId = Breinify.UTL.isNonEmptyString(webExVersionId);
+            const normalizedHandlingType = Breinify.UTL.isNonEmptyString(handlingType);
+            const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
+
+            if (normalizedWebExId === null || normalizedRecommendations.length === 0) {
+                return null;
+            }
+
+            const parts = [];
+
+            for (let i = 0; i < normalizedRecommendations.length; i++) {
+                const recommendation = normalizedRecommendations[i];
+
+                if (!$.isPlainObject(recommendation)) {
+                    continue;
+                }
+
+                const positionId = Breinify.UTL.isNonEmptyString(recommendation?.position?.positionId) || this._defaultPos;
+                const recommenderName = this._recommenderName(recommendation) || "unknown";
+
+                parts.push(positionId + "::" + recommenderName);
+            }
+
+            if (parts.length === 0) {
+                return null;
+            }
+
+            parts.sort();
+
+            return [
+                normalizedWebExId,
+                normalizedWebExVersionId || "",
+                normalizedHandlingType || "",
+                parts.join("|")
+            ].join("::");
+        },
+
+        _acquireRecommendationBatchLock: function (runtime, batchKey) {
+            const normalizedBatchKey = Breinify.UTL.isNonEmptyString(batchKey);
+
+            if (!$.isPlainObject(runtime) || normalizedBatchKey === null) {
+                return false;
+            }
+
+            if (!$.isPlainObject(runtime.recommendationBatchLocks)) {
+                runtime.recommendationBatchLocks = {};
+            }
+
+            if (runtime.recommendationBatchLocks[normalizedBatchKey] === true) {
+                return false;
+            }
+
+            runtime.recommendationBatchLocks[normalizedBatchKey] = true;
+            return true;
+        },
+
+        _releaseRecommendationBatchLock: function (runtime, batchKey) {
+            const normalizedBatchKey = Breinify.UTL.isNonEmptyString(batchKey);
+
+            if (!$.isPlainObject(runtime) ||
+                normalizedBatchKey === null ||
+                !$.isPlainObject(runtime.recommendationBatchLocks)) {
+                return;
+            }
+
+            delete runtime.recommendationBatchLocks[normalizedBatchKey];
         },
 
         _handleFeaturesChanged: function (webExId, webExVersionId, payload) {
@@ -591,6 +662,9 @@
                 return;
             }
 
+            const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(config) === true;
+            let recommendationBatchLockKey = null;
+
             /*
              * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
              * This protects against repeated trigger executions caused by DOM changes or history handling.
@@ -606,9 +680,24 @@
             /*
              * If onChange is used we may be on an attribute activation path, we need to ensure that we are
              * ready to handle this correctly.
+             *
+             * We also guard against concurrent equivalent onChange render batches. This prevents first-load
+             * races where two recommendation requests are started before the first render has marked the DOM.
              */
-            else if (Breinify.plugins.webExperiences.hasAttributeActivation(config) === true) {
+            else if (hasAttributeActivation === true) {
+                recommendationBatchLockKey = this._createRecommendationBatchKey(
+                    webExId,
+                    webExVersionId,
+                    handlingType,
+                    normalizedRecommendations
+                );
+
+                if (this._acquireRecommendationBatchLock(runtime, recommendationBatchLockKey) !== true) {
+                    return;
+                }
+
                 if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
+                    this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                     return;
                 }
 
@@ -640,7 +729,7 @@
 
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandled = true;
-                } else if (Breinify.plugins.webExperiences.hasAttributeActivation(config) === true) {
+                } else if (hasAttributeActivation === true) {
                     runtime.anchorState = $.isPlainObject(runtime._nextAnchorState) ? runtime._nextAnchorState : {};
                     delete runtime._nextAnchorState;
                 }
@@ -649,6 +738,7 @@
                     runtime.onLoadHandling = false;
                 }
 
+                this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                 delete runtime._nextAnchorState;
             }
         },
