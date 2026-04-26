@@ -664,6 +664,7 @@
 
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(config) === true;
             let recommendationBatchLockKey = null;
+            let acquiredRecommendationBatchLock = false;
 
             /*
              * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
@@ -696,8 +697,8 @@
                     return;
                 }
 
+                acquiredRecommendationBatchLock = true;
                 if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
-                    this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                     return;
                 }
 
@@ -738,7 +739,9 @@
                     runtime.onLoadHandling = false;
                 }
 
-                this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
+                if (acquiredRecommendationBatchLock === true) {
+                    this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
+                }
                 delete runtime._nextAnchorState;
             }
         },
