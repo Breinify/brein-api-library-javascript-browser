@@ -805,14 +805,14 @@
                 });
                 // TODO: end remove
 
-                Breinify.plugins.recommendations.render(filteredResults);
-
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandled = true;
                 } else if (hasAttributeActivation === true) {
                     runtime.anchorState = $.isPlainObject(runtime._nextAnchorState) ? runtime._nextAnchorState : {};
                     delete runtime._nextAnchorState;
                 }
+
+                Breinify.plugins.recommendations.render(filteredResults);
             } finally {
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandling = false;
