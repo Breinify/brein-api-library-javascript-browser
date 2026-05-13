@@ -11,6 +11,31 @@
     const ALLOWED_POSITIONS = ["before", "after", "prepend", "append", "replace", "externalRender"];
     const DEFAULT_POS = "_fallback";
 
+    // TODO: remove
+    const uiRecDebug = {
+        enabled: function () {
+            try {
+                return window.localStorage &&
+                    window.localStorage.getItem("breinify.recDebug") === "true";
+            } catch (e) {
+                return false;
+            }
+        },
+
+        log: function (event, data) {
+            if (this.enabled() !== true) {
+                return;
+            }
+
+            try {
+                console.log("[breinify][rec-debug] " + event + " " + JSON.stringify(data || {}));
+            } catch (e) {
+                console.log("[breinify][rec-debug] " + event + " {\"logError\":true}");
+            }
+        }
+    };
+    // TODO: end remove
+
     const _private = {
         _defaultPos: DEFAULT_POS,
         _runtimeByWebExId: {},
@@ -651,6 +676,16 @@
         },
 
         handle: async function (webExId, webExVersionId, recommendations, config) {
+            // TODO: remove
+            uiRecDebug.log("uiRecommendations.handle.start", {
+                webExId: webExId,
+                webExVersionId: webExVersionId,
+                handlingType: Breinify.UTL.isNonEmptyString(config?.type),
+                recommendationCount: $.isArray(recommendations) ? recommendations.length : null,
+                hasAttributeActivation: Breinify.plugins.webExperiences.hasAttributeActivation(config) === true
+            });
+            // TODO: end remove
+
             const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
             if (normalizedRecommendations.length === 0) {
                 return;
@@ -694,6 +729,14 @@
                         normalizedRecommendations
                     );
 
+                    // TODO: remove
+                    uiRecDebug.log("uiRecommendations.batchKey", {
+                        webExId: webExId,
+                        batchKey: recommendationBatchLockKey,
+                        currentLocks: Object.keys(runtime.recommendationBatchLocks || {})
+                    });
+                    // TODO: end remove
+
                     if (this._acquireRecommendationBatchLock(runtime, recommendationBatchLockKey) !== true) {
                         return;
                     }
@@ -701,8 +744,25 @@
                     acquiredRecommendationBatchLock = true;
 
                     if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
+                        // TODO: remove
+                        uiRecDebug.log("uiRecommendations.anchorChanged", {
+                            webExId: webExId,
+                            anchorChanged: false,
+                            nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                            anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null
+                        });
+                        // TODO: end remove
                         return;
                     }
+
+                    // TODO: remove
+                    uiRecDebug.log("uiRecommendations.anchorChanged", {
+                        webExId: webExId,
+                        anchorChanged: true,
+                        nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                        anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null
+                    });
+                    // TODO: end remove
 
                     this._cleanUpAttributeActivation(webExId, webExVersionId, runtime);
                 }
@@ -727,6 +787,24 @@
                 }
 
                 this._rememberInitialFeatureRefreshConfig(webExId, webExVersionId, filteredResults);
+
+                // TODO: remove
+                uiRecDebug.log("uiRecommendations.render.call", {
+                    webExId: webExId,
+                    webExVersionId: webExVersionId,
+                    handlingType: handlingType,
+                    resultCount: filteredResults.length,
+                    identities: filteredResults.map(function (entry) {
+                        return {
+                            identity: entry?.meta?.renderIdentity || null,
+                            positionId: entry?.meta?.renderIdentity?.positionId || null,
+                            recommenderName: entry?.meta?.renderIdentity?.recommenderName || null,
+                            namedRecommendations: entry?.recommender?.payload?.namedRecommendations || null
+                        };
+                    })
+                });
+                // TODO: end remove
+
                 Breinify.plugins.recommendations.render(filteredResults);
 
                 if (handlingType === "onLoad") {
