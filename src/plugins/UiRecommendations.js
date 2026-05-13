@@ -666,46 +666,47 @@
             let recommendationBatchLockKey = null;
             let acquiredRecommendationBatchLock = false;
 
-            /*
-             * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
-             * This protects against repeated trigger executions caused by DOM changes or history handling.
-             * We additionally guard against parallel/in-flight onLoad handling.
-             */
-            if (handlingType === "onLoad") {
-                if (runtime.onLoadHandled === true || runtime.onLoadHandling === true) {
-                    return;
-                }
-
-                runtime.onLoadHandling = true;
-            }
-            /*
-             * If onChange is used we may be on an attribute activation path, we need to ensure that we are
-             * ready to handle this correctly.
-             *
-             * We also guard against concurrent equivalent onChange render batches. This prevents first-load
-             * races where two recommendation requests are started before the first render has marked the DOM.
-             */
-            else if (hasAttributeActivation === true) {
-                recommendationBatchLockKey = this._createRecommendationBatchKey(
-                    webExId,
-                    webExVersionId,
-                    handlingType,
-                    normalizedRecommendations
-                );
-
-                if (this._acquireRecommendationBatchLock(runtime, recommendationBatchLockKey) !== true) {
-                    return;
-                }
-
-                acquiredRecommendationBatchLock = true;
-                if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
-                    return;
-                }
-
-                this._cleanUpAttributeActivation(webExId, webExVersionId, runtime);
-            }
-
             try {
+                /*
+                 * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
+                 * This protects against repeated trigger executions caused by DOM changes or history handling.
+                 * We additionally guard against parallel/in-flight onLoad handling.
+                 */
+                if (handlingType === "onLoad") {
+                    if (runtime.onLoadHandled === true || runtime.onLoadHandling === true) {
+                        return;
+                    }
+
+                    runtime.onLoadHandling = true;
+                }
+                /*
+                 * If onChange is used we may be on an attribute activation path, we need to ensure that we are
+                 * ready to handle this correctly.
+                 *
+                 * We also guard against concurrent equivalent onChange render batches. This prevents first-load
+                 * races where two recommendation requests are started before the first render has marked the DOM.
+                 */
+                else if (hasAttributeActivation === true) {
+                    recommendationBatchLockKey = this._createRecommendationBatchKey(
+                        webExId,
+                        webExVersionId,
+                        handlingType,
+                        normalizedRecommendations
+                    );
+
+                    if (this._acquireRecommendationBatchLock(runtime, recommendationBatchLockKey) !== true) {
+                        return;
+                    }
+
+                    acquiredRecommendationBatchLock = true;
+
+                    if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
+                        return;
+                    }
+
+                    this._cleanUpAttributeActivation(webExId, webExVersionId, runtime);
+                }
+
                 const results = await Promise.all(
                     normalizedRecommendations.map((recommendation) =>
                         Promise.resolve()
@@ -742,6 +743,7 @@
                 if (acquiredRecommendationBatchLock === true) {
                     this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                 }
+
                 delete runtime._nextAnchorState;
             }
         },
