@@ -700,6 +700,7 @@
             const hasAttributeActivation = Breinify.plugins.webExperiences.hasAttributeActivation(config) === true;
             let recommendationBatchLockKey = null;
             let acquiredRecommendationBatchLock = false;
+            let nextAnchorState = null;
 
             try {
                 /*
@@ -743,7 +744,8 @@
 
                     acquiredRecommendationBatchLock = true;
 
-                    if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
+                    nextAnchorState = this._createNextAnchorState(webExId, normalizedRecommendations);
+                    if (this._isAttributeAnchorChanged(nextAnchorState, runtime.anchorState) !== true) {
                         // TODO: remove
                         uiRecDebug.log("uiRecommendations.duplicateRenderPrevented.STOP_NOW", {
                             message: "YOU SHOULD SEE IT, STOP NOW - duplicate render attempt was prevented",
@@ -752,7 +754,7 @@
                             handlingType: handlingType,
                             batchKey: recommendationBatchLockKey,
                             anchorChanged: false,
-                            nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                            nextAnchorStateKeys: nextAnchorState ? Object.keys(nextAnchorState) : null,
                             anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null,
                             currentLocks: Object.keys(runtime.recommendationBatchLocks || {})
                         });
@@ -762,7 +764,7 @@
                         uiRecDebug.log("uiRecommendations.anchorChanged", {
                             webExId: webExId,
                             anchorChanged: false,
-                            nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                            nextAnchorStateKeys: nextAnchorState ? Object.keys(nextAnchorState) : null,
                             anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null
                         });
                         // TODO: end remove
@@ -773,7 +775,7 @@
                     uiRecDebug.log("uiRecommendations.anchorChanged", {
                         webExId: webExId,
                         anchorChanged: true,
-                        nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                        nextAnchorStateKeys: nextAnchorState ? Object.keys(nextAnchorState) : null,
                         anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null
                     });
                     // TODO: end remove
@@ -822,8 +824,7 @@
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandled = true;
                 } else if (hasAttributeActivation === true) {
-                    runtime.anchorState = $.isPlainObject(runtime._nextAnchorState) ? runtime._nextAnchorState : {};
-                    delete runtime._nextAnchorState;
+                    runtime.anchorState = $.isPlainObject(nextAnchorState) ? nextAnchorState : {};
 
                     // TODO: remove
                     uiRecDebug.log("uiRecommendations.anchorState.committed", {
@@ -844,33 +845,54 @@
                 if (acquiredRecommendationBatchLock === true) {
                     this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                 }
-
-                delete runtime._nextAnchorState;
             }
         },
 
-        _isAttributeAnchorChanged: function (webExId, recommendations, runtime) {
-            if (!$.isPlainObject(runtime?.anchorState)) {
-                return false;
+        _isAttributeAnchorChanged: function (nextAnchorState, currentAnchorState) {
+            const nextState = $.isPlainObject(nextAnchorState) ? nextAnchorState : {};
+            const currentState = $.isPlainObject(currentAnchorState) ? currentAnchorState : {};
+
+            const nextKeys = Object.keys(nextState);
+            const currentKeys = Object.keys(currentState);
+
+            for (let i = 0; i < nextKeys.length; i++) {
+                const key = nextKeys[i];
+
+                const nextEntry = $.isPlainObject(nextState[key]) ? nextState[key] : null;
+                const currentEntry = $.isPlainObject(currentState[key]) ? currentState[key] : null;
+
+                if (currentEntry === null) {
+                    return true;
+                } else if (currentEntry.anchorElement !== nextEntry.anchorElement) {
+                    return true;
+                } else if (currentEntry.anchorType !== nextEntry.anchorType) {
+                    return true;
+                }
             }
 
+            if (currentKeys.length !== nextKeys.length) {
+                return true;
+            }
+
+            for (let i = 0; i < currentKeys.length; i++) {
+                if (!$.isPlainObject(nextState[currentKeys[i]])) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        _createNextAnchorState: function (webExId, recommendations) {
             const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
             const normalizedRecommendations = $.isArray(recommendations) ? recommendations : [];
 
+            const nextAnchorState = {};
+
             if (normalizedWebExId === null || normalizedRecommendations.length === 0) {
-                return false;
+                return nextAnchorState;
             }
 
-            const anchorState = $.isPlainObject(runtime._nextAnchorState)
-                ? runtime._nextAnchorState
-                : runtime.anchorState;
-            const nextAnchorState = {};
-            let changed = false;
-
-            /*
-             * Build the currently available anchors once for this web-experience.
-             * This avoids repeated DOM queries for every single recommendation.
-             */
             const anchorByPositionId = Object.create(null);
             let fallbackAnchorElement = null;
 
@@ -925,36 +947,9 @@
                     anchorType: anchorType,
                     anchorElement: anchorElement
                 };
-
-                const currentState = $.isPlainObject(anchorState[anchorStateKey]) ? anchorState[anchorStateKey] : null;
-                if (currentState === null) {
-                    changed = true;
-                } else if (currentState.anchorElement !== anchorElement) {
-                    changed = true;
-                } else if (currentState.anchorType !== anchorType) {
-                    changed = true;
-                }
             }
 
-            if (changed !== true) {
-                const currentKeys = Object.keys(anchorState);
-                const nextKeys = Object.keys(nextAnchorState);
-
-                if (currentKeys.length !== nextKeys.length) {
-                    changed = true;
-                } else {
-                    for (let i = 0; i < currentKeys.length; i++) {
-                        const key = currentKeys[i];
-                        if (!$.isPlainObject(nextAnchorState[key])) {
-                            changed = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            runtime._nextAnchorState = nextAnchorState;
-            return changed;
+            return nextAnchorState;
         },
 
         _cleanUpAttributeActivation: function (webExId, webExVersionId, runtime) {
