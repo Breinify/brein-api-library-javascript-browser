@@ -745,6 +745,20 @@
 
                     if (this._isAttributeAnchorChanged(webExId, normalizedRecommendations, runtime) !== true) {
                         // TODO: remove
+                        uiRecDebug.log("uiRecommendations.duplicateRenderPrevented.STOP_NOW", {
+                            message: "YOU SHOULD SEE IT, STOP NOW - duplicate render attempt was prevented",
+                            webExId: webExId,
+                            webExVersionId: webExVersionId,
+                            handlingType: handlingType,
+                            batchKey: recommendationBatchLockKey,
+                            anchorChanged: false,
+                            nextAnchorStateKeys: runtime._nextAnchorState ? Object.keys(runtime._nextAnchorState) : null,
+                            anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null,
+                            currentLocks: Object.keys(runtime.recommendationBatchLocks || {})
+                        });
+                        // TODO: end remove
+
+                        // TODO: remove
                         uiRecDebug.log("uiRecommendations.anchorChanged", {
                             webExId: webExId,
                             anchorChanged: false,
@@ -810,6 +824,15 @@
                 } else if (hasAttributeActivation === true) {
                     runtime.anchorState = $.isPlainObject(runtime._nextAnchorState) ? runtime._nextAnchorState : {};
                     delete runtime._nextAnchorState;
+
+                    // TODO: remove
+                    uiRecDebug.log("uiRecommendations.anchorState.committed", {
+                        webExId: webExId,
+                        webExVersionId: webExVersionId,
+                        handlingType: handlingType,
+                        anchorStateKeys: runtime.anchorState ? Object.keys(runtime.anchorState) : null
+                    });
+                    // TODO: end remove
                 }
 
                 Breinify.plugins.recommendations.render(filteredResults);
