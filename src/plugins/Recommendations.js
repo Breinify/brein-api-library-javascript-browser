@@ -19,83 +19,6 @@
 
     const DEFAULT_POS = "_fallback";
 
-    // TODO: remove
-    const REC_DEBUG_PREFIX = "[breinify][rec-debug]";
-
-    const recDebug = {
-        enabled: function () {
-            try {
-                return window.localStorage &&
-                    window.localStorage.getItem("breinify.recDebug") === "true";
-            } catch (e) {
-                return false;
-            }
-        },
-
-        safe: function (value) {
-            const seen = [];
-
-            return JSON.stringify(value, function (key, val) {
-                if (val && typeof val === "object") {
-                    if (seen.indexOf(val) !== -1) {
-                        return "[Circular]";
-                    }
-                    seen.push(val);
-
-                    if (val instanceof Element) {
-                        return recDebug.element(val);
-                    }
-
-                    if (val.jquery) {
-                        return {
-                            jquery: true,
-                            length: val.length,
-                            elements: val.toArray().map(recDebug.element)
-                        };
-                    }
-                }
-
-                if (typeof val === "function") {
-                    return "[Function]";
-                }
-
-                return val;
-            });
-        },
-
-        element: function (el) {
-            if (!(el instanceof Element)) {
-                return null;
-            }
-
-            return {
-                tag: el.tagName ? el.tagName.toLowerCase() : null,
-                id: el.id || null,
-                className: typeof el.className === "string" ? el.className : null,
-                dataBrWebexpid: el.getAttribute("data-br-webexpid"),
-                dataBrWebexppos: el.getAttribute("data-br-webexppos"),
-                dataBrRecWebexpid: el.getAttribute("data-br-rec-webexpid"),
-                dataBrRecPositionid: el.getAttribute("data-br-rec-positionid"),
-                dataBrRecName: el.getAttribute("data-br-rec-name"),
-                childCount: el.children ? el.children.length : null,
-                isConnected: el.isConnected === true
-            };
-        },
-
-        log: function (event, data) {
-            if (recDebug.enabled() !== true) {
-                return;
-            }
-
-            try {
-                console.log(REC_DEBUG_PREFIX + " " + event + " " + recDebug.safe(data || {}));
-            } catch (e) {
-                console.log(REC_DEBUG_PREFIX + " " + event + " {\"logError\":true}");
-            }
-        }
-    };
-    // TODO: end remove
-
     const Renderer = {
         marker: {
             parentContainer: "brrc-pcont",
@@ -634,42 +557,6 @@
                 data: data
             });
 
-            // TODO: remove
-            recDebug.log("appendContainer.anchor", {
-                method: method,
-                identity: this._readRenderIdentity(option),
-                recommenderName: recommenderName,
-                anchorCount: $anchor ? $anchor.length : null,
-                anchors: $anchor && $anchor.jquery
-                    ? $anchor.toArray().map(recDebug.element)
-                    : null,
-                existingChildrenWithSameIdentity: (function () {
-                    const identity = Renderer._readRenderIdentity(option);
-                    if (!$anchor?.jquery || identity === null || identity.webExId === null) {
-                        return null;
-                    }
-
-                    let selector = "." + Renderer.marker.parentContainer +
-                        '[data-br-rec-webexpid="' + identity.webExId + '"]';
-
-                    if (identity.positionId !== null) {
-                        selector += '[data-br-rec-positionid="' + identity.positionId + '"]';
-                    }
-
-                    if (identity.recommenderName !== null) {
-                        selector += '[data-br-rec-name="' + identity.recommenderName + '"]';
-                    }
-
-                    return {
-                        selector: selector,
-                        childMatches: $anchor.children(selector).length,
-                        siblingMatches: $anchor.siblings(selector).length,
-                        documentMatches: $(selector).length
-                    };
-                })()
-            });
-            // TODO: end remove
-
             if ($anchor === null || $anchor.length === 0) {
                 cb(null, {
                     error: true,
@@ -698,44 +585,8 @@
                 const wasConnected = $container.get(0)?.isConnected === true;
                 $anchor[method]($container);
 
-                // TODO: remove
-                recDebug.log("appendContainer.applied", {
-                    method: method,
-                    identity: this._readRenderIdentity(option),
-                    anchor: $anchor.length === 1 ? recDebug.element($anchor.get(0)) : null,
-                    containerBeforeStamp: recDebug.element($container.get(0))
-                });
-                // TODO: end remove
-
                 $container.addClass(this.marker.parentContainer);
                 this._stampRenderIdentity($container, option);
-
-                // TODO: remove
-                recDebug.log("appendContainer.stamped", {
-                    method: method,
-                    identity: this._readRenderIdentity(option),
-                    container: recDebug.element($container.get(0)),
-                    sameIdentityDocumentCount: (function () {
-                        const identity = Renderer._readRenderIdentity(option);
-                        if (identity === null || identity.webExId === null) {
-                            return null;
-                        }
-
-                        let selector = "." + Renderer.marker.parentContainer +
-                            '[data-br-rec-webexpid="' + identity.webExId + '"]';
-
-                        if (identity.positionId !== null) {
-                            selector += '[data-br-rec-positionid="' + identity.positionId + '"]';
-                        }
-
-                        if (identity.recommenderName !== null) {
-                            selector += '[data-br-rec-name="' + identity.recommenderName + '"]';
-                        }
-
-                        return $(selector).length;
-                    })()
-                });
-                // TODO: end remove
 
                 cb($container, {
                     error: false,
@@ -1109,21 +960,6 @@
             const _self = this;
             const processId = Breinify.UTL.uuid();
 
-            // TODO: remove
-            recDebug.log("render.start", {
-                processId: processId,
-                argumentSignature: Array.prototype.slice.call(arguments).map(function (arg) {
-                    if ($.isArray(arg)) {
-                        return "Array(" + arg.length + ")";
-                    } else if ($.isPlainObject(arg)) {
-                        return "Object";
-                    } else {
-                        return typeof arg;
-                    }
-                })
-            });
-            // TODO: end remove
-
             overload.overload({
                 "Array": function (renderOptions) {
                     const namedRenderOptions = {};
@@ -1150,31 +986,6 @@
                         namedRenderOptions[name] = options.temporary;
                         recommenderPayload.push(recommenderOptions.payload);
                     }
-
-                    // TODO: remove
-                    recDebug.log("render.array.preRetrieve", {
-                        processId: processId,
-                        renderOptionCount: renderOptions.length,
-                        optionNames: Object.keys(namedRenderOptions),
-                        identities: Object.keys(namedRenderOptions).map(function (name) {
-                            const option = namedRenderOptions[name];
-                            return {
-                                name: name,
-                                identity: option?.meta?.renderIdentity || null,
-                                position: {
-                                    before: option?.position?.before != null,
-                                    after: option?.position?.after != null,
-                                    append: option?.position?.append != null,
-                                    prepend: option?.position?.prepend != null,
-                                    replace: option?.position?.replace != null,
-                                    externalRender: option?.position?.externalRender != null
-                                },
-                                recommenderPayload: option?.recommender?.payload || null
-                            };
-                        }),
-                        payloads: recommenderPayload
-                    });
-                    // TODO: end remove
 
                     this._retrieveRecommendations(recommenderPayload, function (error, data) {
                         _self._renderRecommendations(namedRenderOptions, error, data);
@@ -1377,30 +1188,8 @@
         _renderRecommendations: function (options, error, data) {
             const _self = this;
 
-            // TODO: remove
-            recDebug.log("renderRecommendations.start", {
-                optionNames: Object.keys(options || {}),
-                dataNames: data && $.isPlainObject(data) ? Object.keys(data) : null,
-                error: error ? String(error.message || error) : null
-            });
-            // TODO: end remove
-
             if (error !== null) {
                 $.each(options, function (name, option) {
-
-                    // TODO: remove
-                    recDebug.log("renderRecommendations.option", {
-                        name: name,
-                        identity: option?.meta?.renderIdentity || null,
-                        processId: option?.meta?.processId || null,
-                        resultStatus: data?.[name]?.status || null,
-                        recommendationCount: $.isArray(data?.[name]?.recommendations)
-                            ? data[name].recommendations.length
-                            : null,
-                        hasModify: $.isFunction(option?.data?.modify)
-                    });
-                    // TODO: end remove
-
                     Renderer._process(option?.process?.error, error);
 
                     if (option?.meta?.refreshParent) {
@@ -1430,20 +1219,6 @@
 
             $.each(options, function (name, option) {
                 const result = data?.[name];
-
-                // TODO: remove
-                recDebug.log("renderRecommendations.option", {
-                    name: name,
-                    identity: option?.meta?.renderIdentity || null,
-                    processId: option?.meta?.processId || null,
-                    resultStatus: result?.status || null,
-                    recommendationCount: $.isArray(result?.recommendations)
-                        ? result.recommendations.length
-                        : null,
-                    hasModify: $.isFunction(option?.data?.modify)
-                });
-                // TODO: end remove
-
                 if (_self._isCanceled(option?.meta?.processId)) {
                     if (option?.meta?.refreshParent) {
                         Renderer._setRefreshState(option.meta.refreshParent, option, "refresh-canceled", {
@@ -1521,23 +1296,6 @@
                         } else {
                             modifyResults = [{result: result, option: option}];
                         }
-
-                        // TODO: remove
-                        recDebug.log("modify.results", {
-                            originalName: name,
-                            count: modifyResults.length,
-                            entries: modifyResults.map(function (entry, idx) {
-                                return {
-                                    idx: idx,
-                                    identity: entry?.option?.meta?.renderIdentity || null,
-                                    status: entry?.result?.status || null,
-                                    recommendationCount: $.isArray(entry?.result?.recommendations)
-                                        ? entry.result.recommendations.length
-                                        : null
-                                };
-                            })
-                        });
-                        // TODO: end remove
 
                         for (let i = 0; i < modifyResults.length; i++) {
                             const applyResult = _self._applyRecommendation(
@@ -1682,20 +1440,6 @@
 
         _applyRecommendation: function (result, option) {
             const _self = this;
-
-            // TODO: remove
-            recDebug.log("applyRecommendation.start", {
-                identity: option?.meta?.renderIdentity || null,
-                processId: option?.meta?.processId || null,
-                refreshGroup: option?.meta?.refreshGroup || null,
-                optionsVersion: option?.meta?.optionsVersion || null,
-                status: result?.status || null,
-                recommendationCount: $.isArray(result?.recommendations)
-                    ? result.recommendations.length
-                    : null,
-                isControl: result?.splitTestData?.isControl === true
-            });
-            // TODO: end remove
 
             if (result?.splitTestData?.isControl === true) {
                 const $container = _self._setupControlContainer(option, result);
@@ -2466,27 +2210,7 @@
                 }
             }
 
-            // TODO: remove
-            recDebug.log("retrieve.start", {
-                payloadCount: $.isArray(payloads) ? payloads.length : null,
-                payloads: payloads
-            });
-            // TODO: end remove
-
             Breinify.recommendation({}, payloads, function (data, errorText) {
-                // TODO: remove
-                recDebug.log("retrieve.done", {
-                    errorText: typeof errorText === "string" ? errorText : null,
-                    hasData: !!data,
-                    resultCount: $.isArray(data?.results) ? data.results.length : null,
-                    resultStatusCodes: $.isArray(data?.results)
-                        ? data.results.map(function (entry) {
-                            return entry?.statusCode;
-                        })
-                        : null
-                });
-                // TODO: end remove
-
                 if (typeof errorText === "string") {
                     callback(new Error(errorText), data);
                 } else if (!data || !$.isArray(data.results)) {
