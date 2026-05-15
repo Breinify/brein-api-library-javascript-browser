@@ -668,8 +668,6 @@
             let nextAnchorState = null;
 
             try {
-                let recommendationsToHandle = normalizedRecommendations;
-
                 /*
                  * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
                  * This protects against repeated trigger executions caused by DOM changes or history handling.
@@ -690,55 +688,11 @@
                  * races where two recommendation requests are started before the first render has marked the DOM.
                  */
                 else if (hasAttributeActivation === true) {
-                    const resolvedRecommendations = [];
-                    const resolvedAnchorState = {};
-                    const normalizedWebExId = Breinify.UTL.isNonEmptyString(webExId);
-
-                    nextAnchorState = this._createNextAnchorState(webExId, normalizedRecommendations);
-
-                    if (normalizedWebExId === null) {
-                        return;
-                    }
-
-                    for (let i = 0; i < normalizedRecommendations.length; i++) {
-                        const recommendation = normalizedRecommendations[i];
-
-                        if (!$.isPlainObject(recommendation)) {
-                            continue;
-                        }
-
-                        const anchorStateKey = this._createAnchorStateKey(normalizedWebExId, recommendation, i);
-                        if (anchorStateKey === null) {
-                            continue;
-                        }
-
-                        const state = $.isPlainObject(nextAnchorState?.[anchorStateKey])
-                            ? nextAnchorState[anchorStateKey]
-                            : null;
-
-                        if (!$.isPlainObject(state) ||
-                            !Breinify.UTL.dom.isNodeType(state.anchorElement, 1) ||
-                            state.anchorElement.isConnected !== true ||
-                            Breinify.UTL.isNonEmptyString(state.anchorType) === null) {
-                            continue;
-                        }
-
-                        resolvedRecommendations.push(recommendation);
-                        resolvedAnchorState[anchorStateKey] = state;
-                    }
-
-                    if (resolvedRecommendations.length === 0) {
-                        return;
-                    }
-
-                    recommendationsToHandle = resolvedRecommendations;
-                    nextAnchorState = resolvedAnchorState;
-
                     recommendationBatchLockKey = this._createRecommendationBatchKey(
                         webExId,
                         webExVersionId,
                         handlingType,
-                        recommendationsToHandle
+                        normalizedRecommendations
                     );
 
                     if (this._acquireRecommendationBatchLock(runtime, recommendationBatchLockKey) !== true) {
@@ -747,6 +701,7 @@
 
                     acquiredRecommendationBatchLock = true;
 
+                    nextAnchorState = this._createNextAnchorState(webExId, normalizedRecommendations);
                     if (this._isAttributeAnchorChanged(nextAnchorState, runtime.anchorState) !== true) {
                         return;
                     }
@@ -755,7 +710,7 @@
                 }
 
                 const results = await Promise.all(
-                    recommendationsToHandle.map((recommendation) =>
+                    normalizedRecommendations.map((recommendation) =>
                         Promise.resolve()
                             .then(() => this._handle(webExId, webExVersionId, recommendation, config, runtime))
                             .catch(function (err) {
