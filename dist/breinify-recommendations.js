@@ -2395,11 +2395,21 @@
 
         _determineSplitTestData: function (recommendationResponse, result) {
             if ($.isPlainObject(recommendationResponse?.additionalData?.splitTestData)) {
+                const data = recommendationResponse?.additionalData?.splitTestData;
+
+                // check the status to determine if we are in a control group
+                let isControl = false;
+                if (typeof data?.isControlGroup) {
+                    isControl = data?.isControlGroup === true;
+                } else if (recommendationResponse.statusCode === 7120) {
+                    isControl = true;
+                }
+
                 result.splitTestData = $.extend({
                     active: true,
                     isTest: recommendationResponse.statusCode === 200,
-                    isControl: recommendationResponse.statusCode === 7120
-                }, recommendationResponse.additionalData.splitTestData);
+                    isControl: isControl
+                }, data);
             } else {
                 result.splitTestData = {
                     active: false,
