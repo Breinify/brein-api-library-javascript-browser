@@ -2399,8 +2399,10 @@
 
                 // check the status to determine if we are in a control group
                 let isControl = false;
-                if (typeof data?.isControlGroup) {
-                    isControl = data?.isControlGroup === true;
+                if (typeof data?.isControlGroup === "boolean") {
+                    isControl = data.isControlGroup === true;
+                } else if (/\bcontrol\b/i.test(String(data?.groupDecision || ""))) {
+                    isControl = true;
                 } else if (recommendationResponse.statusCode === 7120) {
                     isControl = true;
                 }
