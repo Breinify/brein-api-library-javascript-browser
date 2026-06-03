@@ -877,6 +877,7 @@
                         selector: action.selector,
                         position: action.position,
                         html: action.html,
+                        splitTestAttributes: action.splitTestAttributes,
                         ruleId: rule._trackingRuleId || rule.id || null
                     });
                 }
@@ -910,6 +911,10 @@
             }
 
             const runId = Breinify.UTL.uuid();
+            const splitTestAttributes = $.isPlainObject(action.splitTestAttributes)
+                ? $.extend(true, {}, action.splitTestAttributes)
+                : {};
+
             action._lastRunId = runId;
             const ctx = {
                 $: $,
@@ -944,8 +949,19 @@
 
                     return this.findManaged(selector);
                 },
-                createManagedWebExperience: function (webExpId, positionId) {
-                    return _self._createManagedWebExperienceNode(webExpId, positionId, action.key);
+                createManagedWebExperience: function (webExpId, positionId, classes, attributes) {
+                    return _self._createManagedWebExperienceNode(
+                        webExpId,
+                        positionId,
+                        action.key,
+                        classes,
+                        $.extend(
+                            true,
+                            {},
+                            splitTestAttributes,
+                            $.isPlainObject(attributes) ? attributes : {}
+                        )
+                    );
                 },
                 ensureWebExperiencePlacement: function (config) {
                     if (!$.isPlainObject(config)) {
@@ -979,12 +995,28 @@
                         position: position
                     };
 
+                    const attributes = $.extend(
+                        true,
+                        {},
+                        splitTestAttributes,
+                        $.isPlainObject(config.attributes) ? config.attributes : {}
+                    );
+
                     if ($node.length === 0 || _self._isInsertFulfilled($target, placementAction) !== true) {
                         if ($node.length === 0) {
-                            $node = _self._createManagedWebExperienceNode(webExpId, positionId, action.key);
+                            $node = _self._createManagedWebExperienceNode(
+                                webExpId,
+                                positionId,
+                                action.key,
+                                config.classes,
+                                attributes
+                            );
+
                             if ($node === null) {
                                 return $();
                             }
+                        } else {
+                            _self._applyAttributes($node, attributes);
                         }
 
                         _self._insertNodeAtPosition($target, $node, position);
@@ -999,6 +1031,8 @@
                                 element: $node[0]
                             });
                         }
+                    } else {
+                        _self._applyAttributes($node, attributes);
                     }
 
                     return $node;
@@ -1087,6 +1121,7 @@
                         }
 
                         _self._cleanupInactiveSplitTestGroups(action, groupName);
+                        _self._assignSplitTestMetadataToGroupActions(action, groupName, groupRule);
 
                         if (_self._getCachedRuleMatchesDocument(groupRule, evaluationCache) !== true ||
                             _self._getCachedRuleMatchesCondition(groupRule, evaluationCache) !== true) {
@@ -1144,7 +1179,7 @@
                 group = action.fallbackGroup;
             }
 
-            return String(group || "control").toLowerCase();
+            return Breinify.UTL.isNonEmptyString(group) || "control";
         },
 
         /**
@@ -1220,6 +1255,64 @@
             return false;
         },
 
+        _assignSplitTestMetadataToGroupActions: function (action, groupName, groupRule) {
+            const splitTestName = Breinify.UTL.isNonEmptyString(action.name);
+            const splitTestGroup = Breinify.UTL.isNonEmptyString(groupName);
+            const parentRuleId = Breinify.UTL.isNonEmptyString(action.parentRuleId);
+            const attributes = {};
+
+            if (!groupRule || !$.isArray(groupRule.actions)) {
+                return;
+            }
+
+            if (splitTestName !== null) {
+                attributes["data-br-split-test-name"] = splitTestName;
+            }
+
+            if (splitTestGroup !== null) {
+                attributes["data-br-split-test-group"] = splitTestGroup;
+            }
+
+            if (parentRuleId !== null) {
+                attributes["data-br-split-test-parent-rule"] = parentRuleId;
+            }
+
+            if ($.isEmptyObject(attributes)) {
+                return;
+            }
+
+            $.each(groupRule.actions, function (idx, groupAction) {
+                if (!groupAction) {
+                    return true;
+                }
+
+                if (groupAction.type === "insert-webexperience") {
+                    groupAction.attributes = $.extend(true, {}, groupAction.attributes || {}, attributes);
+
+                    /*
+                     * The key must include attributes, otherwise an existing node without
+                     * the metadata may be considered fulfilled.
+                     */
+                    groupAction.key = [
+                        groupRule.id || "",
+                        groupAction.type,
+                        groupAction.selector,
+                        groupAction.position,
+                        groupAction.webExpId,
+                        groupAction.positionId || "",
+                        $.isArray(groupAction.classes) ? groupAction.classes.join(".") : "",
+                        JSON.stringify(groupAction.attributes || {})
+                    ].join("::");
+                } else if (groupAction.type === "insert-html") {
+                    groupAction.splitTestAttributes = $.extend(true, {}, attributes);
+                } else if (groupAction.type === "custom") {
+                    groupAction.splitTestAttributes = $.extend(true, {}, attributes);
+                }
+
+                return true;
+            });
+        },
+
         /**
          * Removes inserted DOM owned by all split-test groups except the selected one.
          *
@@ -1280,9 +1373,11 @@
             }
 
             $.each(groupRule.actions, function (idx, groupAction) {
-                if (!groupAction ||
-                    (groupAction.type !== "insert-webexperience" &&
-                        groupAction.type !== "insert-html")) {
+                if (!groupAction || (
+                    groupAction.type !== "insert-webexperience" &&
+                    groupAction.type !== "insert-html" &&
+                    groupAction.type !== "custom")
+                ) {
                     return true;
                 }
 
@@ -1377,6 +1472,22 @@
             }
         },
 
+        _applyAttributes: function ($node, attributes) {
+            if (!$node || $node.length === 0 || !$.isPlainObject(attributes)) {
+                return;
+            }
+
+            $.each(attributes, function (name, value) {
+                const normalizedName = Breinify.UTL.isNonEmptyString(name);
+
+                if (normalizedName !== null) {
+                    $node.attr(normalizedName, typeof value === "undefined" || value === null ? "" : String(value));
+                }
+
+                return true;
+            });
+        },
+
         /**
          * Applies one insert-webexperience action.
          *
@@ -1421,7 +1532,7 @@
                 return;
             }
 
-            const $node = this._createMarkedNodeFromHtml(action.html, action.key);
+            const $node = this._createMarkedNodeFromHtml(action.html, action.key, action.splitTestAttributes);
             if ($node === null) {
                 return;
             }
@@ -1590,7 +1701,7 @@
          * @returns {jQuery|null} created marked node or null
          * @private
          */
-        _createMarkedNodeFromHtml: function (html, key) {
+        _createMarkedNodeFromHtml: function (html, key, attributes) {
             if (typeof html !== "string" || html.trim() === "") {
                 return null;
             }
@@ -1605,6 +1716,8 @@
             }
 
             this._markPlacedNode(elementNodes.first(), key);
+            this._applyAttributes(elementNodes.first(), attributes);
+
             return elementNodes.first();
         },
 
