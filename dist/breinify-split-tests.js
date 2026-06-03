@@ -241,45 +241,54 @@
             }
         },
 
-        copyNonEmptyArray: function (source, target, key) {
-            if ($.isPlainObject(source) &&
-                $.isPlainObject(target) &&
-                $.isArray(source[key]) &&
-                source[key].length > 0) {
-                target[key] = source[key].slice(0);
+        copyNonEmptyStringArray: function (source, target, key) {
+            const values = [];
+
+            if (!$.isPlainObject(source) ||
+                !$.isPlainObject(target) ||
+                !$.isArray(source[key])) {
+                return;
+            }
+
+            $.each(source[key], function (idx, entry) {
+                const value = Breinify.UTL.isNonEmptyString(entry);
+                if (value !== null && values.indexOf(value) === -1) {
+                    values.push(value);
+                }
+
+                return true;
+            });
+
+            if (values.length > 0) {
+                target[key] = values;
             }
         },
 
         checkForUserInfo: function () {
             const user = Breinify.UTL.user.create();
             const payload = {};
-            const additional = {};
-            const identifiers = {};
             let browserId;
 
             if (!$.isPlainObject(user)) {
                 return payload;
             }
 
-            this.copyNonEmptyString(user, payload, "email");
-            this.copyNonEmptyArray(user, payload, "emails");
             this.copyNonEmptyString(user, payload, "sessionId");
-            this.copyNonEmptyArray(user, payload, "sessionIds");
+            this.copyNonEmptyStringArray(user, payload, "sessionIds");
 
             if ($.isPlainObject(user.additional) && $.isPlainObject(user.additional.identifiers)) {
                 browserId = Breinify.UTL.isNonEmptyString(user.additional.identifiers.browserId);
-                if (browserId !== null) {
-                    identifiers.browserId = browserId;
-                }
+            } else {
+                browserId = null;
             }
 
-            if (!$.isEmptyObject(identifiers)) {
-                additional.identifiers = identifiers;
+            if (browserId !== null) {
+                payload.browserId = browserId;
             }
 
-            if (!$.isEmptyObject(additional)) {
-                payload.additional = additional;
-            }
+            this.copyNonEmptyString(user, payload, "email");
+            this.copyNonEmptyStringArray(user, payload, "emails");
+            this.copyNonEmptyString(user, payload, "phone");
 
             return payload;
         }
