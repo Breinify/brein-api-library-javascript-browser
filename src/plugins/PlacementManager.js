@@ -92,6 +92,11 @@
          *     the action needs to run
          *   - code(ctx): required action implementation, may return a Promise
          *
+         * - split-test
+         *   Resolves a split-test decision asynchronously through the splitTests
+         *   plugin and applies the matching group rule. Each group may define its
+         *   own observe, condition, and actions.
+         *
          * Supported observe types:
          * - exists
          * - attribute
@@ -107,6 +112,8 @@
          * - condition determines whether the rule is allowed to apply
          * - shouldRun(ctx) determines whether a custom action actually needs work
          * - code(ctx) performs the custom action
+         * - split-test actions resolve a backend decision before applying group
+         *   observe/actions
          *
          * @param {Array} rules rules to add
          * @returns {number} number of rules newly added
@@ -352,6 +359,14 @@
                             });
                         }
                         return true;
+                    } else if (action.type === "split-test") {
+                        const result = _self._applySplitTestAction(action);
+                        if (result && $.isFunction(result.then)) {
+                            result.catch(function (e) {
+                                console.error("[placementManager] async split-test action failed:", e);
+                            });
+                        }
+                        return true;
                     }
 
                     if (!action || !action.$target || action.$target.length === 0) {
@@ -400,6 +415,19 @@
             }
             if (!$.isArray(rule.actions)) {
                 rule.actions = [];
+            }
+
+            if ($.isPlainObject(rule.splitTest) && $.isPlainObject(rule.groups)) {
+                const splitTestAction = $.extend(true, {}, rule.splitTest);
+                splitTestAction.type = "split-test";
+                splitTestAction.groups = rule.groups;
+
+                if (!Breinify.UTL.isNonEmptyString(splitTestAction.name) &&
+                    Breinify.UTL.isNonEmptyString(splitTestAction.testName) !== null) {
+                    splitTestAction.name = splitTestAction.testName;
+                }
+
+                rule.actions.push(splitTestAction);
             }
 
             $.each(rule.observe, function (idx, observe) {
@@ -763,7 +791,7 @@
             for (i = 0; i < rule.actions.length; i++) {
                 action = rule.actions[i];
 
-                if (action.type === "custom") {
+                if (action.type === "custom" || action.type === "split-test") {
                     actions.push(action);
                     continue;
                 }
@@ -837,7 +865,7 @@
                         positionId: action.positionId,
                         classes: action.classes,
                         attributes: action.attributes,
-                        ruleId: rule.id || null
+                        ruleId: rule._trackingRuleId || rule.id || null
                     });
                 }
             } else if (action.type === "insert-html") {
@@ -849,7 +877,7 @@
                         selector: action.selector,
                         position: action.position,
                         html: action.html,
-                        ruleId: rule.id || null
+                        ruleId: rule._trackingRuleId || rule.id || null
                     });
                 }
             }
@@ -960,6 +988,17 @@
                         }
 
                         _self._insertNodeAtPosition($target, $node, position);
+
+                        if (Breinify.UTL.isNonEmptyString(config.selector) !== null) {
+                            _self._trackInsertedNode({
+                                key: action.key,
+                                type: "custom",
+                                selector: config.selector,
+                                position: position,
+                                ruleId: action.ruleId || null,
+                                element: $node[0]
+                            });
+                        }
                     }
 
                     return $node;
@@ -976,6 +1015,327 @@
                 console.error("[placementManager] custom action failed:", e);
                 return null;
             }
+        },
+
+        /**
+         * Applies one split-test action.
+         *
+         * Execution flow:
+         * - resolves the split-test result through Breinify.plugins.splitTests
+         * - maps the response to a normalized group name
+         * - revalidates the parent rule to avoid stale SPA writes
+         * - evaluates only the selected group's observe/condition
+         * - applies the selected group's normalized actions
+         *
+         * @param {Object} action prepared split-test action
+         * @returns {Promise|null} promise if execution started, otherwise null
+         * @private
+         */
+        _applySplitTestAction: function (action) {
+            const _self = this;
+
+            if (!action ||
+                action.type !== "split-test" ||
+                !$.isPlainObject(action.groups)) {
+                return null;
+            }
+
+            if (!Breinify.plugins ||
+                !Breinify.plugins._isAdded("splitTests") ||
+                !Breinify.plugins.splitTests ||
+                !$.isFunction(Breinify.plugins.splitTests.retrieveSplitTest)) {
+                console.error("[placementManager] unable to apply split-test action: missing splitTests plugin");
+                return null;
+            }
+
+            const runId = Breinify.UTL.uuid();
+            action._lastRunId = runId;
+
+            return new Promise(function (resolve) {
+                Breinify.plugins.splitTests.retrieveSplitTest(
+                    action.name,
+                    action.tokens,
+                    action.payload,
+                    action.storageKeys,
+                    function (error, data) {
+                        const groupName = _self._determineSplitTestGroup(action, error, data);
+                        const groupRule = _self._getSplitTestGroupRule(action, groupName);
+                        const parentRule = _self._findRuleById(action.parentRuleId);
+                        const actions = [];
+                        const evaluationCache = {
+                            documentMatches: {},
+                            conditionMatches: {}
+                        };
+
+                        if (action._lastRunId !== runId) {
+                            resolve();
+                            return;
+                        }
+
+                        if (parentRule === null ||
+                            _self._isRuleActive(parentRule) !== true ||
+                            _self._getCachedRuleMatchesDocument(parentRule, evaluationCache) !== true ||
+                            _self._getCachedRuleMatchesCondition(parentRule, evaluationCache) !== true) {
+                            resolve();
+                            return;
+                        }
+
+                        if (groupRule === null) {
+                            _self._cleanupAllSplitTestGroups(action);
+                            resolve();
+                            return;
+                        }
+
+                        _self._cleanupInactiveSplitTestGroups(action, groupName);
+
+                        if (_self._getCachedRuleMatchesDocument(groupRule, evaluationCache) !== true ||
+                            _self._getCachedRuleMatchesCondition(groupRule, evaluationCache) !== true) {
+                            _self._cleanupSplitTestGroupInsertions(groupRule);
+                            resolve();
+                            return;
+                        }
+
+                        _self._collectRuleActionsFromDocument(groupRule, actions);
+
+                        if (actions.length > 0) {
+                            _self.onChange({
+                                actions: actions,
+                                cleanup: [],
+                                reconcile: false
+                            });
+                        }
+
+                        resolve();
+                    },
+                    action.timing
+                );
+            });
+        },
+
+        /**
+         * Maps a split-test response to a normalized group name.
+         *
+         * @param {Object} action split-test action
+         * @param {Error|null} error split-test resolution error
+         * @param {Object|null} data split-test data
+         * @returns {string} normalized group name
+         * @private
+         */
+        _determineSplitTestGroup: function (action, error, data) {
+            let group = null;
+
+            if (error === null && $.isPlainObject(data)) {
+                if ($.isPlainObject(data.splitTestData)) {
+                    group = Breinify.UTL.isNonEmptyString(data.splitTestData.groupDecision);
+                }
+
+                if (group === null) {
+                    group = Breinify.UTL.isNonEmptyString(data.group);
+                }
+
+                if (group === null && data.isControl === true) {
+                    group = "control";
+                } else if (group === null && data.isControl === false) {
+                    group = "breinify";
+                }
+            }
+
+            if (group === null) {
+                group = action.fallbackGroup;
+            }
+
+            return String(group || "control").toLowerCase();
+        },
+
+        /**
+         * Resolves the selected group rule, falling back if needed.
+         *
+         * @param {Object} action split-test action
+         * @param {string} groupName selected group name
+         * @returns {Object|null} normalized group rule or null
+         * @private
+         */
+        _getSplitTestGroupRule: function (action, groupName) {
+            const normalizedGroupName = Breinify.UTL.isNonEmptyString(groupName);
+            const fallbackGroupName = Breinify.UTL.isNonEmptyString(action.fallbackGroup);
+
+            if (normalizedGroupName !== null &&
+                $.isPlainObject(action.groups[normalizedGroupName.toLowerCase()])) {
+                return action.groups[normalizedGroupName.toLowerCase()];
+            }
+
+            if (fallbackGroupName !== null &&
+                $.isPlainObject(action.groups[fallbackGroupName.toLowerCase()])) {
+                return action.groups[fallbackGroupName.toLowerCase()];
+            }
+
+            return null;
+        },
+
+        /**
+         * Finds a registered top-level rule by id.
+         *
+         * @param {string} ruleId rule id
+         * @returns {Object|null} normalized rule or null
+         * @private
+         */
+        _findRuleById: function (ruleId) {
+            const normalizedRuleId = Breinify.UTL.isNonEmptyString(ruleId);
+            let i;
+
+            if (normalizedRuleId === null) {
+                return null;
+            }
+
+            for (i = 0; i < this._rules.length; i++) {
+                if (this._rules[i] && this._rules[i].id === normalizedRuleId) {
+                    return this._rules[i];
+                }
+            }
+
+            return null;
+        },
+
+        /**
+         * Checks whether a top-level rule is currently active for this page.
+         *
+         * @param {Object} rule normalized rule
+         * @returns {boolean} true if active
+         * @private
+         */
+        _isRuleActive: function (rule) {
+            const activeRules = this._getActiveRules();
+            let i;
+
+            if (!rule) {
+                return false;
+            }
+
+            for (i = 0; i < activeRules.length; i++) {
+                if (activeRules[i] === rule) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        /**
+         * Removes inserted DOM owned by all split-test groups except the selected one.
+         *
+         * @param {Object} action split-test action
+         * @param {string} selectedGroupName selected group name
+         * @private
+         */
+        _cleanupInactiveSplitTestGroups: function (action, selectedGroupName) {
+            const selected = String(selectedGroupName || "").toLowerCase();
+            const _self = this;
+
+            if (!$.isPlainObject(action) || !$.isPlainObject(action.groups)) {
+                return;
+            }
+
+            $.each(action.groups, function (groupName, groupRule) {
+                if (String(groupName || "").toLowerCase() !== selected) {
+                    _self._cleanupSplitTestGroupInsertions(groupRule);
+                }
+
+                return true;
+            });
+        },
+
+        /**
+         * Removes inserted DOM owned by every group of a split-test action.
+         *
+         * @param {Object} action split-test action
+         * @private
+         */
+        _cleanupAllSplitTestGroups: function (action) {
+            const _self = this;
+
+            if (!$.isPlainObject(action) || !$.isPlainObject(action.groups)) {
+                return;
+            }
+
+            $.each(action.groups, function (groupName, groupRule) {
+                _self._cleanupSplitTestGroupInsertions(groupRule);
+                return true;
+            });
+        },
+
+        /**
+         * Removes managed insertion actions for a normalized group rule.
+         *
+         * Attribute actions are intentionally not reverted, matching the existing
+         * placement manager behavior.
+         *
+         * @param {Object} groupRule normalized group rule
+         * @private
+         */
+        _cleanupSplitTestGroupInsertions: function (groupRule) {
+            const _self = this;
+
+            if (!groupRule || !$.isArray(groupRule.actions)) {
+                return;
+            }
+
+            $.each(groupRule.actions, function (idx, groupAction) {
+                if (!groupAction ||
+                    (groupAction.type !== "insert-webexperience" &&
+                        groupAction.type !== "insert-html")) {
+                    return true;
+                }
+
+                _self._removeManagedNodesByKey(groupAction.key);
+                return true;
+            });
+        },
+
+        /**
+         * Removes managed DOM nodes and tracking entries by placement key.
+         *
+         * @param {string} key placement key
+         * @private
+         */
+        _removeManagedNodesByKey: function (key) {
+            const _self = this;
+
+            if (typeof key !== "string" || key === "") {
+                return;
+            }
+
+            $("[" + this._markerOwner + "=\"placementManager\"]").filter(function () {
+                return this && this.getAttribute(_self._markerKey) === key;
+            }).remove();
+
+            this._pruneTrackedInsertions(function (entry) {
+                return !entry ||
+                    !entry.element ||
+                    entry.element.isConnected !== true ||
+                    entry.key === key;
+            });
+        },
+
+        /**
+         * Prunes tracking entries matching a predicate.
+         *
+         * @param {Function} predicate returns true for entries to remove
+         * @private
+         */
+        _pruneTrackedInsertions: function (predicate) {
+            const remaining = [];
+
+            if (!$.isFunction(predicate)) {
+                return;
+            }
+
+            for (let i = 0; i < this._trackedInsertions.length; i++) {
+                if (predicate(this._trackedInsertions[i]) !== true) {
+                    remaining.push(this._trackedInsertions[i]);
+                }
+            }
+
+            this._trackedInsertions = remaining;
         },
 
         _createManagedWebExperienceNode: function (webExpId, positionId, key, classes, attributes) {
@@ -1468,7 +1828,8 @@
                     singleTarget: action.singleTarget === true,
                     code: action.code,
                     shouldRun: $.isFunction(action.shouldRun) ? action.shouldRun : null,
-                    async: action.async === true
+                    async: action.async === true,
+                    ruleId: rule.id || null
                 };
 
                 normalizedAction.key = [
@@ -1476,6 +1837,98 @@
                     normalizedAction.type,
                     "custom",
                     rule.actions ? rule.actions.length : 0
+                ].join("::");
+
+                return normalizedAction;
+            }
+
+            /*
+             * Split-test action normalization:
+             * - does not require a selector
+             * - resolves one backend split-test decision
+             * - applies exactly one normalized group rule
+             * - each group may define observe, condition, and actions
+             */
+            if (action.type === "split-test") {
+                const normalizedGroups = {};
+                const splitTestName = Breinify.UTL.isNonEmptyString(action.name) ||
+                    Breinify.UTL.isNonEmptyString(action.testName);
+                const fallbackGroup = Breinify.UTL.isNonEmptyString(action.fallbackGroup) || "control";
+                let hasGroups = false;
+
+                if (splitTestName === null ||
+                    !($.isPlainObject(action.tokens) || typeof action.tokens === "string") ||
+                    !$.isPlainObject(action.groups)) {
+                    return null;
+                }
+
+                $.each(action.groups, function (groupName, groupRule) {
+                    const normalizedGroupName = Breinify.UTL.isNonEmptyString(groupName);
+                    let normalizedGroupRule;
+
+                    if (normalizedGroupName === null || !$.isPlainObject(groupRule)) {
+                        return true;
+                    }
+
+                    normalizedGroupRule = $.extend(true, {}, groupRule);
+                    normalizedGroupRule.id = [
+                        rule.id || "",
+                        "split-test",
+                        splitTestName,
+                        normalizedGroupName.toLowerCase()
+                    ].join("::");
+
+                    /*
+                     * A group is a nested placement rule. Page validity belongs to
+                     * the parent rule; the group owns only observe/condition/actions.
+                     */
+                    normalizedGroupRule.isValidPage = function () {
+                        return true;
+                    };
+                    normalizedGroupRule._trackingRuleId = rule.id || null;
+
+                    placementManagerModule._normalizeRule(normalizedGroupRule);
+                    normalizedGroupRule._trackingRuleId = rule.id || null;
+
+                    $.each(normalizedGroupRule.actions, function (idx, normalizedGroupAction) {
+                        if (normalizedGroupAction &&
+                            (normalizedGroupAction.type === "custom" ||
+                                normalizedGroupAction.type === "split-test")) {
+                            normalizedGroupAction.ruleId = rule.id || null;
+                        }
+
+                        return true;
+                    });
+
+                    if (normalizedGroupRule._hasObserve === true &&
+                        normalizedGroupRule._hasActions === true) {
+                        normalizedGroups[normalizedGroupName.toLowerCase()] = normalizedGroupRule;
+                        hasGroups = true;
+                    }
+
+                    return true;
+                });
+
+                if (hasGroups !== true) {
+                    return null;
+                }
+
+                const normalizedAction = {
+                    type: "split-test",
+                    name: splitTestName,
+                    tokens: action.tokens,
+                    payload: $.isPlainObject(action.payload) || $.isFunction(action.payload) ? action.payload : null,
+                    storageKeys: $.isPlainObject(action.storageKeys) || typeof action.storageKeys === "string" ? action.storageKeys : null,
+                    timing: $.isPlainObject(action.timing) ? action.timing : null,
+                    fallbackGroup: fallbackGroup,
+                    groups: normalizedGroups,
+                    parentRuleId: rule.id || null
+                };
+
+                normalizedAction.key = [
+                    rule.id || "",
+                    normalizedAction.type,
+                    normalizedAction.name
                 ].join("::");
 
                 return normalizedAction;
