@@ -270,7 +270,7 @@
 
             const testName = Breinify.UTL.isNonEmptyString(this.testName);
             if (testName !== null) {
-                payload.testName = testName;
+                payload.splitTestName = testName;
             }
 
             if (!$.isPlainObject(user)) {
