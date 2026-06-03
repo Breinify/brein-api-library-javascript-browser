@@ -80,11 +80,11 @@
             // determine the payload to utilize for the test
             let payload;
             if ($.isFunction(this.payload)) {
-                payload = this.payload(this.checkForUserInfo());
+                payload = this.payload(this.createSplitTestPayload());
             } else if ($.isPlainObject(this.payload)) {
                 payload = this.payload;
             } else {
-                payload = this.checkForUserInfo();
+                payload = this.createSplitTestPayload();
             }
 
             if (!$.isPlainObject(payload)) {
@@ -264,10 +264,14 @@
             }
         },
 
-        checkForUserInfo: function () {
+        createSplitTestPayload: function () {
             const user = Breinify.UTL.user.create();
             const payload = {};
-            let browserId;
+
+            const testName = Breinify.UTL.isNonEmptyString(this.testName);
+            if (testName !== null) {
+                payload.testName = testName;
+            }
 
             if (!$.isPlainObject(user)) {
                 return payload;
@@ -276,6 +280,7 @@
             this.copyNonEmptyString(user, payload, "sessionId");
             this.copyNonEmptyStringArray(user, payload, "sessionIds");
 
+            let browserId;
             if ($.isPlainObject(user.additional) && $.isPlainObject(user.additional.identifiers)) {
                 browserId = Breinify.UTL.isNonEmptyString(user.additional.identifiers.browserId);
             } else {
