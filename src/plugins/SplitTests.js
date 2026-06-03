@@ -233,9 +233,55 @@
             return Breinify.UTL.internal.isDevMode() ? this.storageKey.test : this.storageKey.live;
         },
 
+        copyNonEmptyString: function (source, target, key) {
+            const value = $.isPlainObject(source) ? Breinify.UTL.isNonEmptyString(source[key]) : null;
+
+            if ($.isPlainObject(target) && value !== null) {
+                target[key] = value;
+            }
+        },
+
+        copyNonEmptyArray: function (source, target, key) {
+            if ($.isPlainObject(source) &&
+                $.isPlainObject(target) &&
+                $.isArray(source[key]) &&
+                source[key].length > 0) {
+                target[key] = source[key].slice(0);
+            }
+        },
+
         checkForUserInfo: function () {
             const user = Breinify.UTL.user.create();
-            return !$.isPlainObject(user) ? null : user;
+            const payload = {};
+            const additional = {};
+            const identifiers = {};
+            let browserId;
+
+            if (!$.isPlainObject(user)) {
+                return payload;
+            }
+
+            this.copyNonEmptyString(user, payload, "email");
+            this.copyNonEmptyArray(user, payload, "emails");
+            this.copyNonEmptyString(user, payload, "sessionId");
+            this.copyNonEmptyArray(user, payload, "sessionIds");
+
+            if ($.isPlainObject(user.additional) && $.isPlainObject(user.additional.identifiers)) {
+                browserId = Breinify.UTL.isNonEmptyString(user.additional.identifiers.browserId);
+                if (browserId !== null) {
+                    identifiers.browserId = browserId;
+                }
+            }
+
+            if (!$.isEmptyObject(identifiers)) {
+                additional.identifiers = identifiers;
+            }
+
+            if (!$.isEmptyObject(additional)) {
+                payload.additional = additional;
+            }
+
+            return payload;
         }
     };
 
