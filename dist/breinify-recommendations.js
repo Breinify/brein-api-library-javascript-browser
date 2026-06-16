@@ -1405,8 +1405,7 @@
             }, defaultRenderOption, option);
 
             const settings = {
-                isControl: $.isPlainObject(result?.splitTestData) &&
-                    result.splitTestData.isControl === true,
+                isControl: $.isPlainObject(result?.splitTestData) && result.splitTestData.isControl === true,
                 $recContainer: $container,
                 additionalEventData: {},
                 recommendationData: result,
@@ -1768,22 +1767,18 @@
                 group = Renderer.splitTest.defaultGroup;
             } else if (splitTestData.isControl === true) {
                 groupType = Renderer.splitTest.controlGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== ""
-                    ? splitTestData.groupDecision
-                    : Renderer.splitTest.defaultControlGroup;
+                group = Breinify.UTL.isNonEmptyString(splitTestData.groupDecision) === null
+                    ? Renderer.splitTest.defaultControlGroup
+                    : splitTestData.groupDecision;
             } else {
                 groupType = Renderer.splitTest.testGroupType;
-                group = typeof splitTestData.groupDecision === "string" && splitTestData.groupDecision.trim() !== ""
-                    ? splitTestData.groupDecision
-                    : Renderer.splitTest.defaultTestGroup;
+                group = Breinify.UTL.isNonEmptyString(splitTestData.groupDecision) === null
+                    ? Renderer.splitTest.defaultTestGroup
+                    : splitTestData.groupDecision;
             }
 
-            const test = typeof splitTestData.testName === "string" && splitTestData.testName.trim() !== ""
-                ? splitTestData.testName
-                : null;
-            const instance = typeof splitTestData.selectedInstance === "string" && splitTestData.selectedInstance.trim() !== ""
-                ? splitTestData.selectedInstance
-                : null;
+            const test = Breinify.UTL.isNonEmptyString(splitTestData.testName);
+            const instance = Breinify.UTL.isNonEmptyString(splitTestData.selectedInstance);
 
             defaultTags.group = group;
             defaultTags.groupType = groupType;
@@ -1793,12 +1788,8 @@
                 ? recommendationData.payload
                 : {};
 
-            const queryName = typeof recommendationPayload.queryName === "string" && recommendationPayload.queryName.trim() !== ""
-                ? recommendationPayload.queryName
-                : null;
-            const recommenderName = typeof recommendationPayload.recommenderName === "string" && recommendationPayload.recommenderName.trim() !== ""
-                ? recommendationPayload.recommenderName
-                : null;
+            const queryName = Breinify.UTL.isNonEmptyString(recommendationPayload.queryName);
+            const recommenderName = Breinify.UTL.isNonEmptyString(recommendationPayload.recommenderName);
 
             defaultTags.widgetType = recommenderName;
             defaultTags.widgetLabel = queryName === null ? recommenderName : queryName;
@@ -2397,20 +2388,10 @@
             if ($.isPlainObject(recommendationResponse?.additionalData?.splitTestData)) {
                 const data = recommendationResponse?.additionalData?.splitTestData;
 
-                // check the status to determine if we are in a control group
-                let isControl = false;
-                if (typeof data?.isControlGroup === "boolean") {
-                    isControl = data.isControlGroup === true;
-                } else if (/\bcontrol\b/i.test(String(data?.groupDecision || ""))) {
-                    isControl = true;
-                } else if (recommendationResponse.statusCode === 7120) {
-                    isControl = true;
-                }
-
                 result.splitTestData = $.extend({
                     active: true,
                     isTest: recommendationResponse.statusCode === 200,
-                    isControl: isControl
+                    isControl: recommendationResponse.statusCode === 7120 && data?.isControlGroup === true
                 }, data);
             } else {
                 result.splitTestData = {
