@@ -1517,7 +1517,11 @@
                     payload: recPayload
                 },
                 process: {
-                    attachedContainer: function ($attachedContainer, $itemContainer, recData) {
+                    pre: function (recData, option) {
+                        $grid.find(".br-survey-skeleton-card").remove();
+                    },
+
+                    attached: function ($attachedContainer, $itemContainer, recData, option) {
                         const additional = recData && $.isPlainObject(recData.additionalData) ? recData.additionalData : {};
 
                         const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
@@ -1537,8 +1541,13 @@
                             }
                         }
 
-                        $attachedContainer.empty();
+                        $grid.find(".br-survey-skeleton-card").remove();
                     },
+
+                    error: function (error) {
+                        $grid.find(".br-survey-skeleton-card").remove();
+                    },
+
                     createActivity: function (event, settings) {
                         settings.activityTags.campaignWebExId = Breinify.UTL.isNonEmptyString(runtime.webExVersionId);
                     }
