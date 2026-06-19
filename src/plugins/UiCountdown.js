@@ -887,6 +887,8 @@
         }
     }
 
+    const countdownsById = {};
+
     // bind the module
     Breinify.plugins._add('uiCountdown', {
 
@@ -896,28 +898,70 @@
                 window.customElements.define(elementName, UiCountdown);
             }
 
-            // let's find the element in the DOM-tree and create it if not there
             const countdownId = 'br-ui-countdown-' + module.webExVersionId;
-            let $countdown = $('br-ui-countdown#' + countdownId);
 
-            if ($countdown.length > 0) {
-                $countdown.get(0).render();
+            /*
+             * First check the in-memory registry. This catches the race where the
+             * countdown was already created, but has not yet been configured or attached.
+             */
+            let entry = countdownsById[countdownId];
+            if ($.isPlainObject(entry) && entry.countdown instanceof UiCountdown) {
+                if (entry.configured === true) {
+                    entry.countdown.render();
+                } else {
+                    entry.renderRequested = true;
+                }
+
                 return;
             }
 
-            // create a new element for this countdown and configure it, once configured render it
-            $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
+            /*
+             * Then check the DOM. This catches countdowns that already exist on the page.
+             */
+            const $existingCountdown = $('br-ui-countdown#' + countdownId);
+            if ($existingCountdown.length > 0) {
+                const countdown = $existingCountdown.get(0);
 
-            // apply the configuration and render it on the DOM-tree once the configuration is loaded
+                countdownsById[countdownId] = {
+                    countdown: countdown,
+                    configured: true,
+                    renderRequested: false
+                };
+
+                countdown.render();
+                return;
+            }
+
+            /*
+             * Create a new countdown and immediately put it into the registry before
+             * config(...) is called. Do not render yet, because configuration is not done.
+             */
+            const $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
             const countdown = $countdown.get(0);
+
+            entry = {
+                countdown: countdown,
+                configured: false,
+                renderRequested: true
+            };
+
+            countdownsById[countdownId] = entry;
+
             countdown.config($.extend(true, {
                 type: module.type,
                 campaignName: Breinify.UTL.isNonEmptyString(module.campaignName),
                 webExVersionId: module.webExVersionId,
-                webExId: module.webExId,
+                webExId: module.webExId
             }, config), function(error) {
                 if (error === null) {
-                    countdown.render();
+                    entry.configured = true;
+
+                    if (entry.renderRequested === true) {
+                        entry.renderRequested = false;
+                        countdown.render();
+                    }
+                } else {
+                    delete countdownsById[countdownId];
                 }
             });
         }
