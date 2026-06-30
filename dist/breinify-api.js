@@ -16447,12 +16447,19 @@ dependencyScope.jQuery = $;;
             return prefix + '|' + this.shortHash(input, 32);
         },
 
-        createServiceProgress: function (payload) {
+        createServiceJobState: function (payload) {
             return {
                 status: typeof payload.status === 'string' ? payload.status : null,
                 jobId: typeof payload.jobId === 'string' ? payload.jobId : null,
                 serviceUrl: typeof payload.serviceUrl === 'string' ? payload.serviceUrl : null,
                 backOffInMs: $.isNumeric(payload.backOffInMs) ? Number(payload.backOffInMs) : null,
+                progress: $.isArray(payload.progress) ? payload.progress : [],
+                additionalData: $.isPlainObject(payload.additionalData) ? payload.additionalData : {}
+            };
+        },
+
+        createServiceProgress: function (payload) {
+            return {
                 progress: $.isArray(payload.progress) ? payload.progress : [],
                 additionalData: $.isPlainObject(payload.additionalData) ? payload.additionalData : {}
             };
@@ -16513,26 +16520,26 @@ dependencyScope.jQuery = $;;
             const payload = response.payload;
             const status = typeof payload.status === 'string' ? payload.status.toUpperCase() : null;
             if (status === 'RUNNING') {
-                const progress = this.createServiceProgress(payload);
-                if (BreinifyUtil.isEmpty(progress.jobId)) {
+                const jobState = this.createServiceJobState(payload);
+                if (BreinifyUtil.isEmpty(jobState.jobId)) {
                     callback(this.createServiceClientError('Service response indicated a running job without a jobId.', {
                         response: response
                     }), null, null);
                     return;
                 }
 
-                callback(null, progress, null);
+                callback(null, this.createServiceProgress(payload), null);
 
                 const nextRequest = {
                     apiKey: requestData.apiKey,
-                    jobId: progress.jobId,
+                    jobId: jobState.jobId,
                     payload: servicePayload
                 };
-                const backOffInMs = progress.backOffInMs === null ? 250 : Math.max(0, progress.backOffInMs);
+                const backOffInMs = jobState.backOffInMs === null ? 250 : Math.max(0, jobState.backOffInMs);
 
                 setTimeout(function () {
                     _privates.sendServiceRequest(
-                        _privates.determineServicePollUrl(progress) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT),
+                        _privates.determineServicePollUrl(jobState) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT),
                         nextRequest,
                         servicePayload,
                         callback
