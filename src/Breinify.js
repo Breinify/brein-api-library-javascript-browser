@@ -1106,16 +1106,15 @@
     /**
      * Sends a service request to the Breinify service gateway.
      *
-     * <p>The payload must contain the raw service token in {@code payload.service}. The remaining payload entries are
-     * forwarded to the service under the gateway's inner {@code payload} field. The callback receives
-     * {@code (error, progress, result)}.</p>
+     * <p>The service token is passed as the first argument. The payload object is forwarded to the gateway under the
+     * inner {@code payload} field. The callback receives {@code (error, progress, result)}.</p>
      */
     Breinify.service = function () {
         const url = _config.get(ATTR_CONFIG.SERVICE_URL) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT);
 
         overload.overload({
-            'Object,Function': function (payload, callback) {
-                Breinify.serviceUser(payload, {}, function (data, error) {
+            'String,Object,Function': function (service, payload, callback) {
+                Breinify.serviceUser(service, payload, {}, function (data, error) {
                     if (error != null) {
                         callback(error, null, null);
                     } else {
@@ -1123,8 +1122,8 @@
                     }
                 });
             },
-            'Object,Object,Function': function (payload, user, callback) {
-                Breinify.serviceUser(payload, user, function (data, error) {
+            'String,Object,Object,Function': function (service, payload, user, callback) {
+                Breinify.serviceUser(service, payload, user, function (data, error) {
                     if (error != null) {
                         callback(error, null, null);
                     } else {
@@ -1141,7 +1140,7 @@
      * <p>The final service user is merged in the following precedence:
      * {@code createdUser -> passedUser -> payload.user}.</p>
      */
-    Breinify.serviceUser = function (payload, user, onReady) {
+    Breinify.serviceUser = function (service, payload, user, onReady) {
 
         const _onReady = function (data, error) {
             if ($.isFunction(onReady)) {
@@ -1149,20 +1148,18 @@
             }
         };
 
+        const serviceName = typeof service === 'string' ? service.trim() : '';
+        if (serviceName === '') {
+            _onReady(null, _privates.createServiceClientError('The service must be a non-empty string.'));
+            return;
+        }
+
         if (!$.isPlainObject(payload)) {
             _onReady(null, _privates.createServiceClientError('The payload must be a plain object.'));
             return;
         }
 
         const requestPayload = $.extend(true, {}, payload);
-        const serviceName = typeof requestPayload.service === 'string' ? requestPayload.service.trim() : '';
-        if (serviceName === '') {
-            _onReady(null, _privates.createServiceClientError('The payload must contain a non-empty service value.'));
-            return;
-        }
-
-        delete requestPayload.service;
-
         const passedUser = $.isPlainObject(user) ? user : {};
         _privates.createUser(passedUser, function (createdUser) {
 
