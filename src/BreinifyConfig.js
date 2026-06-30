@@ -27,6 +27,13 @@
             return value !== null && typeof value === 'string' && '' !== value.trim();
         }
     });
+    attributes.add('SERVICE_URL', {
+        name: 'serviceUrl',
+        defaultValue: 'https://aps.breinify.com',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim();
+        }
+    });
     attributes.add('ACTIVITY_ENDPOINT', {
         name: 'activityEndpoint',
         defaultValue: '/activity',

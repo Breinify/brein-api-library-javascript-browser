@@ -15445,6 +15445,13 @@ dependencyScope.jQuery = $;;
             return value !== null && typeof value === 'string' && '' !== value.trim();
         }
     });
+    attributes.add('SERVICE_URL', {
+        name: 'serviceUrl',
+        defaultValue: 'https://aps.breinify.com',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim();
+        }
+    });
     attributes.add('ACTIVITY_ENDPOINT', {
         name: 'activityEndpoint',
         defaultValue: '/activity',
@@ -16444,10 +16451,19 @@ dependencyScope.jQuery = $;;
             return {
                 status: typeof payload.status === 'string' ? payload.status : null,
                 jobId: typeof payload.jobId === 'string' ? payload.jobId : null,
+                serviceUrl: typeof payload.serviceUrl === 'string' ? payload.serviceUrl : null,
                 backOffInMs: $.isNumeric(payload.backOffInMs) ? Number(payload.backOffInMs) : null,
                 progress: $.isArray(payload.progress) ? payload.progress : [],
                 additionalData: $.isPlainObject(payload.additionalData) ? payload.additionalData : {}
             };
+        },
+
+        determineServicePollUrl: function (progress) {
+            if ($.isPlainObject(progress) && typeof progress.serviceUrl === 'string' && progress.serviceUrl.trim() !== '') {
+                return progress.serviceUrl;
+            }
+
+            return _config.get(ATTR_CONFIG.SERVICE_URL);
         },
 
         createServiceClientError: function (message, details) {
@@ -16515,7 +16531,12 @@ dependencyScope.jQuery = $;;
                 const backOffInMs = progress.backOffInMs === null ? 250 : Math.max(0, progress.backOffInMs);
 
                 setTimeout(function () {
-                    _privates.sendServiceRequest(url, nextRequest, servicePayload, callback);
+                    _privates.sendServiceRequest(
+                        _privates.determineServicePollUrl(progress) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT),
+                        nextRequest,
+                        servicePayload,
+                        callback
+                    );
                 }, backOffInMs);
             } else if (status === 'SUCCEEDED') {
                 callback(null, null, payload.response);
@@ -17190,7 +17211,7 @@ dependencyScope.jQuery = $;;
      * {@code (error, progress, result)}.</p>
      */
     Breinify.service = function () {
-        const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT);
+        const url = _config.get(ATTR_CONFIG.SERVICE_URL) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT);
 
         overload.overload({
             'Object,Function': function (payload, callback) {
