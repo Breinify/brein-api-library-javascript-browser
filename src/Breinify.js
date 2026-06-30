@@ -319,6 +319,141 @@
             return unixTimestamp + "-" + paraLocalDateTime + "-" + paraTimezone;
         },
 
+        shortHash: function (input, maxLength) {
+            const hash = CryptoJS.SHA256(input).toString(CryptoJS.enc.Base64)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/g, '');
+            return hash.substring(0, maxLength);
+        },
+
+        normalizeServicePayload: function (payload) {
+            const normalizedPayload = {};
+            $.each(payload, function (key, value) {
+                if (value !== null && typeof value !== 'undefined') {
+                    normalizedPayload[key] = value;
+                }
+            });
+
+            return normalizedPayload;
+        },
+
+        createServiceChecksum: function (apiKey, serviceName, payload) {
+            const prefix = Math.floor(Math.random() * 1000000000).toString();
+            const normalizedPayload = this.normalizeServicePayload(payload);
+            const payloadKeys = Object.keys(normalizedPayload).sort().join('|');
+            const input = [prefix, serviceName, apiKey, payloadKeys].join('|');
+
+            return prefix + '|' + this.shortHash(input, 32);
+        },
+
+        createServiceProgress: function (payload) {
+            return {
+                status: typeof payload.status === 'string' ? payload.status : null,
+                jobId: typeof payload.jobId === 'string' ? payload.jobId : null,
+                backOffInMs: $.isNumeric(payload.backOffInMs) ? Number(payload.backOffInMs) : null,
+                progress: $.isArray(payload.progress) ? payload.progress : [],
+                additionalData: $.isPlainObject(payload.additionalData) ? payload.additionalData : {}
+            };
+        },
+
+        createServiceClientError: function (message, details) {
+            const error = new Error(message);
+            if ($.isPlainObject(details)) {
+                // jQuery mutates the target object in place, so the returned reference can be ignored here.
+                // We use the Error instance as the target to attach structured debugging details onto it.
+                $.extend(true, error, details);
+            }
+
+            return error;
+        },
+
+        createServiceApiError: function (response) {
+            if ($.isPlainObject(response)) {
+                const error = $.extend(true, {}, response);
+                if (typeof error.message !== 'string' && typeof error.payload === 'string') {
+                    error.message = error.payload;
+                }
+                return error;
+            } else {
+                return this.createServiceClientError('Unexpected service error response.');
+            }
+        },
+
+        handleServiceResponse: function (url, requestData, servicePayload, callback, response) {
+            if (!$.isPlainObject(response)) {
+                callback(this.createServiceClientError('Unexpected service response.', {
+                    response: response
+                }), null, null);
+                return;
+            } else if (typeof response.responseCode !== 'number') {
+                callback(this.createServiceClientError('Service response is missing a valid responseCode.', {
+                    response: response
+                }), null, null);
+                return;
+            } else if (response.responseCode !== 200) {
+                callback(this.createServiceApiError(response), null, null);
+                return;
+            } else if (!$.isPlainObject(response.payload)) {
+                callback(this.createServiceClientError('Service response is missing a payload.', {
+                    response: response
+                }), null, null);
+                return;
+            }
+
+            const payload = response.payload;
+            const status = typeof payload.status === 'string' ? payload.status.toUpperCase() : null;
+            if (status === 'RUNNING') {
+                const progress = this.createServiceProgress(payload);
+                if (BreinifyUtil.isEmpty(progress.jobId)) {
+                    callback(this.createServiceClientError('Service response indicated a running job without a jobId.', {
+                        response: response
+                    }), null, null);
+                    return;
+                }
+
+                callback(null, progress, null);
+
+                const nextRequest = {
+                    apiKey: requestData.apiKey,
+                    jobId: progress.jobId,
+                    payload: servicePayload
+                };
+                const backOffInMs = progress.backOffInMs === null ? 250 : Math.max(0, progress.backOffInMs);
+
+                setTimeout(function () {
+                    _privates.sendServiceRequest(url, nextRequest, servicePayload, callback);
+                }, backOffInMs);
+            } else if (status === 'SUCCEEDED') {
+                callback(null, null, payload.response);
+            } else if (status === 'FAILED') {
+                if (typeof payload.response !== 'undefined') {
+                    callback(payload.response, null, null);
+                } else {
+                    callback(this.createServiceClientError('Service request failed without an error payload.', {
+                        response: response
+                    }), null, null);
+                }
+            } else if (typeof payload.response !== 'undefined') {
+                callback(null, null, payload.response);
+            } else {
+                callback(this.createServiceClientError('Unexpected service status received.', {
+                    response: response
+                }), null, null);
+            }
+        },
+
+        sendServiceRequest: function (url, requestData, servicePayload, callback) {
+            this.ajax(url, requestData, function (response) {
+                _privates.handleServiceResponse(url, requestData, servicePayload, callback, response);
+            }, function (errorData, errorText) {
+                const error = $.isPlainObject(errorData) ? errorData : {};
+                error.message = typeof errorText === 'string' && errorText.trim() !== '' ? errorText : 'Service request failed.';
+
+                callback(error, null, null);
+            });
+        },
+
         handleUtmParameters: function () {
 
             // check if we have a plugin defined
@@ -951,6 +1086,91 @@
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
+        });
+    };
+
+    /**
+     * Sends a service request to the Breinify service gateway.
+     *
+     * <p>The payload must contain the raw service token in {@code payload.service}. The remaining payload entries are
+     * forwarded to the service under the gateway's inner {@code payload} field. The callback receives
+     * {@code (error, progress, result)}.</p>
+     */
+    Breinify.service = function () {
+        const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT);
+
+        overload.overload({
+            'Object,Function': function (payload, callback) {
+                Breinify.serviceUser(payload, {}, function (data, error) {
+                    if (error != null) {
+                        callback(error, null, null);
+                    } else {
+                        _privates.sendServiceRequest(url, data.requestData, data.servicePayload, callback);
+                    }
+                });
+            },
+            'Object,Object,Function': function (payload, user, callback) {
+                Breinify.serviceUser(payload, user, function (data, error) {
+                    if (error != null) {
+                        callback(error, null, null);
+                    } else {
+                        _privates.sendServiceRequest(url, data.requestData, data.servicePayload, callback);
+                    }
+                });
+            }
+        }, arguments, this);
+    };
+
+    /**
+     * Creates a validated service gateway request and enriches the inner payload with the resolved Breinify user.
+     *
+     * <p>The final service user is merged in the following precedence:
+     * {@code createdUser -> passedUser -> payload.user}.</p>
+     */
+    Breinify.serviceUser = function (payload, user, onReady) {
+
+        const _onReady = function (data, error) {
+            if ($.isFunction(onReady)) {
+                onReady(data, error);
+            }
+        };
+
+        if (!$.isPlainObject(payload)) {
+            _onReady(null, _privates.createServiceClientError('The payload must be a plain object.'));
+            return;
+        }
+
+        const requestPayload = $.extend(true, {}, payload);
+        const serviceName = typeof requestPayload.service === 'string' ? requestPayload.service.trim() : '';
+        if (serviceName === '') {
+            _onReady(null, _privates.createServiceClientError('The payload must contain a non-empty service value.'));
+            return;
+        }
+
+        delete requestPayload.service;
+
+        const passedUser = $.isPlainObject(user) ? user : {};
+        _privates.createUser(passedUser, function (createdUser) {
+
+            if (!createdUser.validate()) {
+                _onReady(null, _privates.createServiceClientError('Failed to create a valid user for the service request.'));
+                return;
+            }
+
+            const createdUserData = createdUser.all();
+            const payloadUser = $.isPlainObject(requestPayload.user) ? requestPayload.user : {};
+            requestPayload.user = $.extend(true, {}, createdUserData, passedUser, payloadUser);
+
+            const apiKey = _config.get(ATTR_CONFIG.API_KEY);
+            _onReady({
+                servicePayload: requestPayload,
+                requestData: {
+                    apiKey: apiKey,
+                    service: serviceName,
+                    payload: requestPayload,
+                    checksum: _privates.createServiceChecksum(apiKey, serviceName, requestPayload)
+                }
+            }, null);
         });
     };
 

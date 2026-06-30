@@ -54,6 +54,16 @@
             onReady();
          }
     };
+    Breinify.service = function (payload, user, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
+    Breinify.serviceUser = function (payload, user, onReady) {
+        if (typeof onReady === 'function') {
+            onReady();
+        }
+    };
     Breinify.recommendation = function (user, nr, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();

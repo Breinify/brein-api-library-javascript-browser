@@ -55,6 +55,13 @@
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
     });
+    attributes.add('SERVICE_ENDPOINT', {
+        name: 'serviceEndpoint',
+        defaultValue: '/services/request',
+        validate: function (value) {
+            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
+        }
+    });
     attributes.add('CATEGORY', {
         name: 'category',
         defaultValue: 'other',
