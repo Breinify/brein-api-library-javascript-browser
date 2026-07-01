@@ -12421,8 +12421,9 @@ jstz.olson = {
 	}
 };
 ;
-let $ = jQuery.noConflict(true);
-dependencyScope.jQuery = $;;
+let $ = window.jQuery.noConflict(true);
+dependencyScope.jQuery = $;
+;
 /*
  * We override the window parameter and make sure it'll be passed
  */
