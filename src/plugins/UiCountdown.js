@@ -871,6 +871,13 @@
             // some experience specific information (could also be retrieved via the webExVersionId)
             tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
 
+            // add referencing campaign information if applicable
+            if ($.isPlainObject(this.settings.experience.campaignData)) {
+                tags.refCampaignType = this.settings.experience.campaignData.campaignType;
+                tags.refCampaignId = this.settings.experience.campaignData.campaignId;
+                tags.refCampaignExId = this.settings.experience.campaignData.campaignExecutionId;
+            }
+
             // add the split-test info if any split-test
             if ($.isPlainObject(this.settings.splitTestData)) {
                 tags.groupType = this.settings.splitTestData.isControl === true ? 'control' : 'test';
