@@ -790,6 +790,8 @@
             const validCampaignTypes = $.isArray(this.settings.experience.campaignTypes) ? this.settings.experience.campaignTypes : null;
             if (validCampaignTypes !== null && $.inArray(campaignType, validCampaignTypes) === -1) {
                 return false;
+            } else {
+                this.settings.experience.campaignData = $.extend(true, {}, this.settings.experience.campaignData, campaignData);
             }
 
             // check the web-experience's identifier to match this one (if any is selected/defined)
