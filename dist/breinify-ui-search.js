@@ -341,25 +341,32 @@
                     .card:hover .media img {
                         transform: scale(1.04);
                     }
-                    .rating {
+                    .tile {
                         position: absolute;
-                        top: 10px;
-                        left: 10px;
-                        display: inline-flex;
+                        inset: 0;
+                        display: flex;
                         align-items: center;
-                        gap: 4px;
-                        padding: 4px 8px;
-                        background: rgba(24, 24, 27, .72);
-                        color: #fff;
-                        border-radius: 999px;
-                        font-size: 12px;
-                        font-weight: 600;
+                        justify-content: center;
+                        transition: transform .3s ease;
+                    }
+                    .card:hover .tile {
+                        transform: scale(1.04);
+                    }
+                    .monogram {
+                        font-size: 46px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
                         line-height: 1;
                     }
-                    .rating svg {
-                        width: 12px;
-                        height: 12px;
-                        color: #fbbf24;
+                    .eyebrow {
+                        position: absolute;
+                        top: 11px;
+                        left: 13px;
+                        font-size: 10.5px;
+                        font-weight: 700;
+                        letter-spacing: .09em;
+                        text-transform: uppercase;
+                        color: rgba(24, 24, 27, .5);
                     }
                     .body {
                         display: flex;
@@ -377,17 +384,6 @@
                         -webkit-box-orient: vertical;
                         overflow: hidden;
                     }
-                    .meta {
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        font-size: 12.5px;
-                        color: #71717a;
-                    }
-                    .meta svg {
-                        width: 13px;
-                        height: 13px;
-                    }
                     .tags {
                         display: flex;
                         flex-wrap: wrap;
@@ -401,6 +397,24 @@
                         font-size: 11.5px;
                         font-weight: 500;
                         text-transform: capitalize;
+                    }
+                    .foot {
+                        display: flex;
+                        align-items: baseline;
+                        justify-content: space-between;
+                        gap: 8px;
+                        margin-top: 2px;
+                    }
+                    .price {
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #18181b;
+                    }
+                    .sku {
+                        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                        font-size: 11px;
+                        color: #a1a1aa;
+                        letter-spacing: .01em;
                     }
                     .status {
                         padding: 40px 16px;
@@ -507,10 +521,12 @@
             const name = Breinify.UTL.isNonEmptyString(get("productName"));
             const url = Breinify.UTL.isNonEmptyString(get("productUrl"));
             const imageUrl = Breinify.UTL.isNonEmptyString(get("productImageUrl"));
-            const rating = typeof get("avgRating") === "number" ? get("avgRating") : null;
-            const prep = typeof get("minPrepTime") === "number" ? get("minPrepTime") : 0;
-            const cook = typeof get("minCookTime") === "number" ? get("minCookTime") : 0;
-            const totalTime = prep + cook;
+            const sku = Breinify.UTL.isNonEmptyString(get("productId"))
+                || Breinify.UTL.isNonEmptyString(item.dataIdExternal);
+            const price = typeof get("productPrice") === "number" ? get("productPrice") : null;
+            const categories = ($.isArray(get("productCategories")) ? get("productCategories") : [])
+                .map((category) => Breinify.UTL.isNonEmptyString(category))
+                .filter((category) => category !== null);
 
             const card = document.createElement(url === null ? "div" : "a");
             card.className = "card is-enter";
@@ -528,15 +544,39 @@
                 img.alt = name === null ? "" : name;
                 img.loading = "lazy";
                 media.appendChild(img);
-            }
-            if (rating !== null) {
-                const badge = document.createElement("span");
-                badge.className = "rating";
-                badge.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
-                    + '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>'
-                    + '</svg>';
-                badge.appendChild(document.createTextNode(rating.toFixed(1)));
-                media.appendChild(badge);
+            } else {
+                // products arrive without images, so derive a stable pastel tile + monogram from the SKU
+                const seed = sku === null ? (name === null ? "" : name) : sku;
+                let hash = 0;
+                for (let i = 0; i < seed.length; i++) {
+                    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+                }
+                const hue = hash % 360;
+                media.style.background = "linear-gradient(135deg, hsl(" + hue + ", 68%, 93%), hsl("
+                    + ((hue + 40) % 360) + ", 66%, 86%))";
+
+                const initials = (name === null ? "?" : name)
+                    .split(/\s+/)
+                    .map((word) => word.charAt(0))
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase();
+
+                const tile = document.createElement("div");
+                tile.className = "tile";
+                const monogram = document.createElement("span");
+                monogram.className = "monogram";
+                monogram.style.color = "hsl(" + hue + ", 48%, 36%)";
+                monogram.textContent = initials;
+                tile.appendChild(monogram);
+                media.appendChild(tile);
+
+                if (categories.length > 0) {
+                    const eyebrow = document.createElement("span");
+                    eyebrow.className = "eyebrow";
+                    eyebrow.textContent = categories[0];
+                    media.appendChild(eyebrow);
+                }
             }
             card.appendChild(media);
 
@@ -545,35 +585,37 @@
 
             const title = document.createElement("p");
             title.className = "name";
-            title.textContent = name === null ? "Untitled recipe" : name;
+            title.textContent = name === null ? "Untitled product" : name;
             body.appendChild(title);
 
-            if (totalTime > 0) {
-                const meta = document.createElement("div");
-                meta.className = "meta";
-                meta.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
-                    + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-                    + '<circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>';
-                meta.appendChild(document.createTextNode(Math.round(totalTime) + " min"));
-                body.appendChild(meta);
-            }
-
-            const tagValues = ($.isArray(get("hvrRecipeTypes")) ? get("hvrRecipeTypes") : [])
-                .concat($.isArray(get("hvrMainIngredients")) ? get("hvrMainIngredients") : [])
-                .map((tag) => Breinify.UTL.isNonEmptyString(tag))
-                .filter((tag) => tag !== null)
-                .slice(0, 3);
-
-            if (tagValues.length > 0) {
+            if (categories.length > 0) {
                 const tags = document.createElement("div");
                 tags.className = "tags";
-                tagValues.forEach((value) => {
+                categories.slice(0, 3).forEach((value) => {
                     const tag = document.createElement("span");
                     tag.className = "tag";
                     tag.textContent = value;
                     tags.appendChild(tag);
                 });
                 body.appendChild(tags);
+            }
+
+            if (price !== null || sku !== null) {
+                const foot = document.createElement("div");
+                foot.className = "foot";
+                if (price !== null) {
+                    const priceEl = document.createElement("span");
+                    priceEl.className = "price";
+                    priceEl.textContent = "$" + price.toFixed(2);
+                    foot.appendChild(priceEl);
+                }
+                if (sku !== null) {
+                    const skuEl = document.createElement("span");
+                    skuEl.className = "sku";
+                    skuEl.textContent = sku;
+                    foot.appendChild(skuEl);
+                }
+                body.appendChild(foot);
             }
 
             card.appendChild(body);
