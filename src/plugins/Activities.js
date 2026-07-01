@@ -96,7 +96,7 @@
                         _self.instance.send(mappedActivity);
                         break;
                     default:
-                        throw new Error('Using currently unavailable type: ' + gaType);
+                        throw new Error('Using currently unavailable type: ' + _self.type);
                 }
             });
         },

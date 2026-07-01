@@ -779,8 +779,9 @@
             if (typeof timestampInMs === 'number') {
                 timestamp = Math.floor(timestampInMs / 1000);
             } else if (Breinify.UTL.loc.hasParam('assetTimestamp')) {
+                let assetTimestamp = null;
                 try {
-                    let assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
+                    assetTimestamp = Breinify.UTL.loc.param('assetTimestamp');
                     if (/^[0-9]+$/.test(assetTimestamp)) {
                         timestamp = parseInt(assetTimestamp);
                     } else if (/^[0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2}$/.test(assetTimestamp)) {
@@ -914,7 +915,7 @@
         areDataTagsEnabled: function () {
             return overload.overload({
                 'Object,Object': function (data, res) {
-                    return _private.areDataTagsEnabled(data, res.group, res.item, cb);
+                    return _private.areDataTagsEnabled(data, res.group, res.item);
                 },
                 'Object,String,String': function (data, group, item) {
                     return _private.areDataTagsEnabled(data, group, item);
