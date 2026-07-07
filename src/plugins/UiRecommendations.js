@@ -14,6 +14,7 @@
     const _private = {
         _defaultPos: DEFAULT_POS,
         _runtimeByWebExId: {},
+        _recommendationBatchLockTimeoutInMs: 6 * 1000,
 
         ensurePath: function (obj, path, leafFactory, nodeFactory) {
             const root = $.isPlainObject(obj) ? obj : {};
@@ -176,6 +177,32 @@
             ].join("::");
         },
 
+        _cleanupRecommendationBatchLocks: function (runtime) {
+            if (!$.isPlainObject(runtime?.recommendationBatchLocks)) {
+                return;
+            }
+
+            const now = Date.now();
+            const expiredKeys = [];
+
+            Object.keys(runtime.recommendationBatchLocks).forEach(function (key) {
+                const lock = runtime.recommendationBatchLocks[key];
+
+                if (!$.isPlainObject(lock)) {
+                    expiredKeys.push(key);
+                    return;
+                }
+
+                if (typeof lock.expiresAt === "number" && lock.expiresAt <= now) {
+                    expiredKeys.push(key);
+                }
+            });
+
+            for (let i = 0; i < expiredKeys.length; i++) {
+                this._releaseRecommendationBatchLock(runtime, expiredKeys[i]);
+            }
+        },
+
         _acquireRecommendationBatchLock: function (runtime, batchKey) {
             const normalizedBatchKey = Breinify.UTL.isNonEmptyString(batchKey);
 
@@ -187,11 +214,27 @@
                 runtime.recommendationBatchLocks = {};
             }
 
-            if (runtime.recommendationBatchLocks[normalizedBatchKey] === true) {
+            this._cleanupRecommendationBatchLocks(runtime);
+
+            if ($.isPlainObject(runtime.recommendationBatchLocks[normalizedBatchKey])) {
                 return false;
             }
 
-            runtime.recommendationBatchLocks[normalizedBatchKey] = true;
+            const lock = {
+                key: normalizedBatchKey,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + this._recommendationBatchLockTimeoutInMs,
+                timer: null
+            };
+
+            const _self = this;
+            if (typeof window === "object" && $.isFunction(window.setTimeout)) {
+                lock.timer = window.setTimeout(function () {
+                    _self._releaseRecommendationBatchLock(runtime, normalizedBatchKey);
+                }, this._recommendationBatchLockTimeoutInMs);
+            }
+
+            runtime.recommendationBatchLocks[normalizedBatchKey] = lock;
             return true;
         },
 
@@ -204,7 +247,72 @@
                 return;
             }
 
+            const lock = runtime.recommendationBatchLocks[normalizedBatchKey];
+            if ($.isPlainObject(lock) &&
+                lock.timer !== null &&
+                typeof window === "object" &&
+                $.isFunction(window.clearTimeout)) {
+                window.clearTimeout(lock.timer);
+            }
+
             delete runtime.recommendationBatchLocks[normalizedBatchKey];
+        },
+
+        _bindRecommendationBatchLockToRenderLifecycle: function (runtime, batchKey, renderOptions) {
+            const normalizedBatchKey = Breinify.UTL.isNonEmptyString(batchKey);
+            const normalizedRenderOptions = $.isArray(renderOptions) ? renderOptions : [];
+
+            if (!$.isPlainObject(runtime) ||
+                normalizedBatchKey === null ||
+                normalizedRenderOptions.length === 0) {
+                return false;
+            }
+
+            let pending = normalizedRenderOptions.length;
+            let released = false;
+            const _self = this;
+
+            const releaseOnce = function () {
+                if (released === true) {
+                    return;
+                }
+
+                pending--;
+
+                if (pending <= 0) {
+                    released = true;
+                    _self._releaseRecommendationBatchLock(runtime, normalizedBatchKey);
+                }
+            };
+
+            for (let i = 0; i < normalizedRenderOptions.length; i++) {
+                const option = normalizedRenderOptions[i];
+
+                if (!$.isPlainObject(option)) {
+                    releaseOnce();
+                    continue;
+                }
+
+                if (!$.isPlainObject(option.process)) {
+                    option.process = {};
+                }
+
+                const originalFinalize = $.isFunction(option.process.finalize)
+                    ? option.process.finalize
+                    : null;
+
+                option.process.finalize = function () {
+                    try {
+                        if ($.isFunction(originalFinalize)) {
+                            return originalFinalize.apply(this, arguments);
+                        }
+                    } finally {
+                        releaseOnce();
+                    }
+                };
+            }
+
+            return true;
         },
 
         _handleFeaturesChanged: function (webExId, webExVersionId, payload) {
@@ -736,7 +844,27 @@
                     runtime.anchorState = $.isPlainObject(nextAnchorState) ? nextAnchorState : {};
                 }
 
-                Breinify.plugins.recommendations.render(filteredResults);
+                if (acquiredRecommendationBatchLock === true) {
+                    const lockBoundToRenderLifecycle = this._bindRecommendationBatchLockToRenderLifecycle(
+                        runtime,
+                        recommendationBatchLockKey,
+                        filteredResults
+                    );
+
+                    if (lockBoundToRenderLifecycle === true) {
+                        acquiredRecommendationBatchLock = false;
+                    }
+                }
+
+                try {
+                    Breinify.plugins.recommendations.render(filteredResults);
+                } catch (e) {
+                    if (acquiredRecommendationBatchLock !== true) {
+                        this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
+                    }
+
+                    throw e;
+                }
             } finally {
                 if (handlingType === "onLoad") {
                     runtime.onLoadHandling = false;
