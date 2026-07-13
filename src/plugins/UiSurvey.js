@@ -1013,12 +1013,12 @@
             return runtime._edges.some((e) => $.isPlainObject(e) && e.source === nid);
         },
 
-        _getNextNodeIdFromAnswer: function (runtime, nodeId, answerId) {
+        _getEdgeFromAnswer: function (runtime, nodeId, answerId) {
             if (!nodeId || !answerId || !Array.isArray(runtime._edges)) {
                 return null;
             }
 
-            let edge = runtime._edges.find((e) => {
+            const edge = runtime._edges.find((e) => {
                 if (!$.isPlainObject(e) || e.source !== nodeId) {
                     return false;
                 }
@@ -1036,7 +1036,12 @@
                 return false;
             });
 
-            if (!edge) {
+            return $.isPlainObject(edge) ? edge : null;
+        },
+
+        _getNextNodeIdFromAnswer: function (runtime, nodeId, answerId) {
+            let edge = this._getEdgeFromAnswer(runtime, nodeId, answerId);
+            if (!$.isPlainObject(edge) && Array.isArray(runtime._edges)) {
                 edge = runtime._edges.find((e) => $.isPlainObject(e) && e.source === nodeId);
             }
 
@@ -1114,8 +1119,13 @@
 
         _fireAnswerEvent: function (runtime, eventType, nodeId, answerId) {
             const resolvedNodeId = Breinify.UTL.isNonEmptyString(nodeId);
+            const resolvedAnswerId = Breinify.UTL.isNonEmptyString(answerId);
             const node = resolvedNodeId !== null && runtime._nodesById ? runtime._nodesById[resolvedNodeId] : null;
-            const answer = this._getAnswerFromNode(node, answerId);
+            const answer = this._getAnswerFromNode(node, resolvedAnswerId);
+            const edge = resolvedNodeId !== null && resolvedAnswerId !== null
+                ? this._getEdgeFromAnswer(runtime, resolvedNodeId, resolvedAnswerId)
+                : null;
+            const edgeId = $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.id) : null;
 
             const questionLabel = node && node.data && typeof node.data.question === "string" ? node.data.question : null;
             const answerLabel = answer && typeof answer.title === "string" ? answer.title : null;
@@ -1123,7 +1133,8 @@
             this.dispatchToTriggers(runtime, eventType, this._buildEventDetail(runtime, {
                 nodeId: resolvedNodeId,
                 extra: {
-                    answerId: answerId,
+                    edgeId: edgeId,
+                    answerId: resolvedAnswerId,
                     answer: answer || null,
                     answerLabel: answerLabel,
                     questionLabel: questionLabel
@@ -1864,6 +1875,9 @@
                         action: "selected answer",
                         elementType: "br-survey-answer",
                         stepNumber: typeof (detail && detail.stepNumber) === "number" ? detail.stepNumber : null,
+                        nodeId: Breinify.UTL.isNonEmptyString(detail && detail.nodeId),
+                        edgeId: Breinify.UTL.isNonEmptyString(detail && detail.edgeId),
+                        answerId: Breinify.UTL.isNonEmptyString(detail && detail.answerId),
                         answer: Breinify.UTL.isNonEmptyString(detail && detail.answerLabel),
                         question: Breinify.UTL.isNonEmptyString(detail && detail.questionLabel)
                     };
