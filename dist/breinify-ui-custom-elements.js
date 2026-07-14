@@ -332,12 +332,21 @@
 
             this._updateButtons = null;
             this._itemObserver = null;
+            this._resizeObserver = null;
             this._resizeHandler = null;
+            this._resizeTimer = null;
 
             this._activeIndex = 0;
             this._keyboardHandler = null;
+            this._dragMouseUpHandler = null;
+
+            this._dragActive = false;
+            this._dragStartX = 0;
+            this._dragStartScrollLeft = 0;
 
             this._carouselDesc = null;
+            this._reconnectLayoutFrame = null;
+            this._reconnectLayoutTimer = null;
         }
 
         usesShadowRoot() {
@@ -345,19 +354,43 @@
         }
 
         connectedCallback() {
-            super.connectedCallback();
 
-            if (this._sliderInitialized) {
-                if (!this._itemObserver) {
-                    this._setupItemMutationObserver();
-                }
-                if (!this._resizeHandler) {
-                    this._setupResizeHandler();
-                }
-                if (!this._keyboardHandler) {
-                    this._setupKeyboardNavigation();
-                }
+            const wasSliderInitialized = this._sliderInitialized === true;
+            super.connectedCallback();
+            if (!wasSliderInitialized) {
+                return;
             }
+
+            const normalizedExistingItems = this._normalizeExistingItemsIntoTrack();
+
+            /*
+             * Re-resolve ancestor-dependent variants after the slider
+             * has been attached at its new DOM location.
+             *
+             * The existing structure is preserved because
+             * _sliderInitialized is already true.
+             */
+            this._render();
+
+            if (!this._itemObserver) {
+                this._setupItemMutationObserver();
+            }
+            if (!this._resizeObserver && !this._resizeHandler) {
+                this._setupResizeObservation();
+            }
+            if (!this._keyboardHandler) {
+                this._setupKeyboardNavigation();
+            }
+            if (!this._dragMouseUpHandler) {
+                this._setupDragMouseUpHandler();
+            }
+
+            if (normalizedExistingItems) {
+                this._updateItemPositions();
+                this._setActiveIndex(this._activeIndex, false);
+            }
+
+            this._scheduleReconnectLayout();
         }
 
         disconnectedCallback() {
@@ -367,14 +400,33 @@
                 this._itemObserver.disconnect();
                 this._itemObserver = null;
             }
+            if (this._resizeObserver) {
+                this._resizeObserver.disconnect();
+                this._resizeObserver = null;
+            }
             if (this._resizeHandler) {
                 window.removeEventListener("resize", this._resizeHandler);
                 this._resizeHandler = null;
+            }
+            if (this._resizeTimer !== null) {
+                window.clearTimeout(this._resizeTimer);
+                this._resizeTimer = null;
             }
             if (this._keyboardHandler && this._track) {
                 this._track.removeEventListener("keydown", this._keyboardHandler, true);
                 this._keyboardHandler = null;
             }
+            if (this._dragMouseUpHandler) {
+                window.removeEventListener(
+                    "mouseup",
+                    this._dragMouseUpHandler
+                );
+
+                this._dragMouseUpHandler = null;
+            }
+
+            this._stopDrag();
+            this._cancelReconnectLayout();
         }
 
         // ---------- statics (methods only; "constants" assigned after the class) ----------
@@ -689,7 +741,7 @@
                 this._setupDragToScroll();
                 this._setupPreventHistorySwipe();
                 this._setupItemMutationObserver();
-                this._setupResizeHandler();
+                this._setupResizeObservation();
                 this._setupKeyboardNavigation();
                 this._sliderInitialized = true;
             }
@@ -796,6 +848,32 @@
             this._updateItemPositions();
             this._setActiveIndex(this._activeIndex, false);
             this._applyTrackLabel();
+        }
+
+        _normalizeExistingItemsIntoTrack() {
+            if (!this._track) {
+                return false;
+            }
+
+            const children = Array.prototype.slice.call(this.children);
+            let normalized = false;
+
+            for (let i = 0; i < children.length; i += 1) {
+                const child = children[i];
+
+                if (!(child instanceof HTMLElement)) {
+                    continue;
+                }
+
+                if (child === this._layout ||
+                    child === this._carouselDesc) {
+                    continue;
+                }
+
+                normalized = this._addItem(child, false) || normalized;
+            }
+
+            return normalized;
         }
 
         _applyTrackLabel() {
@@ -1133,6 +1211,8 @@
 
             track.addEventListener("scroll", updateButtons);
             this._updateButtons = updateButtons;
+
+            updateButtons();
         }
 
         // ---------- drag ----------
@@ -1143,42 +1223,50 @@
                 return;
             }
 
-            let isDown = false;
-            let startX = 0;
-            let scrollLeft = 0;
-
             track.addEventListener("mousedown", (e) => {
-                isDown = true;
+                this._dragActive = true;
                 track.classList.add("is-dragging");
-                startX = e.pageX - track.getBoundingClientRect().left;
-                scrollLeft = track.scrollLeft;
+
+                this._dragStartX = e.pageX - track.getBoundingClientRect().left;
+                this._dragStartScrollLeft = track.scrollLeft;
             });
 
             track.addEventListener("mouseleave", () => {
-                if (!isDown) {
-                    return;
-                }
-                isDown = false;
-                track.classList.remove("is-dragging");
-            });
-
-            window.addEventListener("mouseup", () => {
-                if (!isDown) {
-                    return;
-                }
-                isDown = false;
-                track.classList.remove("is-dragging");
+                this._stopDrag();
             });
 
             track.addEventListener("mousemove", (e) => {
-                if (!isDown) {
+                if (!this._dragActive) {
                     return;
                 }
                 e.preventDefault();
+
                 const x = e.pageX - track.getBoundingClientRect().left;
-                const walk = x - startX;
-                track.scrollLeft = scrollLeft - walk;
+                const walk = x - this._dragStartX;
+                track.scrollLeft = this._dragStartScrollLeft - walk;
             });
+
+            this._setupDragMouseUpHandler();
+        }
+
+        _stopDrag() {
+            this._dragActive = false;
+
+            if (this._track) {
+                this._track.classList.remove("is-dragging");
+            }
+        }
+
+        _setupDragMouseUpHandler() {
+            if (this._dragMouseUpHandler !== null || typeof window === "undefined") {
+                return;
+            }
+
+            this._dragMouseUpHandler = () => {
+                this._stopDrag();
+            };
+
+            window.addEventListener("mouseup", this._dragMouseUpHandler);
         }
 
         _setupPreventHistorySwipe() {
@@ -1227,9 +1315,83 @@
         }
 
         // ---------- observers / resize ----------
+        _scheduleReconnectLayout() {
+            if (typeof window === "undefined") {
+                this._applyLayout();
+                return;
+            }
+
+            this._cancelReconnectLayout();
+
+            const applyLayout = () => {
+                if (!this.isConnected) {
+                    return;
+                }
+
+                this._applyLayout();
+            };
+
+            if (typeof window.requestAnimationFrame === "function") {
+                this._reconnectLayoutFrame = window.requestAnimationFrame(() => {
+                    this._reconnectLayoutFrame = null;
+                    applyLayout();
+                });
+            }
+
+            if (typeof window.setTimeout === "function") {
+                this._reconnectLayoutTimer = window.setTimeout(() => {
+                    this._reconnectLayoutTimer = null;
+                    applyLayout();
+                }, 120);
+            } else if (typeof window.requestAnimationFrame !== "function") {
+                applyLayout();
+            }
+        }
+
+        _cancelReconnectLayout() {
+            if (typeof window === "undefined") {
+                this._reconnectLayoutFrame = null;
+                this._reconnectLayoutTimer = null;
+                return;
+            }
+
+            if (this._reconnectLayoutFrame !== null &&
+                typeof window.cancelAnimationFrame === "function") {
+                window.cancelAnimationFrame(this._reconnectLayoutFrame);
+            }
+
+            if (this._reconnectLayoutTimer !== null &&
+                typeof window.clearTimeout === "function") {
+                window.clearTimeout(this._reconnectLayoutTimer);
+            }
+
+            this._reconnectLayoutFrame = null;
+            this._reconnectLayoutTimer = null;
+        }
+
+        _setupResizeObservation() {
+            if (!this._track) {
+                return;
+            }
+
+            if (typeof ResizeObserver === "function") {
+                this._resizeObserver = new ResizeObserver(() => {
+                    if (!this.isConnected) {
+                        return;
+                    }
+
+                    this._applyLayout();
+                });
+
+                this._resizeObserver.observe(this._track);
+                return;
+            }
+
+            this._setupResizeHandler();
+        }
 
         _setupItemMutationObserver() {
-            if (typeof MutationObserver === "undefined") {
+            if (typeof MutationObserver === "undefined" || !this._track) {
                 return;
             }
 
@@ -1237,66 +1399,94 @@
             const self = this;
 
             const observer = new MutationObserver(function (mutations) {
-                let requiresLayout = false;
+                let itemsChanged = false;
 
-                mutations.forEach(function (mutation) {
+                for (let i = 0; i < mutations.length; i += 1) {
+                    const mutation = mutations[i];
+
                     if (mutation.type !== "childList") {
-                        return;
+                        continue;
                     }
 
                     if (mutation.target === self) {
-                        Array.prototype.forEach.call(mutation.addedNodes, function (node) {
-                            if (!(node instanceof HTMLElement)) {
-                                return;
-                            }
+                        Array.prototype.forEach.call(
+                            mutation.addedNodes,
+                            function (node) {
+                                if (!(node instanceof HTMLElement)) {
+                                    return;
+                                }
 
-                            if (node === track ||
-                                node.id === BrSimpleSlider.STYLE_ELEMENT_ID ||
-                                node.classList.contains("br-simple-slider__btn")) {
-                                return;
-                            }
+                                if (node === self._layout ||
+                                    node === self._carouselDesc) {
+                                    return;
+                                }
 
-                            if (node.tagName &&
-                                node.tagName.toLowerCase() === "script" &&
-                                node.getAttribute("type") &&
-                                node.getAttribute("type").endsWith("application/json")) {
-                                return;
+                                if (self._addItem(node, false)) {
+                                    itemsChanged = true;
+                                }
                             }
-
-                            requiresLayout = self._addItem(node) || requiresLayout;
-                        });
+                        );
                     }
 
                     if (mutation.target === track) {
-                        Array.prototype.forEach.call(mutation.addedNodes, function (node) {
-                            if (node instanceof HTMLElement) {
-                                requiresLayout = self._addItem(node) || requiresLayout;
-                            }
-                        });
-                    }
-                });
+                        if (mutation.removedNodes.length > 0) {
+                            itemsChanged = true;
+                        }
 
-                if (requiresLayout) {
-                    self._applyLayout();
+                        Array.prototype.forEach.call(
+                            mutation.addedNodes,
+                            function (node) {
+                                if (!(node instanceof HTMLElement)) {
+                                    return;
+                                }
+
+                                if (self._addItem(node, false)) {
+                                    itemsChanged = true;
+                                }
+                            }
+                        );
+                    }
                 }
+
+                if (!itemsChanged) {
+                    return;
+                }
+
+                self._updateItemPositions();
+                self._setActiveIndex(self._activeIndex, false);
+                self._applyLayout();
             });
 
-            observer.observe(this, {childList: true, subtree: false});
-            observer.observe(track, {childList: true, subtree: false});
+            observer.observe(this, {
+                childList: true,
+                subtree: false
+            });
+
+            observer.observe(track, {
+                childList: true,
+                subtree: false
+            });
 
             this._itemObserver = observer;
         }
 
         _setupResizeHandler() {
-            let resizeTimeout = null;
+            if (typeof window === "undefined") {
+                return;
+            }
 
             this._resizeHandler = () => {
-                if (resizeTimeout !== null) {
-                    window.clearTimeout(resizeTimeout);
+                if (this._resizeTimer !== null) {
+                    window.clearTimeout(this._resizeTimer);
                 }
 
-                resizeTimeout = window.setTimeout(() => {
-                    resizeTimeout = null;
+                this._resizeTimer = window.setTimeout(() => {
+                    this._resizeTimer = null;
+
+                    if (!this.isConnected) {
+                        return;
+                    }
+
                     this._applyLayout();
                 }, 100);
             };
@@ -1453,6 +1643,17 @@
 
             const items = track.querySelectorAll(".br-simple-slider__item");
             if (!items.length) {
+                this._lastLayout = null;
+                this._activeIndex = 0;
+
+                if (this._prevBtn) {
+                    this._prevBtn.disabled = true;
+                }
+
+                if (this._nextBtn) {
+                    this._nextBtn.disabled = true;
+                }
+
                 return;
             }
 
