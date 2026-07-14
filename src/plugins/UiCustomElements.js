@@ -338,6 +338,8 @@
             this._keyboardHandler = null;
 
             this._carouselDesc = null;
+            this._reconnectLayoutTimer = null;
+            this._reconnectLayoutFrame = null;
         }
 
         usesShadowRoot() {
@@ -357,6 +359,8 @@
                 if (!this._keyboardHandler) {
                     this._setupKeyboardNavigation();
                 }
+
+                this._scheduleReconnectLayout();
             }
         }
 
@@ -374,6 +378,20 @@
             if (this._keyboardHandler && this._track) {
                 this._track.removeEventListener("keydown", this._keyboardHandler, true);
                 this._keyboardHandler = null;
+            }
+
+            if (this._reconnectLayoutFrame !== null &&
+                typeof window !== "undefined" &&
+                typeof window.cancelAnimationFrame === "function") {
+                window.cancelAnimationFrame(this._reconnectLayoutFrame);
+                this._reconnectLayoutFrame = null;
+            }
+
+            if (this._reconnectLayoutTimer !== null &&
+                typeof window !== "undefined" &&
+                typeof window.clearTimeout === "function") {
+                window.clearTimeout(this._reconnectLayoutTimer);
+                this._reconnectLayoutTimer = null;
             }
         }
 
@@ -1302,6 +1320,49 @@
             };
 
             window.addEventListener("resize", this._resizeHandler);
+        }
+
+        _scheduleReconnectLayout() {
+            if (typeof window === "undefined") {
+                this._applyLayout();
+                return;
+            }
+
+            if (this._reconnectLayoutFrame !== null &&
+                typeof window.cancelAnimationFrame === "function") {
+                window.cancelAnimationFrame(this._reconnectLayoutFrame);
+                this._reconnectLayoutFrame = null;
+            }
+
+            if (this._reconnectLayoutTimer !== null &&
+                typeof window.clearTimeout === "function") {
+                window.clearTimeout(this._reconnectLayoutTimer);
+                this._reconnectLayoutTimer = null;
+            }
+
+            const refreshLayout = (type) => {
+                if (type === "frame") {
+                    this._reconnectLayoutFrame = null;
+                } else if (type === "timer") {
+                    this._reconnectLayoutTimer = null;
+                }
+
+                this._applyLayout();
+            };
+
+            if (typeof window.requestAnimationFrame === "function") {
+                this._reconnectLayoutFrame = window.requestAnimationFrame(function () {
+                    refreshLayout("frame");
+                });
+            }
+
+            if (typeof window.setTimeout === "function") {
+                this._reconnectLayoutTimer = window.setTimeout(function () {
+                    refreshLayout("timer");
+                }, 120);
+            } else if (typeof window.requestAnimationFrame !== "function") {
+                refreshLayout(null);
+            }
         }
 
         // ---------- header logic ----------
