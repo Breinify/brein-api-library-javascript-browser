@@ -350,6 +350,8 @@
             super.connectedCallback();
 
             if (this._sliderInitialized) {
+                const normalizedExistingItems = this._normalizeExistingItemsIntoTrack();
+
                 if (!this._itemObserver) {
                     this._setupItemMutationObserver();
                 }
@@ -358,6 +360,11 @@
                 }
                 if (!this._keyboardHandler) {
                     this._setupKeyboardNavigation();
+                }
+
+                if (normalizedExistingItems === true) {
+                    this._updateItemPositions();
+                    this._setActiveIndex(this._activeIndex, false);
                 }
 
                 this._scheduleReconnectLayout();
@@ -1320,6 +1327,31 @@
             };
 
             window.addEventListener("resize", this._resizeHandler);
+        }
+
+        _normalizeExistingItemsIntoTrack() {
+            if (!(this instanceof HTMLElement) || !this._track) {
+                return false;
+            }
+
+            const children = Array.prototype.slice.call(this.children);
+            let normalized = false;
+
+            for (let i = 0; i < children.length; i += 1) {
+                const child = children[i];
+
+                if (!(child instanceof HTMLElement)) {
+                    continue;
+                }
+
+                if (child === this._layout || child === this._carouselDesc) {
+                    continue;
+                }
+
+                normalized = this._addItem(child, false) || normalized;
+            }
+
+            return normalized;
         }
 
         _scheduleReconnectLayout() {
