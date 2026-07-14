@@ -338,8 +338,6 @@
             this._keyboardHandler = null;
 
             this._carouselDesc = null;
-            this._reconnectLayoutTimer = null;
-            this._reconnectLayoutFrame = null;
         }
 
         usesShadowRoot() {
@@ -350,8 +348,6 @@
             super.connectedCallback();
 
             if (this._sliderInitialized) {
-                const normalizedExistingItems = this._normalizeExistingItemsIntoTrack();
-
                 if (!this._itemObserver) {
                     this._setupItemMutationObserver();
                 }
@@ -361,13 +357,6 @@
                 if (!this._keyboardHandler) {
                     this._setupKeyboardNavigation();
                 }
-
-                if (normalizedExistingItems === true) {
-                    this._updateItemPositions();
-                    this._setActiveIndex(this._activeIndex, false);
-                }
-
-                this._scheduleReconnectLayout();
             }
         }
 
@@ -385,20 +374,6 @@
             if (this._keyboardHandler && this._track) {
                 this._track.removeEventListener("keydown", this._keyboardHandler, true);
                 this._keyboardHandler = null;
-            }
-
-            if (this._reconnectLayoutFrame !== null &&
-                typeof window !== "undefined" &&
-                typeof window.cancelAnimationFrame === "function") {
-                window.cancelAnimationFrame(this._reconnectLayoutFrame);
-                this._reconnectLayoutFrame = null;
-            }
-
-            if (this._reconnectLayoutTimer !== null &&
-                typeof window !== "undefined" &&
-                typeof window.clearTimeout === "function") {
-                window.clearTimeout(this._reconnectLayoutTimer);
-                this._reconnectLayoutTimer = null;
             }
         }
 
@@ -1327,74 +1302,6 @@
             };
 
             window.addEventListener("resize", this._resizeHandler);
-        }
-
-        _normalizeExistingItemsIntoTrack() {
-            if (!(this instanceof HTMLElement) || !this._track) {
-                return false;
-            }
-
-            const children = Array.prototype.slice.call(this.children);
-            let normalized = false;
-
-            for (let i = 0; i < children.length; i += 1) {
-                const child = children[i];
-
-                if (!(child instanceof HTMLElement)) {
-                    continue;
-                }
-
-                if (child === this._layout || child === this._carouselDesc) {
-                    continue;
-                }
-
-                normalized = this._addItem(child, false) || normalized;
-            }
-
-            return normalized;
-        }
-
-        _scheduleReconnectLayout() {
-            if (typeof window === "undefined") {
-                this._applyLayout();
-                return;
-            }
-
-            if (this._reconnectLayoutFrame !== null &&
-                typeof window.cancelAnimationFrame === "function") {
-                window.cancelAnimationFrame(this._reconnectLayoutFrame);
-                this._reconnectLayoutFrame = null;
-            }
-
-            if (this._reconnectLayoutTimer !== null &&
-                typeof window.clearTimeout === "function") {
-                window.clearTimeout(this._reconnectLayoutTimer);
-                this._reconnectLayoutTimer = null;
-            }
-
-            const refreshLayout = (type) => {
-                if (type === "frame") {
-                    this._reconnectLayoutFrame = null;
-                } else if (type === "timer") {
-                    this._reconnectLayoutTimer = null;
-                }
-
-                this._applyLayout();
-            };
-
-            if (typeof window.requestAnimationFrame === "function") {
-                this._reconnectLayoutFrame = window.requestAnimationFrame(function () {
-                    refreshLayout("frame");
-                });
-            }
-
-            if (typeof window.setTimeout === "function") {
-                this._reconnectLayoutTimer = window.setTimeout(function () {
-                    refreshLayout("timer");
-                }, 120);
-            } else if (typeof window.requestAnimationFrame !== "function") {
-                refreshLayout(null);
-            }
         }
 
         // ---------- header logic ----------
