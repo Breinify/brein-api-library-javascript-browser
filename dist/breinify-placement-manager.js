@@ -755,25 +755,23 @@
         _ruleMatchesElement: function (rule, $el, attribute, isAttributeEvent) {
             let i;
             let observe;
-            let matched = false;
 
             for (i = 0; i < rule.observe.length; i++) {
                 observe = rule.observe[i];
 
                 if (observe.type === "exists") {
                     if (this._matchesSelectorLocally($el, observe.selector) === true) {
-                        matched = true;
+                        return true;
                     }
-                } else if (observe.type === "attribute") {
-                    if (isAttributeEvent === true &&
-                        observe.attribute === attribute &&
-                        this._matchesSelectorLocally($el, observe.selector) === true) {
-                        matched = true;
-                    }
+                } else if (observe.type === "attribute" &&
+                    isAttributeEvent === true &&
+                    observe.attribute === attribute &&
+                    this._matchesSelectorLocally($el, observe.selector) === true) {
+                    return true;
                 }
             }
 
-            return matched;
+            return false;
         },
 
         /**
@@ -853,35 +851,101 @@
                         value: action.value
                     });
                 }
-            } else if (action.type === "insert-webexperience") {
-                if (this._isInsertFulfilled($target, action) !== true) {
-                    actions.push({
-                        type: "insert-webexperience",
-                        $target: $target,
-                        key: action.key,
-                        selector: action.selector,
-                        position: action.position,
-                        webExpId: action.webExpId,
-                        positionId: action.positionId,
-                        classes: action.classes,
-                        attributes: action.attributes,
-                        ruleId: rule._trackingRuleId || rule.id || null
-                    });
-                }
-            } else if (action.type === "insert-html") {
-                if (this._isInsertFulfilled($target, action) !== true) {
-                    actions.push({
-                        type: "insert-html",
-                        $target: $target,
-                        key: action.key,
-                        selector: action.selector,
-                        position: action.position,
-                        html: action.html,
-                        splitTestAttributes: action.splitTestAttributes,
-                        ruleId: rule._trackingRuleId || rule.id || null
-                    });
-                }
+
+                return;
             }
+
+            if (action.type !== "insert-webexperience" &&
+                action.type !== "insert-html") {
+                return;
+            }
+
+            if (this._hasManagedInsertion(
+                $target,
+                action.position,
+                action.key
+            )) {
+                return;
+            }
+
+            if (action.type === "insert-webexperience") {
+                actions.push({
+                    type: "insert-webexperience",
+                    $target: $target,
+                    key: action.key,
+                    selector: action.selector,
+                    position: action.position,
+                    webExpId: action.webExpId,
+                    positionId: action.positionId,
+                    classes: action.classes,
+                    attributes: action.attributes,
+                    ruleId: rule._trackingRuleId || rule.id || null
+                });
+            } else {
+                actions.push({
+                    type: "insert-html",
+                    $target: $target,
+                    key: action.key,
+                    selector: action.selector,
+                    position: action.position,
+                    html: action.html,
+                    splitTestAttributes: action.splitTestAttributes,
+                    ruleId: rule._trackingRuleId || rule.id || null
+                });
+            }
+        },
+
+        /**
+         * Checks whether a managed insertion already exists in the structural scope
+         * associated with the requested insertion position.
+         *
+         * Position semantics:
+         * - prepend/append: search direct children of the target
+         * - before/after: search direct children of the target's parent
+         *
+         * Exact sibling ordering is intentionally not enforced after insertion.
+         *
+         * @param {jQuery} $target insertion target
+         * @param {string} position normalized insertion position
+         * @param {string} key managed placement key
+         * @returns {boolean} true if a matching managed insertion exists
+         * @private
+         */
+        _hasManagedInsertion: function ($target, position, key) {
+            const target = $target && $target.length > 0
+                ? $target[0]
+                : null;
+
+            if (Breinify.UTL.dom.isNodeType(target, 1) !== true) {
+                return false;
+            }
+
+            let parent;
+
+            if (position === "prepend" || position === "append") {
+                parent = target;
+            } else if (position === "before" || position === "after") {
+                parent = target.parentElement;
+            } else {
+                return false;
+            }
+
+            if (Breinify.UTL.dom.isNodeType(parent, 1) !== true) {
+                return false;
+            }
+
+            let candidate = parent.firstElementChild;
+
+            while (candidate !== null) {
+                if (candidate.getAttribute(this._markerOwner) === "placementManager" &&
+                    candidate.getAttribute(this._markerKey) === key) {
+                    return true;
+                }
+
+                candidate = candidate.nextElementSibling;
+            }
+
+            return false;
         },
 
         /**
@@ -990,11 +1054,6 @@
                         $node = $nodes.first();
                     }
 
-                    const placementAction = {
-                        key: action.key,
-                        position: position
-                    };
-
                     const attributes = $.extend(
                         true,
                         {},
@@ -1002,21 +1061,17 @@
                         $.isPlainObject(config.attributes) ? config.attributes : {}
                     );
 
-                    if ($node.length === 0 || _self._isInsertFulfilled($target, placementAction) !== true) {
-                        if ($node.length === 0) {
-                            $node = _self._createManagedWebExperienceNode(
-                                webExpId,
-                                positionId,
-                                action.key,
-                                config.classes,
-                                attributes
-                            );
+                    if ($node.length === 0) {
+                        $node = _self._createManagedWebExperienceNode(
+                            webExpId,
+                            positionId,
+                            action.key,
+                            config.classes,
+                            attributes
+                        );
 
-                            if ($node === null) {
-                                return $();
-                            }
-                        } else {
-                            _self._applyAttributes($node, attributes);
+                        if ($node === null) {
+                            return $();
                         }
 
                         _self._insertNodeAtPosition($target, $node, position);
@@ -1032,6 +1087,9 @@
                             });
                         }
                     } else {
+                        /*
+                         * The node already exists. Update its attributes, but do not reposition it.
+                         */
                         _self._applyAttributes($node, attributes);
                     }
 
@@ -1433,6 +1491,21 @@
             this._trackedInsertions = remaining;
         },
 
+        /**
+         * Creates a managed web-experience container.
+         *
+         * The container is marked as placement-manager-owned and may optionally
+         * receive a position identifier, CSS classes, and additional attributes.
+         *
+         * @param {string} webExpId web-experience identifier
+         * @param {string|null} positionId optional web-experience position identifier
+         * @param {string} key managed placement key
+         * @param {Array<string>} classes CSS classes to apply
+         * @param {Object} attributes additional attributes to apply
+         * @returns {jQuery|null} created managed container, or null for an invalid
+         * web-experience identifier
+         * @private
+         */
         _createManagedWebExperienceNode: function (webExpId, positionId, key, classes, attributes) {
             if (Breinify.UTL.isNonEmptyString(webExpId) === null) {
                 return null;
@@ -1449,13 +1522,7 @@
                 $node.addClass(classes.join(" "));
             }
 
-            if ($.isPlainObject(attributes)) {
-                $.each(attributes, function (name, value) {
-                    $node.attr(name, value);
-                    return true;
-                });
-            }
-
+            this._applyAttributes($node, attributes);
             this._markPlacedNode($node, key);
             return $node;
         },
@@ -1472,6 +1539,15 @@
             }
         },
 
+        /**
+         * Applies normalized attributes to a node.
+         *
+         * Undefined and null values are applied as empty strings.
+         *
+         * @param {jQuery} $node target node
+         * @param {Object} attributes attributes to apply
+         * @private
+         */
         _applyAttributes: function ($node, attributes) {
             if (!$node || $node.length === 0 || !$.isPlainObject(attributes)) {
                 return;
@@ -1491,11 +1567,18 @@
         /**
          * Applies one insert-webexperience action.
          *
+         * The placement is checked again immediately before insertion because another
+         * evaluation may have fulfilled the action after it was collected.
+         *
          * @param {Object} action prepared insert-webexperience action
          * @private
          */
         _applyInsertWebExperienceAction: function (action) {
-            if (this._isInsertFulfilled(action.$target, action) === true) {
+            if (this._hasManagedInsertion(
+                action.$target,
+                action.position,
+                action.key
+            )) {
                 return;
             }
 
@@ -1506,11 +1589,17 @@
                 action.classes,
                 action.attributes
             );
+
             if ($node === null) {
                 return;
             }
 
-            this._insertNodeAtPosition(action.$target, $node, action.position);
+            this._insertNodeAtPosition(
+                action.$target,
+                $node,
+                action.position
+            );
+
             this._trackInsertedNode({
                 key: action.key,
                 type: action.type,
@@ -1524,20 +1613,36 @@
         /**
          * Applies one insert-html action.
          *
+         * The placement is checked again immediately before insertion because another
+         * evaluation may have fulfilled the action after it was collected.
+         *
          * @param {Object} action prepared insert-html action
          * @private
          */
         _applyInsertHtmlAction: function (action) {
-            if (this._isInsertFulfilled(action.$target, action) === true) {
+            if (this._hasManagedInsertion(
+                action.$target,
+                action.position,
+                action.key
+            )) {
                 return;
             }
 
-            const $node = this._createMarkedNodeFromHtml(action.html, action.key, action.splitTestAttributes);
+            const $node = this._createMarkedNodeFromHtml(
+                action.html,
+                action.key,
+                action.splitTestAttributes
+            );
+
             if ($node === null) {
                 return;
             }
 
-            this._insertNodeAtPosition(action.$target, $node, action.position);
+            this._insertNodeAtPosition(
+                action.$target,
+                $node,
+                action.position
+            );
 
             this._trackInsertedNode({
                 key: action.key,
@@ -1645,35 +1750,53 @@
          * @private
          */
         _isTrackedInsertionValid: function (trackedEntry) {
+            const node = trackedEntry && trackedEntry.element
+                ? trackedEntry.element
+                : null;
 
-            const node = trackedEntry && trackedEntry.element ? trackedEntry.element : null;
-            if (!node || node.nodeType !== 1 || node.isConnected !== true) {
+            if (Breinify.UTL.dom.isNodeType(node, 1) !== true ||
+                node.isConnected !== true) {
                 return false;
             }
 
-            let relatedNode = null;
-            if (trackedEntry.position === "before") {
-                relatedNode = node.nextElementSibling;
-                return !!relatedNode &&
-                    $.isFunction(relatedNode.matches) &&
-                    relatedNode.matches(trackedEntry.selector);
-            } else if (trackedEntry.position === "after") {
-                relatedNode = node.previousElementSibling;
-                return !!relatedNode &&
-                    $.isFunction(relatedNode.matches) &&
-                    relatedNode.matches(trackedEntry.selector);
-            } else if (trackedEntry.position === "prepend") {
-                relatedNode = node.parentElement;
-                return !!relatedNode &&
-                    $.isFunction(relatedNode.matches) &&
-                    relatedNode.matches(trackedEntry.selector) &&
-                    relatedNode.firstElementChild === node;
-            } else if (trackedEntry.position === "append") {
-                relatedNode = node.parentElement;
-                return !!relatedNode &&
-                    $.isFunction(relatedNode.matches) &&
-                    relatedNode.matches(trackedEntry.selector) &&
-                    relatedNode.lastElementChild === node;
+            const parent = node.parentElement;
+
+            if (Breinify.UTL.dom.isNodeType(parent, 1) !== true) {
+                return false;
+            }
+
+            if (trackedEntry.position === "prepend" ||
+                trackedEntry.position === "append") {
+                /*
+                 * The placement must remain a direct child of a matching target.
+                 * Exact first/last ordering is intentionally not enforced.
+                 */
+                try {
+                    return parent.matches(trackedEntry.selector);
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            if (trackedEntry.position === "before" ||
+                trackedEntry.position === "after") {
+                /*
+                 * The placement and target must remain direct siblings.
+                 * Stop as soon as a matching sibling is found.
+                 */
+                let candidate = parent.firstElementChild;
+
+                while (candidate !== null) {
+                    try {
+                        if (candidate.matches(trackedEntry.selector)) {
+                            return true;
+                        }
+                    } catch (e) {
+                        return false;
+                    }
+
+                    candidate = candidate.nextElementSibling;
+                }
             }
 
             return false;
@@ -1694,11 +1817,18 @@
         },
 
         /**
-         * Creates a single marked root element from HTML.
+         * Creates one managed root element from an HTML string.
+         *
+         * The HTML must produce exactly one element node. Text nodes and other
+         * non-element nodes are ignored when determining the root element.
+         * The resulting element is marked as placement-manager-owned and receives
+         * the provided attributes.
          *
          * @param {string} html HTML string
-         * @param {string} key unique placement key
-         * @returns {jQuery|null} created marked node or null
+         * @param {string} key managed placement key
+         * @param {Object|null} attributes optional attributes to apply to the created root element
+         * @returns {jQuery|null} created managed root element, or null if the input
+         * does not produce exactly one element root
          * @private
          */
         _createMarkedNodeFromHtml: function (html, key, attributes) {
@@ -1707,18 +1837,20 @@
             }
 
             const $nodes = $(html);
-            const elementNodes = $nodes.filter(function () {
-                return this && this.nodeType === 1;
+            const $elementNodes = $nodes.filter(function () {
+                return Breinify.UTL.dom.isNodeType(this, 1);
             });
 
-            if (elementNodes.length !== 1) {
+            if ($elementNodes.length !== 1) {
                 return null;
             }
 
-            this._markPlacedNode(elementNodes.first(), key);
-            this._applyAttributes(elementNodes.first(), attributes);
+            const $node = $elementNodes.first();
 
-            return elementNodes.first();
+            this._markPlacedNode($node, key);
+            this._applyAttributes($node, attributes);
+
+            return $node;
         },
 
         /**
@@ -1758,40 +1890,6 @@
             } else {
                 return $el.is(selector) || $el.find(selector).length > 0 || $el.closest(selector).length > 0;
             }
-        },
-
-        /**
-         * Checks whether an insert action is already fulfilled.
-         *
-         * The DOM is the source of truth here. Tracking is intentionally not used
-         * for fulfillment, only for cleanup/bookkeeping.
-         *
-         * @param {jQuery} $target action target
-         * @param {Object} action normalized insert action
-         * @returns {boolean} true if the insert already exists
-         * @private
-         */
-        _isInsertFulfilled: function ($target, action) {
-
-            const target = $target && $target.length > 0 ? $target[0] : null;
-            if (!target || target.nodeType !== 1) {
-                return false;
-            }
-
-            let candidate = null;
-            if (action.position === "before") {
-                candidate = target.previousElementSibling;
-            } else if (action.position === "after") {
-                candidate = target.nextElementSibling;
-            } else if (action.position === "prepend") {
-                candidate = target.firstElementChild;
-            } else if (action.position === "append") {
-                candidate = target.lastElementChild;
-            }
-
-            return candidate !== null &&
-                candidate.getAttribute(this._markerKey) === action.key &&
-                candidate.getAttribute(this._markerOwner) === "placementManager";
         }
     };
 
