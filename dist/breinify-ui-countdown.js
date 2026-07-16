@@ -15,7 +15,8 @@
     const cssStyle = '' +
         '<style id="br-style-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
-        '.countdown-banner { display: none; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
+        '.countdown-banner { display: block; text-decoration: none; user-select: none; background-color: var(--color-background); color: var(--color-foreground); text-align: center; padding: 10px 0; }' +
+        '.countdown-banner[hidden] { display: none !important; }' +
         '.countdown-title { font-size: calc(var(--unit-height) * 0.25); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase }' +
         '.countdown-timer { display: flex; justify-content: center; align-items: stretch; gap: 12px; height: var(--unit-height); }' +
         '.countdown-disclaimer { padding: calc(var(--unit-height) * 0.1) 0 0 0; font-size: calc(var(--unit-height) * 0.18); }' +
@@ -27,7 +28,7 @@
         '@media (max-width: 500px) { :host { --unit-height: 40px !important; } }' +
         '</style>';
     const htmlTemplate = '' +
-        '<a-or-div style="display:none" class="countdown-banner">' +
+        '<a-or-div hidden aria-hidden="true" class="countdown-banner">' +
         '  <div class="countdown-title"></div>' +
         '  <div class="countdown-timer">' +
         '    <div class="time-block">' +
@@ -121,29 +122,69 @@
             const fadeOuts = [];
             for (const [id, entry] of Object.entries(this.countdownById)) {
                 if (entry.status !== 'rendering') {
-                    // do nothing, we don't want to show or work with this element
+                    // Do nothing if this countdown is not in a renderable state.
                     continue;
                 }
 
                 const $el = entry.el.$shadowRoot.find('.countdown-banner');
-                if ($.inArray(id, uuidsToShow) > -1) {
+                const isHidden = entry.el._isCountdownHidden($el);
+                const shouldShow = $.inArray(id, uuidsToShow) > -1;
+
+                if (shouldShow) {
+
+                    /*
+                     * The countdown is already visible. Do not trigger another
+                     * animation or another renderedElement activity.
+                     */
+                    if (isHidden === false) {
+                        continue;
+                    }
+
                     if (entry.settings.fadeIn === true) {
-                        fadeIns.push(() => $el
-                            .stop(true, true)
-                            .css('display', 'block')
-                            .fadeIn()
-                            .promise().then(() => {
-                                entry.el._sendActivity('renderedElement');
-                            }));
+                        fadeIns.push(() => {
+                            entry.el._setCountdownHidden($el, false);
+
+                            return $el
+                                .stop(true, true)
+                                .css('opacity', 0)
+                                .animate({
+                                    opacity: 1
+                                })
+                                .promise()
+                                .then(() => {
+                                    $el.css('opacity', '');
+                                    entry.el._sendActivity('renderedElement');
+                                });
+                        });
                     } else {
-                        $el.stop(true, true).css('display', 'block').show();
+                        $el.stop(true, true).css('opacity', '');
+                        entry.el._setCountdownHidden($el, false);
                         entry.el._sendActivity('renderedElement');
                     }
                 } else {
+
+                    /*
+                     * The countdown is already hidden. There is nothing left
+                     * to animate or change.
+                     */
+                    if (isHidden === true) {
+                        continue;
+                    }
+
                     if (entry.settings.fadeOut === true) {
-                        fadeOuts.push(() => $el.stop(true, true).fadeOut().promise());
+                        fadeOuts.push(() => $el
+                            .stop(true, true)
+                            .animate({
+                                opacity: 0
+                            })
+                            .promise()
+                            .then(() => {
+                                entry.el._setCountdownHidden($el, true);
+                                $el.css('opacity', '');
+                            }));
                     } else {
-                        $el.stop(true, true).hide();
+                        $el.stop(true, true).css('opacity', '');
+                        entry.el._setCountdownHidden($el, true);
                     }
                 }
             }
@@ -342,6 +383,37 @@
             }
         }
 
+        _isCountdownHidden($countdownBanner) {
+            const countdownBanner = $countdownBanner.get(0);
+            return countdownBanner === undefined || countdownBanner.hidden === true;
+        }
+
+        _setCountdownHidden($countdownBanner, hidden) {
+            const countdownBanner = $countdownBanner.get(0);
+            if (countdownBanner === undefined) {
+                return;
+            }
+
+            if (hidden === true) {
+                countdownBanner.hidden = true;
+                countdownBanner.setAttribute('aria-hidden', 'true');
+
+                /*
+                 * The configured CSS may contain something such as:
+                 *
+                 *     display: flex !important;
+                 *
+                 * The countdown owns the hidden state, so use an inline important
+                 * value while hidden. It is removed again when the countdown shows.
+                 */
+                countdownBanner.style.setProperty('display', 'none', 'important');
+            } else {
+                countdownBanner.hidden = false;
+                countdownBanner.setAttribute('aria-hidden', 'false');
+                countdownBanner.style.removeProperty('display');
+            }
+        }
+
         _updateStatus(status, value, settings) {
             allCountdownStatus.update(this, status, value, settings);
         }
@@ -424,6 +496,7 @@
                 this._applyStyle();
                 this._applyHtml();
                 this._applyContent();
+                this._validateCountdownVisibility();
                 this.isRendered = true;
             }
 
@@ -498,17 +571,55 @@
             });
         }
 
-        _updateCountdown(firstCheck) {
-            const $countdownBanner = this.$shadowRoot.find('.countdown-banner');
+        _validateCountdownVisibility() {
+            const countdownBanner = this.$shadowRoot.find('.countdown-banner').get(0);
+            if (countdownBanner === undefined || countdownBanner.hidden !== true) {
+                return;
+            }
 
+            if (window.getComputedStyle(countdownBanner).display !== 'none') {
+                console.warn(
+                    'The configured countdown CSS overrides the component hidden state.',
+                    countdownBanner
+                );
+            }
+        }
+
+        _updateCountdown(firstCheck) {
             const now = this.now();
             const startTime = this.getStartTime();
-            if (startTime === null || startTime > now) {
-                this._hideCountdown();
+            const endTime = this.getEndTime();
+
+            /*
+             * Invalid countdown configuration cannot become valid later,
+             * so hide the countdown and stop the refresh loop.
+             */
+            if (startTime === null ||
+                endTime === null ||
+                endTime <= startTime) {
+                this._hideCountdown(false);
+                return false;
+            }
+
+            /*
+             * The countdown has not started yet. Keep the refresh loop
+             * active so it can become visible when startTime is reached.
+             */
+            if (startTime > now) {
+                this._hideCountdown(false);
                 return true;
             }
 
-            let diff = Math.max(0, this.settings.experience.endTime - now);
+            /*
+             * Check expiration before rendering the values. This prevents
+             * a final visible 00 00 00 00 state.
+             */
+            if (endTime <= now) {
+                this._hideCountdown(firstCheck !== true);
+                return false;
+            }
+
+            const diff = endTime - now;
 
             const seconds = Math.floor(diff) % 60;
             const minutes = Math.floor(diff / 60) % 60;
@@ -520,16 +631,7 @@
             this.$shadowRoot.find('.time-minutes').text(this._pad(minutes));
             this.$shadowRoot.find('.time-seconds').text(this._pad(seconds));
 
-            if (seconds <= 0 && minutes <= 0 && hours <= 0 && days <= 0) {
-                return false;
-            } else if ($countdownBanner.is(':visible')) {
-                // nothing to do, it's already there
-            } else if (firstCheck === true) {
-                this._showCountdown(false);
-            } else {
-                this._showCountdown(true);
-            }
-
+            this._showCountdown(firstCheck !== true);
             return true;
         }
 
