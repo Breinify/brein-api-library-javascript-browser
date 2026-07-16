@@ -12,6 +12,18 @@
     // get dependencies and some constants for the element (like template)
     const elementName = 'br-ui-countdown';
     const $ = Breinify.UTL._jquery();
+
+    const renderedElementStatusCodes = Object.freeze({
+        RENDERED: 200,
+        NOT_RENDERED: 13000,
+        SUPPRESSED: 13001,
+        NOT_ACTIVE_YET: 13002,
+        NO_LONGER_ACTIVE: 13003,
+        CONTAINER_UNAVAILABLE: 13100,
+        INVALID_CONFIGURATION: 13200,
+        RENDERING_FAILED: 500
+    });
+
     const cssStyle = '' +
         '<style id="br-style-countdown-default">' +
         ':host { --unit-height: 60px; --color-background: #1d273b; --color-foreground: #f2f2f2; --color-separator: rgba(255, 255, 255, 0.3); }' +
@@ -58,14 +70,23 @@
                 return;
             }
 
+            // normalize the supplied settings
+            settings = $.isPlainObject(settings) ? settings : {};
+
             // current settings
             let current = this.countdownById[el.uuid];
             current = $.isPlainObject(current) ? current : {};
+            const currentSettings = $.isPlainObject(current.settings) ? current.settings : {};
 
-            // check if there is an actual change
-            if (current.status === status && current.value === value) {
-
-                // we still need to update the settings (the fading logic may change)
+            /*
+             * Check whether the internal state and the externally reported rendering
+             * result are unchanged. Fade settings may still be updated without causing
+             * another evaluation.
+             */
+            if (current.status === status &&
+                current.value === value &&
+                currentSettings.containerAvailable === settings.containerAvailable &&
+                currentSettings.renderedElementStatus === settings.renderedElementStatus) {
                 current.settings = settings;
                 return;
             }
@@ -75,7 +96,7 @@
                 el: el,
                 status: status,
                 value: value,
-                settings: $.isPlainObject(settings) ? settings : {}
+                settings: settings
             };
 
             // determine if all are finished, and determine resolution strategy
@@ -121,8 +142,21 @@
             const fadeIns = [];
             const fadeOuts = [];
             for (const [id, entry] of Object.entries(this.countdownById)) {
+                const entrySettings = $.isPlainObject(entry.settings) ? entry.settings : {};
+
+                /*
+                 * Failed and ignored countdowns never enter the regular rendering flow,
+                 * but they still need to report their rendering result.
+                 */
                 if (entry.status !== 'rendering') {
-                    // Do nothing if this countdown is not in a renderable state.
+                    const renderedElementStatus = Number.isInteger(entrySettings.renderedElementStatus) ?
+                        entrySettings.renderedElementStatus :
+                        entry.status === 'failed' ?
+                            renderedElementStatusCodes.RENDERING_FAILED :
+                            renderedElementStatusCodes.NOT_RENDERED;
+
+                    const containerAvailable = typeof entrySettings.containerAvailable === 'boolean' ? entrySettings.containerAvailable : null;
+                    entry.el._sendRenderedElementActivity(containerAvailable, false, renderedElementStatus);
                     continue;
                 }
 
@@ -131,16 +165,20 @@
                 const shouldShow = $.inArray(id, uuidsToShow) > -1;
 
                 if (shouldShow) {
+                    const sendRenderedActivity = () => {
+                        entry.el._sendRenderedElementActivity(true, true, renderedElementStatusCodes.RENDERED);
+                    };
 
                     /*
-                     * The countdown is already visible. Do not trigger another
-                     * animation or another renderedElement activity.
+                     * The countdown is already visible. No animation is needed, but the
+                     * activity helper will send the result if it has not been reported yet.
                      */
                     if (isHidden === false) {
+                        sendRenderedActivity();
                         continue;
                     }
 
-                    if (entry.settings.fadeIn === true) {
+                    if (entrySettings.fadeIn === true) {
                         fadeIns.push(() => {
                             entry.el._setCountdownHidden($el, false);
 
@@ -153,25 +191,44 @@
                                 .promise()
                                 .then(() => {
                                     $el.css('opacity', '');
-                                    entry.el._sendActivity('renderedElement');
+                                    sendRenderedActivity();
                                 });
                         });
                     } else {
                         $el.stop(true, true).css('opacity', '');
                         entry.el._setCountdownHidden($el, false);
-                        entry.el._sendActivity('renderedElement');
+                        sendRenderedActivity();
                     }
                 } else {
+                    /*
+                     * A countdown that requested visibility but was not selected was
+                     * suppressed by the resolution strategy. A countdown that already
+                     * requested a hidden state retains its specific status.
+                     */
+                    const renderedElementStatus = entry.value === 'visible' ?
+                        renderedElementStatusCodes.SUPPRESSED :
+                        Number.isInteger(entrySettings.renderedElementStatus) ?
+                            entrySettings.renderedElementStatus :
+                            renderedElementStatusCodes.NOT_RENDERED;
+
+                    const containerAvailable = typeof entrySettings.containerAvailable === 'boolean' ?
+                        entrySettings.containerAvailable :
+                        true;
+
+                    const sendNotRenderedActivity = () => {
+                        entry.el._sendRenderedElementActivity(containerAvailable, false, renderedElementStatus);
+                    };
 
                     /*
-                     * The countdown is already hidden. There is nothing left
-                     * to animate or change.
+                     * Even when the countdown is already hidden, its non-rendering result
+                     * still needs to be reported.
                      */
                     if (isHidden === true) {
+                        sendNotRenderedActivity();
                         continue;
                     }
 
-                    if (entry.settings.fadeOut === true) {
+                    if (entrySettings.fadeOut === true) {
                         fadeOuts.push(() => $el
                             .stop(true, true)
                             .animate({
@@ -181,10 +238,12 @@
                             .then(() => {
                                 entry.el._setCountdownHidden($el, true);
                                 $el.css('opacity', '');
+                                sendNotRenderedActivity();
                             }));
                     } else {
                         $el.stop(true, true).css('opacity', '');
                         entry.el._setCountdownHidden($el, true);
+                        sendNotRenderedActivity();
                     }
                 }
             }
@@ -277,6 +336,7 @@
         uuid = null
         interval = null
         isRendered = false
+        lastRenderedElementActivity = null
 
         constructor() {
             super();
@@ -304,12 +364,22 @@
             callback = $.isFunction(callback) ? callback : () => null;
 
             if (!$.isPlainObject(settings)) {
+                this._updateStatus('failed', 'configuration', {
+                    containerAvailable: null,
+                    renderedElementStatus: renderedElementStatusCodes.RENDERING_FAILED
+                });
+
                 callback(new Error('settings must be a valid object'), null);
                 return;
             }
 
             const checkedType = Breinify.UTL.isNonEmptyString(settings.type);
             if (checkedType === null) {
+                this._updateStatus('failed', 'configuration', {
+                    containerAvailable: null,
+                    renderedElementStatus: renderedElementStatusCodes.INVALID_CONFIGURATION
+                });
+
                 callback(new Error('the specified type "' + settings.type + '" is invalid'), null);
                 return;
             }
@@ -327,7 +397,10 @@
                     if (error === null) {
                         callback(null, _self.settings);
                     } else {
-                        _self._updateStatus('failed', 'configuration');
+                        _self._updateStatus('failed', 'configuration', {
+                            containerAvailable: null,
+                            renderedElementStatus: renderedElementStatusCodes.RENDERING_FAILED
+                        });
                         callback(error, null);
                     }
                 };
@@ -350,21 +423,34 @@
                         splitTestName: splitTestName
                     }, splitTestStorage, function (error, data) {
                         if (error !== null || !$.isPlainObject(data)) {
-                            _self._updateStatus('failed', 'split-test');
+                            _self._updateStatus('failed', 'split-test', {
+                                containerAvailable: null,
+                                renderedElementStatus: renderedElementStatusCodes.RENDERING_FAILED
+                            });
                             return;
                         }
 
                         const group = Breinify.UTL.isNonEmptyString(data.group);
                         if (group === null) {
-                            _self._updateStatus('ignored', 'no-group');
+                            _self._updateStatus('ignored', 'no-group', {
+                                containerAvailable: null,
+                                renderedElementStatus: renderedElementStatusCodes.NOT_RENDERED
+                            });
                             return;
                         }
 
                         const splitTestData = $.isPlainObject(data.splitTestData) ? data.splitTestData : {};
+                        if (Breinify.UTL.isNonEmptyString(splitTestData.groupDecision) === null) {
+                            splitTestData.groupDecision = group;
+                        }
+
+                        _self.settings.splitTestData = splitTestData;
                         if (splitTestData.isControlGroup === true) {
-                            _self._updateStatus('ignored', 'control-group');
+                            _self._updateStatus('ignored', 'control-group', {
+                                containerAvailable: null,
+                                renderedElementStatus: renderedElementStatusCodes.NOT_RENDERED
+                            });
                         } else {
-                            _self.settings.splitTestData = splitTestData;
                             window.queueMicrotask(finalizeCallback);
                         }
                     });
@@ -483,7 +569,7 @@
             // if this is not connected we utilize the position information and attach it
             if (this._ensureConnected() === false) {
                 this._stopRefreshLoop();
-                this._hideCountdown(false);
+                this._hideCountdown(false, renderedElementStatusCodes.CONTAINER_UNAVAILABLE, false);
                 return;
             }
 
@@ -504,13 +590,12 @@
             if (this.settings.type === 'CAMPAIGN_BASED' || this.settings.type === 'ONE_TIME') {
                 const needsUpdates = this._updateCountdown(true);
                 if (needsUpdates === false) {
-                    this._hideCountdown(false);
                     this._stopRefreshLoop();
                 } else {
                     this._ensureRefreshLoop();
                 }
             } else {
-                this._hideCountdown();
+                this._hideCountdown(false, renderedElementStatusCodes.INVALID_CONFIGURATION, true);
                 this._stopRefreshLoop();
             }
         }
@@ -535,7 +620,6 @@
 
                 if (_self._updateCountdown(false) === false) {
                     _self._stopRefreshLoop();
-                    _self._hideCountdown(true);
                 }
             }).start();
         }
@@ -561,13 +645,17 @@
 
         _showCountdown(fadeIn) {
             this._updateStatus('rendering', 'visible', {
-                fadeIn: fadeIn === true
+                fadeIn: fadeIn === true,
+                containerAvailable: true,
+                renderedElementStatus: renderedElementStatusCodes.RENDERED
             });
         }
 
-        _hideCountdown(fadeOut) {
+        _hideCountdown(fadeOut, renderedElementStatus, containerAvailable) {
             this._updateStatus('rendering', 'hidden', {
-                fadeOut: fadeOut === true
+                fadeOut: fadeOut === true,
+                containerAvailable: typeof containerAvailable === 'boolean' ? containerAvailable : this.isConnected === true,
+                renderedElementStatus: Number.isInteger(renderedElementStatus) ? renderedElementStatus : renderedElementStatusCodes.NOT_RENDERED
             });
         }
 
@@ -597,7 +685,7 @@
             if (startTime === null ||
                 endTime === null ||
                 endTime <= startTime) {
-                this._hideCountdown(false);
+                this._hideCountdown(false, renderedElementStatusCodes.INVALID_CONFIGURATION, true);
                 return false;
             }
 
@@ -606,7 +694,7 @@
              * active so it can become visible when startTime is reached.
              */
             if (startTime > now) {
-                this._hideCountdown(false);
+                this._hideCountdown(false, renderedElementStatusCodes.NOT_ACTIVE_YET, true);
                 return true;
             }
 
@@ -615,7 +703,7 @@
              * a final visible 00 00 00 00 state.
              */
             if (endTime <= now) {
-                this._hideCountdown(firstCheck !== true);
+                this._hideCountdown(firstCheck !== true, renderedElementStatusCodes.NO_LONGER_ACTIVE, true);
                 return false;
             }
 
@@ -720,7 +808,10 @@
             const brMsId = Breinify.UTL.loc.param('br-msid');
             if (brMsId === null) {
                 if (this._retrieveCampaignBasedSettings(callback) === false) {
-                    this._updateStatus('ignored', 'missing-msid');
+                    this._updateStatus('ignored', 'missing-msid', {
+                        containerAvailable: null,
+                        renderedElementStatus: renderedElementStatusCodes.NOT_RENDERED
+                    });
                 }
 
                 return;
@@ -744,7 +835,10 @@
                 } else if (_self._retrieveCampaignBasedSettings(callback) === true) {
                     // done the callback is called within the retrieval if true is returned
                 } else {
-                    _self._updateStatus('ignored', 'invalid-msid');
+                    _self._updateStatus('ignored', 'invalid-msid', {
+                        containerAvailable: null,
+                        renderedElementStatus: renderedElementStatusCodes.NOT_RENDERED
+                    });
                 }
             }, 30000);
         }
@@ -937,12 +1031,14 @@
             return true;
         }
 
-        _sendActivity(type, event) {
+        _sendActivity(type, event, additional) {
             const tags = {};
+            const settings = $.isPlainObject(this.settings) ? this.settings : {};
+            const experience = $.isPlainObject(settings.experience) ? settings.experience : {};
 
             // set the default information for the widget and action
             tags.widgetType = 'countdown';
-            tags.widget = Breinify.UTL.isNonEmptyString(this.settings.campaignName);
+            tags.widget = Breinify.UTL.isNonEmptyString(settings.campaignName);
 
             let scheduleActivity;
             if (type === 'clickedElement') {
@@ -959,34 +1055,41 @@
 
                 scheduleActivity = !opensInNewTab && !(event.metaKey || event.ctrlKey || event.which === 2);
             } else if (type === 'renderedElement') {
+                additional = $.isPlainObject(additional) ? additional : {};
+
                 tags.actionType = 'rendered';
-                tags.action = 'show countdown';
+                tags.action = additional.rendered === true ?
+                    'show countdown' :
+                    'do not show countdown';
 
                 tags.elementType = elementName;
+
+                tags.containerAvailable = typeof additional.containerAvailable === 'boolean' ? additional.containerAvailable : null;
+                tags.rendered = additional.rendered === true;
+                tags.status = Number.isInteger(additional.status) ? additional.status : null;
 
                 scheduleActivity = false;
             }
 
             // set some campaign information
-            tags.campaignWebExId = Breinify.UTL.isNonEmptyString(this.settings.webExVersionId);
+            tags.campaignWebExId = Breinify.UTL.isNonEmptyString(settings.webExVersionId);
 
             // some experience specific information (could also be retrieved via the webExVersionId)
-            tags.message = Breinify.UTL.isNonEmptyString(this.settings.experience.message);
+            tags.message = Breinify.UTL.isNonEmptyString(experience.message);
 
-            // add referencing campaign information if applicable
-            if ($.isPlainObject(this.settings.experience.campaignData)) {
-                tags.refCampaignType = this.settings.experience.campaignData.campaignType;
-                tags.refCampaignId = this.settings.experience.campaignData.campaignId;
-                tags.refCampaignExId = this.settings.experience.campaignData.campaignExecutionId;
+            if ($.isPlainObject(experience.campaignData)) {
+                tags.refCampaignType = experience.campaignData.campaignType;
+                tags.refCampaignId = experience.campaignData.campaignId;
+                tags.refCampaignExId = experience.campaignData.campaignExecutionId;
             }
 
             // add the split-test info if any split-test
-            if ($.isPlainObject(this.settings.splitTestData)) {
-                tags.groupType = this.settings.splitTestData.isControl === true ? 'control' : 'test';
-                tags.group = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.groupDecision);
+            if ($.isPlainObject(settings.splitTestData)) {
+                tags.groupType = settings.splitTestData.isControlGroup === true ? 'control' : 'test';
+                tags.group = Breinify.UTL.isNonEmptyString(settings.splitTestData.groupDecision);
 
-                const test = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.testName);
-                const instance = Breinify.UTL.isNonEmptyString(this.settings.splitTestData.selectedInstance);
+                const test = Breinify.UTL.isNonEmptyString(settings.splitTestData.testName);
+                const instance = Breinify.UTL.isNonEmptyString(settings.splitTestData.selectedInstance);
                 tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
             }
 
@@ -995,6 +1098,38 @@
             } else {
                 Breinify.plugins.activities.generic(type, {}, tags);
             }
+        }
+
+        _sendRenderedElementActivity(containerAvailable, rendered, status) {
+            containerAvailable = typeof containerAvailable === 'boolean' ?
+                containerAvailable :
+                null;
+
+            rendered = rendered === true;
+            status = Number.isInteger(status) ? status : null;
+
+            /*
+             * The status manager may evaluate the same result repeatedly, especially
+             * while a countdown refresh loop is active. Only report an activity when
+             * the externally visible rendering result changes.
+             */
+            const signature = [
+                containerAvailable,
+                rendered,
+                status
+            ].join('|');
+
+            if (this.lastRenderedElementActivity === signature) {
+                return;
+            }
+
+            this.lastRenderedElementActivity = signature;
+
+            this._sendActivity('renderedElement', null, {
+                containerAvailable: containerAvailable,
+                rendered: rendered,
+                status: status
+            });
         }
     }
 
@@ -1063,7 +1198,7 @@
                 campaignName: Breinify.UTL.isNonEmptyString(module.campaignName),
                 webExVersionId: module.webExVersionId,
                 webExId: module.webExId
-            }, config), function(error) {
+            }, config), function (error) {
                 if (error === null) {
                     entry.configured = true;
 
