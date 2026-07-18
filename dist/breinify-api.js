@@ -13561,6 +13561,7 @@ dependencyScope.jQuery = $;
         cookies: {
             sessionId: 'x-breinify-uuid',
             browserId: 'x-breinify-bid',
+            referrerKey: 'x-breinify-rfr',
             delayedActivities: 'x-breinify-delayed'
         },
 
@@ -14241,6 +14242,10 @@ dependencyScope.jQuery = $;
             browserId: null,
             sessionId: null,
             splitTestData: null,
+            referrerData: null,
+            referrerDataResolved: false,
+            referrerSessionId: null,
+            referrerUrl: null,
 
             getSplitTestData: function (updateChanges) {
                 if ($.isPlainObject(this.splitTestData)) {
@@ -14352,6 +14357,8 @@ dependencyScope.jQuery = $;
             },
 
             create: function (user) {
+                const sessionId = this.getSessionId();
+
                 let splitTestData;
                 try {
                     splitTestData = this.getSplitTestData(true);
@@ -14360,12 +14367,20 @@ dependencyScope.jQuery = $;
                 }
                 splitTestData = $.isEmptyObject(splitTestData) ? null : splitTestData;
 
+                let referrerData;
+                try {
+                    referrerData = this.getReferrerData(sessionId);
+                } catch (e) {
+                    referrerData = null;
+                }
+
                 // get the default user
                 let defaultUser = {
-                    'sessionId': this.getSessionId(),
+                    'sessionId': sessionId,
                     'additional': {
                         'apiVersion': this.determineApiVersion(),
                         'splitTests': splitTestData,
+                        'referrer': referrerData,
                         'identifiers': {
                             'browserId': this.getBrowserId()
                         }
@@ -14399,6 +14414,124 @@ dependencyScope.jQuery = $;
                 }
 
                 return $.extend(true, {}, createdUser, defaultUser, userLookupResult, user);
+            },
+
+            /**
+             * Returns the session-entry referrer information for the current page.
+             *
+             * The entry URL and referrer remain unchanged for the lifetime of the
+             * session. The distance increases once per distinct page URL and does not
+             * increase when multiple requests create a user on the same page.
+             *
+             * @param {string} sessionId current Breinify session identifier
+             * @returns {Object|null}
+             */
+            getReferrerData: function (sessionId) {
+                if (scope.Breinify.config()['handleReferrer'] !== true) {
+                    return null;
+                }
+
+                const currentUrl = window.location.href;
+
+                /*
+                 * Return the already resolved information when the session and page
+                 * have not changed.
+                 */
+                if (this.referrerDataResolved === true && this.referrerSessionId === sessionId && this.referrerUrl === currentUrl) {
+                    return this.referrerData;
+                }
+
+                const referrerKey = BreinifyUtil.cookies.referrerKey;
+                let storedReferrerData = null;
+
+                if (storage.anonymousIdStorage.check(referrerKey, true)) {
+                    const storedValue = BreinifyUtil.isNonEmptyString(storage.anonymousIdStorage.get(referrerKey, true));
+                    if (storedValue !== null) {
+                        try {
+                            storedReferrerData = JSON.parse(storedValue);
+                        } catch (e) {
+                            storedReferrerData = null;
+                        }
+                    }
+                }
+
+                /*
+                 * Ignore missing, malformed, or stale information from another
+                 * Breinify session.
+                 */
+                if (!$.isPlainObject(storedReferrerData) || storedReferrerData.sessionId !== sessionId) {
+                    storedReferrerData = null;
+                }
+
+                const currentReferrer = BreinifyUtil.isNonEmptyString(document.referrer);
+                let referrerDataChanged = false;
+
+                /*
+                 * Create the initial referrer information when nothing valid exists for
+                 * the current session (storedReferrerData === null).
+                 *
+                 * Validate that the data (further if statements) is valid and not malformed,
+                 * otherwise reset to initial data as well.
+                 */
+                if (
+                    // no valid data was found for the current session
+                    storedReferrerData === null ||
+                    // The entry referrer may be null for a direct visit.
+                    // When present, however, it must be a non-empty string.
+                    (storedReferrerData.entryReferrer !== null && BreinifyUtil.isNonEmptyString(storedReferrerData.entryReferrer) === null) ||
+                    // any original session-entry URL must be available as a non-empty string
+                    BreinifyUtil.isNonEmptyString(storedReferrerData.entryUrl) === null ||
+                    // any distance must be stored as a whole number
+                    !Number.isInteger(storedReferrerData.distance) ||
+                    // a navigation distance cannot be negative
+                    storedReferrerData.distance < 0 ||
+                    // The last processed URL must be a non-empty string.
+                    // Without it, the existing distance cannot be updated
+                    // reliably and the state must be reset.
+                    BreinifyUtil.isNonEmptyString(storedReferrerData.lastUrl) === null
+                ) {
+                    storedReferrerData = {
+                        sessionId: sessionId,
+                        entryUrl: currentUrl,
+                        entryReferrer: currentReferrer,
+                        lastUrl: currentUrl,
+                        distance: 0
+                    };
+
+                    referrerDataChanged = true;
+                }
+                /*
+                 * Increase the distance once when the page URL changes.
+                 */
+                else if (storedReferrerData.lastUrl !== currentUrl) {
+                    storedReferrerData.lastUrl = currentUrl;
+                    storedReferrerData.distance++;
+
+                    referrerDataChanged = true;
+                }
+
+                /*
+                 * Only update the session storage when the information changed.
+                 */
+                if (referrerDataChanged === true) {
+                    storage.anonymousIdStorage.set(referrerKey, JSON.stringify(storedReferrerData), null, true, BreinifyUtil.cookie.domain());
+                }
+
+                /*
+                 * The session ID and last URL are internal tracking values and are not
+                 * included in the information attached to the user.
+                 */
+                this.referrerData = {
+                    entryUrl: storedReferrerData.entryUrl,
+                    entryReferrer: storedReferrerData.entryReferrer,
+                    distance: storedReferrerData.distance
+                };
+
+                this.referrerDataResolved = true;
+                this.referrerSessionId = sessionId;
+                this.referrerUrl = currentUrl;
+
+                return this.referrerData;
             },
 
             getBrowserId: function () {
@@ -15540,6 +15673,13 @@ dependencyScope.jQuery = $;
     attributes.add('HANDLE_UTM', {
         name: 'handleUtm',
         defaultValue: false,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
+    attributes.add('HANDLE_REFERRER', {
+        name: 'handleReferrer',
+        defaultValue: true,
         validate: function (value) {
             return value === true || value === false;
         }

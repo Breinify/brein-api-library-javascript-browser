@@ -125,6 +125,13 @@
             return value === true || value === false;
         }
     });
+    attributes.add('HANDLE_REFERRER', {
+        name: 'handleReferrer',
+        defaultValue: true,
+        validate: function (value) {
+            return value === true || value === false;
+        }
+    });
     attributes.add('UTM_MAPPER', {
         name: 'utmMapper',
         defaultValue: function (utmData, user) {
