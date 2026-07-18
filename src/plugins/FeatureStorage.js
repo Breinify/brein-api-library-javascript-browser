@@ -587,19 +587,34 @@
             this.featureDefinitions[normalizedName] = this.resolveFeatureDefinition(normalizedName, additional);
         },
 
+        getLocalStorage: function () {
+            try {
+                const storage = window.localStorage;
+                if (storage === null || typeof storage === 'undefined') {
+                    return null;
+                }
+
+                if (typeof storage.length !== 'number' ||
+                    typeof storage.key !== 'function' ||
+                    typeof storage.getItem !== 'function' ||
+                    typeof storage.setItem !== 'function' ||
+                    typeof storage.removeItem !== 'function') {
+                    return null;
+                } else {
+                    return storage;
+                }
+            } catch (e) {
+                return null;
+            }
+        },
+
         getPersistenceStorage: function (definition) {
             if (!$.isPlainObject(definition) || !$.isPlainObject(definition.persistence)) {
                 return null;
-            }
-
-            if (definition.persistence.enabled !== true || definition.persistence.type !== 'localStorage') {
+            } else if (definition.persistence.type !== 'localStorage') {
                 return null;
-            }
-
-            try {
-                return window.localStorage;
-            } catch (e) {
-                return null;
+            } else {
+                return this.getLocalStorage();
             }
         },
 
@@ -636,13 +651,13 @@
             this.rememberInlineFeatureDefinition(normalizedName, additional);
 
             const definition = this.resolveFeatureDefinition(normalizedName, additional);
-            const storage = this.getPersistenceStorage(definition);
-            if (storage === null) {
+            if (definition.persistence.enabled !== true) {
+                this.removePersistedFeature(normalizedName, definition);
                 return false;
             }
 
-            if (definition.persistence.enabled !== true) {
-                this.removePersistedFeature(normalizedName, definition);
+            const storage = this.getPersistenceStorage(definition);
+            if (storage === null) {
                 return false;
             }
 
@@ -670,8 +685,12 @@
             }
 
             const definition = this.resolveFeatureDefinition(normalizedName, additional);
+            if (definition.persistence.enabled !== true) {
+                return false;
+            }
+
             const storage = this.getPersistenceStorage(definition);
-            if (storage === null || definition.persistence.enabled !== true) {
+            if (storage === null) {
                 return false;
             }
 
@@ -748,13 +767,7 @@
         },
 
         restorePersistedFeatures: function () {
-            let storage = null;
-            try {
-                storage = window.localStorage;
-            } catch (e) {
-                return;
-            }
-
+            const storage = this.getLocalStorage();
             if (storage === null) {
                 return;
             }
@@ -762,47 +775,52 @@
             const self = this;
             const keysToRemove = [];
 
-            for (let i = 0; i < storage.length; i++) {
-                const key = storage.key(i);
-                if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
-                    continue;
+            try {
+                for (let i = 0; i < storage.length; i++) {
+                    const key = storage.key(i);
+                    if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
+                        continue;
+                    }
+
+                    const featureName = key.substring(this.persistence.storagePrefix.length);
+                    const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
+
+                    if (!$.isPlainObject(parsed)) {
+                        keysToRemove.push(key);
+                        continue;
+                    }
+
+                    if (this.isExpiredPersistedFeatureEntry(parsed)) {
+                        keysToRemove.push(key);
+                        continue;
+                    }
+
+                    const definition = this.normalizeFeatureDefinition(parsed.definition);
+                    if (definition.persistence.enabled !== true) {
+                        keysToRemove.push(key);
+                        continue;
+                    }
+
+                    if ($.isPlainObject(parsed.meta)) {
+                        self.currentFeatureMeta[featureName] = self.cloneFeatureMeta(parsed.meta);
+                    } else {
+                        self.currentFeatureMeta[featureName] = {
+                            oldValue: null,
+                            newValue: parsed.value,
+                            additional: {},
+                            changedAt: typeof parsed.persistedAt === 'number' ? parsed.persistedAt : Date.now()
+                        };
+                    }
+
+                    self.currentFeatures[featureName] = parsed.value;
+                    self.featureDefinitions[featureName] = definition;
+                    self.touchPersistedFeature(featureName, {
+                        featureDefinition: definition
+                    });
                 }
-
-                const featureName = key.substring(this.persistence.storagePrefix.length);
-                const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
-
-                if (!$.isPlainObject(parsed)) {
-                    keysToRemove.push(key);
-                    continue;
-                }
-
-                if (this.isExpiredPersistedFeatureEntry(parsed)) {
-                    keysToRemove.push(key);
-                    continue;
-                }
-
-                const definition = this.normalizeFeatureDefinition(parsed.definition);
-                if (definition.persistence.enabled !== true) {
-                    keysToRemove.push(key);
-                    continue;
-                }
-
-                if ($.isPlainObject(parsed.meta)) {
-                    self.currentFeatureMeta[featureName] = self.cloneFeatureMeta(parsed.meta);
-                } else {
-                    self.currentFeatureMeta[featureName] = {
-                        oldValue: null,
-                        newValue: parsed.value,
-                        additional: {},
-                        changedAt: typeof parsed.persistedAt === 'number' ? parsed.persistedAt : Date.now()
-                    };
-                }
-
-                self.currentFeatures[featureName] = parsed.value;
-                self.featureDefinitions[featureName] = definition;
-                self.touchPersistedFeature(featureName, {
-                    featureDefinition: definition
-                });
+            } catch (e) {
+                this.debugError('failed to restore persisted features', e);
+                return;
             }
 
             keysToRemove.forEach(function (key) {
@@ -817,37 +835,38 @@
         },
 
         runPersistenceCleanupIfNeeded: function (force) {
-            let storage = null;
-            try {
-                storage = window.localStorage;
-            } catch (e) {
-                return;
-            }
-
+            const storage = this.getLocalStorage();
             if (storage === null) {
                 return;
             }
 
             const now = Date.now();
-            if (force !== true) {
-                const lastCleanupRaw = storage.getItem(this.persistence.cleanupKey);
-                const lastCleanup = Number(lastCleanupRaw);
-                if (Number.isFinite(lastCleanup) && now - lastCleanup < this.persistence.cleanupIntervalInMs) {
-                    return;
-                }
-            }
-
             const keysToRemove = [];
-            for (let i = 0; i < storage.length; i++) {
-                const key = storage.key(i);
-                if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
-                    continue;
+
+            try {
+                if (force !== true) {
+                    const lastCleanupRaw = storage.getItem(this.persistence.cleanupKey);
+                    const lastCleanup = Number(lastCleanupRaw);
+                    if (Number.isFinite(lastCleanup) &&
+                        now - lastCleanup < this.persistence.cleanupIntervalInMs) {
+                        return;
+                    }
                 }
 
-                const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
-                if (!$.isPlainObject(parsed) || this.isExpiredPersistedFeatureEntry(parsed)) {
-                    keysToRemove.push(key);
+                for (let i = 0; i < storage.length; i++) {
+                    const key = storage.key(i);
+                    if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
+                        continue;
+                    }
+
+                    const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
+                    if (!$.isPlainObject(parsed) || this.isExpiredPersistedFeatureEntry(parsed)) {
+                        keysToRemove.push(key);
+                    }
                 }
+            } catch (e) {
+                this.debugError('failed to inspect persisted features', e);
+                return;
             }
 
             keysToRemove.forEach(function (key) {
@@ -1998,6 +2017,14 @@
          * }
          *
          * If omitted, defaults are used.
+         *
+         * Feature names should identify a stable feature and its meaning. If the
+         * meaning or persistence behavior of a feature changes incompatibly, use a
+         * new feature name instead of reusing an existing one. Reusing a name may
+         * cause previously persisted values created under the old definition to be
+         * restored until they expire or are explicitly removed.
+         *
+         * Defining a feature does not read, update, or remove persisted values.
          *
          * @param {string} name
          * @param {Object=} definition
