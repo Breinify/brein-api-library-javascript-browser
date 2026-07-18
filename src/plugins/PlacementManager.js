@@ -1885,10 +1885,17 @@
          * @private
          */
         _matchesSelectorLocally: function ($el, selector) {
-            if (!$el || $el.length === 0 || typeof selector !== "string" || selector === "") {
+            const normSelector = Breinify.UTL.isNonEmptyString(selector);
+            if (normSelector === null) {
                 return false;
-            } else {
-                return $el.is(selector) || $el.find(selector).length > 0 || $el.closest(selector).length > 0;
+            } else if (!$el || Breinify.UTL.dom.isNodeType($el, 1) !== true) {
+                return false;
+            }
+
+            try {
+                return $el.is(normSelector) || $el.find(normSelector).length > 0 || $el.closest(normSelector).length > 0;
+            } catch (e) {
+                return false;
             }
         }
     };
