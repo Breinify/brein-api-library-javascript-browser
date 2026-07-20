@@ -1250,7 +1250,7 @@
                     'additional': {
                         'apiVersion': this.determineApiVersion(),
                         'splitTests': splitTestData,
-                        'referrer': referrerData,
+                        'referrerData': referrerData,
                         'identifiers': {
                             'browserId': this.getBrowserId()
                         }

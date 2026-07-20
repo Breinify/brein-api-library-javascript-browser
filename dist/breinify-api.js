@@ -14380,7 +14380,7 @@ dependencyScope.jQuery = $;
                     'additional': {
                         'apiVersion': this.determineApiVersion(),
                         'splitTests': splitTestData,
-                        'referrer': referrerData,
+                        'referrerData': referrerData,
                         'identifiers': {
                             'browserId': this.getBrowserId()
                         }
@@ -14420,8 +14420,9 @@ dependencyScope.jQuery = $;
              * Returns the session-entry referrer information for the current page.
              *
              * The entry URL and referrer remain unchanged for the lifetime of the
-             * session. The distance increases once per distinct page URL and does not
-             * increase when multiple requests create a user on the same page.
+             * session. The distance increases whenever a different page URL is observed
+             * and does not increase when multiple requests create a user while the URL
+             * remains unchanged.
              *
              * @param {string} sessionId current Breinify session identifier
              * @returns {Object|null}
