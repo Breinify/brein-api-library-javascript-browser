@@ -14380,7 +14380,7 @@ dependencyScope.jQuery = $;
                     'additional': {
                         'apiVersion': this.determineApiVersion(),
                         'splitTests': splitTestData,
-                        'referrerData': referrerData,
+                        'journey': referrerData,
                         'identifiers': {
                             'browserId': this.getBrowserId()
                         }
