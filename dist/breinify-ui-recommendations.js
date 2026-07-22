@@ -107,6 +107,119 @@
             return runtime;
         },
 
+        addProcessHandler: function (config, name, handler) {
+            const normalizedName = Breinify.UTL.isNonEmptyString(name);
+
+            if (!$.isPlainObject(config) ||
+                normalizedName === null ||
+                !$.isFunction(handler)) {
+                return config;
+            }
+
+            this.ensureObject(config, "process");
+
+            const existingHandler = $.isFunction(config.process[normalizedName])
+                ? config.process[normalizedName]
+                : null;
+
+            if (existingHandler === null) {
+                config.process[normalizedName] = handler;
+            } else {
+                config.process[normalizedName] = function () {
+                    existingHandler.apply(this, arguments);
+                    return handler.apply(this, arguments);
+                };
+            }
+
+            return config;
+        },
+
+        /**
+         * Determines whether the supplied activity settings represent an item-click
+         * activity.
+         *
+         * Recommendation clicks expose the clicked rendered item as `$recItem`,
+         * while control-group clicks expose the clicked control element as
+         * `$controlItem`.
+         *
+         * @param {Object} settings
+         * the activity settings supplied to the `createActivity` process callback
+         *
+         * @returns {boolean}
+         * `true` if a recommendation item or control item is associated with the
+         * activity; otherwise `false`
+         */
+        isClickActivity: function (settings) {
+            return this._isNonEmptyJQuerySelection(settings?.$recItem) || this._isNonEmptyJQuerySelection(settings?.$controlItem);
+        },
+
+        /**
+         * Determines whether the supplied activity settings represent a click on
+         * an element within the control-group visualization.
+         *
+         * Control rendering activities also have `isControl` set to `true`, but do
+         * not expose a `$controlItem`. Requiring a non-empty `$controlItem` therefore
+         * distinguishes control clicks from control rendering activities.
+         *
+         * @param {Object} settings
+         * the activity settings supplied to the `createActivity` process callback
+         *
+         * @returns {boolean}
+         * `true` if the activity represents a control-group click; otherwise `false`
+         */
+        isControlClickActivity: function (settings) {
+            return settings?.isControl === true && this._isNonEmptyJQuerySelection(settings?.$controlItem);
+        },
+
+        /**
+         * Resolves the most specific DOM target associated with an activity.
+         *
+         * The original event target is preferred because `$controlItem` may refer to
+         * a semantic binding element rather than the exact nested element that was
+         * clicked. If no event target is available, the recommendation or control
+         * item is used as a fallback.
+         *
+         * @param {Event|jQuery.Event} event
+         * the event supplied to the `createActivity` process callback
+         *
+         * @param {Object} settings
+         * the activity settings supplied to the callback
+         *
+         * @returns {jQuery}
+         * a jQuery selection containing the resolved activity target, or an empty
+         * jQuery selection if no target can be determined
+         */
+        getActivityTarget: function (event, settings) {
+            const nativeEvent = event?.originalEvent || event;
+            const target = settings?.additionalEventData?.actualTarget || nativeEvent?.target || null;
+
+            if (Breinify.UTL.dom.isNodeType(target, 1)) {
+                return $(target);
+            } else if (this._isNonEmptyJQuerySelection(settings?.$controlItem)) {
+                return settings.$controlItem;
+            } else if (this._isNonEmptyJQuerySelection(settings?.$recItem)) {
+                return settings.$recItem;
+            } else {
+                return $();
+            }
+        },
+
+        /**
+         * Determines whether the supplied value is a non-empty jQuery selection.
+         *
+         * jQuery objects expose a `jquery` property containing the jQuery version.
+         * The selection must additionally contain at least one element.
+         *
+         * @param {*} value
+         * the value to inspect
+         *
+         * @returns {boolean}
+         * `true` if the value is a non-empty jQuery selection; otherwise `false`
+         */
+        _isNonEmptyJQuerySelection: function (value) {
+            return value?.jquery != null && value.length > 0;
+        },
+
         _hasFeatureBindings: function (webExId) {
             const bindings = this._getFeatureBindings();
             const webExBindings = $.isPlainObject(bindings?.[webExId]) ? bindings[webExId] : {};
@@ -1037,7 +1150,15 @@
                 ensurePath: _private.ensurePath.bind(_private),
                 ensureObject: _private.ensureObject.bind(_private),
                 ensureArray: _private.ensureArray.bind(_private),
-                mergeArray: _private.mergeArray.bind(_private)
+                mergeArray: _private.mergeArray.bind(_private),
+
+                addProcessHandler: _private.addProcessHandler.bind(_private),
+
+                activity: {
+                    isClick: _private.isClickActivity.bind(_private),
+                    isControlClick: _private.isControlClickActivity.bind(_private),
+                    getTarget: _private.getActivityTarget.bind(_private)
+                }
             };
 
             const createdConfig = this._applyExtensionHook(context, {}, "create", extensionModule);
