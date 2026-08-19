@@ -1427,11 +1427,11 @@
             settings.activityTags = this.createRenderedRecommendationTags($container, result);
             this._sendActivity(renderOption, event, settings);
 
-            settings.recommendationResult = this._createResponseData(result, settings.activityTags);
+            settings.recommendationResult = this._createResultData(result, settings.activityTags);
             Breinify.plugins._triggerEvent(plugInName, "renderedRecommendation", settings);
         },
 
-        _createResponseData: function (result, activityTags) {
+        _createResultData: function (result, activityTags) {
             const payload = $.isPlainObject(result?.payload) ? result.payload : {};
             const additionalData = $.isPlainObject(result?.additionalData) ? result.additionalData : {};
 
