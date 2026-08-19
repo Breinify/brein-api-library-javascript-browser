@@ -1427,11 +1427,11 @@
             settings.activityTags = this.createRenderedRecommendationTags($container, result);
             this._sendActivity(renderOption, event, settings);
 
-            settings.info = this._createRenderedRecommendationInfo(result, settings.activityTags);
+            settings.recommendationResult = this._createResponseData(result, settings.activityTags);
             Breinify.plugins._triggerEvent(plugInName, "renderedRecommendation", settings);
         },
 
-        _createRenderedRecommendationInfo: function (result, activityTags) {
+        _createResponseData: function (result, activityTags) {
             const payload = $.isPlainObject(result?.payload) ? result.payload : {};
             const additionalData = $.isPlainObject(result?.additionalData) ? result.additionalData : {};
 
@@ -1444,8 +1444,8 @@
                 rendered: activityTags?.rendered === true,
                 statusCode: Breinify.UTL.toInteger(result?.status?.code),
                 items: $.isArray(result?.recommendations) ? result.recommendations : [],
-                recommender: {
-                    name: recommenderName,
+                labels: {
+                    recommender: recommenderName,
                     title: title !== null ? title : (queryName !== null ? queryName : recommenderName)
                 }
             };
