@@ -1446,6 +1446,7 @@
                 items: $.isArray(result?.recommendations) ? result.recommendations : [],
                 labels: {
                     recommender: recommenderName,
+                    queryName: queryName,
                     title: title !== null ? title : (queryName !== null ? queryName : recommenderName)
                 }
             };
