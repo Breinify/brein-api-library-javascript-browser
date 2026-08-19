@@ -8,9 +8,11 @@
  * clickedRecommendation).
  */
 (function () {
+    const plugInName = "recommendations";
+
     if (typeof Breinify !== "object") {
         return;
-    } else if (Breinify.plugins._isAdded("recommendations")) {
+    } else if (Breinify.plugins._isAdded(plugInName)) {
         return;
     }
 
@@ -1424,17 +1426,29 @@
 
             settings.activityTags = this.createRenderedRecommendationTags($container, result);
             this._sendActivity(renderOption, event, settings);
-            this._triggerEvent("renderedRecommendation", settings);
+
+            settings.info = this._createRenderedRecommendationInfo(result, settings.activityTags);
+            Breinify.plugins._triggerEvent(plugInName, "renderedRecommendation", settings);
         },
 
-        _triggerEvent: function (eventName, data) {
-            $(document).trigger(eventName, data);
+        _createRenderedRecommendationInfo: function (result, activityTags) {
+            const payload = $.isPlainObject(result?.payload) ? result.payload : {};
+            const additionalData = $.isPlainObject(result?.additionalData) ? result.additionalData : {};
 
-            if (typeof window.$ === "function" &&
-                typeof window.$.fn === "function" &&
-                $ !== window.$) {
-                window.$(document).trigger(eventName, data);
-            }
+            const recommenderName = Breinify.UTL.isNonEmptyString(payload.recommenderName);
+            const queryName = Breinify.UTL.isNonEmptyString(payload.queryName);
+            const title = Breinify.UTL.isNonEmptyString(additionalData.title);
+
+            return {
+                isControl: result?.splitTestData?.isControl === true,
+                rendered: activityTags?.rendered === true,
+                statusCode: Breinify.UTL.toInteger(result?.status?.code),
+                items: $.isArray(result?.recommendations) ? result.recommendations : [],
+                recommender: {
+                    name: recommenderName,
+                    title: title !== null ? title : (queryName !== null ? queryName : recommenderName)
+                }
+            };
         },
 
         _applyRecommendation: function (result, option) {
@@ -2499,5 +2513,5 @@
         }
     };
 
-    Breinify.plugins._add("recommendations", Recommendations);
+    Breinify.plugins._add(plugInName, Recommendations);
 })();

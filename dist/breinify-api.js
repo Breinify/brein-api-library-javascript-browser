@@ -16860,7 +16860,7 @@ dependencyScope.jQuery = $;
             new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
         },
 
-        triggerEvent: function (eventName, data) {
+        triggerEvent: function (eventName, data, origin) {
 
             // trigger the Breinify ready event on both jQuery instances
             $(document).trigger(eventName, data);
@@ -16870,7 +16870,11 @@ dependencyScope.jQuery = $;
 
             // Trigger a native DOM event.
             if (typeof window.CustomEvent === 'function') {
-                document.dispatchEvent(new CustomEvent('breinify:' + eventName, {
+                const nativeEventName = typeof origin === 'string'
+                    ? 'breinify:' + origin + ':' + eventName
+                    : 'breinify:' + eventName;
+
+                document.dispatchEvent(new CustomEvent(nativeEventName, {
                     detail: data,
                     bubbles: false,
                     cancelable: false
@@ -17569,6 +17573,10 @@ dependencyScope.jQuery = $;
             if (typeof customizations[name] === 'undefined') {
                 customizations[name] = customization;
             }
+        },
+
+        _triggerEvent: function (pluginName, eventName, data) {
+            _privates.triggerEvent(eventName, data, pluginName);
         },
 
         _getCustomization: function (name) {
