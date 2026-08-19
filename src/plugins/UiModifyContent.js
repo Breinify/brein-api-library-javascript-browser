@@ -18,7 +18,8 @@
          * initial Modify Content action used to verify lifecycle handling.
          */
         writeToConsole: function (action) {
-            console.log(action.message);
+            const settings = action && action.settings;
+            console.log(settings && settings.message);
         },
 
         /**
