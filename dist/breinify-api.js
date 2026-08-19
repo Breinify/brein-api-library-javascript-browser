@@ -16867,6 +16867,15 @@ dependencyScope.jQuery = $;
             if (typeof window.$ === 'function' && typeof window.$.fn === 'function' && $ !== window.$) {
                 window.$(document).trigger(eventName, data);
             }
+
+            // Trigger a native DOM event.
+            if (typeof window.CustomEvent === 'function') {
+                document.dispatchEvent(new CustomEvent('breinify:' + eventName, {
+                    detail: data,
+                    bubbles: false,
+                    cancelable: false
+                }));
+            }
         },
 
         markReady: function () {
