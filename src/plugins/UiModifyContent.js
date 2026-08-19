@@ -26,7 +26,7 @@
          * Target discovery and duplicate protection are kept in the runtime
          * coordinator so all future DOM actions can share the same lifecycle.
          */
-        modifyContent: function (action, runtime, actionIndex) {
+        changeContent: function (action, runtime, actionIndex) {
             _private.executeModifyContent(action, runtime, actionIndex);
         }
     };
@@ -90,7 +90,7 @@
         },
 
         isDomAction: function (action) {
-            return action && action.type === "modifyContent";
+            return action && action.type === "changeContent";
         },
 
         getRootElement: function ($el) {
