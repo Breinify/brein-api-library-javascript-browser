@@ -19,6 +19,15 @@
          */
         writeToConsole: function (action) {
             console.log(action.message);
+        },
+
+        /**
+         * Applies the configured HTML operation to each matching target.
+         * Target discovery and duplicate protection are kept in the runtime
+         * coordinator so all future DOM actions can share the same lifecycle.
+         */
+        modifyContent: function (action, runtime, actionIndex) {
+            _private.executeModifyContent(action, runtime, actionIndex);
         }
     };
 
@@ -66,6 +75,194 @@
 
     const _private = {
         runtimes: {},
+
+        getActionSettings: function (action) {
+            return action && action.settings && typeof action.settings === "object"
+                ? action.settings
+                : null;
+        },
+
+        getActionSelector: function (action) {
+            const settings = this.getActionSettings(action);
+            return settings && typeof settings.selector === "string" && settings.selector.trim() !== ""
+                ? settings.selector
+                : null;
+        },
+
+        isDomAction: function (action) {
+            return action && action.type === "modifyContent";
+        },
+
+        getRootElement: function ($el) {
+            if ($el && typeof $el.get === "function") {
+                return $el.get(0) || null;
+            } else if ($el && $el.nodeType === 1) {
+                return $el;
+            }
+
+            return null;
+        },
+
+        matchesSelector: function (element, selector) {
+            if (!element || element.nodeType !== 1 || !selector) {
+                return false;
+            }
+
+            const matches = element.matches || element.webkitMatchesSelector || element.msMatchesSelector;
+            if (typeof matches !== "function") {
+                return false;
+            }
+
+            try {
+                return matches.call(element, selector);
+            } catch (e) {
+                return false;
+            }
+        },
+
+        getTargets: function (action, root) {
+            const selector = this.getActionSelector(action);
+            if (selector === null) {
+                return [];
+            }
+
+            const targets = [];
+            const addTarget = function (target) {
+                if (target && targets.indexOf(target) === -1) {
+                    targets.push(target);
+                }
+            };
+
+            try {
+                if (root !== null && this.matchesSelector(root, selector)) {
+                    addTarget(root);
+                }
+
+                const searchRoot = root || document;
+                const selected = searchRoot.querySelectorAll(selector);
+                for (let i = 0; i < selected.length; i++) {
+                    addTarget(selected[i]);
+                }
+            } catch (e) {
+                // Invalid selectors are rejected by the server-side validator
+                // in the future; keep the browser runtime fail-safe meanwhile.
+            }
+
+            return targets;
+        },
+
+        findRequirements: function (runtime, $el, data) {
+            const changeType = data && data.type ? data.type : "full-scan";
+            if (changeType !== "full-scan" && changeType !== "added-element" && changeType !== "attribute-change") {
+                return false;
+            }
+
+            const root = this.getRootElement($el);
+            const configuredActions = runtime.config && Array.isArray(runtime.config.actions)
+                ? runtime.config.actions
+                : [];
+
+            for (let i = 0; i < configuredActions.length; i++) {
+                const action = configuredActions[i];
+                if (changeType === "full-scan" && this.isDomAction(action) !== true) {
+                    return true;
+                } else if (this.isDomAction(action) === true && this.getTargets(action, root).length > 0) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        getAppliedTargets: function (runtime, actionIndex) {
+            if (!Array.isArray(runtime.appliedTargets[actionIndex])) {
+                runtime.appliedTargets[actionIndex] = [];
+            }
+
+            return runtime.appliedTargets[actionIndex];
+        },
+
+        hasAppliedTarget: function (runtime, actionIndex, target) {
+            return this.getAppliedTargets(runtime, actionIndex).indexOf(target) > -1;
+        },
+
+        markAppliedTarget: function (runtime, actionIndex, target) {
+            const appliedTargets = this.getAppliedTargets(runtime, actionIndex);
+            if (appliedTargets.indexOf(target) === -1) {
+                appliedTargets.push(target);
+            }
+        },
+
+        applyOperation: function (target, settings) {
+            const operation = settings && settings.operation;
+            const content = settings && typeof settings.content === "string" ? settings.content : null;
+            const allowHtml = settings && settings.allowHtml === true;
+            if (!target || !settings || content === null) {
+                return false;
+            }
+
+            try {
+                if (operation === "replace") {
+                    if (!target.parentNode) {
+                        return false;
+                    }
+
+                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
+                    target.parentNode.removeChild(target);
+                } else if (operation === "replaceContent") {
+                    if (allowHtml) {
+                        target.innerHTML = content;
+                    } else {
+                        target.textContent = content;
+                    }
+                } else if (operation === "before") {
+                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
+                } else if (operation === "after") {
+                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterend", content);
+                } else if (operation === "prepend") {
+                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterbegin", content);
+                } else if (operation === "append") {
+                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforeend", content);
+                } else {
+                    return false;
+                }
+
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+
+        executeModifyContent: function (action, runtime, actionIndex) {
+            const settings = this.getActionSettings(action);
+            const targets = this.getTargets(action, null);
+            let applied = false;
+
+            for (let i = 0; i < targets.length; i++) {
+                const target = targets[i];
+                if (this.hasAppliedTarget(runtime, actionIndex, target)) {
+                    continue;
+                }
+
+                if (this.applyOperation(target, settings)) {
+                    this.markAppliedTarget(runtime, actionIndex, target);
+                    applied = true;
+                }
+            }
+
+            /*
+             * An inserted HTML fragment may itself match the configured
+             * selector. Mark current matches after the operation so the DOM
+             * observer cannot immediately apply the same action recursively.
+             * Newly rendered nodes added later remain eligible.
+             */
+            if (applied) {
+                const currentTargets = this.getTargets(action, null);
+                for (let i = 0; i < currentTargets.length; i++) {
+                    this.markAppliedTarget(runtime, actionIndex, currentTargets[i]);
+                }
+            }
+        },
 
         key: function (webExId, webExVersionId) {
             return String(webExId || "") + ":" + String(webExVersionId || "");
@@ -127,8 +324,13 @@
                 const actionType = action && typeof action.type === "string" ? action.type : null;
                 const handler = actionType === null ? null : actions[actionType];
 
-                if (typeof handler === "function") {
-                    handler(action, runtime);
+                if (typeof handler === "function" &&
+                    (this.isDomAction(action) === true || runtime.executedActions[i] !== true)) {
+                    handler(action, runtime, i);
+
+                    if (this.isDomAction(action) !== true) {
+                        runtime.executedActions[i] = true;
+                    }
                 }
             }
         }
@@ -153,13 +355,19 @@
                 module: module,
                 config: config,
                 webExId: webExId,
-                webExVersionId: webExVersionId
+                webExVersionId: webExVersionId,
+                appliedTargets: [],
+                executedActions: []
             };
 
             _private.runtimes[key] = runtime;
 
             module.onChange = function (data) {
                 return UiModifyContent.handle(webExId, webExVersionId, data);
+            };
+
+            module.findRequirements = function ($el, data) {
+                return _private.findRequirements(runtime, $el, data);
             };
 
             return runtime;
