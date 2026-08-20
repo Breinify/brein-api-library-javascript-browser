@@ -23,7 +23,8 @@
         },
 
         /**
-         * Applies the configured HTML operation to each matching target.
+         * Applies the configured HTML operation to matching targets, subject
+         * to the optional maxApplications limit.
          * Target discovery and duplicate protection are kept in the runtime
          * coordinator so all future DOM actions can share the same lifecycle.
          */
@@ -87,6 +88,15 @@
             const settings = this.getActionSettings(action);
             return settings && typeof settings.selector === "string" && settings.selector.trim() !== ""
                 ? settings.selector
+                : null;
+        },
+
+        getMaxApplications: function (action) {
+            const settings = this.getActionSettings(action);
+            const maxApplications = settings && settings.maxApplications;
+            return typeof maxApplications === "number" && isFinite(maxApplications) &&
+                maxApplications > 0 && Math.floor(maxApplications) === maxApplications
+                ? maxApplications
                 : null;
         },
 
@@ -167,7 +177,9 @@
                 const action = configuredActions[i];
                 if (changeType === "full-scan" && this.isDomAction(action) !== true) {
                     return true;
-                } else if (this.isDomAction(action) === true && this.getTargets(action, root).length > 0) {
+                } else if (this.isDomAction(action) === true &&
+                    this.hasReachedApplicationLimit(runtime, i, action) !== true &&
+                    this.getTargets(action, root).length > 0) {
                     return true;
                 }
             }
@@ -192,6 +204,21 @@
             if (appliedTargets.indexOf(target) === -1) {
                 appliedTargets.push(target);
             }
+        },
+
+        getApplicationCount: function (runtime, actionIndex) {
+            return typeof runtime.applicationCounts[actionIndex] === "number"
+                ? runtime.applicationCounts[actionIndex]
+                : 0;
+        },
+
+        hasReachedApplicationLimit: function (runtime, actionIndex, action) {
+            const maxApplications = this.getMaxApplications(action);
+            return maxApplications !== null && this.getApplicationCount(runtime, actionIndex) >= maxApplications;
+        },
+
+        markApplication: function (runtime, actionIndex) {
+            runtime.applicationCounts[actionIndex] = this.getApplicationCount(runtime, actionIndex) + 1;
         },
 
         applyOperation: function (target, settings) {
@@ -235,11 +262,19 @@
         },
 
         executeModifyContent: function (action, runtime, actionIndex) {
+            if (this.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                return;
+            }
+
             const settings = this.getActionSettings(action);
             const targets = this.getTargets(action, null);
             let applied = false;
 
             for (let i = 0; i < targets.length; i++) {
+                if (this.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                    break;
+                }
+
                 const target = targets[i];
                 if (this.hasAppliedTarget(runtime, actionIndex, target)) {
                     continue;
@@ -247,6 +282,7 @@
 
                 if (this.applyOperation(target, settings)) {
                     this.markAppliedTarget(runtime, actionIndex, target);
+                    this.markApplication(runtime, actionIndex);
                     applied = true;
                 }
             }
@@ -358,6 +394,7 @@
                 webExId: webExId,
                 webExVersionId: webExVersionId,
                 appliedTargets: [],
+                applicationCounts: [],
                 executedActions: []
             };
 
