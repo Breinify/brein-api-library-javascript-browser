@@ -9,7 +9,8 @@
 
     /*
      * Action implementations are isolated by type. New actions belong here;
-     * the runtime coordinator only resolves and invokes them.
+     * the runtime coordinator only resolves and invokes them. Methods prefixed
+     * with _ are private helpers of the individual action implementation.
      */
     const actions = {
 
@@ -17,26 +18,110 @@
          * Writes the configured message to the browser console. This is the
          * initial Modify Content action used to verify lifecycle handling.
          */
-        writeToConsole: function (action) {
-            const settings = action && action.settings;
-            console.log(settings && settings.message);
+        writeToConsole: {
+            execute: function (action) {
+                const settings = action && action.settings;
+                console.log(settings && settings.message);
+            }
         },
 
         /**
          * Applies the configured HTML operation to matching targets, subject
-         * to the optional maxApplications limit.
-         * Target discovery and duplicate protection are kept in the runtime
-         * coordinator so all future DOM actions can share the same lifecycle.
+         * to the optional maxApplications limit. The action owns its
+         * operation-specific behavior while the runtime coordinator provides
+         * target discovery and duplicate tracking.
          */
-        changeContent: function (action, runtime, actionIndex) {
-            _private.executeModifyContent(action, runtime, actionIndex);
+        changeContent: {
+            isDomAction: true,
+
+            execute: function (action, runtime, actionIndex) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                    return;
+                }
+
+                const settings = _private.getActionSettings(action);
+                const targets = _private.getTargets(action, null);
+                let applied = false;
+
+                for (let i = 0; i < targets.length; i++) {
+                    if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                        break;
+                    }
+
+                    const target = targets[i];
+                    if (_private.hasAppliedTarget(runtime, actionIndex, target)) {
+                        continue;
+                    }
+
+                    if (this._applyOperation(target, settings)) {
+                        _private.markAppliedTarget(runtime, actionIndex, target);
+                        _private.markApplication(runtime, actionIndex);
+                        applied = true;
+                    }
+                }
+
+                /*
+                 * An inserted HTML fragment may itself match the configured
+                 * selector. Mark current matches after the operation so the
+                 * DOM observer cannot immediately apply the same action
+                 * recursively. Newly rendered nodes added later remain
+                 * eligible.
+                 */
+                if (applied) {
+                    const currentTargets = _private.getTargets(action, null);
+                    for (let i = 0; i < currentTargets.length; i++) {
+                        _private.markAppliedTarget(runtime, actionIndex, currentTargets[i]);
+                    }
+                }
+            },
+
+            _applyOperation: function (target, settings) {
+                const operation = settings && settings.operation;
+                const content = settings && typeof settings.content === "string" ? settings.content : null;
+                const allowHtml = settings && settings.allowHtml === true;
+                if (!target || !settings || content === null) {
+                    return false;
+                }
+
+                try {
+                    if (operation === "replace") {
+                        if (!target.parentNode) {
+                            return false;
+                        }
+
+                        target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
+                        target.parentNode.removeChild(target);
+                    } else if (operation === "replaceContent") {
+                        if (allowHtml) {
+                            target.innerHTML = content;
+                        } else {
+                            target.textContent = content;
+                        }
+                    } else if (operation === "before") {
+                        target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
+                    } else if (operation === "after") {
+                        target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterend", content);
+                    } else if (operation === "prepend") {
+                        target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterbegin", content);
+                    } else if (operation === "append") {
+                        target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforeend", content);
+                    } else {
+                        return false;
+                    }
+
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
         }
     };
 
     /*
      * Condition implementations are isolated by type. Each condition can add
-     * a preEvaluate and/or evaluate method as defined by its generated
-     * evaluation contract.
+     * preEvaluate, evaluate, and optional scheduling helpers as defined by
+     * its generated evaluation contract. Methods prefixed with _ are private
+     * helpers of the individual condition implementation.
      */
     const conditions = {
 
@@ -54,12 +139,12 @@
             preEvaluate: function (condition) {
                 const settings = condition && condition.settings;
                 const configuredTypes = settings && Array.isArray(settings.types) ? settings.types : [];
-                const currentType = this.determineDeviceType();
+                const currentType = this._determineDeviceType();
 
                 return configuredTypes.indexOf(currentType) > -1;
             },
 
-            determineDeviceType: function () {
+            _determineDeviceType: function () {
                 const userAgent = typeof navigator === "object" && typeof navigator.userAgent === "string"
                     ? navigator.userAgent
                     : "";
@@ -71,6 +156,133 @@
                 }
 
                 return "DESKTOP";
+            }
+        },
+
+        /**
+         * Resolves recurring daily time ranges in the selected browser
+         * timezone.
+         */
+        timeOfDay: {
+            evaluate: function (condition) {
+                const settings = _private.getConditionSettings(condition);
+                const parts = _private.getZonedDateParts(new Date(), settings);
+                if (!parts) {
+                    return false;
+                }
+
+                const currentTime = parts.hour * 60 + parts.minute;
+                const ranges = _private.getTemporalRanges(condition);
+                for (let i = 0; i < ranges.length; i++) {
+                    if (_private.isValueInTemporalRange(currentTime, ranges[i], this._parse)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
+            nextEvaluationDelay: function (condition, now) {
+                return _private.getNextMinuteEvaluationDelay(now);
+            },
+
+            _parse: function (value) {
+                if (typeof value !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+                    return null;
+                }
+
+                return parseInt(value.substring(0, 2), 10) * 60 + parseInt(value.substring(3, 5), 10);
+            }
+        },
+
+        /**
+         * Resolves annual or absolute calendar-date ranges in the selected
+         * browser timezone.
+         */
+        calendarDate: {
+            evaluate: function (condition) {
+                const settings = _private.getConditionSettings(condition);
+                const parts = _private.getZonedDateParts(new Date(), settings);
+                if (!parts) {
+                    return false;
+                }
+
+                const isAnnual = settings && settings.mode === "ANNUAL";
+                const parser = isAnnual ? this._parseAnnual : this._parseAbsolute;
+                const currentDate = isAnnual
+                    ? parts.month * 100 + parts.day
+                    : parts.year * 10000 + parts.month * 100 + parts.day;
+                const ranges = _private.getTemporalRanges(condition);
+                for (let i = 0; i < ranges.length; i++) {
+                    if (_private.isValueInTemporalRange(currentDate, ranges[i], parser)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
+            nextEvaluationDelay: function (condition, now) {
+                return _private.getNextMinuteEvaluationDelay(now);
+            },
+
+            _parseAnnual: function (value) {
+                if (typeof value !== "string" ||
+                    !/^(?:0[1-9]|1[0-2])\/(?:0[1-9]|[12]\d|3[01])$/.test(value)) {
+                    return null;
+                }
+
+                const parts = value.split("/");
+                return parseInt(parts[0], 10) * 100 + parseInt(parts[1], 10);
+            },
+
+            _parseAbsolute: function (value) {
+                if (typeof value !== "string" ||
+                    !/^\d{4}\/(?:0[1-9]|1[0-2])\/(?:0[1-9]|[12]\d|3[01])$/.test(value)) {
+                    return null;
+                }
+
+                const parts = value.split("/");
+                return parseInt(parts[0], 10) * 10000 + parseInt(parts[1], 10) * 100 +
+                    parseInt(parts[2], 10);
+            }
+        },
+
+        /**
+         * Resolves absolute Unix epoch-millisecond ranges.
+         */
+        dateTime: {
+            evaluate: function (condition) {
+                const currentTime = Date.now();
+                const ranges = _private.getTemporalRanges(condition);
+                for (let i = 0; i < ranges.length; i++) {
+                    if (_private.isValueInTemporalRange(currentTime, ranges[i], this._parse)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
+            nextEvaluationDelay: function (condition, now) {
+                let delay = null;
+                const ranges = _private.getTemporalRanges(condition);
+                for (let i = 0; i < ranges.length; i++) {
+                    const range = ranges[i];
+                    ["from", "to"].forEach(function (endpoint) {
+                        if (range && typeof range[endpoint] === "number" && isFinite(range[endpoint]) &&
+                            range[endpoint] > now) {
+                            const endpointDelay = range[endpoint] - now + 25;
+                            delay = delay === null ? endpointDelay : Math.min(delay, endpointDelay);
+                        }
+                    });
+                }
+
+                return delay;
+            },
+
+            _parse: function (value) {
+                return typeof value === "number" && isFinite(value) ? value : null;
             }
         }
     };
@@ -91,6 +303,152 @@
                 : null;
         },
 
+        getActionImplementation: function (action) {
+            const actionType = action && typeof action.type === "string" ? action.type : null;
+            return actionType === null ? null : actions[actionType] || null;
+        },
+
+        getConditionSettings: function (condition) {
+            return condition && condition.settings && typeof condition.settings === "object"
+                ? condition.settings
+                : null;
+        },
+
+        getConditionImplementation: function (condition) {
+            const conditionType = condition && typeof condition.type === "string" ? condition.type : null;
+            return conditionType === null ? null : conditions[conditionType] || null;
+        },
+
+        getTemporalTimezone: function (settings) {
+            const timeZone = settings && settings.timeZone;
+            const mode = timeZone && timeZone.mode;
+            if (mode === "BROWSER") {
+                try {
+                    if (typeof Intl === "object" && typeof Intl.DateTimeFormat === "function") {
+                        return new Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+                    }
+                } catch (e) {
+                    return null;
+                }
+            } else if (mode === "IANA" && timeZone && typeof timeZone.value === "string") {
+                return timeZone.value;
+            }
+
+            return null;
+        },
+
+        getZonedDateParts: function (date, settings) {
+            const timeZone = this.getTemporalTimezone(settings);
+            try {
+                const options = {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hourCycle: "h23"
+                };
+                if (timeZone) {
+                    options.timeZone = timeZone;
+                }
+
+                const formatter = new Intl.DateTimeFormat("en-US", options);
+                const parts = formatter.formatToParts(date);
+                const result = {};
+                for (let i = 0; i < parts.length; i++) {
+                    if (parts[i].type !== "literal") {
+                        result[parts[i].type] = parseInt(parts[i].value, 10);
+                    }
+                }
+
+                return result;
+            } catch (e) {
+                return null;
+            }
+        },
+
+        getTemporalRanges: function (condition) {
+            const settings = this.getConditionSettings(condition);
+            return settings && Array.isArray(settings.ranges) ? settings.ranges : [];
+        },
+
+        isValueInTemporalRange: function (value, range, parser) {
+            if (!range || typeof range !== "object") {
+                return false;
+            }
+
+            const from = range.from === undefined || range.from === null ? null : parser(range.from);
+            const to = range.to === undefined || range.to === null ? null : parser(range.to);
+            if (from === null && to === null) {
+                return false;
+            }
+
+            if (from === null) {
+                return value < to;
+            } else if (to === null) {
+                return value >= from;
+            } else if (from < to) {
+                return value >= from && value < to;
+            }
+
+            // A descending range crosses midnight or the end of the year.
+            return value >= from || value < to;
+        },
+
+        getNextMinuteEvaluationDelay: function (now) {
+            return 60000 - now % 60000 + 25;
+        },
+
+        getNextConditionEvaluationDelay: function (runtime) {
+            const now = Date.now();
+            let delay = null;
+            const configuredConditions = runtime.config && Array.isArray(runtime.config.conditions)
+                ? runtime.config.conditions
+                : [];
+
+            for (let i = 0; i < configuredConditions.length; i++) {
+                const condition = configuredConditions[i];
+                const evaluation = condition && condition.evaluation;
+                const reEvaluateOn = evaluation && evaluation.reEvaluateOn;
+                if (!Array.isArray(reEvaluateOn) || reEvaluateOn.indexOf("timeBoundary") === -1) {
+                    continue;
+                }
+
+                const implementation = this.getConditionImplementation(condition);
+                if (!implementation || typeof implementation.nextEvaluationDelay !== "function") {
+                    continue;
+                }
+
+                const conditionDelay = implementation.nextEvaluationDelay.call(implementation, condition, now);
+                if (typeof conditionDelay === "number" && isFinite(conditionDelay) && conditionDelay > 0) {
+                    delay = delay === null ? conditionDelay : Math.min(delay, conditionDelay);
+                }
+            }
+
+            return delay === null ? null : Math.max(25, delay);
+        },
+
+        scheduleConditionEvaluation: function (runtime) {
+            if (runtime.conditionEvaluationTimer !== null) {
+                return;
+            }
+
+            const delay = this.getNextConditionEvaluationDelay(runtime);
+            if (delay === null) {
+                return;
+            }
+
+            const _self = this;
+            runtime.conditionEvaluationTimer = window.setTimeout(function () {
+                runtime.conditionEvaluationTimer = null;
+                _self.scheduleConditionEvaluation(runtime);
+
+                if (!runtime.module.isValidPage || runtime.module.isValidPage() === true) {
+                    runtime.module.onChange({type: "time-boundary"});
+                }
+            }, delay);
+        },
+
         getMaxApplications: function (action) {
             const settings = this.getActionSettings(action);
             const maxApplications = settings && settings.maxApplications;
@@ -101,7 +459,8 @@
         },
 
         isDomAction: function (action) {
-            return action && action.type === "changeContent";
+            const implementation = this.getActionImplementation(action);
+            return implementation !== null && implementation.isDomAction === true;
         },
 
         getRootElement: function ($el) {
@@ -221,86 +580,6 @@
             runtime.applicationCounts[actionIndex] = this.getApplicationCount(runtime, actionIndex) + 1;
         },
 
-        applyOperation: function (target, settings) {
-            const operation = settings && settings.operation;
-            const content = settings && typeof settings.content === "string" ? settings.content : null;
-            const allowHtml = settings && settings.allowHtml === true;
-            if (!target || !settings || content === null) {
-                return false;
-            }
-
-            try {
-                if (operation === "replace") {
-                    if (!target.parentNode) {
-                        return false;
-                    }
-
-                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
-                    target.parentNode.removeChild(target);
-                } else if (operation === "replaceContent") {
-                    if (allowHtml) {
-                        target.innerHTML = content;
-                    } else {
-                        target.textContent = content;
-                    }
-                } else if (operation === "before") {
-                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforebegin", content);
-                } else if (operation === "after") {
-                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterend", content);
-                } else if (operation === "prepend") {
-                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("afterbegin", content);
-                } else if (operation === "append") {
-                    target[allowHtml ? "insertAdjacentHTML" : "insertAdjacentText"]("beforeend", content);
-                } else {
-                    return false;
-                }
-
-                return true;
-            } catch (e) {
-                return false;
-            }
-        },
-
-        executeModifyContent: function (action, runtime, actionIndex) {
-            if (this.hasReachedApplicationLimit(runtime, actionIndex, action)) {
-                return;
-            }
-
-            const settings = this.getActionSettings(action);
-            const targets = this.getTargets(action, null);
-            let applied = false;
-
-            for (let i = 0; i < targets.length; i++) {
-                if (this.hasReachedApplicationLimit(runtime, actionIndex, action)) {
-                    break;
-                }
-
-                const target = targets[i];
-                if (this.hasAppliedTarget(runtime, actionIndex, target)) {
-                    continue;
-                }
-
-                if (this.applyOperation(target, settings)) {
-                    this.markAppliedTarget(runtime, actionIndex, target);
-                    this.markApplication(runtime, actionIndex);
-                    applied = true;
-                }
-            }
-
-            /*
-             * An inserted HTML fragment may itself match the configured
-             * selector. Mark current matches after the operation so the DOM
-             * observer cannot immediately apply the same action recursively.
-             * Newly rendered nodes added later remain eligible.
-             */
-            if (applied) {
-                const currentTargets = this.getTargets(action, null);
-                for (let i = 0; i < currentTargets.length; i++) {
-                    this.markAppliedTarget(runtime, actionIndex, currentTargets[i]);
-                }
-            }
-        },
-
         key: function (webExId, webExVersionId) {
             return String(webExId || "") + ":" + String(webExVersionId || "");
         },
@@ -318,8 +597,7 @@
             const results = [];
             for (let i = 0; i < configuredConditions.length; i++) {
                 const condition = configuredConditions[i];
-                const conditionType = condition && typeof condition.type === "string" ? condition.type : null;
-                const implementation = conditionType === null ? null : conditions[conditionType];
+                const implementation = this.getConditionImplementation(condition);
                 const evaluator = implementation && typeof implementation.preEvaluate === "function"
                     ? implementation.preEvaluate
                     : null;
@@ -337,8 +615,7 @@
 
             for (let i = 0; i < configuredConditions.length; i++) {
                 const condition = configuredConditions[i];
-                const conditionType = condition && typeof condition.type === "string" ? condition.type : null;
-                const implementation = conditionType === null ? null : conditions[conditionType];
+                const implementation = this.getConditionImplementation(condition);
                 const evaluator = implementation && typeof implementation.evaluate === "function"
                     ? implementation.evaluate
                     : null;
@@ -358,12 +635,14 @@
 
             for (let i = 0; i < configuredActions.length; i++) {
                 const action = configuredActions[i];
-                const actionType = action && typeof action.type === "string" ? action.type : null;
-                const handler = actionType === null ? null : actions[actionType];
+                const implementation = this.getActionImplementation(action);
+                const handler = implementation && typeof implementation.execute === "function"
+                    ? implementation.execute
+                    : null;
 
                 if (typeof handler === "function" &&
                     (this.isDomAction(action) === true || runtime.executedActions[i] !== true)) {
-                    handler(action, runtime, i);
+                    handler.call(implementation, action, runtime, i);
 
                     if (this.isDomAction(action) !== true) {
                         runtime.executedActions[i] = true;
@@ -376,10 +655,8 @@
     /*
      * This is the single browser-side entry point for Modify Content.
      *
-     * The initial implementation deliberately stops at registration and
-     * lifecycle dispatch. Future condition evaluators, decision requests,
-     * caches, and action handlers should be added behind this API so that the
-     * generated web-experience remains stable.
+     * The generated web-experience remains stable while type-specific
+     * conditions and actions evolve behind the implementation registries.
      */
     const UiModifyContent = {
         register: function (module, webExId, webExVersionId, config) {
@@ -395,7 +672,8 @@
                 webExVersionId: webExVersionId,
                 appliedTargets: [],
                 applicationCounts: [],
-                executedActions: []
+                executedActions: [],
+                conditionEvaluationTimer: null
             };
 
             _private.runtimes[key] = runtime;
@@ -417,6 +695,7 @@
                 return false;
             }
 
+            _private.scheduleConditionEvaluation(runtime);
             runtime.preEvaluation = _private.preEvaluateConditions(runtime);
 
             if (_private.conditionsMatch(runtime) === false) {
