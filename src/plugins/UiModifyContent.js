@@ -547,19 +547,7 @@
             const groupSettings = action.groupSettings && typeof action.groupSettings === "object"
                 ? action.groupSettings[runtime.selectedGroupId]
                 : null;
-            const settings = {};
-            const baseKeys = Object.keys(baseSettings);
-            for (let i = 0; i < baseKeys.length; i++) {
-                settings[baseKeys[i]] = baseSettings[baseKeys[i]];
-            }
-            if (groupSettings && typeof groupSettings === "object") {
-                const overrideKeys = Object.keys(groupSettings);
-                for (let i = 0; i < overrideKeys.length; i++) {
-                    if (overrideKeys[i] !== "enabled") {
-                        settings[overrideKeys[i]] = groupSettings[overrideKeys[i]];
-                    }
-                }
-            }
+            const settings = this.mergeSettings(baseSettings, groupSettings, "enabled");
 
             effectiveAction.settings = settings;
             effectiveAction.enabled = action.enabled !== false;
@@ -567,6 +555,37 @@
                 effectiveAction.enabled = groupSettings.enabled === true;
             }
             return effectiveAction;
+        },
+
+        mergeSettings: function (baseSettings, overrideSettings, excludedKey) {
+            const result = {};
+            const baseKeys = Object.keys(baseSettings || {});
+            for (let i = 0; i < baseKeys.length; i++) {
+                result[baseKeys[i]] = baseSettings[baseKeys[i]];
+            }
+
+            if (!overrideSettings || typeof overrideSettings !== "object") {
+                return result;
+            }
+
+            const overrideKeys = Object.keys(overrideSettings);
+            for (let i = 0; i < overrideKeys.length; i++) {
+                const key = overrideKeys[i];
+                if (key === excludedKey) {
+                    continue;
+                }
+
+                const baseValue = result[key];
+                const overrideValue = overrideSettings[key];
+                if (baseValue && typeof baseValue === "object" && !Array.isArray(baseValue) &&
+                    overrideValue && typeof overrideValue === "object" && !Array.isArray(overrideValue)) {
+                    result[key] = this.mergeSettings(baseValue, overrideValue, null);
+                } else {
+                    result[key] = overrideValue;
+                }
+            }
+
+            return result;
         },
 
         getActionStateIndex: function (runtime, actionIndex) {
