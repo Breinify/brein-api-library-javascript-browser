@@ -136,7 +136,7 @@
                         continue;
                     }
 
-                    const replacement = this._createImageStructure(settings && settings.render);
+                    const replacement = this._createImageStructure(settings && settings.render, target);
                     if (replacement !== null &&
                         _private.applyDomOperation(target, operation, replacement, false)) {
                         _private.markAppliedTarget(runtime, actionIndex, target);
@@ -214,7 +214,7 @@
                 return null;
             },
 
-            _createImageStructure: function (render) {
+            _createImageStructure: function (render, target) {
                 if (!render || typeof render !== "object" || !render.image ||
                     typeof document !== "object" || typeof document.createElement !== "function") {
                     return null;
@@ -223,15 +223,21 @@
                 const renderType = typeof render.type === "string" ? render.type.toLowerCase() : null;
                 if (renderType === "img") {
                     const image = document.createElement("img");
-                    this._applyElementSettings(image, render);
-                    this._applyImageSettings(image, render.image);
+                    const sourceImage = target && target.tagName && target.tagName.toLowerCase() === "img"
+                        ? target
+                        : null;
+                    this._applyElementSettings(image, render, sourceImage);
+                    this._applyImageSettings(image, render.image, sourceImage);
                     return image;
                 } else if (renderType !== "picture") {
                     return null;
                 }
 
                 const picture = document.createElement("picture");
-                this._applyElementSettings(picture, render);
+                const sourcePicture = target && target.tagName && target.tagName.toLowerCase() === "picture"
+                    ? target
+                    : null;
+                this._applyElementSettings(picture, render, sourcePicture);
                 const sources = Array.isArray(render.sources) ? render.sources : [];
                 for (let i = 0; i < sources.length; i++) {
                     const sourceSettings = sources[i];
@@ -248,12 +254,16 @@
                 }
 
                 const image = document.createElement("img");
-                this._applyImageSettings(image, render.image);
+                const sourceImage = sourcePicture && sourcePicture.querySelector
+                    ? sourcePicture.querySelector("img")
+                    : null;
+                this._applyImageSettings(image, render.image, sourceImage);
                 picture.appendChild(image);
                 return picture;
             },
 
-            _applyImageSettings: function (image, settings) {
+            _applyImageSettings: function (image, settings, sourceImage) {
+                this._applyElementSettings(image, {}, sourceImage);
                 this._applyAttribute(image, "src", settings && settings.src);
                 this._applyAttribute(image, "srcset", this._serializeSrcSet(settings && settings.srcset));
                 this._applyAttribute(image, "sizes", settings && settings.sizes);
@@ -263,7 +273,20 @@
                 this._applyElementSettings(image, settings);
             },
 
-            _applyElementSettings: function (element, settings) {
+            _applyElementSettings: function (element, settings, sourceElement) {
+                if (sourceElement && sourceElement.attributes) {
+                    for (let i = 0; i < sourceElement.attributes.length; i++) {
+                        const attribute = sourceElement.attributes[i];
+                        element.setAttribute(attribute.name, attribute.value);
+                    }
+                }
+
+                if (sourceElement && sourceElement.classList && element.classList) {
+                    for (let i = 0; i < sourceElement.classList.length; i++) {
+                        element.classList.add(sourceElement.classList[i]);
+                    }
+                }
+
                 const classes = settings && settings.classes;
                 if (classes && Array.isArray(classes.remove) && element.classList) {
                     for (let i = 0; i < classes.remove.length; i++) {
