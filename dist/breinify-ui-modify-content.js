@@ -7,6 +7,12 @@
         return;
     }
 
+    const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
+    const SNIPPET_SETTING_JAVASCRIPT = "js";
+    const SNIPPET_SETTING_CSS = "css";
+    const SNIPPET_TYPE_JAVASCRIPT = "javascript";
+    const SNIPPET_TYPE_CSS = "css";
+
     /*
      * Action implementations are isolated by type. New actions belong here;
      * the runtime coordinator only resolves and invokes them. Methods prefixed
@@ -547,6 +553,177 @@
                 : null;
         },
 
+        applyActionSnippets: function (runtime, action, actionIndex) {
+            this.applyActionSnippet(runtime, action, actionIndex,
+                SNIPPET_SETTING_JAVASCRIPT, SNIPPET_TYPE_JAVASCRIPT);
+            this.applyActionSnippet(runtime, action, actionIndex,
+                SNIPPET_SETTING_CSS, SNIPPET_TYPE_CSS);
+        },
+
+        applyActionSnippet: function (runtime, action, actionIndex, setting, expectedType, expectedStateIndex) {
+            const settings = this.getActionSettings(action);
+            const snippetSettings = settings && settings[setting];
+            if (!snippetSettings || typeof snippetSettings !== "object") {
+                return;
+            }
+
+            const snippetId = this.getSnippetId(snippetSettings);
+            if (snippetId === null) {
+                return;
+            }
+
+            const stateIndex = this.getActionSnippetStateIndex(runtime, actionIndex, setting);
+            if (expectedStateIndex && expectedStateIndex !== stateIndex) {
+                return;
+            } else if (runtime.appliedSnippets[stateIndex] === true) {
+                return;
+            }
+
+            const resolvedSnippet = this.resolveSnippet(runtime, snippetId);
+            if (resolvedSnippet === null) {
+                this.observeSnippet(runtime, action, actionIndex, setting, expectedType, snippetId, stateIndex);
+                return;
+            }
+
+            const configuredType = this.normalizeSnippetType(snippetSettings.snippetType);
+            const resolvedType = this.normalizeSnippetType(resolvedSnippet.type);
+            const snippetType = configuredType || resolvedType || expectedType;
+            if (snippetType !== expectedType) {
+                this.logSnippetWarning("snippet type does not match its action setting", {
+                    snippetId: snippetId,
+                    setting: setting,
+                    expectedType: expectedType,
+                    actualType: snippetType
+                });
+                runtime.appliedSnippets[stateIndex] = true;
+                return;
+            }
+
+            let applied = false;
+            if (expectedType === SNIPPET_TYPE_JAVASCRIPT) {
+                if (typeof resolvedSnippet.value === "function") {
+                    try {
+                        resolvedSnippet.value.call(runtime.module, this.createSnippetContext(runtime, action, actionIndex));
+                        applied = true;
+                    } catch (e) {
+                        this.logSnippetError("JavaScript snippet execution failed", snippetId, e);
+                        applied = true;
+                    }
+                } else {
+                    this.logSnippetWarning("JavaScript snippets must resolve to a function", {
+                        snippetId: snippetId
+                    });
+                    applied = true;
+                }
+            } else if (expectedType === SNIPPET_TYPE_CSS && typeof resolvedSnippet.value === "string") {
+                applied = this.injectCssSnippet(snippetId, resolvedSnippet.value);
+            }
+
+            if (applied) {
+                runtime.appliedSnippets[stateIndex] = true;
+            }
+        },
+
+        getSnippetId: function (snippetSettings) {
+            const snippetId = snippetSettings && snippetSettings.snippetId;
+            return typeof snippetId === "string" && snippetId.trim() !== ""
+                ? snippetId.trim()
+                : null;
+        },
+
+        getActionSnippetStateIndex: function (runtime, actionIndex, setting) {
+            return this.getActionStateIndex(runtime, actionIndex) + ":snippet:" + setting;
+        },
+
+        resolveSnippet: function (runtime, snippetId) {
+            if (snippetId.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) === 0) {
+                const snippets = runtime.module && runtime.module.webExperienceSnippets;
+                const localSnippet = snippets && snippets[snippetId];
+                if (!localSnippet || typeof localSnippet !== "object" ||
+                    !Object.prototype.hasOwnProperty.call(localSnippet, "value")) {
+                    return null;
+                }
+
+                return {
+                    type: localSnippet.type,
+                    value: localSnippet.value
+                };
+            }
+
+            /*
+             * Global JavaScript snippets are resolved through SnippetManager.
+             * Inline web-experience snippets are already available as their
+             * executable function in the local registry above.
+             */
+            const globalSnippet = Breinify.plugins.snippetManager.get(snippetId);
+            return globalSnippet === null || globalSnippet === undefined
+                ? null
+                : { value: globalSnippet };
+        },
+
+        observeSnippet: function (runtime, action, actionIndex, setting, expectedType, snippetId, stateIndex) {
+            if (runtime.observedSnippets[stateIndex] === true ||
+                snippetId.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) === 0) {
+                return;
+            }
+
+            runtime.observedSnippets[stateIndex] = true;
+            const _self = this;
+            Breinify.plugins.snippetManager.onSnippetRegistered(snippetId, function () {
+                delete runtime.observedSnippets[stateIndex];
+                _self.applyActionSnippet(runtime, action, actionIndex, setting, expectedType, stateIndex);
+            });
+        },
+
+        normalizeSnippetType: function (type) {
+            if (typeof type !== "string") {
+                return null;
+            }
+
+            const normalizedType = type.toLowerCase();
+            if (normalizedType === "js" || normalizedType === SNIPPET_TYPE_JAVASCRIPT) {
+                return SNIPPET_TYPE_JAVASCRIPT;
+            } else if (normalizedType === SNIPPET_TYPE_CSS) {
+                return SNIPPET_TYPE_CSS;
+            }
+
+            return null;
+        },
+
+        createSnippetContext: function (runtime, action, actionIndex) {
+            return {
+                action: action,
+                actionIndex: actionIndex,
+                config: runtime.config,
+                groupId: runtime.selectedGroupId,
+                module: runtime.module,
+                webExId: runtime.webExId,
+                webExVersionId: runtime.webExVersionId
+            };
+        },
+
+        injectCssSnippet: function (snippetId, snippet) {
+            if (snippetId.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) !== 0) {
+                Breinify.plugins.snippetManager.inject(snippetId, "body", "prepend");
+                return true;
+            }
+
+            Breinify.plugins.snippetManager.injectCode(snippet, "body", "prepend");
+            return true;
+        },
+
+        logSnippetWarning: function (message, details) {
+            if (typeof console === "object" && typeof console.warn === "function") {
+                console.warn("uiModifyContent: " + message, details);
+            }
+        },
+
+        logSnippetError: function (message, snippetId, error) {
+            if (typeof console === "object" && typeof console.error === "function") {
+                console.error("uiModifyContent: " + message, snippetId, error);
+            }
+        },
+
         getEffectiveAction: function (runtime, action) {
             if (!action || typeof action !== "object") {
                 return null;
@@ -1060,6 +1237,7 @@
                     (this.isDomAction(action) === true ||
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] !== true)) {
                     handler.call(implementation, action, runtime, i);
+                    this.applyActionSnippets(runtime, action, i);
 
                     if (this.isDomAction(action) !== true) {
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] = true;
@@ -1090,6 +1268,8 @@
                 appliedTargets: [],
                 applicationCounts: [],
                 executedActions: [],
+                appliedSnippets: {},
+                observedSnippets: {},
                 conditionResults: {},
                 selectedGroupId: "_default",
                 conditionEvaluationTimer: null

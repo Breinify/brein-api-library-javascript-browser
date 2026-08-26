@@ -78,7 +78,21 @@
         inject: function (snippetId, target, position) {
             const code = this.get(snippetId);
 
-            // For injection we only accept non-empty strings (DOM-like snippets)
+            this.injectCode(code, target, position, snippetId);
+        },
+
+        /**
+         * Injects a DOM-like snippet directly into the target.
+         * If the snippet is a function, it is ignored.
+         *
+         * @param {string} code string representing a DOM node
+         * @param {*} target jQuery|Element|string|null
+         * @param {string} position 'prepend'|'append' (default: 'prepend')
+         * @param {string} [snippetId] optional ID used for generated de-duplication IDs
+         */
+        injectCode: function (code, target, position, snippetId) {
+
+            // For injection, we only accept non-empty strings (DOM-like snippets)
             if (!Breinify.UTL.isNonEmptyString(code) || $.isFunction(code)) {
                 return;
             }
@@ -90,20 +104,20 @@
 
             // Determine / enforce id for de-dupe
             let id = Breinify.UTL.isNonEmptyString($el.attr('id'));
-            if (id === null) {
+            if (id === null && Breinify.UTL.isNonEmptyString(snippetId)) {
                 id = 'br-' + snippetId;
                 $el.attr('id', id);
             }
 
             // Global de-dupe: if an element with that id exists anywhere, do nothing
-            if (document.getElementById(id)) {
+            if (id !== null && document.getElementById(id)) {
                 return;
             }
 
             const pos = position === 'append' ? 'append' : 'prepend';
             this._waitForTarget(target, function ($target) {
                 // Re-check after waiting (someone else may have inserted it)
-                if (document.getElementById(id)) {
+                if (id !== null && document.getElementById(id)) {
                     return;
                 }
 
@@ -268,8 +282,18 @@
             _private.register(snippetId, snippet);
         },
 
-        getSnippet: function (snippetId) {
+        get: function (snippetId) {
             return _private.get(snippetId);
+        },
+
+        /**
+         * Backwards-compatible alias for get.
+         *
+         * @param {string} snippetId
+         * @return {string|function|null}
+         */
+        getSnippet: function (snippetId) {
+            return this.get(snippetId);
         },
 
         /**
@@ -285,10 +309,32 @@
          * @param {*} target jQuery|Element|string|null (default: 'body')
          * @param {string} position 'prepend'|'append' (default: 'prepend')
          */
-        injectSnippet: function (snippetId, target, position) {
+        inject: function (snippetId, target, position) {
             this.onSnippetRegistered(snippetId, function () {
                 _private.inject(snippetId, target, position);
             });
+        },
+
+        /**
+         * Backwards-compatible alias for inject.
+         *
+         * @param {string} snippetId
+         * @param {*} target jQuery|Element|string|null (default: 'body')
+         * @param {string} position 'prepend'|'append' (default: 'prepend')
+         */
+        injectSnippet: function (snippetId, target, position) {
+            this.inject(snippetId, target, position);
+        },
+
+        /**
+         * Inject a DOM-like snippet directly without registering it globally.
+         *
+         * @param {string} code string representing a DOM node
+         * @param {*} target jQuery|Element|string|null (default: 'body')
+         * @param {string} position 'prepend'|'append' (default: 'prepend')
+         */
+        injectCode: function (code, target, position) {
+            _private.injectCode(code, target, position);
         },
 
         /**
