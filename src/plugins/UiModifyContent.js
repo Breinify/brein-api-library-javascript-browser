@@ -343,10 +343,12 @@
     };
 
     /*
-     * Condition implementations are isolated by type. Each condition can add
-     * preEvaluate, evaluate, and optional scheduling helpers as defined by
-     * its generated evaluation contract. Methods prefixed with _ are private
-     * helpers of the individual condition implementation.
+     * Condition implementations are isolated by type. Conditions inside one
+     * conditionsGroups entry are combined with AND; the entries themselves
+     * are evaluated in order. Each condition can add preEvaluate, evaluate,
+     * and optional scheduling helpers as defined by its generated evaluation
+     * contract. Methods prefixed with _ are private helpers of the individual
+     * condition implementation.
      */
     const conditions = {
 
@@ -511,21 +513,6 @@
             }
         },
 
-        /** Evaluates a reusable condition only when all referenced conditions match. */
-        allOf: {
-            evaluate: function (condition, runtime, visiting) {
-                const references = condition && Array.isArray(condition.conditions)
-                    ? condition.conditions
-                    : [];
-                for (let i = 0; i < references.length; i++) {
-                    if (_private.evaluateCondition(runtime, references[i], visiting || {}) !== true) {
-                        return false;
-                    }
-                }
-                return references.length > 0;
-            }
-        },
-
         dayOfWeek: {
             evaluate: function (condition) {
                 const settings = _private.getConditionSettings(condition);
@@ -549,6 +536,11 @@
     const _private = {
         runtimes: {},
 
+        /*
+         * Actions are grouped in the generated configuration. The selected
+         * condition group's action list is used, with _default as fallback.
+         */
+
         getActionSettings: function (action) {
             return action && action.settings && typeof action.settings === "object"
                 ? action.settings
@@ -565,50 +557,8 @@
             for (let i = 0; i < actionKeys.length; i++) {
                 effectiveAction[actionKeys[i]] = action[actionKeys[i]];
             }
-
-            const baseSettings = action.settings && typeof action.settings === "object" ? action.settings : {};
-            const groupSettings = action.groupSettings && typeof action.groupSettings === "object"
-                ? action.groupSettings[runtime.selectedGroupId]
-                : null;
-            const settings = this.mergeSettings(baseSettings, groupSettings, "enabled");
-
-            effectiveAction.settings = settings;
             effectiveAction.enabled = action.enabled !== false;
-            if (groupSettings && groupSettings.enabled !== undefined) {
-                effectiveAction.enabled = groupSettings.enabled === true;
-            }
             return effectiveAction;
-        },
-
-        mergeSettings: function (baseSettings, overrideSettings, excludedKey) {
-            const result = {};
-            const baseKeys = Object.keys(baseSettings || {});
-            for (let i = 0; i < baseKeys.length; i++) {
-                result[baseKeys[i]] = baseSettings[baseKeys[i]];
-            }
-
-            if (!overrideSettings || typeof overrideSettings !== "object") {
-                return result;
-            }
-
-            const overrideKeys = Object.keys(overrideSettings);
-            for (let i = 0; i < overrideKeys.length; i++) {
-                const key = overrideKeys[i];
-                if (key === excludedKey) {
-                    continue;
-                }
-
-                const baseValue = result[key];
-                const overrideValue = overrideSettings[key];
-                if (baseValue && typeof baseValue === "object" && !Array.isArray(baseValue) &&
-                    overrideValue && typeof overrideValue === "object" && !Array.isArray(overrideValue)) {
-                    result[key] = this.mergeSettings(baseValue, overrideValue, null);
-                } else {
-                    result[key] = overrideValue;
-                }
-            }
-
-            return result;
         },
 
         getActionStateIndex: function (runtime, actionIndex) {
@@ -625,6 +575,36 @@
         getActionImplementation: function (action) {
             const actionType = action && typeof action.type === "string" ? action.type : null;
             return actionType === null ? null : actions[actionType] || null;
+        },
+
+        getConfiguredActions: function (runtime) {
+            const configuredActions = runtime.config && runtime.config.actions;
+            if (!configuredActions || typeof configuredActions !== "object") {
+                return [];
+            }
+
+            const selectedActions = configuredActions[runtime.selectedGroupId];
+            if (Array.isArray(selectedActions)) {
+                return selectedActions;
+            }
+
+            const defaultActions = configuredActions._default;
+            return Array.isArray(defaultActions) ? defaultActions : [];
+        },
+
+        getConfiguredConditions: function (runtime) {
+            const conditionGroups = runtime.config && Array.isArray(runtime.config.conditionsGroups)
+                ? runtime.config.conditionsGroups
+                : [];
+            const configuredConditions = [];
+            for (let i = 0; i < conditionGroups.length; i++) {
+                const group = conditionGroups[i];
+                const conditions = group && Array.isArray(group.conditions) ? group.conditions : [];
+                for (let j = 0; j < conditions.length; j++) {
+                    configuredConditions.push(conditions[j]);
+                }
+            }
+            return configuredConditions;
         },
 
         getConditionSettings: function (condition) {
@@ -724,9 +704,7 @@
         getNextConditionEvaluationDelay: function (runtime) {
             const now = Date.now();
             let delay = null;
-            const configuredConditions = runtime.config && Array.isArray(runtime.config.conditions)
-                ? runtime.config.conditions
-                : [];
+            const configuredConditions = this.getConfiguredConditions(runtime);
 
             for (let i = 0; i < configuredConditions.length; i++) {
                 const condition = configuredConditions[i];
@@ -927,9 +905,7 @@
             const root = this.getRootElement($el);
             runtime.conditionResults = {};
             runtime.selectedGroupId = this.selectGroup(runtime);
-            const configuredActions = runtime.config && Array.isArray(runtime.config.actions)
-                ? runtime.config.actions
-                : [];
+            const configuredActions = this.getConfiguredActions(runtime);
 
             for (let i = 0; i < configuredActions.length; i++) {
                 const action = this.getEffectiveAction(runtime, configuredActions[i]);
@@ -1006,9 +982,7 @@
         },
 
         preEvaluateConditions: function (runtime) {
-            const configuredConditions = runtime.config && Array.isArray(runtime.config.conditions)
-                ? runtime.config.conditions
-                : [];
+            const configuredConditions = this.getConfiguredConditions(runtime);
 
             const results = [];
             for (let i = 0; i < configuredConditions.length; i++) {
@@ -1024,32 +998,11 @@
             return results;
         },
 
-        getConditionById: function (runtime, conditionId) {
-            const configuredConditions = runtime.config && Array.isArray(runtime.config.conditions)
-                ? runtime.config.conditions
-                : [];
-            for (let i = 0; i < configuredConditions.length; i++) {
-                if (configuredConditions[i] && configuredConditions[i].id === conditionId) {
-                    return configuredConditions[i];
-                }
-            }
-            return null;
-        },
-
-        evaluateCondition: function (runtime, conditionId, visiting) {
-            if (runtime.conditionResults[conditionId] !== undefined) {
-                return runtime.conditionResults[conditionId] === true;
-            }
-            if (visiting[conditionId] === true) {
+        evaluateCondition: function (runtime, condition, visiting) {
+            if (!condition || typeof condition !== "object") {
                 return false;
             }
 
-            const condition = this.getConditionById(runtime, conditionId);
-            if (condition === null) {
-                return false;
-            }
-
-            visiting[conditionId] = true;
             const implementation = this.getConditionImplementation(condition);
             let result = false;
             if (implementation && typeof implementation.evaluate === "function") {
@@ -1058,18 +1011,17 @@
                 result = implementation.preEvaluate.call(implementation, condition, runtime) === true;
             }
 
-            runtime.conditionResults[conditionId] = result;
-            delete visiting[conditionId];
             return result;
         },
 
         selectGroup: function (runtime) {
-            const groups = runtime.config && Array.isArray(runtime.config.groups)
-                ? runtime.config.groups
+            const conditionGroups = runtime.config && Array.isArray(runtime.config.conditionsGroups)
+                ? runtime.config.conditionsGroups
                 : [];
-            for (let i = 0; i < groups.length; i++) {
-                const group = groups[i];
-                if (!group || !Array.isArray(group.conditions) || group.conditions.length === 0) {
+            for (let i = 0; i < conditionGroups.length; i++) {
+                const group = conditionGroups[i];
+                if (!group || typeof group.actionGroup !== "string" ||
+                    !Array.isArray(group.conditions) || group.conditions.length === 0) {
                     continue;
                 }
 
@@ -1080,8 +1032,8 @@
                         break;
                     }
                 }
-                if (matches && typeof group.id === "string" && group.id !== "") {
-                    return group.id;
+                if (matches) {
+                    return group.actionGroup;
                 }
             }
             return "_default";
@@ -1092,9 +1044,7 @@
         },
 
         executeActions: function (runtime) {
-            const configuredActions = runtime.config && Array.isArray(runtime.config.actions)
-                ? runtime.config.actions
-                : [];
+            const configuredActions = this.getConfiguredActions(runtime);
 
             for (let i = 0; i < configuredActions.length; i++) {
                 const action = this.getEffectiveAction(runtime, configuredActions[i]);
