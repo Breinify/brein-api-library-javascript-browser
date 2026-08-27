@@ -600,24 +600,12 @@
         },
 
         getDecisionPayload: function (runtime) {
-            const page = {};
-            if (typeof window === "object" && window.location) {
-                page.path = window.location.pathname;
-                page.url = window.location.href;
-            }
-            if (typeof document === "object") {
-                page.referrer = document.referrer || null;
-            }
-
             const decision = this.getDecisionSettings(runtime);
             return {
                 configurationId: typeof decision.configurationId === "string"
                     ? decision.configurationId
                     : null,
-                webExperienceId: runtime.webExId,
-                webExperienceVersionId: runtime.webExVersionId,
-                conditionRefs: this.getDecisionConditionReferences(runtime),
-                page: page
+                conditionRefs: this.getDecisionConditionReferences(runtime)
             };
         },
 
