@@ -16,6 +16,10 @@
     const SNIPPET_TYPE_CSS = "css";
     const DECISION_GROUP_ID = "__decision__";
     const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
+    const DECISION_STATUS_IDLE = "idle";
+    const DECISION_STATUS_PENDING = "pending";
+    const DECISION_STATUS_RESOLVED = "resolved";
+    const DECISION_STATUS_FAILED = "failed";
 
     /*
      * Action implementations are isolated by type. New actions belong here;
@@ -654,15 +658,12 @@
         },
 
         completeDecision: function (runtime, response) {
-            if (!this.isDecisionResponseForRuntime(runtime, response)) {
-                response = null;
-            }
-
             const actions = response && Array.isArray(response.actions) ? response.actions : [];
             const maxAgeSeconds = this.getDecisionMaxAgeSeconds(response);
 
             runtime.decision.inFlight = false;
             runtime.decision.resolved = true;
+            runtime.decision.status = DECISION_STATUS_RESOLVED;
             runtime.decision.actions = actions;
             runtime.decision.conditionResults = this.getDecisionConditionResults(response);
             runtime.conditionResults = runtime.decision.conditionResults;
@@ -672,7 +673,22 @@
             runtime.selectedGroupId = DECISION_GROUP_ID;
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
-                runtime.module.onChange({type: "decision"});
+                runtime.module.onChange({type: "decision", status: DECISION_STATUS_RESOLVED});
+            }
+        },
+
+        failDecision: function (runtime) {
+            runtime.decision.inFlight = false;
+            runtime.decision.resolved = false;
+            runtime.decision.status = DECISION_STATUS_FAILED;
+            runtime.decision.actions = [];
+            runtime.decision.conditionResults = {};
+            runtime.conditionResults = {};
+            runtime.decision.expiresAt = 0;
+            runtime.selectedGroupId = DECISION_GROUP_ID;
+
+            if (runtime.module && typeof runtime.module.onChange === "function") {
+                runtime.module.onChange({type: "decision", status: DECISION_STATUS_FAILED});
             }
         },
 
@@ -686,33 +702,46 @@
             if (decisionState.inFlight === true) {
                 return true;
             }
+            if (decisionState.status === DECISION_STATUS_FAILED) {
+                return true;
+            }
             if (decisionState.resolved === true &&
                 (decisionState.expiresAt === 0 || decisionState.expiresAt > now)) {
                 return true;
             }
 
             if (typeof Breinify !== "object" || typeof Breinify.service !== "function") {
-                this.completeDecision(runtime, null);
+                this.failDecision(runtime);
                 return true;
             }
 
             decisionState.resolved = false;
+            decisionState.status = DECISION_STATUS_PENDING;
             decisionState.actions = [];
             decisionState.expiresAt = 0;
             decisionState.inFlight = true;
-            Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime),
-                function (error, progress, response) {
-                    if (progress !== null && typeof progress !== "undefined" &&
-                        (response === null || typeof response === "undefined")) {
-                        return;
-                    }
+            try {
+                Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime),
+                    function (error, progress, response) {
+                        if (runtime.decision.status !== DECISION_STATUS_PENDING) {
+                            return;
+                        }
+                        if (progress !== null && typeof progress !== "undefined" &&
+                            (response === null || typeof response === "undefined")) {
+                            return;
+                        }
 
-                    if (error !== null && typeof error !== "undefined") {
-                        this.completeDecision(runtime, null);
-                    } else {
-                        this.completeDecision(runtime, response);
-                    }
-                }.bind(this));
+                        if (error !== null && typeof error !== "undefined") {
+                            this.failDecision(runtime);
+                        } else if (!this.isDecisionResponseForRuntime(runtime, response)) {
+                            this.failDecision(runtime);
+                        } else {
+                            this.completeDecision(runtime, response);
+                        }
+                    }.bind(this));
+            } catch (e) {
+                this.failDecision(runtime);
+            }
 
             return true;
         },
@@ -1457,6 +1486,7 @@
                 decision: {
                     inFlight: false,
                     resolved: false,
+                    status: DECISION_STATUS_IDLE,
                     actions: [],
                     conditionResults: {},
                     expiresAt: 0
