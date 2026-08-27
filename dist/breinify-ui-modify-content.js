@@ -10,12 +10,17 @@
     const $ = Breinify.UTL._jquery();
 
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
+    const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
+    const DECISION_GROUP_ID = "__decision__";
+
+    const DEFAULT_ACTION_GROUP = "_default";
+    const FAILURE_ACTION_GROUP = "_failure";
+
     const SNIPPET_SETTING_JAVASCRIPT = "js";
     const SNIPPET_SETTING_CSS = "css";
     const SNIPPET_TYPE_JAVASCRIPT = "javascript";
     const SNIPPET_TYPE_CSS = "css";
-    const DECISION_GROUP_ID = "__decision__";
-    const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
+
     const DECISION_STATUS_IDLE = "idle";
     const DECISION_STATUS_PENDING = "pending";
     const DECISION_STATUS_RESOLVED = "resolved";
@@ -948,16 +953,21 @@
         },
 
         getConfiguredActions: function (runtime) {
+            const configuredActions = runtime.config && runtime.config.actions;
+            if (!configuredActions || typeof configuredActions !== "object") {
+                return [];
+            }
+
             if (this.isDecisionRequired(runtime)) {
+                if (runtime.decision && runtime.decision.status === DECISION_STATUS_FAILED) {
+                    const failureActions = configuredActions[FAILURE_ACTION_GROUP];
+                    return Array.isArray(failureActions) ? failureActions : [];
+                }
+
                 return runtime.decision && runtime.decision.resolved === true &&
                     Array.isArray(runtime.decision.actions)
                     ? runtime.decision.actions
                     : [];
-            }
-
-            const configuredActions = runtime.config && runtime.config.actions;
-            if (!configuredActions || typeof configuredActions !== "object") {
-                return [];
             }
 
             const selectedActions = configuredActions[runtime.selectedGroupId];
@@ -965,7 +975,7 @@
                 return selectedActions;
             }
 
-            const defaultActions = configuredActions._default;
+            const defaultActions = configuredActions[DEFAULT_ACTION_GROUP];
             return Array.isArray(defaultActions) ? defaultActions : [];
         },
 
@@ -1424,7 +1434,7 @@
                     return group.actionGroup;
                 }
             }
-            return "_default";
+            return DEFAULT_ACTION_GROUP;
         },
 
         conditionsMatch: function (runtime) {
@@ -1482,7 +1492,7 @@
                 appliedSnippets: {},
                 observedSnippets: {},
                 conditionResults: {},
-                selectedGroupId: "_default",
+                selectedGroupId: DEFAULT_ACTION_GROUP,
                 decision: {
                     inFlight: false,
                     resolved: false,
