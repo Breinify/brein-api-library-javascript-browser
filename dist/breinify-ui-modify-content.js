@@ -376,8 +376,7 @@
          */
         decision: {
             evaluate: function (condition, runtime) {
-                const settings = _private.getConditionSettings(condition);
-                const refId = settings && typeof settings.refId === "string" ? settings.refId : null;
+                const refId = _private.getDecisionReferenceId(condition);
                 const results = runtime && runtime.decision && runtime.decision.conditionResults;
                 return refId !== null && results && results[refId] === true;
             }
@@ -594,26 +593,49 @@
 
         getDecisionService: function (runtime) {
             const decision = this.getDecisionSettings(runtime);
-            return typeof decision.service === "string" && decision.service.trim() !== ""
-                ? decision.service.trim()
-                : DEFAULT_DECISION_SERVICE;
+            return Breinify.UTL.isNonEmptyString(decision.service) || DEFAULT_DECISION_SERVICE;
         },
 
         getDecisionPayload: function (runtime) {
             const decision = this.getDecisionSettings(runtime);
             return {
-                webExperienceId: typeof runtime.webExId === "string" ? runtime.webExId : null,
-                webExperienceVersionId: typeof runtime.webExVersionId === "string" ? runtime.webExVersionId : null,
-                configurationId: typeof decision.configurationId === "string"
-                    ? decision.configurationId
-                    : null,
+                webExperienceId: Breinify.UTL.isNonEmptyString(runtime.webExId),
+                webExperienceVersionId: Breinify.UTL.isNonEmptyString(runtime.webExVersionId),
+                configurationId: Breinify.UTL.isNonEmptyString(decision.configurationId),
                 conditionRefs: this.getDecisionConditionReferences(runtime)
             };
         },
 
         getDecisionConfigurationId: function (runtime) {
             const decision = this.getDecisionSettings(runtime);
-            return typeof decision.configurationId === "string" ? decision.configurationId : null;
+            return Breinify.UTL.isNonEmptyString(decision.configurationId);
+        },
+
+        getDecisionReferenceId: function (condition) {
+            if (!$.isPlainObject(condition)) {
+                return null;
+            }
+
+            const refId = Breinify.UTL.isNonEmptyString(condition.refId);
+            if (refId !== null) {
+                return refId;
+            }
+
+            const settings = condition.settings;
+            return $.isPlainObject(settings) ? Breinify.UTL.isNonEmptyString(settings.refId) : null;
+        },
+
+        getDecisionMatched: function (condition) {
+            if (!$.isPlainObject(condition)) {
+                return null;
+            } else if (typeof condition.matched === "boolean") {
+                return condition.matched;
+            }
+
+            const settings = condition.settings;
+            return $.isPlainObject(settings) && typeof settings.matched === "boolean"
+                ? settings.matched
+                : null;
         },
 
         getDecisionConditionReferences: function (runtime) {
@@ -621,11 +643,13 @@
             const conditions = Array.isArray(decision.conditions) ? decision.conditions : [];
             const references = [];
             for (let i = 0; i < conditions.length; i++) {
-                const settings = conditions[i] && conditions[i].settings;
-                if (settings && typeof settings.refId === "string" && settings.refId.trim() !== "") {
-                    references.push(settings.refId);
+                const refId = this.getDecisionReferenceId(conditions[i]);
+
+                if (refId !== null) {
+                    references.push(refId);
                 }
             }
+
             return references;
         },
 
@@ -635,7 +659,8 @@
             }
 
             const expectedConfigurationId = this.getDecisionConfigurationId(runtime);
-            return expectedConfigurationId === null || response.configurationId === expectedConfigurationId;
+            const configurationId = Breinify.UTL.isNonEmptyString(response.configurationId);
+            return expectedConfigurationId === null || configurationId === expectedConfigurationId;
         },
 
         getDecisionConditionResults: function (response) {
@@ -643,13 +668,9 @@
             const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
             for (let i = 0; i < conditions.length; i++) {
                 const condition = conditions[i];
-                const settings = condition && condition.settings;
-                const refId = condition && typeof condition.refId === "string"
-                    ? condition.refId
-                    : settings && typeof settings.refId === "string" ? settings.refId : null;
-                const matched = condition && typeof condition.matched === "boolean"
-                    ? condition.matched
-                    : settings && typeof settings.matched === "boolean" ? settings.matched : null;
+                const refId = this.getDecisionReferenceId(condition);
+                const matched = this.getDecisionMatched(condition);
+
                 if (refId !== null && matched !== null) {
                     conditionResults[refId] = matched;
                 }
@@ -673,9 +694,7 @@
             runtime.decision.status = DECISION_STATUS_RESOLVED;
             runtime.decision.conditionResults = this.getDecisionConditionResults(response);
             runtime.conditionResults = runtime.decision.conditionResults;
-            runtime.decision.expiresAt = maxAgeSeconds > 0
-                ? Date.now() + maxAgeSeconds * 1000
-                : 0;
+            runtime.decision.expiresAt = maxAgeSeconds > 0 ? Date.now() + maxAgeSeconds * 1000 : 0;
             runtime.selectedGroupId = this.selectGroup(runtime);
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
@@ -822,9 +841,8 @@
         },
 
         getSnippetId: function (snippetSettings) {
-            const snippetId = snippetSettings && snippetSettings.snippetId;
-            return typeof snippetId === "string" && snippetId.trim() !== ""
-                ? snippetId.trim()
+            return $.isPlainObject(snippetSettings)
+                ? Breinify.UTL.isNonEmptyString(snippetSettings.snippetId)
                 : null;
         },
 
@@ -855,7 +873,7 @@
             const globalSnippet = Breinify.plugins.snippetManager.get(snippetId);
             return globalSnippet === null || globalSnippet === undefined
                 ? null
-                : { value: globalSnippet };
+                : {value: globalSnippet};
         },
 
         observeSnippet: function (runtime, action, actionIndex, setting, expectedType, snippetId, stateIndex) {
@@ -941,9 +959,7 @@
 
         getActionSelector: function (action) {
             const settings = this.getActionSettings(action);
-            return settings && typeof settings.selector === "string" && settings.selector.trim() !== ""
-                ? settings.selector
-                : null;
+            return $.isPlainObject(settings) ? Breinify.UTL.isNonEmptyString(settings.selector) : null;
         },
 
         getActionImplementation: function (action) {
@@ -1138,7 +1154,7 @@
             const settings = this.getActionSettings(action);
             const maxApplications = settings && settings.maxApplications;
             return typeof maxApplications === "number" && isFinite(maxApplications) &&
-                maxApplications > 0 && Math.floor(maxApplications) === maxApplications
+            maxApplications > 0 && Math.floor(maxApplications) === maxApplications
                 ? maxApplications
                 : null;
         },
@@ -1300,7 +1316,7 @@
                 ? runtime.decision.conditionResults
                 : {};
             runtime.selectedGroupId = this.isDecisionRequired(runtime) &&
-                runtime.decision.status === DECISION_STATUS_FAILED
+            runtime.decision.status === DECISION_STATUS_FAILED
                 ? FAILURE_ACTION_GROUP
                 : this.selectGroup(runtime);
             const configuredActions = this.getConfiguredActions(runtime);
