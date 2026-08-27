@@ -544,7 +544,8 @@
 
         /*
          * Actions are grouped in the generated configuration. The selected
-         * condition group's action list is used, with _default as fallback.
+         * condition group's action list is used. An optional _default action
+         * list is used only when no condition group matches.
          */
 
         getActionSettings: function (action) {
