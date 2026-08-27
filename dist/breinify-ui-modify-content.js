@@ -12,6 +12,8 @@
     const SNIPPET_SETTING_CSS = "css";
     const SNIPPET_TYPE_JAVASCRIPT = "javascript";
     const SNIPPET_TYPE_CSS = "css";
+    const DECISION_GROUP_ID = "__decision__";
+    const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
 
     /*
      * Action implementations are isolated by type. New actions belong here;
@@ -545,13 +547,172 @@
         /*
          * Actions are grouped in the generated configuration. The selected
          * condition group's action list is used. An optional _default action
-         * list is used only when no condition group matches.
+         * list is used only when no condition group matches. If a decision is
+         * required, the actions returned by the decision service are used.
          */
 
         getActionSettings: function (action) {
             return action && action.settings && typeof action.settings === "object"
                 ? action.settings
                 : null;
+        },
+
+        isDecisionRequired: function (runtime) {
+            const decision = runtime && runtime.config && runtime.config.decision;
+            return $.isPlainObject(decision) && decision.required === true;
+        },
+
+        getDecisionSettings: function (runtime) {
+            return runtime && runtime.config && $.isPlainObject(runtime.config.decision)
+                ? runtime.config.decision
+                : {};
+        },
+
+        getDecisionService: function (runtime) {
+            const decision = this.getDecisionSettings(runtime);
+            return typeof decision.service === "string" && decision.service.trim() !== ""
+                ? decision.service.trim()
+                : DEFAULT_DECISION_SERVICE;
+        },
+
+        getDecisionPayload: function (runtime) {
+            const page = {};
+            if (typeof window === "object" && window.location) {
+                page.path = window.location.pathname;
+                page.url = window.location.href;
+            }
+            if (typeof document === "object") {
+                page.referrer = document.referrer || null;
+            }
+
+            const decision = this.getDecisionSettings(runtime);
+            return {
+                configurationId: typeof decision.configurationId === "string"
+                    ? decision.configurationId
+                    : null,
+                webExperienceId: runtime.webExId,
+                webExperienceVersionId: runtime.webExVersionId,
+                conditionRefs: this.getDecisionConditionReferences(runtime),
+                page: page
+            };
+        },
+
+        getDecisionConfigurationId: function (runtime) {
+            const decision = this.getDecisionSettings(runtime);
+            return typeof decision.configurationId === "string" ? decision.configurationId : null;
+        },
+
+        getDecisionConditionReferences: function (runtime) {
+            const decision = this.getDecisionSettings(runtime);
+            const conditions = Array.isArray(decision.conditions) ? decision.conditions : [];
+            const references = [];
+            for (let i = 0; i < conditions.length; i++) {
+                const settings = conditions[i] && conditions[i].settings;
+                if (settings && typeof settings.refId === "string" && settings.refId.trim() !== "") {
+                    references.push(settings.refId);
+                }
+            }
+            return references;
+        },
+
+        isDecisionResponseForRuntime: function (runtime, response) {
+            if (!$.isPlainObject(response)) {
+                return false;
+            }
+
+            const expectedConfigurationId = this.getDecisionConfigurationId(runtime);
+            return expectedConfigurationId === null || response.configurationId === expectedConfigurationId;
+        },
+
+        getDecisionConditionResults: function (response) {
+            const conditionResults = {};
+            const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
+            for (let i = 0; i < conditions.length; i++) {
+                const condition = conditions[i];
+                const settings = condition && condition.settings;
+                const refId = condition && typeof condition.refId === "string"
+                    ? condition.refId
+                    : settings && typeof settings.refId === "string" ? settings.refId : null;
+                const matched = condition && typeof condition.matched === "boolean"
+                    ? condition.matched
+                    : settings && typeof settings.matched === "boolean" ? settings.matched : null;
+                if (refId !== null && matched !== null) {
+                    conditionResults[refId] = matched;
+                }
+            }
+            return conditionResults;
+        },
+
+        getDecisionMaxAgeSeconds: function (response) {
+            const cache = response && response.cache;
+            const maxAgeSeconds = cache && cache.maxAgeSeconds;
+            return typeof maxAgeSeconds === "number" && isFinite(maxAgeSeconds) && maxAgeSeconds >= 0
+                ? maxAgeSeconds
+                : 0;
+        },
+
+        completeDecision: function (runtime, response) {
+            if (!this.isDecisionResponseForRuntime(runtime, response)) {
+                response = null;
+            }
+
+            const actions = response && Array.isArray(response.actions) ? response.actions : [];
+            const maxAgeSeconds = this.getDecisionMaxAgeSeconds(response);
+
+            runtime.decision.inFlight = false;
+            runtime.decision.resolved = true;
+            runtime.decision.actions = actions;
+            runtime.decision.conditionResults = this.getDecisionConditionResults(response);
+            runtime.conditionResults = runtime.decision.conditionResults;
+            runtime.decision.expiresAt = maxAgeSeconds > 0
+                ? Date.now() + maxAgeSeconds * 1000
+                : 0;
+            runtime.selectedGroupId = DECISION_GROUP_ID;
+
+            if (runtime.module && typeof runtime.module.onChange === "function") {
+                runtime.module.onChange({type: "decision"});
+            }
+        },
+
+        requestDecision: function (runtime) {
+            if (!this.isDecisionRequired(runtime)) {
+                return false;
+            }
+
+            const decisionState = runtime.decision;
+            const now = Date.now();
+            if (decisionState.inFlight === true) {
+                return true;
+            }
+            if (decisionState.resolved === true &&
+                (decisionState.expiresAt === 0 || decisionState.expiresAt > now)) {
+                return true;
+            }
+
+            if (typeof Breinify !== "object" || typeof Breinify.service !== "function") {
+                this.completeDecision(runtime, null);
+                return true;
+            }
+
+            decisionState.resolved = false;
+            decisionState.actions = [];
+            decisionState.expiresAt = 0;
+            decisionState.inFlight = true;
+            Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime),
+                function (error, progress, response) {
+                    if (progress !== null && typeof progress !== "undefined" &&
+                        (response === null || typeof response === "undefined")) {
+                        return;
+                    }
+
+                    if (error !== null && typeof error !== "undefined") {
+                        this.completeDecision(runtime, null);
+                    } else {
+                        this.completeDecision(runtime, response);
+                    }
+                }.bind(this));
+
+            return true;
         },
 
         applyActionSnippets: function (runtime, action, actionIndex) {
@@ -740,7 +901,7 @@
         },
 
         getActionStateIndex: function (runtime, actionIndex) {
-            return String(actionIndex) + ":" + String(runtime.selectedGroupId || "_default");
+            return String(actionIndex) + ":" + String(runtime.selectedGroupId || "_none");
         },
 
         getActionSelector: function (action) {
@@ -756,6 +917,13 @@
         },
 
         getConfiguredActions: function (runtime) {
+            if (this.isDecisionRequired(runtime)) {
+                return runtime.decision && runtime.decision.resolved === true &&
+                    Array.isArray(runtime.decision.actions)
+                    ? runtime.decision.actions
+                    : [];
+            }
+
             const configuredActions = runtime.config && runtime.config.actions;
             if (!configuredActions || typeof configuredActions !== "object") {
                 return [];
@@ -1080,9 +1248,18 @@
                 return false;
             }
 
+            if (this.isDecisionRequired(runtime) &&
+                (!runtime.decision || runtime.decision.resolved !== true)) {
+                return false;
+            }
+
             const root = this.getRootElement($el);
-            runtime.conditionResults = {};
-            runtime.selectedGroupId = this.selectGroup(runtime);
+            runtime.conditionResults = this.isDecisionRequired(runtime) && runtime.decision
+                ? runtime.decision.conditionResults
+                : {};
+            runtime.selectedGroupId = this.isDecisionRequired(runtime)
+                ? DECISION_GROUP_ID
+                : this.selectGroup(runtime);
             const configuredActions = this.getConfiguredActions(runtime);
 
             for (let i = 0; i < configuredActions.length; i++) {
@@ -1273,6 +1450,13 @@
                 observedSnippets: {},
                 conditionResults: {},
                 selectedGroupId: "_default",
+                decision: {
+                    inFlight: false,
+                    resolved: false,
+                    actions: [],
+                    conditionResults: {},
+                    expiresAt: 0
+                },
                 conditionEvaluationTimer: null
             };
 
@@ -1296,9 +1480,19 @@
             }
 
             _private.scheduleConditionEvaluation(runtime);
-            runtime.preEvaluation = _private.preEvaluateConditions(runtime);
-            runtime.conditionResults = {};
-            runtime.selectedGroupId = _private.selectGroup(runtime);
+
+            if (_private.isDecisionRequired(runtime)) {
+                _private.requestDecision(runtime);
+                if (runtime.decision.resolved !== true) {
+                    return true;
+                }
+
+                runtime.selectedGroupId = DECISION_GROUP_ID;
+            } else {
+                runtime.preEvaluation = _private.preEvaluateConditions(runtime);
+                runtime.conditionResults = {};
+                runtime.selectedGroupId = _private.selectGroup(runtime);
+            }
 
             _private.executeActions(runtime);
             return true;
