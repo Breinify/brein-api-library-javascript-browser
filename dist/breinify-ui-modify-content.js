@@ -7,6 +7,8 @@
         return;
     }
 
+    const $ = Breinify.UTL._jquery();
+
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
     const SNIPPET_SETTING_JAVASCRIPT = "js";
     const SNIPPET_SETTING_CSS = "css";
