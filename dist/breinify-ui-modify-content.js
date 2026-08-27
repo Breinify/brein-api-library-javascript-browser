@@ -602,6 +602,8 @@
         getDecisionPayload: function (runtime) {
             const decision = this.getDecisionSettings(runtime);
             return {
+                webExperienceId: typeof runtime.webExId === "string" ? runtime.webExId : null,
+                webExperienceVersionId: typeof runtime.webExVersionId === "string" ? runtime.webExVersionId : null,
                 configurationId: typeof decision.configurationId === "string"
                     ? decision.configurationId
                     : null,
