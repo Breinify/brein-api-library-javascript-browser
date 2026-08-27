@@ -676,13 +676,11 @@
         },
 
         completeDecision: function (runtime, response) {
-            const actions = response && Array.isArray(response.actions) ? response.actions : [];
             const maxAgeSeconds = this.getDecisionMaxAgeSeconds(response);
 
             runtime.decision.inFlight = false;
             runtime.decision.resolved = true;
             runtime.decision.status = DECISION_STATUS_RESOLVED;
-            runtime.decision.actions = actions;
             runtime.decision.conditionResults = this.getDecisionConditionResults(response);
             runtime.conditionResults = runtime.decision.conditionResults;
             runtime.decision.expiresAt = maxAgeSeconds > 0
@@ -699,7 +697,6 @@
             runtime.decision.inFlight = false;
             runtime.decision.resolved = false;
             runtime.decision.status = DECISION_STATUS_FAILED;
-            runtime.decision.actions = [];
             runtime.decision.conditionResults = {};
             runtime.conditionResults = {};
             runtime.decision.expiresAt = 0;
@@ -735,7 +732,6 @@
 
             decisionState.resolved = false;
             decisionState.status = DECISION_STATUS_PENDING;
-            decisionState.actions = [];
             decisionState.expiresAt = 0;
             decisionState.inFlight = true;
             try {
@@ -1511,7 +1507,6 @@
                     inFlight: false,
                     resolved: false,
                     status: DECISION_STATUS_IDLE,
-                    actions: [],
                     conditionResults: {},
                     expiresAt: 0
                 },
