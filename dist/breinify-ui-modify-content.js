@@ -11,8 +11,6 @@
 
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
     const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
-    const DECISION_GROUP_ID = "__decision__";
-
     const DEFAULT_ACTION_GROUP = "_default";
     const FAILURE_ACTION_GROUP = "_failure";
 
@@ -372,6 +370,20 @@
     const conditions = {
 
         /**
+         * Resolves an opaque backend decision result returned for this
+         * web-experience. The browser receives only the reference and the
+         * boolean result, never the backend condition settings.
+         */
+        decision: {
+            evaluate: function (condition, runtime) {
+                const settings = _private.getConditionSettings(condition);
+                const refId = settings && typeof settings.refId === "string" ? settings.refId : null;
+                const results = runtime && runtime.decision && runtime.decision.conditionResults;
+                return refId !== null && results && results[refId] === true;
+            }
+        },
+
+        /**
          * Provides a low-cost browser-side device-type candidate. It is not a
          * final result; Customer Journey remains authoritative for user-agent
          * classification through the future decision service.
@@ -558,8 +570,9 @@
         /*
          * Actions are grouped in the generated configuration. The selected
          * condition group's action list is used. An optional _default action
-         * list is used only when no condition group matches. If a decision is
-         * required, the actions returned by the decision service are used.
+         * list is used only when no condition group matches. A decision
+         * response supplies opaque backend condition results; action groups
+         * remain local and are selected after the complete group is evaluated.
          */
 
         getActionSettings: function (action) {
@@ -675,7 +688,7 @@
             runtime.decision.expiresAt = maxAgeSeconds > 0
                 ? Date.now() + maxAgeSeconds * 1000
                 : 0;
-            runtime.selectedGroupId = DECISION_GROUP_ID;
+            runtime.selectedGroupId = this.selectGroup(runtime);
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
                 runtime.module.onChange({type: "decision", status: DECISION_STATUS_RESOLVED});
@@ -690,7 +703,7 @@
             runtime.decision.conditionResults = {};
             runtime.conditionResults = {};
             runtime.decision.expiresAt = 0;
-            runtime.selectedGroupId = DECISION_GROUP_ID;
+            runtime.selectedGroupId = FAILURE_ACTION_GROUP;
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
                 runtime.module.onChange({type: "decision", status: DECISION_STATUS_FAILED});
@@ -964,10 +977,9 @@
                     return Array.isArray(failureActions) ? failureActions : [];
                 }
 
-                return runtime.decision && runtime.decision.resolved === true &&
-                    Array.isArray(runtime.decision.actions)
-                    ? runtime.decision.actions
-                    : [];
+                if (!runtime.decision || runtime.decision.resolved !== true) {
+                    return [];
+                }
             }
 
             const selectedActions = configuredActions[runtime.selectedGroupId];
@@ -1291,7 +1303,8 @@
 
             if (this.isDecisionRequired(runtime)) {
                 this.requestDecision(runtime);
-                if (!runtime.decision || runtime.decision.resolved !== true) {
+                if (!runtime.decision ||
+                    (runtime.decision.resolved !== true && runtime.decision.status !== DECISION_STATUS_FAILED)) {
                     return false;
                 }
             }
@@ -1300,8 +1313,9 @@
             runtime.conditionResults = this.isDecisionRequired(runtime) && runtime.decision
                 ? runtime.decision.conditionResults
                 : {};
-            runtime.selectedGroupId = this.isDecisionRequired(runtime)
-                ? DECISION_GROUP_ID
+            runtime.selectedGroupId = this.isDecisionRequired(runtime) &&
+                runtime.decision.status === DECISION_STATUS_FAILED
+                ? FAILURE_ACTION_GROUP
                 : this.selectGroup(runtime);
             const configuredActions = this.getConfiguredActions(runtime);
 
@@ -1527,11 +1541,14 @@
 
             if (_private.isDecisionRequired(runtime)) {
                 _private.requestDecision(runtime);
-                if (runtime.decision.resolved !== true) {
+                if (runtime.decision.resolved !== true &&
+                    runtime.decision.status !== DECISION_STATUS_FAILED) {
                     return true;
                 }
 
-                runtime.selectedGroupId = DECISION_GROUP_ID;
+                runtime.selectedGroupId = runtime.decision.status === DECISION_STATUS_FAILED
+                    ? FAILURE_ACTION_GROUP
+                    : _private.selectGroup(runtime);
             } else {
                 runtime.preEvaluation = _private.preEvaluateConditions(runtime);
                 runtime.conditionResults = {};
