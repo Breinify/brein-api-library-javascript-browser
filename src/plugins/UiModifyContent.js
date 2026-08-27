@@ -1250,9 +1250,11 @@
                 return false;
             }
 
-            if (this.isDecisionRequired(runtime) &&
-                (!runtime.decision || runtime.decision.resolved !== true)) {
-                return false;
+            if (this.isDecisionRequired(runtime)) {
+                this.requestDecision(runtime);
+                if (!runtime.decision || runtime.decision.resolved !== true) {
+                    return false;
+                }
             }
 
             const root = this.getRootElement($el);
