@@ -11,6 +11,11 @@
 
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
     const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
+    const DECISION_STORAGE_KEY = "br::web-experience::decision";
+    const DECISION_STORAGE_VERSION = 1;
+    const DECISION_CACHE_SCOPE_PAGE = "PAGE";
+    const DECISION_CACHE_SCOPE_SESSION = "SESSION";
+    const DECISION_CACHE_SCOPE_PERSISTENT = "PERSISTENT";
     const DEFAULT_ACTION_GROUP = "_default";
     const FAILURE_ACTION_GROUP = "_failure";
 
@@ -377,8 +382,7 @@
         decision: {
             evaluate: function (condition, runtime) {
                 const refId = _private.getDecisionReferenceId(condition);
-                const results = runtime && runtime.decision && runtime.decision.conditionResults;
-                return refId !== null && results && results[refId] === true;
+                return _private.getDecisionConditionResult(runtime, refId) === true;
             }
         },
 
@@ -596,13 +600,15 @@
             return Breinify.UTL.isNonEmptyString(decision.service) || DEFAULT_DECISION_SERVICE;
         },
 
-        getDecisionPayload: function (runtime) {
+        getDecisionPayload: function (runtime, conditionReferences) {
             const decision = this.getDecisionSettings(runtime);
             return {
                 webExperienceId: Breinify.UTL.isNonEmptyString(runtime.webExId),
                 webExperienceVersionId: Breinify.UTL.isNonEmptyString(runtime.webExVersionId),
                 configurationId: Breinify.UTL.isNonEmptyString(decision.configurationId),
-                conditionRefs: this.getDecisionConditionReferences(runtime)
+                conditionRefs: Array.isArray(conditionReferences)
+                    ? conditionReferences
+                    : this.getDecisionConditionReferences(runtime)
             };
         },
 
@@ -642,11 +648,13 @@
             const decision = this.getDecisionSettings(runtime);
             const conditions = Array.isArray(decision.conditions) ? decision.conditions : [];
             const references = [];
+            const knownReferences = {};
             for (let i = 0; i < conditions.length; i++) {
                 const refId = this.getDecisionReferenceId(conditions[i]);
 
-                if (refId !== null) {
+                if (refId !== null && knownReferences[refId] !== true) {
                     references.push(refId);
+                    knownReferences[refId] = true;
                 }
             }
 
@@ -663,38 +671,270 @@
             return expectedConfigurationId === null || configurationId === expectedConfigurationId;
         },
 
-        getDecisionConditionResults: function (response) {
-            const conditionResults = {};
-            const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
-            for (let i = 0; i < conditions.length; i++) {
-                const condition = conditions[i];
-                const refId = this.getDecisionReferenceId(condition);
-                const matched = this.getDecisionMatched(condition);
-
-                if (refId !== null && matched !== null) {
-                    conditionResults[refId] = matched;
-                }
+        getDecisionPageKey: function () {
+            if (typeof window === "undefined" || !window.location) {
+                return "";
             }
-            return conditionResults;
+
+            return String(window.location.pathname || "") +
+                String(window.location.search || "") +
+                String(window.location.hash || "");
         },
 
-        getDecisionMaxAgeSeconds: function (response) {
-            const cache = response && response.cache;
+        getDecisionConditionCache: function (condition) {
+            const cache = $.isPlainObject(condition) && $.isPlainObject(condition.cache)
+                ? condition.cache
+                : null;
             const maxAgeSeconds = cache && cache.maxAgeSeconds;
             return typeof maxAgeSeconds === "number" && isFinite(maxAgeSeconds) && maxAgeSeconds >= 0
                 ? maxAgeSeconds
                 : 0;
         },
 
-        completeDecision: function (runtime, response) {
-            const maxAgeSeconds = this.getDecisionMaxAgeSeconds(response);
+        getDecisionConditionScope: function (condition) {
+            const cache = $.isPlainObject(condition) && $.isPlainObject(condition.cache)
+                ? condition.cache
+                : null;
+            const scope = Breinify.UTL.isNonEmptyString(cache && cache.scope);
+            return scope === null ? DECISION_CACHE_SCOPE_PAGE : scope.toUpperCase();
+        },
+
+        getDecisionStorage: function (scope) {
+            if (typeof window === "undefined") {
+                return null;
+            }
+
+            try {
+                return scope === DECISION_CACHE_SCOPE_PERSISTENT
+                    ? window.localStorage || null
+                    : window.sessionStorage || null;
+            } catch (e) {
+                return null;
+            }
+        },
+
+        getDecisionStorageEntryKey: function (runtime, refId) {
+            return [
+                String(runtime && runtime.webExId || ""),
+                String(runtime && runtime.webExVersionId || ""),
+                String(this.getDecisionConfigurationId(runtime) || ""),
+                String(refId || "")
+            ].join("|");
+        },
+
+        readDecisionStorage: function (scope) {
+            const storage = this.getDecisionStorage(scope);
+            if (storage === null) {
+                return null;
+            }
+
+            try {
+                const raw = storage.getItem(DECISION_STORAGE_KEY);
+                const parsed = raw === null ? null : JSON.parse(raw);
+                if (!$.isPlainObject(parsed) || !$.isPlainObject(parsed.entries)) {
+                    return {
+                        storage: storage,
+                        scope: scope,
+                        entries: {}
+                    };
+                }
+
+                return {
+                    storage: storage,
+                    scope: scope,
+                    entries: parsed.entries
+                };
+            } catch (e) {
+                return null;
+            }
+        },
+
+        writeDecisionStorage: function (storageData) {
+            if (!storageData || !storageData.storage || !$.isPlainObject(storageData.entries)) {
+                return;
+            }
+
+            try {
+                storageData.storage.setItem(DECISION_STORAGE_KEY, JSON.stringify({
+                    version: DECISION_STORAGE_VERSION,
+                    entries: storageData.entries
+                }));
+            } catch (e) {
+                // Storage may be disabled or full. The in-memory cache remains usable.
+            }
+        },
+
+        loadDecisionCache: function (runtime) {
+            const references = this.getDecisionConditionReferences(runtime);
+            const storageScopes = [DECISION_CACHE_SCOPE_SESSION, DECISION_CACHE_SCOPE_PERSISTENT];
+            const now = Date.now();
+
+            for (let storageIndex = 0; storageIndex < storageScopes.length; storageIndex++) {
+                const scope = storageScopes[storageIndex];
+                const storageData = this.readDecisionStorage(scope);
+                if (storageData === null) {
+                    continue;
+                }
+
+                let changed = false;
+                for (let i = 0; i < references.length; i++) {
+                    const refId = references[i];
+                    const storageKey = this.getDecisionStorageEntryKey(runtime, refId);
+                    const stored = storageData.entries[storageKey];
+                    if (!$.isPlainObject(stored) || stored.scope !== scope ||
+                        typeof stored.matched !== "boolean") {
+                        continue;
+                    }
+
+                    const expiresAt = typeof stored.expiresAt === "number" && isFinite(stored.expiresAt)
+                        ? stored.expiresAt
+                        : 0;
+                    const maxAgeSeconds = typeof stored.maxAgeSeconds === "number" &&
+                    isFinite(stored.maxAgeSeconds) && stored.maxAgeSeconds >= 0
+                        ? stored.maxAgeSeconds
+                        : 0;
+                    const expired = scope === DECISION_CACHE_SCOPE_PERSISTENT
+                        ? maxAgeSeconds <= 0 || expiresAt === 0 || expiresAt <= now
+                        : maxAgeSeconds > 0 && (expiresAt === 0 || expiresAt <= now);
+                    if (expired) {
+                        delete storageData.entries[storageKey];
+                        changed = true;
+                        continue;
+                    }
+
+                    if (typeof runtime.decision.conditionCache[refId] === "undefined") {
+                        runtime.decision.conditionResults[refId] = stored.matched;
+                        runtime.decision.conditionCache[refId] = {
+                            scope: scope,
+                            maxAgeSeconds: maxAgeSeconds,
+                            pageKey: null,
+                            expiresAt: expiresAt
+                        };
+                    }
+                }
+
+                if (changed) {
+                    this.writeDecisionStorage(storageData);
+                }
+            }
+        },
+
+        updateDecisionCache: function (runtime, entries) {
+            const storageData = {
+                session: this.readDecisionStorage(DECISION_CACHE_SCOPE_SESSION),
+                persistent: this.readDecisionStorage(DECISION_CACHE_SCOPE_PERSISTENT)
+            };
+
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                const storageKey = this.getDecisionStorageEntryKey(runtime, entry.refId);
+                const cachedEntry = {
+                    scope: entry.scope,
+                    matched: entry.matched,
+                    maxAgeSeconds: entry.maxAgeSeconds,
+                    expiresAt: entry.expiresAt
+                };
+
+                if (entry.scope === DECISION_CACHE_SCOPE_SESSION && storageData.session !== null) {
+                    storageData.session.entries[storageKey] = cachedEntry;
+                    if (storageData.persistent !== null) {
+                        delete storageData.persistent.entries[storageKey];
+                    }
+                } else if (entry.scope === DECISION_CACHE_SCOPE_PERSISTENT &&
+                    storageData.persistent !== null) {
+                    storageData.persistent.entries[storageKey] = cachedEntry;
+                    if (storageData.session !== null) {
+                        delete storageData.session.entries[storageKey];
+                    }
+                } else {
+                    if (storageData.session !== null) {
+                        delete storageData.session.entries[storageKey];
+                    }
+                    if (storageData.persistent !== null) {
+                        delete storageData.persistent.entries[storageKey];
+                    }
+                }
+            }
+
+            this.writeDecisionStorage(storageData.session);
+            this.writeDecisionStorage(storageData.persistent);
+        },
+
+        getDecisionConditionResult: function (runtime, refId) {
+            if (refId === null || !runtime || !runtime.decision) {
+                return null;
+            }
+
+            const conditionCache = runtime.decision.conditionCache || {};
+            const cache = conditionCache[refId];
+            const currentPageKey = this.getDecisionPageKey();
+            const isFresh = cache && cache.scope === DECISION_CACHE_SCOPE_SESSION
+                ? cache.expiresAt === 0 || cache.expiresAt > Date.now()
+                : cache && cache.scope === DECISION_CACHE_SCOPE_PERSISTENT
+                    ? cache.expiresAt > 0 && cache.expiresAt > Date.now()
+                    : cache && (cache.pageKey === currentPageKey ||
+                        (cache.expiresAt > 0 && cache.expiresAt > Date.now()));
+            if (isFresh !== true) {
+                return null;
+            }
+
+            const conditionResults = runtime.decision.conditionResults || {};
+            return typeof conditionResults[refId] === "boolean" ? conditionResults[refId] : null;
+        },
+
+        getDecisionReferencesToResolve: function (runtime) {
+            const references = this.getDecisionConditionReferences(runtime);
+            const unresolvedReferences = [];
+            for (let i = 0; i < references.length; i++) {
+                if (this.getDecisionConditionResult(runtime, references[i]) === null) {
+                    unresolvedReferences.push(references[i]);
+                }
+            }
+
+            return unresolvedReferences;
+        },
+
+        completeDecision: function (runtime, response, requestPageKey) {
+            const conditionResults = runtime.decision.conditionResults || {};
+            const conditionCache = runtime.decision.conditionCache || {};
+            const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
+            const resolvedAt = Date.now();
+            const storageEntries = [];
+
+            for (let i = 0; i < conditions.length; i++) {
+                const condition = conditions[i];
+                const refId = this.getDecisionReferenceId(condition);
+                const matched = this.getDecisionMatched(condition);
+                if (refId === null || matched === null) {
+                    continue;
+                }
+
+                const maxAgeSeconds = this.getDecisionConditionCache(condition);
+                const scope = this.getDecisionConditionScope(condition);
+                const expiresAt = maxAgeSeconds > 0 ? resolvedAt + maxAgeSeconds * 1000 : 0;
+                conditionResults[refId] = matched;
+                conditionCache[refId] = {
+                    scope: scope,
+                    maxAgeSeconds: maxAgeSeconds,
+                    pageKey: scope === DECISION_CACHE_SCOPE_SESSION ? null : requestPageKey,
+                    expiresAt: expiresAt
+                };
+                storageEntries.push({
+                    refId: refId,
+                    scope: scope,
+                    matched: matched,
+                    maxAgeSeconds: maxAgeSeconds,
+                    expiresAt: expiresAt
+                });
+            }
 
             runtime.decision.inFlight = false;
             runtime.decision.resolved = true;
             runtime.decision.status = DECISION_STATUS_RESOLVED;
-            runtime.decision.conditionResults = this.getDecisionConditionResults(response);
+            runtime.decision.conditionResults = conditionResults;
+            runtime.decision.conditionCache = conditionCache;
             runtime.conditionResults = runtime.decision.conditionResults;
-            runtime.decision.expiresAt = maxAgeSeconds > 0 ? Date.now() + maxAgeSeconds * 1000 : 0;
+            this.updateDecisionCache(runtime, storageEntries);
             runtime.selectedGroupId = this.selectGroup(runtime);
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
@@ -707,8 +947,8 @@
             runtime.decision.resolved = false;
             runtime.decision.status = DECISION_STATUS_FAILED;
             runtime.decision.conditionResults = {};
+            runtime.decision.conditionCache = {};
             runtime.conditionResults = {};
-            runtime.decision.expiresAt = 0;
             runtime.selectedGroupId = FAILURE_ACTION_GROUP;
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
@@ -722,15 +962,17 @@
             }
 
             const decisionState = runtime.decision;
-            const now = Date.now();
             if (decisionState.inFlight === true) {
                 return true;
             }
             if (decisionState.status === DECISION_STATUS_FAILED) {
                 return true;
             }
-            if (decisionState.resolved === true &&
-                (decisionState.expiresAt === 0 || decisionState.expiresAt > now)) {
+
+            const conditionReferences = this.getDecisionReferencesToResolve(runtime);
+            if (conditionReferences.length === 0) {
+                decisionState.resolved = true;
+                decisionState.status = DECISION_STATUS_RESOLVED;
                 return true;
             }
 
@@ -739,12 +981,21 @@
                 return true;
             }
 
+            const requestPageKey = this.getDecisionPageKey();
+            const previousResults = decisionState.conditionResults || {};
+            const previousCache = decisionState.conditionCache || {};
+            for (let i = 0; i < conditionReferences.length; i++) {
+                delete previousResults[conditionReferences[i]];
+                delete previousCache[conditionReferences[i]];
+            }
+
             decisionState.resolved = false;
             decisionState.status = DECISION_STATUS_PENDING;
-            decisionState.expiresAt = 0;
+            decisionState.conditionResults = previousResults;
+            decisionState.conditionCache = previousCache;
             decisionState.inFlight = true;
             try {
-                Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime),
+                Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime, conditionReferences),
                     function (error, progress, response) {
                         if (runtime.decision.status !== DECISION_STATUS_PENDING) {
                             return;
@@ -759,7 +1010,7 @@
                         } else if (!this.isDecisionResponseForRuntime(runtime, response)) {
                             this.failDecision(runtime);
                         } else {
-                            this.completeDecision(runtime, response);
+                            this.completeDecision(runtime, response, requestPageKey);
                         }
                     }.bind(this));
             } catch (e) {
@@ -1514,10 +1765,12 @@
                     resolved: false,
                     status: DECISION_STATUS_IDLE,
                     conditionResults: {},
-                    expiresAt: 0
+                    conditionCache: {}
                 },
                 conditionEvaluationTimer: null
             };
+
+            _private.loadDecisionCache(runtime);
 
             _private.runtimes[key] = runtime;
 
