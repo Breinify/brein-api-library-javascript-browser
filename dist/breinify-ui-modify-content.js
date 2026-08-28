@@ -12,7 +12,7 @@
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
     const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
     const DECISION_STORAGE_KEY = "br::web-experience::decision";
-    const DECISION_STORAGE_VERSION = 1;
+    const DECISION_STORAGE_VERSION = 2;
     const DECISION_CACHE_SCOPE_PAGE = "PAGE";
     const DECISION_CACHE_SCOPE_SESSION = "SESSION";
     const DECISION_CACHE_SCOPE_PERSISTENT = "PERSISTENT";
@@ -569,6 +569,7 @@
 
     const _private = {
         runtimes: {},
+        decisionBatches: {},
 
         /*
          * Actions are grouped in the generated configuration. The selected
@@ -671,6 +672,154 @@
             return expectedConfigurationId === null || configurationId === expectedConfigurationId;
         },
 
+        isDecisionBatchResponse: function (response) {
+            return $.isPlainObject(response) && Array.isArray(response.decisions);
+        },
+
+        getDecisionBatch: function (service) {
+            let batch = this.decisionBatches[service];
+            if (!$.isPlainObject(batch)) {
+                batch = {
+                    inFlight: false,
+                    requests: {},
+                    scheduled: false
+                };
+                this.decisionBatches[service] = batch;
+            }
+
+            return batch;
+        },
+
+        getDecisionBatchRequestKey: function (runtime) {
+            return this.key(runtime.webExId, runtime.webExVersionId);
+        },
+
+        queueDecisionRequest: function (runtime, conditionReferences, requestPageKey) {
+            const service = this.getDecisionService(runtime);
+            const batch = this.getDecisionBatch(service);
+            batch.requests[this.getDecisionBatchRequestKey(runtime)] = {
+                conditionReferences: conditionReferences,
+                requestPageKey: requestPageKey,
+                runtime: runtime
+            };
+
+            this.scheduleDecisionBatch(service, batch);
+        },
+
+        scheduleDecisionBatch: function (service, batch) {
+            if (batch.scheduled === true || batch.inFlight === true) {
+                return;
+            }
+
+            batch.scheduled = true;
+            const _self = this;
+            window.setTimeout(function () {
+                _self.executeDecisionBatch(service);
+            }, 0);
+        },
+
+        getPendingDecisionBatchRequests: function (batch) {
+            const requests = [];
+            const requestKeys = Object.keys(batch.requests);
+            for (let i = 0; i < requestKeys.length; i++) {
+                const requestKey = requestKeys[i];
+                requests.push(batch.requests[requestKey]);
+                delete batch.requests[requestKey];
+            }
+
+            return requests;
+        },
+
+        getDecisionBatchPayload: function (requests) {
+            const webExperiences = [];
+            for (let i = 0; i < requests.length; i++) {
+                const request = requests[i];
+                webExperiences.push(this.getDecisionPayload(request.runtime, request.conditionReferences));
+            }
+
+            return {webExperiences: webExperiences};
+        },
+
+        getDecisionFromBatchResponse: function (runtime, response) {
+            const decisions = response.decisions;
+            for (let i = 0; i < decisions.length; i++) {
+                const decision = decisions[i];
+                if (this.isDecisionResponseForRuntime(runtime, decision)) {
+                    return decision;
+                }
+            }
+
+            return null;
+        },
+
+        completeDecisionBatch: function (service, batch) {
+            batch.inFlight = false;
+            if (Object.keys(batch.requests).length === 0) {
+                delete this.decisionBatches[service];
+            } else {
+                this.scheduleDecisionBatch(service, batch);
+            }
+        },
+
+        failDecisionBatch: function (requests) {
+            for (let i = 0; i < requests.length; i++) {
+                const runtime = requests[i].runtime;
+                if (runtime.decision.status === DECISION_STATUS_PENDING) {
+                    this.failDecision(runtime);
+                }
+            }
+        },
+
+        executeDecisionBatch: function (service) {
+            const batch = this.getDecisionBatch(service);
+            batch.scheduled = false;
+            if (batch.inFlight === true) {
+                return;
+            }
+
+            const requests = this.getPendingDecisionBatchRequests(batch);
+            if (requests.length === 0) {
+                delete this.decisionBatches[service];
+                return;
+            }
+
+            batch.inFlight = true;
+            try {
+                Breinify.service(service, this.getDecisionBatchPayload(requests),
+                    function (error, progress, response) {
+                        if (progress !== null && typeof progress !== "undefined" &&
+                            (response === null || typeof response === "undefined")) {
+                            return;
+                        }
+
+                        const hasError = error !== null && typeof error !== "undefined";
+                        if (hasError || !this.isDecisionBatchResponse(response)) {
+                            this.failDecisionBatch(requests);
+                        } else {
+                            for (let i = 0; i < requests.length; i++) {
+                                const request = requests[i];
+                                const runtime = request.runtime;
+                                if (runtime.decision.status !== DECISION_STATUS_PENDING) {
+                                    continue;
+                                }
+
+                                const decision = this.getDecisionFromBatchResponse(runtime, response);
+                                if (decision === null) {
+                                    this.failDecision(runtime);
+                                } else {
+                                    this.completeDecision(runtime, decision, request.requestPageKey);
+                                }
+                            }
+                        }
+
+                        this.completeDecisionBatch(service, batch);
+                    }.bind(this));
+            } catch (e) {
+                this.failDecisionBatch(requests);
+                this.completeDecisionBatch(service, batch);
+            }
+        },
+
         getDecisionPageKey: function () {
             if (typeof window === "undefined" || !window.location) {
                 return "";
@@ -731,7 +880,8 @@
             try {
                 const raw = storage.getItem(DECISION_STORAGE_KEY);
                 const parsed = raw === null ? null : JSON.parse(raw);
-                if (!$.isPlainObject(parsed) || !$.isPlainObject(parsed.entries)) {
+                if (!$.isPlainObject(parsed) || parsed.version !== DECISION_STORAGE_VERSION ||
+                    !$.isPlainObject(parsed.entries)) {
                     return {
                         storage: storage,
                         scope: scope,
@@ -994,28 +1144,7 @@
             decisionState.conditionResults = previousResults;
             decisionState.conditionCache = previousCache;
             decisionState.inFlight = true;
-            try {
-                Breinify.service(this.getDecisionService(runtime), this.getDecisionPayload(runtime, conditionReferences),
-                    function (error, progress, response) {
-                        if (runtime.decision.status !== DECISION_STATUS_PENDING) {
-                            return;
-                        }
-                        if (progress !== null && typeof progress !== "undefined" &&
-                            (response === null || typeof response === "undefined")) {
-                            return;
-                        }
-
-                        if (error !== null && typeof error !== "undefined") {
-                            this.failDecision(runtime);
-                        } else if (!this.isDecisionResponseForRuntime(runtime, response)) {
-                            this.failDecision(runtime);
-                        } else {
-                            this.completeDecision(runtime, response, requestPageKey);
-                        }
-                    }.bind(this));
-            } catch (e) {
-                this.failDecision(runtime);
-            }
+            this.queueDecisionRequest(runtime, conditionReferences, requestPageKey);
 
             return true;
         },
