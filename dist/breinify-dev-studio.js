@@ -83,7 +83,15 @@
                         setup: 0,
                         added: 0,
                         error: null,
-                        watched: false
+                        watched: false,
+                        inferred: {
+                            bound: false,
+                            setup: false,
+                            added: false
+                        },
+                        notApplicable: {
+                            setup: false
+                        }
                     };
                 }
 
@@ -108,6 +116,31 @@
                 $(document).trigger('breinifyDevStudioPluginLifecycleChanged');
             },
 
+            hydrate: function (name, plugin) {
+                if (!$.isPlainObject(plugin)) {
+                    return;
+                }
+
+                const state = this.get(name);
+                if (state.bound === 0) {
+                    state.bound = 1;
+                    state.inferred.bound = true;
+                }
+                if (state.added === 0) {
+                    state.added = 1;
+                    state.inferred.added = true;
+                }
+
+                if ($.isFunction(plugin.setup)) {
+                    if (plugin._setupDone === true && state.setup === 0) {
+                        state.setup = 1;
+                        state.inferred.setup = true;
+                    }
+                } else {
+                    state.notApplicable.setup = true;
+                }
+            },
+
             recordError: function (name, error) {
                 const state = this.get(name);
                 state.error = error instanceof Error && typeof error.message === 'string'
@@ -119,7 +152,10 @@
             install: function () {
                 Object.keys(Breinify.plugins)
                     .filter(name => name.charAt(0) !== '_' && $.isPlainObject(Breinify.plugins[name]))
-                    .forEach(name => this.watch(name));
+                    .forEach(name => {
+                        this.watch(name);
+                        this.hydrate(name, Breinify.plugins[name]);
+                    });
 
                 const originalAdd = Breinify.plugins._add;
                 Breinify.plugins._add = function () {
@@ -129,7 +165,11 @@
                     }
 
                     try {
-                        return originalAdd.apply(this, arguments);
+                        const plugin = originalAdd.apply(this, arguments);
+                        if (typeof name === 'string') {
+                            _private.pluginLifecycle.hydrate(name, plugin);
+                        }
+                        return plugin;
                     } catch (error) {
                         if (typeof name === 'string') {
                             _private.pluginLifecycle.recordError(name, error);
@@ -138,6 +178,40 @@
                         throw error;
                     }
                 };
+            }
+        },
+
+        inspectEvents: {
+            renderedRecommendations: new WeakMap(),
+
+            install: function () {
+                $(document).on('renderedRecommendation', (event, settings) => {
+                    const container = settings?.$recContainer;
+                    const element = container?.jquery && container.length > 0 ? container.get(0) : null;
+                    if (element === null || element.nodeType !== 1) {
+                        return;
+                    }
+
+                    this.renderedRecommendations.set(element, {
+                        isControl: settings.isControl === true,
+                        recommendationData: settings.recommendationData,
+                        recommendationResult: settings.recommendationResult,
+                        activityTags: settings.activityTags,
+                        option: settings.option
+                    });
+                    $(document).trigger('breinifyDevStudioInspectDataChanged', [element]);
+                });
+            },
+
+            getRenderedRecommendation: function (nodes) {
+                for (let index = 0; index < nodes.length; index++) {
+                    const data = this.renderedRecommendations.get(nodes[index]);
+                    if (typeof data !== 'undefined') {
+                        return data;
+                    }
+                }
+
+                return null;
             }
         },
 
@@ -201,6 +275,7 @@
 
     _private.consoleEvents.install();
     _private.pluginLifecycle.install();
+    _private.inspectEvents.install();
 
     class BreinifyDevConsole extends HTMLElement {
         $shadowRoot = null;
@@ -213,12 +288,17 @@
         $infoContainer = null;
         $userContainer = null;
         $splitTestsContainer = null;
+        $inspectContainer = null;
         $payloadModal = null;
         $payloadModalTitle = null;
         $payloadModalContent = null;
 
         userLastFetched = null;
         splitTestsLastFetched = null;
+        activeTab = 'console';
+        inspectActive = false;
+        inspectHoverElement = null;
+        inspectPointerMoveHandler = null;
 
         constructor() {
             super();
@@ -243,8 +323,8 @@
                 #resize-handle { position: absolute; left: 0; top: 0; width: 6px; height: 100%; cursor: ew-resize; z-index: 9999999; }
                 #resize-handle:hover { background: rgba(255, 255, 255, 0.1); }
                 header { background: #111; padding: 6px 10px; display: flex; align-items: center; user-select: none; border-top-left-radius: 6px; color: #eee; }
-                header > .tabs { display: flex; gap: 10px; flex-grow: 1; }
-                header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; padding: 4px 8px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; }
+                header > .tabs { display: flex; gap: 5px; flex-grow: 1; overflow-x: auto; }
+                header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; flex: 0 0 auto; padding: 4px 6px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; white-space: nowrap; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
@@ -275,12 +355,23 @@
                 div.console-entry.ready span.console-event-icon { background: #ab47bc; }
                 span.console-title { color: #fff; flex-grow: 1; font-weight: bold; }
                 span.console-timestamp { color: #bbbbbb; font-size: 11px; }
-                button.console-payload-btn { background: transparent; border: 1px solid #4fc3f7; border-radius: 3px; color: #4fc3f7; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 7px; padding: 3px 6px; }
-                button.console-payload-btn:hover { background: #333; color: #fff; }
+                div.console-toolbar { display: flex; gap: 6px; margin-top: 7px; }
+                button.console-action-btn { background: transparent; border: 1px solid #4fc3f7; border-radius: 3px; color: #4fc3f7; cursor: pointer; font-family: inherit; font-size: 11px; padding: 3px 6px; }
+                button.console-action-btn:hover { background: #333; color: #fff; }
                 div.console-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
                 span.console-tag { background: #172f3b; border: 1px solid #285269; border-radius: 3px; color: #d7effa; font-size: 11px; max-width: 100%; overflow: hidden; padding: 3px 5px; text-overflow: ellipsis; white-space: nowrap; }
                 span.console-tag-key { color: #8ed1ed; }
-                #payload-modal { align-items: center; background: rgba(0, 0, 0, 0.68); display: none; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 10000000; }
+                div.inspect-mode { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; }
+                div.inspect-status { background: #2a2a2a; border: 1px solid #444; border-left: 4px solid #777; border-radius: 4px; color: #ddd; margin-bottom: 10px; padding: 8px 10px; }
+                div.inspect-status.breinify { border-left-color: #43a047; color: #d8f4db; }
+                div.inspect-target { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                div.inspect-component { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #66bb6a; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
+                div.inspect-component-name { color: #fff; font-weight: bold; margin-bottom: 5px; }
+                div.inspect-component-detail { color: #ddd; margin-top: 3px; }
+                span.inspect-component-label { color: #bbbbbb; }
+                button.inspect-data-btn { background: transparent; border: 1px solid #66bb6a; border-radius: 3px; color: #a5d6a7; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 8px; padding: 3px 6px; }
+                button.inspect-data-btn:hover { background: #333; color: #fff; }
+                #payload-modal { align-items: center; background: rgba(0, 0, 0, 0.68); color: #fff; display: none; font-family: monospace; font-size: 12px; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 10000000; }
                 #payload-modal.visible { display: flex; }
                 div.payload-dialog { background: #202020; border: 1px solid #4a4a4a; border-radius: 7px; box-shadow: 0 8px 30px rgba(0,0,0,0.65); display: flex; flex-direction: column; height: min(720px, calc(100vh - 48px)); max-width: 900px; width: min(900px, calc(100vw - 48px)); }
                 div.payload-dialog-header { align-items: center; border-bottom: 1px solid #3b3b3b; display: flex; gap: 8px; padding: 10px 12px; }
@@ -319,12 +410,14 @@
                         <button class="tab" data-tab="info">Info</button>
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
+                        <button class="tab" data-tab="inspect">Inspect</button>
                     </div>
                 </header>
                 <div id="log-container" class="container active"></div>
                 <div id="info-container" class="container"></div>
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
+                <div id="inspect-container" class="container"></div>
             </div>
             <div id="payload-modal" role="presentation" aria-hidden="true">
                 <div class="payload-dialog" role="dialog" aria-modal="true" aria-labelledby="payload-modal-title">
@@ -348,6 +441,7 @@
             this.$infoContainer = this.$shadowRoot.find('#info-container');
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
+            this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
             this.$payloadModal = this.$shadowRoot.find('#payload-modal');
             this.$payloadModalTitle = this.$shadowRoot.find('#payload-modal-title');
             this.$payloadModalContent = this.$shadowRoot.find('.payload-dialog-content pre');
@@ -372,6 +466,14 @@
                     this._renderConsole();
                 }
             });
+            $(document).on('breinifyDevStudioInspectDataChanged', (event, container) => {
+                if (this.inspectActive === true &&
+                    this.inspectHoverElement !== null &&
+                    container !== null &&
+                    container.contains(this.inspectHoverElement)) {
+                    this._renderInspect(this.inspectHoverElement);
+                }
+            });
 
             this._renderConsole();
             _private.resizable(this.$shadowRoot);
@@ -384,10 +486,14 @@
                 this.$panel.css('transform', 'translateY(0)');
                 this.$panel.css('opacity', '1');
                 this.$toggleButton.css('display', 'none');
+                if (this.activeTab === 'inspect') {
+                    this._startInspecting();
+                }
             } else {
                 this.$panel.css('transform', 'translateY(100%)');
                 this.$panel.css('opacity', '0');
                 this.$toggleButton.css('display', 'flex');
+                this._stopInspecting();
             }
         }
 
@@ -421,10 +527,20 @@
         }
 
         _openPayloadModal(entry) {
-            this.$payloadModalTitle.text(entry.type === 'activity' ? entry.title + ' payload' : 'Breinify ready payload');
-            this.$payloadModalContent.text(entry.payload);
+            this._openJsonModal(
+                entry.type === 'activity' ? entry.title + ' payload' : 'Breinify ready payload',
+                entry.payload
+            );
+        }
+
+        _openJsonModal(title, data) {
+            const formattedData = typeof data === 'string'
+                ? data
+                : _private.consoleEvents.formatPayload(data);
+            this.$payloadModalTitle.text(title);
+            this.$payloadModalContent.text(formattedData);
             this.$payloadModal.find('button.payload-copy-btn').off('click').click(() => {
-                this._copyValue(entry.payload, 'payload', this.$payloadModal.find('button.payload-copy-btn'));
+                this._copyValue(formattedData, 'payload', this.$payloadModal.find('button.payload-copy-btn'));
             });
             this.$payloadModal.addClass('visible').attr('aria-hidden', 'false');
         }
@@ -451,29 +567,278 @@
                 $header.append($('<span class="console-timestamp"></span>').text(this._formatConsoleTimestamp(entry.timestamp)));
                 $entry.append($header);
 
-                if (tags !== null) {
-                    const $tags = $('<div class="console-tags"></div>');
-                    Object.keys(tags).forEach(key => {
-                        if (tags[key] === null || typeof tags[key] === 'undefined') {
-                            return;
-                        }
-
-                        const value = this._formatConsoleTagValue(tags[key]);
-                        const text = key + ': ' + value;
-                        $tags.append($('<span class="console-tag"></span>')
-                            .attr('title', text)
-                            .append($('<span class="console-tag-key"></span>').text(key + ': '))
-                            .append(document.createTextNode(value)));
-                    });
-                    $entry.append($tags);
-                }
-
                 if (entry.type === 'activity') {
-                    const $payloadButton = $('<button class="console-payload-btn" type="button">View payload</button>');
+                    const $toolbar = $('<div class="console-toolbar"></div>');
+                    let $tags = null;
+                    let tagCount = 0;
+
+                    if (tags !== null) {
+                        $tags = $('<div class="console-tags"></div>').hide();
+                        Object.keys(tags).forEach(key => {
+                            if (tags[key] === null || typeof tags[key] === 'undefined') {
+                                return;
+                            }
+
+                            const value = this._formatConsoleTagValue(tags[key]);
+                            const text = key + ': ' + value;
+                            $tags.append($('<span class="console-tag"></span>')
+                                .attr('title', text)
+                                .append($('<span class="console-tag-key"></span>').text(key + ': '))
+                                .append(document.createTextNode(value)));
+                            tagCount++;
+                        });
+                    }
+
+                    if (tagCount > 0) {
+                        const $tagsButton = $('<button class="console-action-btn" type="button"></button>').text('Show tags (' + tagCount + ')');
+                        $tagsButton.click(() => {
+                            const areTagsVisible = $tags.is(':visible');
+                            $tags.toggle(!areTagsVisible);
+                            $tagsButton.text(areTagsVisible ? 'Show tags (' + tagCount + ')' : 'Hide tags');
+                        });
+                        $toolbar.append($tagsButton);
+                    }
+
+                    const $payloadButton = $('<button class="console-action-btn" type="button">View payload</button>');
                     $payloadButton.click(() => this._openPayloadModal(entry));
-                    $entry.append($payloadButton);
+                    $toolbar.append($payloadButton);
+                    $entry.append($toolbar);
+
+                    if ($tags !== null && tagCount > 0) {
+                        $entry.append($tags);
+                    }
                 }
                 this.$logContainer.append($entry);
+            });
+        }
+
+        _startInspecting() {
+            if (this.inspectActive === true) {
+                return;
+            }
+
+            this.inspectActive = true;
+            this.inspectHoverElement = null;
+            this._renderInspect(null);
+            this.inspectPointerMoveHandler = event => {
+                const element = this._getInspectHoverElement(event);
+                if (element === this.inspectHoverElement) {
+                    return;
+                }
+
+                this.inspectHoverElement = element;
+                this._renderInspect(element);
+            };
+            document.addEventListener('pointermove', this.inspectPointerMoveHandler, true);
+        }
+
+        _stopInspecting() {
+            if (this.inspectActive !== true) {
+                return;
+            }
+
+            document.removeEventListener('pointermove', this.inspectPointerMoveHandler, true);
+            this.inspectActive = false;
+            this.inspectHoverElement = null;
+            this.inspectPointerMoveHandler = null;
+        }
+
+        _getInspectHoverElement(event) {
+            const eventPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
+            if (eventPath.indexOf(this) !== -1) {
+                return null;
+            }
+
+            if (event.target !== null && event.target.nodeType === 1) {
+                return event.target;
+            } else if (event.target !== null && event.target.parentElement !== null) {
+                return event.target.parentElement;
+            }
+
+            return null;
+        }
+
+        _getInspectNodes(element) {
+            const nodes = [];
+            let current = element;
+
+            while (current !== null && current.nodeType === 1) {
+                nodes.push(current);
+                if (current.parentElement !== null) {
+                    current = current.parentElement;
+                    continue;
+                }
+
+                const root = current.getRootNode();
+                current = root !== null && root.host !== null && root.host.nodeType === 1
+                    ? root.host
+                    : null;
+            }
+
+            return nodes;
+        }
+
+        _getInspectElementDescription(element) {
+            const tagName = element.tagName.toLowerCase();
+            const identifier = typeof element.id === 'string' && element.id !== '' ? '#' + element.id : '';
+            const classes = element.classList.length === 0
+                ? ''
+                : '.' + Array.prototype.slice.call(element.classList, 0, 3).join('.');
+            return '<' + tagName + identifier + classes + '>';
+        }
+
+        _readInspectDataPath(data, path) {
+            if (typeof path !== 'string' || path === '') {
+                return data;
+            }
+
+            return path.split('.').reduce((current, key) => {
+                if (current === null || typeof current === 'undefined') {
+                    return null;
+                }
+
+                return Object.prototype.hasOwnProperty.call(current, key) ? current[key] : null;
+            }, data);
+        }
+
+        _getInspectComponent(node, marker, nodes) {
+            const details = {};
+            const attributes = $.isArray(marker.attributes) ? marker.attributes : [];
+            const dataConfig = $.isPlainObject(marker.data) ? marker.data : null;
+            let data = null;
+
+            attributes.forEach(attribute => {
+                if (!$.isPlainObject(attribute) || typeof attribute.name !== 'string' || node.hasAttribute(attribute.name) === false) {
+                    return;
+                }
+
+                details[attribute.label || attribute.name] = node.getAttribute(attribute.name);
+            });
+
+            if (dataConfig !== null && typeof dataConfig.jqueryKey === 'string') {
+                data = this._readInspectDataPath($(node).data(dataConfig.jqueryKey), dataConfig.path);
+                data = typeof data === 'undefined' ? null : data;
+                const fields = $.isArray(dataConfig.fields) ? dataConfig.fields : [];
+                fields.forEach(field => {
+                    if (!$.isPlainObject(field) || typeof field.path !== 'string') {
+                        return;
+                    }
+
+                    const value = this._readInspectDataPath(data, field.path);
+                    if (value !== null && typeof value !== 'undefined' && typeof value !== 'object') {
+                        details[field.label || field.path] = value;
+                    }
+                });
+            }
+
+            if (marker.type === 'carousel') {
+                details.Items = node.querySelectorAll('.br-simple-slider__item').length;
+            } else if (marker.type === 'carouselItem') {
+                const carousel = typeof marker.parentSelector === 'string'
+                    ? nodes.find(parent => parent.matches(marker.parentSelector))
+                    : undefined;
+                const items = carousel === undefined ? [] : carousel.querySelectorAll('.br-simple-slider__item');
+                const index = Array.prototype.indexOf.call(items, node);
+                if (index !== -1) {
+                    details.Slide = (index + 1) + ' of ' + items.length;
+                }
+            }
+
+            return {
+                name: marker.name,
+                details: details,
+                data: data,
+                dataTitle: dataConfig !== null && typeof dataConfig.viewTitle === 'string'
+                    ? dataConfig.viewTitle
+                    : null
+            };
+        }
+
+        _getInspectEventComponent(nodes) {
+            const config = $.isPlainObject(DevStudio.inspectConfig?.events?.renderedRecommendation)
+                ? DevStudio.inspectConfig.events.renderedRecommendation
+                : null;
+            const eventData = _private.inspectEvents.getRenderedRecommendation(nodes);
+            if (config === null || eventData === null) {
+                return null;
+            }
+
+            const details = {};
+            const fields = $.isArray(config.fields) ? config.fields : [];
+            fields.forEach(field => {
+                if (!$.isPlainObject(field) || typeof field.path !== 'string') {
+                    return;
+                }
+
+                const value = this._readInspectDataPath(eventData, field.path);
+                if (value !== null && typeof value !== 'undefined' && typeof value !== 'object') {
+                    details[field.label || field.path] = value;
+                }
+            });
+
+            return {
+                name: eventData.isControl === true && typeof config.controlName === 'string'
+                    ? config.controlName
+                    : config.name,
+                details: details,
+                data: this._readInspectDataPath(eventData, config.viewPath),
+                dataTitle: typeof config.viewTitle === 'string' ? config.viewTitle : null
+            };
+        }
+
+        _getInspectComponents(element) {
+            const nodes = this._getInspectNodes(element);
+            const markers = $.isArray(DevStudio.inspectConfig?.markers) ? DevStudio.inspectConfig.markers : [];
+            const components = [];
+
+            nodes.forEach(node => {
+                markers.forEach(marker => {
+                    if ($.isPlainObject(marker) && typeof marker.selector === 'string' && node.matches(marker.selector)) {
+                        components.push(this._getInspectComponent(node, marker, nodes));
+                    }
+                });
+            });
+
+            const eventComponent = this._getInspectEventComponent(nodes);
+            if (eventComponent !== null) {
+                components.unshift(eventComponent);
+            }
+
+            return components;
+        }
+
+        _renderInspect(element) {
+            this.$inspectContainer.empty();
+            this.$inspectContainer.append($('<div class="inspect-mode">Inspect mode is on. Move over page content to inspect it.</div>'));
+
+            if (element === null) {
+                this.$inspectContainer.append($('<div class="inspect-status">Hover an element outside Dev Studio.</div>'));
+                return;
+            }
+
+            const components = this._getInspectComponents(element);
+            this.$inspectContainer.append($('<div class="inspect-target"></div>').text('Hovered: ' + this._getInspectElementDescription(element)));
+            if (components.length === 0) {
+                this.$inspectContainer.append($('<div class="inspect-status">This is not a recognized Breinify UI element.</div>'));
+                return;
+            }
+
+            this.$inspectContainer.append($('<div class="inspect-status breinify">Breinify-generated UI detected.</div>'));
+            components.forEach(component => {
+                const $component = $('<div class="inspect-component"></div>');
+                $component.append($('<div class="inspect-component-name"></div>').text(component.name));
+                Object.keys(component.details).forEach(label => {
+                    const $detail = $('<div class="inspect-component-detail"></div>');
+                    $detail.append($('<span class="inspect-component-label"></span>').text(label + ': '));
+                    $detail.append(document.createTextNode(String(component.details[label])));
+                    $component.append($detail);
+                });
+                if (component.data !== null && component.dataTitle !== null) {
+                    const $dataButton = $('<button class="inspect-data-btn" type="button">View data</button>');
+                    $dataButton.click(() => this._openJsonModal(component.dataTitle, component.data));
+                    $component.append($dataButton);
+                }
+                this.$inspectContainer.append($component);
             });
         }
 
@@ -484,6 +849,11 @@
             const pluginNames = Object.keys(Breinify.plugins)
                 .filter(name => name.charAt(0) !== '_' && $.isPlainObject(Breinify.plugins[name]))
                 .sort();
+
+            pluginNames.forEach(pluginName => {
+                _private.pluginLifecycle.watch(pluginName);
+                _private.pluginLifecycle.hydrate(pluginName, Breinify.plugins[pluginName]);
+            });
 
             this.$infoContainer.empty();
             this.$infoContainer.append(
@@ -503,9 +873,9 @@
 
                 const $pluginHeader = $('<div class="plugin-header"></div>');
                 $pluginHeader.append($('<div class="plugin-name"></div>').text(pluginName));
-                $lifecycle.append(this._createLifecycleMarker('Bound', lifecycle.bound));
-                $lifecycle.append(this._createLifecycleMarker('Setup', lifecycle.setup));
-                $lifecycle.append(this._createLifecycleMarker('Added', lifecycle.added));
+                $lifecycle.append(this._createLifecycleMarker('Bound', lifecycle.bound, lifecycle));
+                $lifecycle.append(this._createLifecycleMarker('Setup', lifecycle.setup, lifecycle));
+                $lifecycle.append(this._createLifecycleMarker('Added', lifecycle.added, lifecycle));
                 $pluginHeader.append($lifecycle);
                 $plugin.append($pluginHeader);
 
@@ -520,12 +890,13 @@
             this.$infoContainer.append($plugins);
         }
 
-        _createLifecycleMarker(label, count) {
+        _createLifecycleMarker(label, count, lifecycle) {
             const icons = {
                 Bound: '⚓',
                 Setup: '⚙',
                 Added: '+'
             };
+            const lifecycleName = label.toLowerCase();
             let state = 'unobserved';
             const icon = icons[label];
             let tooltip = label + ' lifecycle event was not observed since DevStudio loaded.';
@@ -537,9 +908,15 @@
                     Setup: 'Successfully set up.',
                     Added: 'Successfully added.'
                 }[label];
+                if (lifecycle.inferred[lifecycleName] === true) {
+                    tooltip += ' Inferred from the loaded plugin state because DevStudio began observing after it was initialized.';
+                }
             } else if (count > 1) {
                 state = 'error';
                 tooltip = label + ' lifecycle event was called ' + count + ' times. It should only be called once.';
+            } else if (lifecycle.notApplicable[lifecycleName] === true) {
+                state = 'not-applicable';
+                tooltip = 'No ' + lifecycleName + ' lifecycle applies to this plugin.';
             }
 
             const $marker = $('<span class="lifecycle-marker"></span>');
@@ -763,40 +1140,150 @@
 
         _switchTab(event) {
             const selectedTab = event.target.dataset.tab;
+            this.activeTab = selectedTab;
             this.$tabs.each(function () {
                 this.classList.toggle('active', this.dataset.tab === selectedTab);
             });
 
             if (selectedTab === 'console') {
+                this._stopInspecting();
                 this._renderConsole();
                 this.$logContainer.addClass('active');
                 this.$infoContainer.removeClass('active');
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.removeClass('active');
+                this.$inspectContainer.removeClass('active');
             } else if (selectedTab === 'info') {
+                this._stopInspecting();
                 this._refreshInfo();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.addClass('active');
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.removeClass('active');
+                this.$inspectContainer.removeClass('active');
             } else if (selectedTab === 'user') {
+                this._stopInspecting();
                 this._refreshUserInfo();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.removeClass('active');
                 this.$userContainer.addClass('active');
                 this.$splitTestsContainer.removeClass('active');
+                this.$inspectContainer.removeClass('active');
             } else if (selectedTab === 'split-tests') {
+                this._stopInspecting();
                 this._refreshSplitTests();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.removeClass('active');
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.addClass('active');
+                this.$inspectContainer.removeClass('active');
+            } else if (selectedTab === 'inspect') {
+                this.$logContainer.removeClass('active');
+                this.$infoContainer.removeClass('active');
+                this.$userContainer.removeClass('active');
+                this.$splitTestsContainer.removeClass('active');
+                this.$inspectContainer.addClass('active');
+                this._startInspecting();
             }
         }
     }
 
     // this is just a wrapper around the custom-element, adding it to the DOM tree if not there yet
     const DevStudio = {
+        inspectConfig: {
+            events: {
+                renderedRecommendation: {
+                    name: 'Observed Breinify recommendation render',
+                    controlName: 'Observed Breinify recommendation control render',
+                    fields: [
+                        {label: 'Rendered', path: 'recommendationResult.rendered'},
+                        {label: 'Status code', path: 'recommendationResult.statusCode'},
+                        {label: 'Recommender', path: 'recommendationResult.labels.recommender'},
+                        {label: 'Title', path: 'recommendationResult.labels.title'},
+                        {label: 'Control group', path: 'isControl'}
+                    ],
+                    viewPath: 'recommendationData',
+                    viewTitle: 'Observed rendered recommendation data'
+                }
+            },
+            markers: [
+                {selector: 'br-ui-countdown', name: 'Breinify countdown'},
+                {selector: 'br-ui-search', name: 'Breinify search'},
+                {selector: 'br-ui-search-result', name: 'Breinify search result'},
+                {selector: 'br-ui-search-results', name: 'Breinify search results'},
+                {selector: 'br-ui-survey', name: 'Breinify survey'},
+                {selector: 'br-ui-survey-popup', name: 'Breinify survey popup'},
+                {
+                    selector: '.brrc-item',
+                    name: 'Breinify recommendation item',
+                    data: {
+                        jqueryKey: 'recommendation',
+                        fields: [
+                            {label: 'Widget position', path: 'widgetPosition'},
+                            {label: 'Recommendation ID', path: 'id'},
+                            {label: 'Name', path: 'additionalData.product::productName'}
+                        ],
+                        viewTitle: 'Recommended item data'
+                    }
+                },
+                {
+                    selector: '.br-simple-slider__item',
+                    name: 'Breinify carousel item',
+                    type: 'carouselItem',
+                    parentSelector: 'br-simple-slider, .br-simple-slider'
+                },
+                {
+                    selector: 'br-simple-slider, .br-simple-slider',
+                    name: 'Breinify carousel',
+                    type: 'carousel'
+                },
+                {
+                    selector: '.brrc-cont',
+                    name: 'Breinify recommendations container',
+                    data: {
+                        jqueryKey: 'recommendation',
+                        path: 'data',
+                        viewTitle: 'Recommendation response data'
+                    }
+                },
+                {selector: '.brrc-pcont', name: 'Breinify recommendations parent container'},
+                {
+                    selector: '[data-br-rec-webexpid]',
+                    name: 'Breinify recommendation render',
+                    attributes: [
+                        {name: 'data-br-rec-webexpid', label: 'Web experience ID'},
+                        {name: 'data-br-rec-positionid', label: 'Position ID'},
+                        {name: 'data-br-rec-name', label: 'Recommender'}
+                    ]
+                },
+                {
+                    selector: '[data-br-webexppos]',
+                    name: 'Breinify web experience anchor',
+                    attributes: [
+                        {name: 'data-br-webexppos', label: 'Position ID'}
+                    ]
+                },
+                {
+                    selector: '[data-br-rec-control-bind-token], [data-brrc-refresh-outcome="control"]',
+                    name: 'Breinify recommendation control group',
+                    attributes: [
+                        {name: 'data-brrc-refresh-outcome', label: 'Render outcome'},
+                        {name: 'data-brrc-refresh-code', label: 'Response code'}
+                    ],
+                    data: {
+                        jqueryKey: 'recommendation',
+                        path: 'data',
+                        fields: [
+                            {label: 'Control group', path: 'splitTestData.isControl'},
+                            {label: 'Split test', path: 'splitTestData.testName'},
+                            {label: 'Group', path: 'splitTestData.groupDecision'},
+                            {label: 'Instance', path: 'splitTestData.selectedInstance'}
+                        ],
+                        viewTitle: 'Control-group recommendation data'
+                    }
+                }
+            ]
+        },
         devStudio: null,
 
         init: function () {
