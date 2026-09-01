@@ -339,4 +339,57 @@ describe('BreinifyUtil', function () {
             expect(Breinify.UTL.loc.parseGetParameter('test', result)).toEqual(input[i]);
         }
     });
+
+    it('appliesContentByDomOperation', function () {
+        var $fixture = $(
+            '<div>' +
+            '    <span class="first"></span>' +
+            '    <span class="second"></span>' +
+            '    <div class="content"></div>' +
+            '</div>'
+        );
+        var $anchors = $fixture.find('.first, .second');
+        var $content = $fixture.find('.content');
+
+        expect(Breinify.UTL.dom.attachByOperation(
+            'after',
+            $anchors,
+            $('<span class="inserted"></span>')
+        )).toBe(true);
+        expect($fixture.find('.inserted').length).toBe(2);
+
+        expect(Breinify.UTL.dom.applyContentByOperation(
+            'replaceContent',
+            $content,
+            '<strong>text content</strong>',
+            false
+        )).toBe(true);
+        expect($content.text()).toBe('<strong>text content</strong>');
+        expect($content.find('strong').length).toBe(0);
+
+        expect(Breinify.UTL.dom.applyContentByOperation(
+            'replaceContent',
+            $content,
+            '<strong>html content</strong>',
+            true
+        )).toBe(true);
+        expect($content.find('strong').text()).toBe('html content');
+
+        expect(Breinify.UTL.dom.applyContentByOperation(
+            'append',
+            $content,
+            '<em>appended html</em>',
+            true
+        )).toBe(true);
+        expect($content.find('em').text()).toBe('appended html');
+
+        expect(Breinify.UTL.dom.applyContentByOperation(
+            'replace',
+            $content,
+            $('<img class="replacement" />'),
+            false
+        )).toBe(true);
+        expect($fixture.find('.content').length).toBe(0);
+        expect($fixture.find('.replacement').length).toBe(1);
+    });
 });

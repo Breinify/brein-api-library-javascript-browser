@@ -1572,69 +1572,16 @@
         },
 
         applyDomOperation: function (target, operation, content, allowHtml) {
-            if (!target || content === null || content === undefined) {
+            if (!target) {
                 return false;
             }
 
-            const isNode = typeof content === "object" && content.nodeType;
-            const insert = function (position) {
-                if (!isNode) {
-                    const method = allowHtml === true ? "insertAdjacentHTML" : "insertAdjacentText";
-                    target[method](position, String(content));
-                    return true;
-                }
-
-                if (position === "beforebegin") {
-                    if (!target.parentNode) {
-                        return false;
-                    }
-                    target.parentNode.insertBefore(content, target);
-                } else if (position === "afterend") {
-                    if (!target.parentNode) {
-                        return false;
-                    }
-                    target.parentNode.insertBefore(content, target.nextSibling);
-                } else if (position === "afterbegin") {
-                    target.insertBefore(content, target.firstChild);
-                } else if (position === "beforeend") {
-                    target.appendChild(content);
-                } else {
-                    return false;
-                }
-
-                return true;
-            };
-
-            try {
-                if (operation === "replace") {
-                    if (!target.parentNode || !insert("beforebegin")) {
-                        return false;
-                    }
-                    target.parentNode.removeChild(target);
-                } else if (operation === "replaceContent") {
-                    if (isNode) {
-                        return false;
-                    } else if (allowHtml === true) {
-                        target.innerHTML = String(content);
-                    } else {
-                        target.textContent = String(content);
-                    }
-                } else if (operation === "before") {
-                    return insert("beforebegin");
-                } else if (operation === "after") {
-                    return insert("afterend");
-                } else if (operation === "prepend") {
-                    return insert("afterbegin");
-                } else if (operation === "append") {
-                    return insert("beforeend");
-                } else {
-                    return false;
-                }
-
-                return true;
-            } catch (e) {
-                return false;
-            }
+            return Breinify.UTL.dom.applyContentByOperation(
+                operation,
+                $(target),
+                content,
+                allowHtml === true
+            );
         },
 
         getTargets: function (action, root) {

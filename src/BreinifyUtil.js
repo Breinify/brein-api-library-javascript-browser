@@ -1083,7 +1083,7 @@
                 operation = BreinifyUtil.isNonEmptyString(operation);
                 if (operation === null) {
                     return false;
-                } else if (!($anchor instanceof $) || $anchor.length !== 1) {
+                } else if (!($anchor instanceof $) || $anchor.length === 0) {
                     return false;
                 } else {
                     operation = operation.trim().toLowerCase()
@@ -1103,6 +1103,97 @@
                     $anchor[operation]($el);
                     return true;
                 } else {
+                    return false;
+                }
+            },
+
+            /**
+             * Applies content at an anchor using the standard DOM operation
+             * vocabulary. This extends {@link #attachByOperation} with the
+             * `replaceContent` operation and the choice between HTML and text
+             * content, while keeping all structural operations in one place.
+             *
+             * Supported operations:
+             * - replace
+             * - replaceContent
+             * - before
+             * - after
+             * - prepend
+             * - append
+             *
+             * @param {string} operation the operation to apply
+             * @param {jQuery} $anchor the single anchor element
+             * @param {string|Node|jQuery} content the content to apply
+             * @param {boolean} allowHtml true to interpret string content as HTML
+             * @returns {boolean} true if the operation was applied
+             */
+            applyContentByOperation: function (operation, $anchor, content, allowHtml) {
+                operation = BreinifyUtil.isNonEmptyString(operation);
+                if (operation === null || !($anchor instanceof $) || $anchor.length !== 1 ||
+                    content === null || typeof content === "undefined") {
+                    return false;
+                }
+
+                operation = operation.trim().toLowerCase();
+                const isNode = typeof content === "object" &&
+                    typeof content.nodeType === "number";
+                const anchor = $anchor.get(0);
+                const insertHtml = function (position) {
+                    if (BreinifyUtil.dom.isNodeType(anchor, 1) !== true ||
+                        typeof anchor.insertAdjacentHTML !== "function") {
+                        return false;
+                    }
+
+                    anchor.insertAdjacentHTML(position, String(content));
+                    return true;
+                };
+                try {
+                    if (operation === "replacecontent") {
+                        if (isNode || content instanceof $) {
+                            return false;
+                        } else if (BreinifyUtil.dom.isNodeType(anchor, 1) !== true) {
+                            return false;
+                        } else if (allowHtml === true) {
+                            anchor.innerHTML = String(content);
+                        } else {
+                            anchor.textContent = String(content);
+                        }
+
+                        return true;
+                    }
+
+                    if (isNode || content instanceof $) {
+                        return this.attachByOperation(operation, $anchor, content);
+                    } else if (allowHtml === true) {
+                        if (operation === "replace") {
+                            if (!anchor.parentNode || insertHtml("beforebegin") !== true) {
+                                return false;
+                            }
+
+                            anchor.parentNode.removeChild(anchor);
+                            return true;
+                        } else if (operation === "before") {
+                            return insertHtml("beforebegin");
+                        } else if (operation === "after") {
+                            return insertHtml("afterend");
+                        } else if (operation === "prepend") {
+                            return insertHtml("afterbegin");
+                        } else if (operation === "append") {
+                            return insertHtml("beforeend");
+                        }
+
+                        return false;
+                    } else if (typeof document !== "object" ||
+                        typeof document.createTextNode !== "function") {
+                        return false;
+                    }
+
+                    return this.attachByOperation(
+                        operation,
+                        $anchor,
+                        document.createTextNode(String(content))
+                    );
+                } catch (e) {
                     return false;
                 }
             }

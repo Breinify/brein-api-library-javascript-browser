@@ -1862,17 +1862,7 @@
          * @private
          */
         _insertNodeAtPosition: function ($target, $node, position) {
-            if (!$target || $target.length === 0 || !$node || $node.length === 0) {
-                // nothing to do
-            } else if (position === "before") {
-                $target.before($node);
-            } else if (position === "after") {
-                $target.after($node);
-            } else if (position === "prepend") {
-                $target.prepend($node);
-            } else if (position === "append") {
-                $target.append($node);
-            }
+            return Breinify.UTL.dom.attachByOperation(position, $target, $node);
         },
 
         /**
