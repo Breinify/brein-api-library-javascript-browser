@@ -41,7 +41,7 @@
 
                 this.activityTypes[eventName] = true;
                 $(document).on(eventName, (event, payload) => {
-                    this.record('activity', 'Activity: ' + activityType, payload);
+                    this.record('activity', activityType, payload);
                 });
             },
 
@@ -213,6 +213,9 @@
         $infoContainer = null;
         $userContainer = null;
         $splitTestsContainer = null;
+        $payloadModal = null;
+        $payloadModalTitle = null;
+        $payloadModalContent = null;
 
         userLastFetched = null;
         splitTestsLastFetched = null;
@@ -268,23 +271,33 @@
                 div.console-entry { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
                 div.console-entry.ready { border-left-color: #ab47bc; }
                 div.console-entry-header { align-items: center; display: flex; gap: 7px; }
-                span.console-event-type { border-radius: 3px; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 5px; }
-                span.console-event-type.activity { background: #0277bd; }
-                span.console-event-type.ready { background: #7b1fa2; }
+                span.console-event-icon { background: #0277bd; border-radius: 50%; display: inline-block; flex: 0 0 auto; height: 8px; width: 8px; }
+                div.console-entry.ready span.console-event-icon { background: #ab47bc; }
                 span.console-title { color: #fff; flex-grow: 1; font-weight: bold; }
                 span.console-timestamp { color: #bbbbbb; font-size: 11px; }
-                details.console-payload { margin-top: 7px; }
-                details.console-payload summary { color: #4fc3f7; cursor: pointer; }
-                details.console-payload pre { background: #151515; border-radius: 3px; color: #ddd; margin: 7px 0 0; overflow-x: auto; padding: 8px; white-space: pre-wrap; }
+                button.console-payload-btn { background: transparent; border: 1px solid #4fc3f7; border-radius: 3px; color: #4fc3f7; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 7px; padding: 3px 6px; }
+                button.console-payload-btn:hover { background: #333; color: #fff; }
+                div.console-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+                span.console-tag { background: #172f3b; border: 1px solid #285269; border-radius: 3px; color: #d7effa; font-size: 11px; max-width: 100%; overflow: hidden; padding: 3px 5px; text-overflow: ellipsis; white-space: nowrap; }
+                span.console-tag-key { color: #8ed1ed; }
+                #payload-modal { align-items: center; background: rgba(0, 0, 0, 0.68); display: none; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 10000000; }
+                #payload-modal.visible { display: flex; }
+                div.payload-dialog { background: #202020; border: 1px solid #4a4a4a; border-radius: 7px; box-shadow: 0 8px 30px rgba(0,0,0,0.65); display: flex; flex-direction: column; height: min(720px, calc(100vh - 48px)); max-width: 900px; width: min(900px, calc(100vw - 48px)); }
+                div.payload-dialog-header { align-items: center; border-bottom: 1px solid #3b3b3b; display: flex; gap: 8px; padding: 10px 12px; }
+                div.payload-dialog-title { color: #fff; flex-grow: 1; font-size: 13px; font-weight: bold; }
+                button.payload-close-btn { background: transparent; border: none; color: #ccc; cursor: pointer; font-size: 19px; line-height: 18px; padding: 0 4px; }
+                button.payload-close-btn:hover { color: #fff; }
+                div.payload-dialog-content { overflow: auto; padding: 12px; }
+                div.payload-dialog-content pre { background: #151515; border-radius: 4px; color: #ddd; margin: 0; min-height: calc(100% - 24px); padding: 12px; white-space: pre-wrap; word-break: break-word; }
                 div.info-section { margin-bottom: 16px; }
                 div.info-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
                 div.info-value { color: #4fc3f7; font-size: 14px; }
                 ul.plugin-list { list-style: none; margin: 0; padding: 0; }
                 ul.plugin-list li { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; color: #fff; margin-bottom: 6px; padding: 8px 10px; }
-                div.plugin-name { font-weight: bold; margin-bottom: 6px; }
-                div.plugin-lifecycle { display: flex; flex-wrap: wrap; gap: 8px; }
-                span.lifecycle-state { align-items: center; color: #bbbbbb; display: inline-flex; gap: 3px; }
-                span.lifecycle-marker { align-items: center; background: #555; border-radius: 50%; color: #ddd; display: inline-flex; font-size: 10px; font-weight: bold; height: 15px; justify-content: center; width: 15px; }
+                div.plugin-header { align-items: center; display: flex; gap: 10px; }
+                div.plugin-name { flex-grow: 1; font-weight: bold; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                div.plugin-lifecycle { display: flex; flex: 0 0 auto; gap: 5px; margin-left: auto; }
+                span.lifecycle-marker { align-items: center; background: #555; border-radius: 50%; color: #ddd; display: inline-flex; font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; height: 18px; justify-content: center; width: 18px; }
                 span.lifecycle-marker.observed { background: #2e7d32; color: #fff; }
                 span.lifecycle-marker.error { background: #c62828; color: #fff; }
                 span.plugin-error { color: #ff8a80; display: inline-block; margin-top: 6px; }
@@ -313,6 +326,16 @@
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
             </div>
+            <div id="payload-modal" role="presentation" aria-hidden="true">
+                <div class="payload-dialog" role="dialog" aria-modal="true" aria-labelledby="payload-modal-title">
+                    <div class="payload-dialog-header">
+                        <div id="payload-modal-title" class="payload-dialog-title">Event payload</div>
+                        <button class="copy-btn payload-copy-btn" type="button" title="Copy payload" aria-label="Copy payload">&#10697;</button>
+                        <button class="payload-close-btn" type="button" title="Close payload" aria-label="Close payload">&#x2715;</button>
+                    </div>
+                    <div class="payload-dialog-content"><pre></pre></div>
+                </div>
+            </div>
             <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
 
             this.$shadowRoot = $(this.shadowRoot);
@@ -325,9 +348,18 @@
             this.$infoContainer = this.$shadowRoot.find('#info-container');
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
+            this.$payloadModal = this.$shadowRoot.find('#payload-modal');
+            this.$payloadModalTitle = this.$shadowRoot.find('#payload-modal-title');
+            this.$payloadModalContent = this.$shadowRoot.find('.payload-dialog-content pre');
 
             this.$closeBtn.click(() => this.toggleDevStudio());
             this.$toggleButton.click(() => this.toggleDevStudio());
+            this.$shadowRoot.find('button.payload-close-btn').click(() => this._closePayloadModal());
+            this.$payloadModal.click(event => {
+                if (event.target === this.$payloadModal[0]) {
+                    this._closePayloadModal();
+                }
+            });
 
             this.$tabs.click(e => this._switchTab(e));
             $(document).on('breinifyDevStudioPluginLifecycleChanged', () => {
@@ -360,8 +392,45 @@
         }
 
         _formatConsoleTimestamp(timestamp) {
-            const milliseconds = timestamp.getMilliseconds().toString().padStart(3, '0');
-            return timestamp.toLocaleTimeString() + '.' + milliseconds;
+            return timestamp.toLocaleTimeString();
+        }
+
+        _getConsoleActivityTags(entry) {
+            if (entry.type !== 'activity') {
+                return null;
+            }
+
+            try {
+                const payload = JSON.parse(entry.payload);
+                const tags = payload !== null && $.isPlainObject(payload.activity) && $.isPlainObject(payload.activity.tags)
+                    ? payload.activity.tags
+                    : null;
+
+                return tags === null ? null : tags;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        _formatConsoleTagValue(value) {
+            if ($.isPlainObject(value) || $.isArray(value)) {
+                return JSON.stringify(value);
+            }
+
+            return String(value);
+        }
+
+        _openPayloadModal(entry) {
+            this.$payloadModalTitle.text(entry.type === 'activity' ? entry.title + ' payload' : 'Breinify ready payload');
+            this.$payloadModalContent.text(entry.payload);
+            this.$payloadModal.find('button.payload-copy-btn').off('click').click(() => {
+                this._copyValue(entry.payload, 'payload', this.$payloadModal.find('button.payload-copy-btn'));
+            });
+            this.$payloadModal.addClass('visible').attr('aria-hidden', 'false');
+        }
+
+        _closePayloadModal() {
+            this.$payloadModal.removeClass('visible').attr('aria-hidden', 'true');
         }
 
         _renderConsole() {
@@ -375,14 +444,35 @@
             _private.consoleEvents.entries.forEach(entry => {
                 const $entry = $('<div class="console-entry"></div>').addClass(entry.type);
                 const $header = $('<div class="console-entry-header"></div>');
-                const $payload = $('<details class="console-payload"><summary>Show payload</summary></details>');
+                const tags = this._getConsoleActivityTags(entry);
 
-                $header.append($('<span class="console-event-type"></span>').addClass(entry.type).text(entry.type.toUpperCase()));
+                $header.append($('<span class="console-event-icon"></span>').attr('title', entry.type === 'activity' ? 'Activity event' : 'Breinify ready'));
                 $header.append($('<span class="console-title"></span>').text(entry.title));
                 $header.append($('<span class="console-timestamp"></span>').text(this._formatConsoleTimestamp(entry.timestamp)));
-                $payload.append($('<pre></pre>').text(entry.payload));
                 $entry.append($header);
-                $entry.append($payload);
+
+                if (tags !== null) {
+                    const $tags = $('<div class="console-tags"></div>');
+                    Object.keys(tags).forEach(key => {
+                        if (tags[key] === null || typeof tags[key] === 'undefined') {
+                            return;
+                        }
+
+                        const value = this._formatConsoleTagValue(tags[key]);
+                        const text = key + ': ' + value;
+                        $tags.append($('<span class="console-tag"></span>')
+                            .attr('title', text)
+                            .append($('<span class="console-tag-key"></span>').text(key + ': '))
+                            .append(document.createTextNode(value)));
+                    });
+                    $entry.append($tags);
+                }
+
+                if (entry.type === 'activity') {
+                    const $payloadButton = $('<button class="console-payload-btn" type="button">View payload</button>');
+                    $payloadButton.click(() => this._openPayloadModal(entry));
+                    $entry.append($payloadButton);
+                }
                 this.$logContainer.append($entry);
             });
         }
@@ -411,11 +501,13 @@
                 const $plugin = $('<li></li>');
                 const $lifecycle = $('<div class="plugin-lifecycle"></div>');
 
-                $plugin.append($('<div class="plugin-name"></div>').text(pluginName));
+                const $pluginHeader = $('<div class="plugin-header"></div>');
+                $pluginHeader.append($('<div class="plugin-name"></div>').text(pluginName));
                 $lifecycle.append(this._createLifecycleMarker('Bound', lifecycle.bound));
                 $lifecycle.append(this._createLifecycleMarker('Setup', lifecycle.setup));
                 $lifecycle.append(this._createLifecycleMarker('Added', lifecycle.added));
-                $plugin.append($lifecycle);
+                $pluginHeader.append($lifecycle);
+                $plugin.append($pluginHeader);
 
                 if (lifecycle.error !== null) {
                     $plugin.append($('<span class="plugin-error">! Plugin initialization failed</span>').attr('title', lifecycle.error));
@@ -429,29 +521,33 @@
         }
 
         _createLifecycleMarker(label, count) {
-            let state = 'not observed';
-            let icon = '○';
+            const icons = {
+                Bound: '⚓',
+                Setup: '⚙',
+                Added: '+'
+            };
+            let state = 'unobserved';
+            const icon = icons[label];
             let tooltip = label + ' lifecycle event was not observed since DevStudio loaded.';
 
             if (count === 1) {
                 state = 'observed';
-                icon = '✓';
-                tooltip = label + ' lifecycle event observed once.';
+                tooltip = {
+                    Bound: 'Successfully bound.',
+                    Setup: 'Successfully set up.',
+                    Added: 'Successfully added.'
+                }[label];
             } else if (count > 1) {
                 state = 'error';
-                icon = '!';
-                tooltip = label + ' lifecycle event observed ' + count + ' times. A plugin lifecycle event should only occur once.';
+                tooltip = label + ' lifecycle event was called ' + count + ' times. It should only be called once.';
             }
 
-            const $state = $('<span class="lifecycle-state"></span>');
             const $marker = $('<span class="lifecycle-marker"></span>');
             $marker.addClass(state);
             $marker.attr('title', tooltip);
             $marker.attr('aria-label', tooltip);
             $marker.text(icon);
-            $state.append($marker);
-            $state.append($('<span></span>').text(label));
-            return $state;
+            return $marker;
         }
 
         _formatUserValue(value) {
@@ -477,7 +573,7 @@
 
             if (copyable === true) {
                 const $copyButton = $('<button class="copy-btn" type="button" title="Copy ' + label + '" aria-label="Copy ' + label + '">&#10697;</button>');
-                $copyButton.click(() => this._copyUserValue(formattedValue, label, $copyButton));
+                $copyButton.click(() => this._copyValue(formattedValue, label, $copyButton));
                 $fieldValue.append($copyButton);
             }
 
@@ -543,7 +639,7 @@
             return $section;
         }
 
-        _copyUserValue(value, label, $copyButton) {
+        _copyValue(value, label, $copyButton) {
             $copyButton.prop('disabled', true);
 
             const resetButton = (label, title) => {
