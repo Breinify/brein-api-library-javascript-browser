@@ -630,6 +630,8 @@
                 this._renderInspect(element);
             };
             document.addEventListener('pointermove', this.inspectPointerMoveHandler, true);
+            document.addEventListener('mousemove', this.inspectPointerMoveHandler, true);
+            document.addEventListener('mouseover', this.inspectPointerMoveHandler, true);
         }
 
         _stopInspecting() {
@@ -638,6 +640,8 @@
             }
 
             document.removeEventListener('pointermove', this.inspectPointerMoveHandler, true);
+            document.removeEventListener('mousemove', this.inspectPointerMoveHandler, true);
+            document.removeEventListener('mouseover', this.inspectPointerMoveHandler, true);
             this.inspectActive = false;
             this.inspectHoverElement = null;
             this.inspectPointerMoveHandler = null;
@@ -647,6 +651,14 @@
             const eventPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
             if (eventPath.indexOf(this) !== -1) {
                 return null;
+            }
+
+            const elementAtPointer = typeof event.clientX === 'number' && typeof event.clientY === 'number' &&
+            typeof document.elementFromPoint === 'function'
+                ? document.elementFromPoint(event.clientX, event.clientY)
+                : null;
+            if (elementAtPointer !== null) {
+                return elementAtPointer;
             }
 
             if (event.target !== null && event.target.nodeType === 1) {

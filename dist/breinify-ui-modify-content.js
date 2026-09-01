@@ -66,6 +66,7 @@
                 const allowHtml = settings && settings.allowHtml === true;
                 const targets = _private.getTargets(action, null);
                 let applied = false;
+                const modifications = [];
 
                 for (let i = 0; i < targets.length; i++) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
@@ -81,6 +82,7 @@
                         _private.markAppliedTarget(runtime, actionIndex, target);
                         _private.markApplication(runtime, actionIndex);
                         applied = true;
+                        modifications.push(_private.createModifiedContentRecord(action, actionIndex, target, content));
                     }
                 }
 
@@ -95,6 +97,8 @@
                     const currentTargets = _private.getTargets(action, null);
                     _private.markAppliedTargets(runtime, actionIndex, currentTargets);
                 }
+
+                return modifications;
             },
 
         },
@@ -147,6 +151,7 @@
                     ? this._resolveReplacementTargets(candidates, settings)
                     : candidates;
                 let applied = false;
+                const modifications = [];
 
                 for (let i = 0; i < targets.length; i++) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
@@ -164,6 +169,7 @@
                         _private.markAppliedTarget(runtime, actionIndex, target);
                         _private.markApplication(runtime, actionIndex);
                         applied = true;
+                        modifications.push(_private.createModifiedContentRecord(action, actionIndex, target, replacement));
                     }
                 }
 
@@ -174,6 +180,8 @@
                         : currentCandidates;
                     _private.markAppliedTargets(runtime, actionIndex, currentTargets);
                 }
+
+                return modifications;
             },
 
             _resolveReplacementTargets: function (candidates, settings) {
@@ -396,6 +404,7 @@
                 const settings = _private.getActionSettings(action);
                 const targets = _private.getTargets(action, null);
                 let applied = false;
+                const modifications = [];
 
                 for (let i = 0; i < targets.length; i++) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
@@ -413,12 +422,15 @@
                         _private.markAppliedTarget(runtime, actionIndex, target);
                         _private.markApplication(runtime, actionIndex);
                         applied = true;
+                        modifications.push(_private.createModifiedContentRecord(action, actionIndex, target, container));
                     }
                 }
 
                 if (applied) {
                     _private.markAppliedTargets(runtime, actionIndex, _private.getTargets(action, null));
                 }
+
+                return modifications;
             },
 
             _createContainer: function (settings, runtime) {
@@ -1703,6 +1715,47 @@
             );
         },
 
+        createModifiedContentRecord: function (action, actionIndex, target, content) {
+            const settings = this.getActionSettings(action);
+            const modifiedElement = content !== null && typeof content === "object" && content.nodeType === 1
+                ? content
+                : target;
+
+            return {
+                action: action,
+                actionIndex: actionIndex,
+                actionType: typeof action?.type === "string" ? action.type : null,
+                operation: typeof settings?.operation === "string" ? settings.operation : null,
+                target: target,
+                $target: $(target),
+                modifiedElement: modifiedElement,
+                $modifiedElement: $(modifiedElement)
+            };
+        },
+
+        triggerModifiedContent: function (runtime, modifications) {
+            if (!Array.isArray(modifications) || modifications.length === 0) {
+                return;
+            }
+
+            const modifiedElements = [];
+            for (let i = 0; i < modifications.length; i++) {
+                const element = modifications[i].modifiedElement;
+                if (element && modifiedElements.indexOf(element) === -1) {
+                    modifiedElements.push(element);
+                }
+            }
+
+            Breinify.plugins._triggerEvent("uiModifyContent", "modifiedContent", {
+                webExId: runtime.webExId,
+                webExVersionId: runtime.webExVersionId,
+                selectedGroupId: runtime.selectedGroupId,
+                modifications: modifications,
+                modifiedElements: modifiedElements,
+                $modifiedElements: $(modifiedElements)
+            });
+        },
+
         getTargets: function (action, root) {
             const selector = this.getActionSelector(action);
             if (selector === null) {
@@ -1905,6 +1958,7 @@
 
         executeActions: function (runtime) {
             const configuredActions = this.getConfiguredActions(runtime);
+            const modifications = [];
 
             for (let i = 0; i < configuredActions.length; i++) {
                 const action = this.getEffectiveAction(runtime, configuredActions[i]);
@@ -1919,7 +1973,12 @@
                 if (typeof handler === "function" &&
                     (this.isDomAction(action) === true ||
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] !== true)) {
-                    handler.call(implementation, action, runtime, i);
+                    const actionModifications = handler.call(implementation, action, runtime, i);
+                    if (this.isDomAction(action) === true && Array.isArray(actionModifications)) {
+                        for (let j = 0; j < actionModifications.length; j++) {
+                            modifications.push(actionModifications[j]);
+                        }
+                    }
                     this.applyActionSnippets(runtime, action, i);
 
                     if (this.isDomAction(action) !== true) {
@@ -1927,6 +1986,8 @@
                     }
                 }
             }
+
+            this.triggerModifiedContent(runtime, modifications);
         }
     };
 
