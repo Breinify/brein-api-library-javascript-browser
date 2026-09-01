@@ -361,6 +361,117 @@
 
                 return values.length > 0 ? values.join(", ") : null;
             }
+        },
+
+        /**
+         * Creates and places a web-experience container. The target
+         * experience is responsible for recognizing the resulting
+         * data-br-webexpid and data-br-webexppos attributes and rendering
+         * into the container.
+         */
+        placeWebExperience: {
+            isDomAction: true,
+            defaultMaxApplications: 1,
+
+            findRequirements: function (runtime, action, actionIndex, root) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                    return false;
+                }
+
+                const targets = _private.getTargets(action, root);
+                for (let i = 0; i < targets.length; i++) {
+                    if (_private.hasAppliedTarget(runtime, actionIndex, targets[i]) !== true) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
+            execute: function (action, runtime, actionIndex) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                    return;
+                }
+
+                const settings = _private.getActionSettings(action);
+                const targets = _private.getTargets(action, null);
+                let applied = false;
+
+                for (let i = 0; i < targets.length; i++) {
+                    if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                        break;
+                    }
+
+                    const target = targets[i];
+                    if (_private.hasAppliedTarget(runtime, actionIndex, target)) {
+                        continue;
+                    }
+
+                    const container = this._createContainer(settings, runtime);
+                    if (container !== null &&
+                        _private.applyDomOperation(target, settings && settings.operation, container, false)) {
+                        _private.markAppliedTarget(runtime, actionIndex, target);
+                        _private.markApplication(runtime, actionIndex);
+                        applied = true;
+                    }
+                }
+
+                if (applied) {
+                    _private.markAppliedTargets(runtime, actionIndex, _private.getTargets(action, null));
+                }
+            },
+
+            _createContainer: function (settings, runtime) {
+                const webExperienceId = Breinify.UTL.isNonEmptyString(settings && settings.webExperienceId);
+                const positionId = Breinify.UTL.isNonEmptyString(settings && settings.positionId);
+                if (webExperienceId === null || positionId === null ||
+                    webExperienceId === runtime.webExId || typeof document !== "object" ||
+                    typeof document.createElement !== "function") {
+                    return null;
+                }
+
+                const container = document.createElement("div");
+                container.setAttribute("data-br-webexpid", webExperienceId);
+                container.setAttribute("data-br-webexppos", positionId);
+                this._applyClasses(container, settings && settings.classes);
+                this._applyAttributes(container, settings && settings.attributes);
+                return container;
+            },
+
+            _applyClasses: function (container, classes) {
+                if (!Array.isArray(classes) || !container.classList) {
+                    return;
+                }
+
+                for (let i = 0; i < classes.length; i++) {
+                    const className = Breinify.UTL.isNonEmptyString(classes[i]);
+                    if (className !== null) {
+                        container.classList.add(className);
+                    }
+                }
+            },
+
+            _applyAttributes: function (container, attributes) {
+                if (!$.isPlainObject(attributes)) {
+                    return;
+                }
+
+                const attributeNames = Object.keys(attributes);
+                for (let i = 0; i < attributeNames.length; i++) {
+                    const attributeName = Breinify.UTL.isNonEmptyString(attributeNames[i]);
+                    if (attributeName === null || this._isReservedAttribute(attributeName) ||
+                        typeof attributes[attributeNames[i]] !== "string") {
+                        continue;
+                    }
+
+                    container.setAttribute(attributeName, attributes[attributeNames[i]]);
+                }
+            },
+
+            _isReservedAttribute: function (attributeName) {
+                const normalizedName = attributeName.toLowerCase();
+                return normalizedName === "data-br-webexpid" || normalizedName === "data-br-webexppos";
+            }
         }
     };
 
@@ -1533,9 +1644,17 @@
         getMaxApplications: function (action) {
             const settings = this.getActionSettings(action);
             const maxApplications = settings && settings.maxApplications;
-            return typeof maxApplications === "number" && isFinite(maxApplications) &&
+            if (typeof maxApplications === "number" && isFinite(maxApplications) &&
             maxApplications > 0 && Math.floor(maxApplications) === maxApplications
-                ? maxApplications
+            ) {
+                return maxApplications;
+            }
+
+            const implementation = this.getActionImplementation(action);
+            const defaultMaxApplications = implementation && implementation.defaultMaxApplications;
+            return typeof defaultMaxApplications === "number" && isFinite(defaultMaxApplications) &&
+            defaultMaxApplications > 0 && Math.floor(defaultMaxApplications) === defaultMaxApplications
+                ? defaultMaxApplications
                 : null;
         },
 
