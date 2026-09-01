@@ -364,6 +364,7 @@
                 div.inspect-mode { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; }
                 div.inspect-status { background: #2a2a2a; border: 1px solid #444; border-left: 4px solid #777; border-radius: 4px; color: #ddd; margin-bottom: 10px; padding: 8px 10px; }
                 div.inspect-status.breinify { border-left-color: #43a047; color: #d8f4db; }
+                div.inspect-status.error { border-left-color: #ef5350; color: #ffcdd2; }
                 div.inspect-target { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 div.inspect-component { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #66bb6a; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
                 div.inspect-component-name { color: #fff; font-weight: bold; margin-bottom: 5px; }
@@ -621,13 +622,17 @@
             this.inspectHoverElement = null;
             this._renderInspect(null);
             this.inspectPointerMoveHandler = event => {
-                const element = this._getInspectHoverElement(event);
-                if (element === this.inspectHoverElement) {
-                    return;
-                }
+                try {
+                    const element = this._getInspectHoverElement(event);
+                    if (element === this.inspectHoverElement) {
+                        return;
+                    }
 
-                this.inspectHoverElement = element;
-                this._renderInspect(element);
+                    this.inspectHoverElement = element;
+                    this._renderInspect(element);
+                } catch (error) {
+                    this._renderInspectError(error);
+                }
             };
             document.addEventListener('pointermove', this.inspectPointerMoveHandler, true);
             document.addEventListener('mousemove', this.inspectPointerMoveHandler, true);
@@ -682,9 +687,8 @@
                 }
 
                 const root = current.getRootNode();
-                current = root !== null && root.host !== null && root.host.nodeType === 1
-                    ? root.host
-                    : null;
+                const host = root !== null && typeof root.host !== 'undefined' ? root.host : null;
+                current = host !== null && host.nodeType === 1 ? host : null;
             }
 
             return nodes;
@@ -852,6 +856,17 @@
                 }
                 this.$inspectContainer.append($component);
             });
+        }
+
+        _renderInspectError(error) {
+            const message = error instanceof Error && typeof error.message === 'string' && error.message !== ''
+                ? error.message
+                : 'An unknown error occurred while inspecting this element.';
+            this.$inspectContainer.empty();
+            this.$inspectContainer.append($('<div class="inspect-mode">Inspect mode is on. Move over page content to inspect it.</div>'));
+            this.$inspectContainer.append($('<div class="inspect-status error"></div>')
+                .text('Inspection error: ' + message)
+                .attr('title', error instanceof Error && typeof error.stack === 'string' ? error.stack : message));
         }
 
         _refreshInfo() {
