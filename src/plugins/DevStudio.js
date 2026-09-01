@@ -74,7 +74,6 @@
         $userContainer = null;
 
         userLastFetched = null;
-        userFetchId = 0;
 
         constructor() {
             super();
@@ -280,8 +279,8 @@
             this.$userContainer.append($('<div class="user-empty">Fetching current user…</div>'));
         }
 
-        _renderUserInfo(user) {
-            const userData = user && $.isFunction(user.all) && $.isPlainObject(user.all()) ? user.all() : {};
+        _renderUserInfo(userData) {
+            userData = $.isPlainObject(userData) ? userData : {};
             const additional = $.isPlainObject(userData.additional) ? userData.additional : {};
             const identifiers = $.isPlainObject(additional.identifiers) ? additional.identifiers : {};
             const userIds = [];
@@ -323,26 +322,14 @@
         }
 
         _refreshUserInfo() {
-            const fetchId = ++this.userFetchId;
             this._renderUserLoading();
 
             try {
-                Breinify.createUser({}, user => {
-                    if (fetchId !== this.userFetchId) {
-                        return;
-                    }
-
-                    try {
-                        this.userLastFetched = new Date();
-                        this._renderUserInfo(user);
-                    } catch (error) {
-                        this._renderUserError();
-                    }
-                });
+                const userData = Breinify.UTL.user.create();
+                this.userLastFetched = new Date();
+                this._renderUserInfo(userData);
             } catch (error) {
-                if (fetchId === this.userFetchId) {
-                    this._renderUserError();
-                }
+                this._renderUserError();
             }
         }
 
