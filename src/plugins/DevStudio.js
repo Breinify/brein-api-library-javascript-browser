@@ -77,15 +77,11 @@
                 header button.tab:hover:not(.active) { color: #fff; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
-                div.plugin-bubble { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 6px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
-                div.plugin-header { font-size: 14px; font-weight: bold; color: #4fc3f7; padding: 10px 12px; cursor: pointer; user-select: none; position: relative; }
-                span.plugin-indicator { position: absolute; right: 12px; top: 10px; font-size: 12px; transform-origin: center; transition: transform 0.3s ease; }
-                div.plugin-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 12px; }
-                div.plugin-content.expended { padding: 10px 12px }
-                div.plugin-content ul { list-style-type: none; padding-left: 0; margin: 0 0 10px 0; }
-                div.plugin-content ul li { margin-bottom: 4px; }
-                div.plugin-content ul li span.plugin-prop-key { color: #bbbbbb; display: inline-block; padding-right: 5px; }
-                div.plugin-content ul li span.plugin-prop-value { color: #ffffff; display: inline-block; }
+                div.info-section { margin-bottom: 16px; }
+                div.info-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
+                div.info-value { color: #4fc3f7; font-size: 14px; }
+                ul.plugin-list { list-style: none; margin: 0; padding: 0; }
+                ul.plugin-list li { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; color: #fff; margin-bottom: 6px; padding: 8px 10px; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
@@ -140,41 +136,31 @@
             }
         }
 
-        _showPluginInfo(pluginName, config) {
-            const $bubble = $('<div class="plugin-bubble"></div>');
-            const $header =$('<div class="plugin-header">🔌 ' + pluginName + '</div>');
+        _refreshInfo() {
+            const version = typeof Breinify.version === 'string' && Breinify.version.trim() !== ''
+                ? Breinify.version
+                : 'Unknown';
+            const pluginNames = Object.keys(Breinify.plugins)
+                .filter(name => name.charAt(0) !== '_' && $.isPlainObject(Breinify.plugins[name]))
+                .sort();
 
-            const $indicator = $('<span class="plugin-indicator">─</span>');
-            $header.append($indicator);
+            this.$infoContainer.empty();
+            this.$infoContainer.append(
+                $('<div class="info-section"></div>')
+                    .append($('<div class="info-label">Script version</div>'))
+                    .append($('<div class="info-value"></div>').text(version))
+            );
 
-            const $content = $('<div class="plugin-content"></div>');
-            const $list = $('<ul></ul>');
+            const $plugins = $('<div class="info-section"></div>');
+            $plugins.append($('<div class="info-label"></div>').text('Loaded plugins (' + pluginNames.length + ')'));
 
-            Object.entries(config).forEach(([key, value]) => {
-                const $item = $('<li><span class="plugin-prop-key">' + key + ':</span><span class="plugin-prop-value">' + value + '</span></li>');
-                $list.append($item);
+            const $pluginList = $('<ul class="plugin-list"></ul>');
+            pluginNames.forEach(pluginName => {
+                $pluginList.append($('<li></li>').text(pluginName));
             });
 
-            $content.append($list);
-            $bubble.append($header);
-            $bubble.append($content);
-
-            this.$infoContainer.prepend($bubble);
-
-            let expanded = false;
-            $header.click(() => {
-                expanded = $header.hasClass('expended');
-
-                if (expanded) {
-                    $header.removeClass('expended');
-                    $content.css('maxHeight', $content[0].scrollHeight + 'px');
-                    $indicator.text('▼');
-                } else {
-                    $header.addClass('expended');
-                    $content.css('maxHeight', '0');
-                    $indicator.text('─');
-                }
-            });
+            $plugins.append($pluginList);
+            this.$infoContainer.append($plugins);
         }
 
         _switchTab(event) {
@@ -183,11 +169,11 @@
                 this.classList.toggle('active', this.dataset.tab === selectedTab);
             });
 
-            // For now, just clear or keep logs on console tab, and show placeholder on info tab
             if (selectedTab === 'console') {
                 this.$logContainer.addClass('active');
                 this.$infoContainer.removeClass('active');
             } else if (selectedTab === 'info') {
+                this._refreshInfo();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.addClass('active');
             }
