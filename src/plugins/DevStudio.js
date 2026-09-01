@@ -4,6 +4,143 @@
     const $ = Breinify.UTL._jquery();
 
     const _private = {
+        consoleEvents: {
+            entries: [],
+            activityTypes: Object.create(null),
+            readyObserved: false,
+
+            formatPayload: function (payload) {
+                try {
+                    const formattedPayload = JSON.stringify(payload, null, 2);
+                    return typeof formattedPayload === 'string' ? formattedPayload : String(payload);
+                } catch (error) {
+                    return 'Unable to format event payload.';
+                }
+            },
+
+            record: function (type, title, payload) {
+                this.entries.unshift({
+                    type: type,
+                    title: title,
+                    timestamp: new Date(),
+                    payload: this.formatPayload(payload)
+                });
+
+                if (this.entries.length > 100) {
+                    this.entries.pop();
+                }
+
+                $(document).trigger('breinifyDevStudioConsoleChanged');
+            },
+
+            watchActivity: function (activityType) {
+                const eventName = 'breinifyActivity[' + activityType + ']';
+                if (this.activityTypes[eventName] === true) {
+                    return;
+                }
+
+                this.activityTypes[eventName] = true;
+                $(document).on(eventName, (event, payload) => {
+                    this.record('activity', 'Activity: ' + activityType, payload);
+                });
+            },
+
+            install: function () {
+                const originalActivityUser = Breinify.activityUser;
+                Breinify.activityUser = function () {
+                    const args = Array.prototype.slice.call(arguments);
+                    const activityType = args[1] === null || typeof args[1] === 'undefined'
+                        ? 'null'
+                        : String(args[1]);
+                    const onReady = args[6];
+
+                    if ($.isFunction(onReady)) {
+                        args[6] = function () {
+                            _private.consoleEvents.watchActivity(activityType);
+                            return onReady.apply(this, arguments);
+                        };
+                    }
+
+                    return originalActivityUser.apply(this, args);
+                };
+
+                Breinify.onReady(() => {
+                    if (this.readyObserved !== true) {
+                        this.readyObserved = true;
+                        this.record('ready', 'Breinify ready', null);
+                    }
+                });
+            }
+        },
+
+        pluginLifecycle: {
+            states: Object.create(null),
+
+            get: function (name) {
+                if (!Object.prototype.hasOwnProperty.call(this.states, name)) {
+                    this.states[name] = {
+                        bound: 0,
+                        setup: 0,
+                        added: 0,
+                        error: null,
+                        watched: false
+                    };
+                }
+
+                return this.states[name];
+            },
+
+            watch: function (name) {
+                const state = this.get(name);
+                if (state.watched === true) {
+                    return;
+                }
+
+                state.watched = true;
+                $(document).on('breinifyPlugInBound[' + name + ']', () => this.record(name, 'bound'));
+                $(document).on('breinifyPlugInSetup[' + name + ']', () => this.record(name, 'setup'));
+                $(document).on('breinifyPlugInAdded[' + name + ']', () => this.record(name, 'added'));
+            },
+
+            record: function (name, lifecycle) {
+                const state = this.get(name);
+                state[lifecycle]++;
+                $(document).trigger('breinifyDevStudioPluginLifecycleChanged');
+            },
+
+            recordError: function (name, error) {
+                const state = this.get(name);
+                state.error = error instanceof Error && typeof error.message === 'string'
+                    ? error.message
+                    : 'Plugin initialization failed.';
+                $(document).trigger('breinifyDevStudioPluginLifecycleChanged');
+            },
+
+            install: function () {
+                Object.keys(Breinify.plugins)
+                    .filter(name => name.charAt(0) !== '_' && $.isPlainObject(Breinify.plugins[name]))
+                    .forEach(name => this.watch(name));
+
+                const originalAdd = Breinify.plugins._add;
+                Breinify.plugins._add = function () {
+                    const name = arguments[0];
+                    if (typeof name === 'string') {
+                        _private.pluginLifecycle.watch(name);
+                    }
+
+                    try {
+                        return originalAdd.apply(this, arguments);
+                    } catch (error) {
+                        if (typeof name === 'string') {
+                            _private.pluginLifecycle.recordError(name, error);
+                        }
+
+                        throw error;
+                    }
+                };
+            }
+        },
+
         copyText: function (value) {
             try {
                 if (navigator.clipboard && $.isFunction(navigator.clipboard.writeText)) {
@@ -62,6 +199,9 @@
         }
     };
 
+    _private.consoleEvents.install();
+    _private.pluginLifecycle.install();
+
     class BreinifyDevConsole extends HTMLElement {
         $shadowRoot = null;
         $toggleButton = null;
@@ -72,8 +212,10 @@
         $logContainer = null;
         $infoContainer = null;
         $userContainer = null;
+        $splitTestsContainer = null;
 
         userLastFetched = null;
+        splitTestsLastFetched = null;
 
         constructor() {
             super();
@@ -116,11 +258,36 @@
                 div.user-field-value { align-items: center; color: #fff; display: flex; justify-content: space-between; }
                 div.user-field-value span { flex-grow: 1; min-width: 0; }
                 div.user-empty { color: #bbbbbb; font-style: italic; }
+                div.split-tests-section { margin-top: 16px; }
+                div.split-tests-title { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase; }
+                div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #ffb74d; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
+                div.split-test-name { color: #ffcc80; font-weight: bold; margin-bottom: 5px; }
+                div.split-test-details { color: #ddd; display: flex; flex-wrap: wrap; gap: 5px 10px; }
+                span.split-test-detail-label { color: #bbbbbb; }
+                div.console-empty { color: #bbbbbb; font-style: italic; }
+                div.console-entry { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
+                div.console-entry.ready { border-left-color: #ab47bc; }
+                div.console-entry-header { align-items: center; display: flex; gap: 7px; }
+                span.console-event-type { border-radius: 3px; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 5px; }
+                span.console-event-type.activity { background: #0277bd; }
+                span.console-event-type.ready { background: #7b1fa2; }
+                span.console-title { color: #fff; flex-grow: 1; font-weight: bold; }
+                span.console-timestamp { color: #bbbbbb; font-size: 11px; }
+                details.console-payload { margin-top: 7px; }
+                details.console-payload summary { color: #4fc3f7; cursor: pointer; }
+                details.console-payload pre { background: #151515; border-radius: 3px; color: #ddd; margin: 7px 0 0; overflow-x: auto; padding: 8px; white-space: pre-wrap; }
                 div.info-section { margin-bottom: 16px; }
                 div.info-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
                 div.info-value { color: #4fc3f7; font-size: 14px; }
                 ul.plugin-list { list-style: none; margin: 0; padding: 0; }
                 ul.plugin-list li { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; color: #fff; margin-bottom: 6px; padding: 8px 10px; }
+                div.plugin-name { font-weight: bold; margin-bottom: 6px; }
+                div.plugin-lifecycle { display: flex; flex-wrap: wrap; gap: 8px; }
+                span.lifecycle-state { align-items: center; color: #bbbbbb; display: inline-flex; gap: 3px; }
+                span.lifecycle-marker { align-items: center; background: #555; border-radius: 50%; color: #ddd; display: inline-flex; font-size: 10px; font-weight: bold; height: 15px; justify-content: center; width: 15px; }
+                span.lifecycle-marker.observed { background: #2e7d32; color: #fff; }
+                span.lifecycle-marker.error { background: #c62828; color: #fff; }
+                span.plugin-error { color: #ff8a80; display: inline-block; margin-top: 6px; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
@@ -138,11 +305,13 @@
                         <button class="tab active" data-tab="console">Console</button>
                         <button class="tab" data-tab="info">Info</button>
                         <button class="tab" data-tab="user">User</button>
+                        <button class="tab" data-tab="split-tests">Split Tests</button>
                     </div>
                 </header>
                 <div id="log-container" class="container active"></div>
                 <div id="info-container" class="container"></div>
                 <div id="user-container" class="container"></div>
+                <div id="split-tests-container" class="container"></div>
             </div>
             <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
 
@@ -155,12 +324,24 @@
             this.$logContainer = this.$shadowRoot.find('#log-container');
             this.$infoContainer = this.$shadowRoot.find('#info-container');
             this.$userContainer = this.$shadowRoot.find('#user-container');
+            this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
 
             this.$closeBtn.click(() => this.toggleDevStudio());
             this.$toggleButton.click(() => this.toggleDevStudio());
 
             this.$tabs.click(e => this._switchTab(e));
+            $(document).on('breinifyDevStudioPluginLifecycleChanged', () => {
+                if (this.$infoContainer.hasClass('active')) {
+                    this._refreshInfo();
+                }
+            });
+            $(document).on('breinifyDevStudioConsoleChanged', () => {
+                if (this.$logContainer.hasClass('active')) {
+                    this._renderConsole();
+                }
+            });
 
+            this._renderConsole();
             _private.resizable(this.$shadowRoot);
         }
 
@@ -176,6 +357,34 @@
                 this.$panel.css('opacity', '0');
                 this.$toggleButton.css('display', 'flex');
             }
+        }
+
+        _formatConsoleTimestamp(timestamp) {
+            const milliseconds = timestamp.getMilliseconds().toString().padStart(3, '0');
+            return timestamp.toLocaleTimeString() + '.' + milliseconds;
+        }
+
+        _renderConsole() {
+            this.$logContainer.empty();
+
+            if (_private.consoleEvents.entries.length === 0) {
+                this.$logContainer.append($('<div class="console-empty">No SDK events observed yet.</div>'));
+                return;
+            }
+
+            _private.consoleEvents.entries.forEach(entry => {
+                const $entry = $('<div class="console-entry"></div>').addClass(entry.type);
+                const $header = $('<div class="console-entry-header"></div>');
+                const $payload = $('<details class="console-payload"><summary>Show payload</summary></details>');
+
+                $header.append($('<span class="console-event-type"></span>').addClass(entry.type).text(entry.type.toUpperCase()));
+                $header.append($('<span class="console-title"></span>').text(entry.title));
+                $header.append($('<span class="console-timestamp"></span>').text(this._formatConsoleTimestamp(entry.timestamp)));
+                $payload.append($('<pre></pre>').text(entry.payload));
+                $entry.append($header);
+                $entry.append($payload);
+                this.$logContainer.append($entry);
+            });
         }
 
         _refreshInfo() {
@@ -198,11 +407,51 @@
 
             const $pluginList = $('<ul class="plugin-list"></ul>');
             pluginNames.forEach(pluginName => {
-                $pluginList.append($('<li></li>').text(pluginName));
+                const lifecycle = _private.pluginLifecycle.get(pluginName);
+                const $plugin = $('<li></li>');
+                const $lifecycle = $('<div class="plugin-lifecycle"></div>');
+
+                $plugin.append($('<div class="plugin-name"></div>').text(pluginName));
+                $lifecycle.append(this._createLifecycleMarker('Bound', lifecycle.bound));
+                $lifecycle.append(this._createLifecycleMarker('Setup', lifecycle.setup));
+                $lifecycle.append(this._createLifecycleMarker('Added', lifecycle.added));
+                $plugin.append($lifecycle);
+
+                if (lifecycle.error !== null) {
+                    $plugin.append($('<span class="plugin-error">! Plugin initialization failed</span>').attr('title', lifecycle.error));
+                }
+
+                $pluginList.append($plugin);
             });
 
             $plugins.append($pluginList);
             this.$infoContainer.append($plugins);
+        }
+
+        _createLifecycleMarker(label, count) {
+            let state = 'not observed';
+            let icon = '○';
+            let tooltip = label + ' lifecycle event was not observed since DevStudio loaded.';
+
+            if (count === 1) {
+                state = 'observed';
+                icon = '✓';
+                tooltip = label + ' lifecycle event observed once.';
+            } else if (count > 1) {
+                state = 'error';
+                icon = '!';
+                tooltip = label + ' lifecycle event observed ' + count + ' times. A plugin lifecycle event should only occur once.';
+            }
+
+            const $state = $('<span class="lifecycle-state"></span>');
+            const $marker = $('<span class="lifecycle-marker"></span>');
+            $marker.addClass(state);
+            $marker.attr('title', tooltip);
+            $marker.attr('aria-label', tooltip);
+            $marker.text(icon);
+            $state.append($marker);
+            $state.append($('<span></span>').text(label));
+            return $state;
         }
 
         _formatUserValue(value) {
@@ -237,6 +486,63 @@
             return true;
         }
 
+        _renderSplitTests(splitTests) {
+            if (!$.isPlainObject(splitTests)) {
+                return null;
+            }
+
+            const assignments = Object.keys(splitTests)
+                .filter(testName => $.isPlainObject(splitTests[testName]))
+                .map(testName => {
+                    const assignment = splitTests[testName];
+                    return {
+                        testName: typeof assignment.testName === 'string' && assignment.testName !== ''
+                            ? assignment.testName
+                            : testName,
+                        groupDecision: assignment.groupDecision,
+                        selectedInstance: assignment.selectedInstance,
+                        usedEnforcedGroup: assignment.usedEnforcedGroup,
+                        lastUpdated: typeof assignment.lastUpdated === 'number' ? assignment.lastUpdated : null
+                    };
+                })
+                .sort((assignment1, assignment2) => {
+                    const timestamp1 = assignment1.lastUpdated === null ? 0 : assignment1.lastUpdated;
+                    const timestamp2 = assignment2.lastUpdated === null ? 0 : assignment2.lastUpdated;
+                    return timestamp2 - timestamp1 || assignment1.testName.localeCompare(assignment2.testName);
+                });
+
+            if (assignments.length === 0) {
+                return null;
+            }
+
+            const $section = $('<div class="split-tests-section"></div>');
+            $section.append($('<div class="split-tests-title"></div>').text('Split tests (' + assignments.length + ')'));
+
+            assignments.forEach(assignment => {
+                const $assignment = $('<div class="split-test"></div>');
+                const $details = $('<div class="split-test-details"></div>');
+
+                $assignment.append($('<div class="split-test-name"></div>').text(assignment.testName));
+                if (typeof assignment.groupDecision === 'string' && assignment.groupDecision !== '') {
+                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Group: </span>')).append(document.createTextNode(assignment.groupDecision)));
+                }
+                if (typeof assignment.selectedInstance === 'string' && assignment.selectedInstance !== '') {
+                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Instance: </span>')).append(document.createTextNode(assignment.selectedInstance)));
+                }
+                if (typeof assignment.usedEnforcedGroup === 'boolean') {
+                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Enforced: </span>')).append(document.createTextNode(assignment.usedEnforcedGroup ? 'Yes' : 'No')));
+                }
+                if (assignment.lastUpdated !== null) {
+                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Updated: </span>')).append(document.createTextNode(new Date(assignment.lastUpdated).toLocaleString())));
+                }
+
+                $assignment.append($details);
+                $section.append($assignment);
+            });
+
+            return $section;
+        }
+
         _copyUserValue(value, label, $copyButton) {
             $copyButton.prop('disabled', true);
 
@@ -259,7 +565,7 @@
             });
         }
 
-        _createUserHeader(lastFetched, isRefreshing) {
+        _createRefreshHeader(lastFetched, isRefreshing, onRefresh) {
             const $header = $('<div class="user-header"></div>');
             const lastFetchedText = lastFetched === null
                 ? 'Last fetched: Never'
@@ -267,7 +573,7 @@
             const $refreshButton = $('<button class="refresh-btn" type="button">↻ Refresh</button>');
 
             $refreshButton.prop('disabled', isRefreshing === true);
-            $refreshButton.click(() => this._refreshUserInfo());
+            $refreshButton.click(onRefresh);
             $header.append($('<div class="user-last-fetched"></div>').text(lastFetchedText));
             $header.append($refreshButton);
             return $header;
@@ -275,7 +581,7 @@
 
         _renderUserLoading() {
             this.$userContainer.empty();
-            this.$userContainer.append(this._createUserHeader(this.userLastFetched, true));
+            this.$userContainer.append(this._createRefreshHeader(this.userLastFetched, true, () => this._refreshUserInfo()));
             this.$userContainer.append($('<div class="user-empty">Fetching current user…</div>'));
         }
 
@@ -297,27 +603,53 @@
             }
 
             this.$userContainer.empty();
-            this.$userContainer.append(this._createUserHeader(this.userLastFetched, false));
+            this.$userContainer.append(this._createRefreshHeader(this.userLastFetched, false, () => this._refreshUserInfo()));
 
             const $userFields = $('<div></div>');
             this._addUserField($userFields, 'Session ID', userData.sessionId, true);
             this._addUserField($userFields, 'Browser ID', identifiers.browserId, true);
 
-            let hasAttachedUserInformation = false;
-            hasAttachedUserInformation = this._addUserField($userFields, 'Email', userData.email, false) || hasAttachedUserInformation;
-            hasAttachedUserInformation = this._addUserField($userFields, 'User IDs', userIds, false) || hasAttachedUserInformation;
-            hasAttachedUserInformation = this._addUserField($userFields, 'Phone', userData.phone, false) || hasAttachedUserInformation;
-            hasAttachedUserInformation = this._addUserField($userFields, 'Location', additional.location, false) || hasAttachedUserInformation;
+            this._addUserField($userFields, 'Email', userData.email, false);
+            this._addUserField($userFields, 'User IDs', userIds, false);
+            this._addUserField($userFields, 'Phone', userData.phone, false);
+            this._addUserField($userFields, 'Location', additional.location, false);
 
             this.$userContainer.append($userFields);
-            if (hasAttachedUserInformation === false) {
-                this.$userContainer.append($('<div class="user-empty">No additional user information is attached.</div>'));
+        }
+
+        _renderSplitTestsInfo(splitTests, isRefreshing) {
+            this.$splitTestsContainer.empty();
+            this.$splitTestsContainer.append(this._createRefreshHeader(this.splitTestsLastFetched, isRefreshing, () => this._refreshSplitTests()));
+
+            if (isRefreshing === true) {
+                this.$splitTestsContainer.append($('<div class="user-empty">Fetching split-test assignments…</div>'));
+                return;
+            }
+
+            const $splitTests = this._renderSplitTests(splitTests);
+            if ($splitTests !== null) {
+                this.$splitTestsContainer.append($splitTests);
+            }
+        }
+
+        _refreshSplitTests() {
+            this._renderSplitTestsInfo(null, true);
+
+            try {
+                const userData = Breinify.UTL.user.create();
+                const additional = $.isPlainObject(userData.additional) ? userData.additional : {};
+                this.splitTestsLastFetched = new Date();
+                this._renderSplitTestsInfo(additional.splitTests, false);
+            } catch (error) {
+                this.$splitTestsContainer.empty();
+                this.$splitTestsContainer.append(this._createRefreshHeader(this.splitTestsLastFetched, false, () => this._refreshSplitTests()));
+                this.$splitTestsContainer.append($('<div class="user-empty">Unable to retrieve split-test assignments.</div>'));
             }
         }
 
         _renderUserError() {
             this.$userContainer.empty();
-            this.$userContainer.append(this._createUserHeader(this.userLastFetched, false));
+            this.$userContainer.append(this._createRefreshHeader(this.userLastFetched, false, () => this._refreshUserInfo()));
             this.$userContainer.append($('<div class="user-empty">Unable to retrieve the current user.</div>'));
         }
 
@@ -340,19 +672,29 @@
             });
 
             if (selectedTab === 'console') {
+                this._renderConsole();
                 this.$logContainer.addClass('active');
                 this.$infoContainer.removeClass('active');
                 this.$userContainer.removeClass('active');
+                this.$splitTestsContainer.removeClass('active');
             } else if (selectedTab === 'info') {
                 this._refreshInfo();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.addClass('active');
                 this.$userContainer.removeClass('active');
+                this.$splitTestsContainer.removeClass('active');
             } else if (selectedTab === 'user') {
                 this._refreshUserInfo();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.removeClass('active');
                 this.$userContainer.addClass('active');
+                this.$splitTestsContainer.removeClass('active');
+            } else if (selectedTab === 'split-tests') {
+                this._refreshSplitTests();
+                this.$logContainer.removeClass('active');
+                this.$infoContainer.removeClass('active');
+                this.$userContainer.removeClass('active');
+                this.$splitTestsContainer.addClass('active');
             }
         }
     }
