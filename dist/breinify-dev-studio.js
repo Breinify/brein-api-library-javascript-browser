@@ -257,6 +257,367 @@
             }
         },
 
+        channel: {
+            endpoint: 'https://integration.breinify.com/channel/push',
+            pollTimer: null,
+            requestInFlight: false,
+            retryDelay: 2000,
+            channelId: null,
+            apiKey: null,
+            state: 'not configured',
+            lastPoll: null,
+            lastError: null,
+            receivedMessageCount: 0,
+            processedMessageIds: [],
+            handlers: Object.create(null),
+            highlight: {
+                elements: [],
+                popup: null
+            },
+
+            install: function () {
+                this.registerHandler('HIGHLIGHT_SELECTOR', 'REQUEST', this._handleHighlightRequest);
+                Breinify.onReady(() => this.start());
+            },
+
+            // Register future protocol use cases here without changing polling or message parsing.
+            registerHandler: function (useCase, type, handler) {
+                if (typeof useCase !== 'string' || typeof type !== 'string' || !$.isFunction(handler)) {
+                    return;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(this.handlers, useCase)) {
+                    this.handlers[useCase] = Object.create(null);
+                }
+                this.handlers[useCase][type] = handler;
+            },
+
+            _readQueryParameter: function (names) {
+                try {
+                    const parameters = new URLSearchParams(window.location.search);
+                    for (let index = 0; index < names.length; index++) {
+                        const value = parameters.get(names[index]);
+                        if (typeof value === 'string' && value.trim() !== '') {
+                            return value;
+                        }
+                    }
+                } catch (error) {
+                    // A channel is optional; unavailable query parameters simply disable it.
+                }
+
+                return null;
+            },
+
+            _getCredentials: function () {
+                const channelId = this._readQueryParameter(['breinify-channel-id', 'channelId']);
+                const queryApiKey = this._readQueryParameter(['breinify-api-key', 'apiKey']);
+                const configuration = typeof Breinify.config === 'function' ? Breinify.config() : null;
+                const configuredApiKey = configuration !== null && typeof configuration.apiKey === 'string'
+                    ? configuration.apiKey
+                    : null;
+
+                return {
+                    channelId: channelId,
+                    apiKey: queryApiKey || configuredApiKey
+                };
+            },
+
+            _notify: function () {
+                $(document).trigger('breinifyDevStudioChannelChanged');
+            },
+
+            getStatus: function () {
+                return {
+                    channelIdProvided: typeof this.channelId === 'string' && this.channelId !== '',
+                    active: this.state === 'active',
+                    state: this.state,
+                    lastPoll: this.lastPoll,
+                    lastError: this.lastError,
+                    receivedMessageCount: this.receivedMessageCount
+                };
+            },
+
+            start: function () {
+                if (this.pollTimer !== null) {
+                    window.clearTimeout(this.pollTimer);
+                    this.pollTimer = null;
+                }
+
+                const credentials = this._getCredentials();
+                this.channelId = credentials.channelId;
+                this.apiKey = credentials.apiKey;
+                this.lastError = null;
+                this.retryDelay = 2000;
+
+                if (this.channelId === null) {
+                    this.state = 'no channel ID provided';
+                    this._notify();
+                    return;
+                }
+                if (typeof this.apiKey !== 'string' || this.apiKey === '') {
+                    this.state = 'waiting for API key';
+                    this._notify();
+                    return;
+                }
+                if (typeof window.fetch !== 'function') {
+                    this.state = 'unavailable';
+                    this.lastError = 'Fetch is unavailable in this browser.';
+                    this._notify();
+                    return;
+                }
+
+                this.state = 'connecting';
+                this._notify();
+                this._poll();
+            },
+
+            _schedulePoll: function (delay) {
+                if (this.channelId === null || this.apiKey === null) {
+                    return;
+                }
+
+                this.pollTimer = window.setTimeout(() => {
+                    this.pollTimer = null;
+                    this._poll();
+                }, delay);
+            },
+
+            _push: async function (rawMessage) {
+                const requestBody = {
+                    channelId: this.channelId,
+                    apiKey: this.apiKey
+                };
+                if (rawMessage !== null && typeof rawMessage !== 'undefined') {
+                    requestBody.message = rawMessage;
+                }
+
+                let response;
+                try {
+                    response = await window.fetch(this.endpoint, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(requestBody),
+                        credentials: 'omit',
+                        cache: 'no-store'
+                    });
+                } catch (error) {
+                    error.channelPushFailure = true;
+                    error.retryable = true;
+                    throw error;
+                }
+                let responseBody;
+                try {
+                    responseBody = await response.json();
+                } catch (error) {
+                    const malformedResponse = new Error('Channel response was malformed.');
+                    malformedResponse.channelPushFailure = true;
+                    malformedResponse.retryable = false;
+                    throw malformedResponse;
+                }
+                if (!response.ok || responseBody?.responseCode !== 200) {
+                    const rejectedRequest = new Error('Channel push failed.');
+                    rejectedRequest.channelPushFailure = true;
+                    rejectedRequest.retryable = response.status >= 500 || response.status === 429;
+                    throw rejectedRequest;
+                }
+
+                return $.isPlainObject(responseBody.payload) ? responseBody.payload : {};
+            },
+
+            _poll: async function () {
+                if (this.requestInFlight === true || this.channelId === null || this.apiKey === null) {
+                    return;
+                }
+
+                this.requestInFlight = true;
+                try {
+                    const payload = await this._push(null);
+                    this.state = 'active';
+                    this.lastError = null;
+                    this.lastPoll = new Date();
+                    this.retryDelay = 2000;
+                    await this._processMessages(payload.messages);
+                    this._notify();
+                    this._schedulePoll(2000);
+                } catch (error) {
+                    const retryable = error?.retryable !== false;
+                    this.state = retryable ? 'retrying' : 'rejected';
+                    this.lastError = retryable
+                        ? 'Unable to reach the integration channel.'
+                        : 'The integration channel rejected the request.';
+                    this._notify();
+                    if (retryable) {
+                        this.retryDelay = Math.min(this.retryDelay * 2, 30000);
+                        this._schedulePoll(this.retryDelay);
+                    }
+                } finally {
+                    this.requestInFlight = false;
+                }
+            },
+
+            _parseMessage: function (rawMessage) {
+                if (typeof rawMessage !== 'string') {
+                    return null;
+                }
+
+                const first = rawMessage.indexOf('|');
+                const second = first === -1 ? -1 : rawMessage.indexOf('|', first + 1);
+                const third = second === -1 ? -1 : rawMessage.indexOf('|', second + 1);
+                if (first === -1 || second === -1 || third === -1) {
+                    return null;
+                }
+
+                try {
+                    const version = rawMessage.substring(0, first);
+                    const useCase = rawMessage.substring(first + 1, second);
+                    const type = rawMessage.substring(second + 1, third);
+                    const payload = JSON.parse(rawMessage.substring(third + 1));
+                    if (version !== 'v1' || !$.isPlainObject(payload)) {
+                        return null;
+                    }
+
+                    return {useCase: useCase, type: type, payload: payload};
+                } catch (error) {
+                    return null;
+                }
+            },
+
+            _rememberMessage: function (messageId) {
+                if (this.processedMessageIds.indexOf(messageId) !== -1) {
+                    return false;
+                }
+
+                this.processedMessageIds.push(messageId);
+                if (this.processedMessageIds.length > 100) {
+                    this.processedMessageIds.shift();
+                }
+                return true;
+            },
+
+            _processMessages: async function (messages) {
+                if (!$.isArray(messages)) {
+                    return;
+                }
+
+                for (let index = 0; index < messages.length; index++) {
+                    const message = messages[index];
+                    if (!$.isPlainObject(message) || typeof message.messageId !== 'string' ||
+                        this._rememberMessage(message.messageId) !== true) {
+                        continue;
+                    }
+
+                    const parsedMessage = this._parseMessage(message.rawMessage);
+                    if (parsedMessage === null) {
+                        continue;
+                    }
+
+                    const handlers = this.handlers[parsedMessage.useCase];
+                    const handler = handlers === undefined ? null : handlers[parsedMessage.type];
+                    if (!$.isFunction(handler)) {
+                        continue;
+                    }
+
+                    this.receivedMessageCount++;
+                    try {
+                        await handler.call(this, message, parsedMessage.payload);
+                    } catch (error) {
+                        if (error?.channelPushFailure === true) {
+                            throw error;
+                        }
+                        // A failed use case must not prevent later channel polls.
+                    }
+                }
+            },
+
+            _removeHighlight: function () {
+                this.highlight.elements.forEach(entry => {
+                    entry.properties.forEach(property => {
+                        if (property.value === '') {
+                            entry.element.style.removeProperty(property.name);
+                        } else {
+                            entry.element.style.setProperty(property.name, property.value, property.priority);
+                        }
+                    });
+                });
+                this.highlight.elements = [];
+
+                if (this.highlight.popup !== null) {
+                    this.highlight.popup.remove();
+                    this.highlight.popup = null;
+                }
+            },
+
+            _showHighlightPopup: function (matchedElementCount) {
+                if (document.body === null) {
+                    return;
+                }
+
+                const popup = document.createElement('div');
+                popup.setAttribute('role', 'status');
+                popup.style.cssText = 'background:#1e1e1e;border:1px solid #4fc3f7;border-radius:4px;color:#fff;font:12px monospace;max-width:280px;padding:10px;position:fixed;right:16px;top:16px;z-index:10000000;';
+                popup.appendChild(document.createTextNode(matchedElementCount === -1
+                    ? 'Unable to process the requested selector'
+                    : matchedElementCount + ' element' + (matchedElementCount === 1 ? '' : 's') + ' highlighted'));
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Remove highlight';
+                button.setAttribute('aria-label', 'Remove highlight');
+                button.style.cssText = 'background:#2a2a2a;border:1px solid #4fc3f7;border-radius:3px;color:#4fc3f7;cursor:pointer;font:12px monospace;margin-left:10px;padding:3px 6px;';
+                button.addEventListener('click', () => this._removeHighlight());
+                popup.appendChild(button);
+                document.body.appendChild(popup);
+                this.highlight.popup = popup;
+            },
+
+            _applyHighlight: function (elements) {
+                this.highlight.elements = elements.map(element => {
+                    const properties = ['outline', 'outline-offset'].map(name => ({
+                        name: name,
+                        value: element.style.getPropertyValue(name),
+                        priority: element.style.getPropertyPriority(name)
+                    }));
+                    element.style.setProperty('outline', '3px solid #00bcd4', 'important');
+                    element.style.setProperty('outline-offset', '2px', 'important');
+                    return {element: element, properties: properties};
+                });
+            },
+
+            _handleHighlightRequest: async function (message, payload) {
+                this._removeHighlight();
+                const selector = typeof payload.selector === 'string' ? payload.selector : null;
+                let matchedElementCount = -1;
+
+                if (selector !== null && selector.trim() !== '') {
+                    try {
+                        const elements = Array.prototype.slice.call(document.querySelectorAll(selector));
+                        this._applyHighlight(elements);
+                        this._showHighlightPopup(elements.length);
+                        matchedElementCount = elements.length;
+                    } catch (error) {
+                        // Invalid selectors are reported to the portal without affecting the page.
+                    }
+                }
+                if (matchedElementCount === -1) {
+                    this._showHighlightPopup(matchedElementCount);
+                }
+
+                const result = [
+                    'v1',
+                    'HIGHLIGHT_SELECTOR',
+                    'RESULT',
+                    JSON.stringify({
+                        requestMessageId: message.messageId,
+                        domain: window.location.hostname,
+                        path: window.location.pathname,
+                        selector: selector,
+                        matchedElementCount: matchedElementCount
+                    })
+                ].join('|');
+                const responsePayload = await this._push(result);
+                await this._processMessages(responsePayload.messages);
+            }
+        },
+
         copyText: function (value) {
             try {
                 if (navigator.clipboard && $.isFunction(navigator.clipboard.writeText)) {
@@ -318,6 +679,7 @@
     _private.consoleEvents.install();
     _private.pluginLifecycle.install();
     _private.inspectEvents.install();
+    _private.channel.install();
 
     class BreinifyDevConsole extends HTMLElement {
         $shadowRoot = null;
@@ -331,6 +693,7 @@
         $userContainer = null;
         $splitTestsContainer = null;
         $inspectContainer = null;
+        $channelContainer = null;
         $payloadModal = null;
         $payloadModalTitle = null;
         $payloadModalContent = null;
@@ -369,9 +732,16 @@
                 div.title { display: flex; flex-flow: row; font-weight: bold; font-size: 14px; line-height: 14px; padding: 6px 10px; }
                 button.close-btn { background: transparent; border: none; color: #ccc; font-size: 18px; cursor: pointer; padding: 0 6px; user-select: none; }
                 button.close-btn:hover { color: white; }
-                #panel { position: fixed; bottom: 0; right: 0; width: 400px; height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff; background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px; display: flex; flex-direction: column; z-index: 9999998; transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
+                #panel { position: fixed; bottom: 0; right: 0; width: 460px; height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff; background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px; display: flex; flex-direction: column; z-index: 9999998; transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
                 #resize-handle { position: absolute; left: 0; top: 0; width: 6px; height: 100%; cursor: ew-resize; z-index: 9999999; }
                 #resize-handle:hover { background: rgba(255, 255, 255, 0.1); }
+                @media (max-width: 540px) {
+                    #panel { border-top-left-radius: 0; height: 82dvh; max-height: none; width: 100vw; }
+                    #resize-handle { display: none; }
+                    header > .tabs { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+                    #payload-modal { padding: 12px; }
+                    div.payload-dialog { height: calc(100dvh - 24px); width: calc(100vw - 24px); }
+                }
                 header { background: #111; padding: 6px 10px; display: flex; align-items: center; user-select: none; border-top-left-radius: 6px; color: #eee; }
                 header > .tabs { display: flex; gap: 5px; flex-grow: 1; overflow-x: auto; }
                 header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; flex: 0 0 auto; padding: 4px 6px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; white-space: nowrap; }
@@ -394,6 +764,12 @@
                 div.user-empty { color: #bbbbbb; font-style: italic; }
                 div.split-tests-section { margin-top: 16px; }
                 div.split-tests-title { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase; }
+                div.channel-status { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #777; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
+                div.channel-status.active { border-left-color: #43a047; }
+                div.channel-status.warning { border-left-color: #ffb74d; }
+                div.channel-status.error { border-left-color: #ef5350; }
+                div.channel-status-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase; }
+                div.channel-status-value { color: #fff; }
                 div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #ffb74d; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
                 div.split-test-name { color: #ffcc80; font-weight: bold; margin-bottom: 5px; }
                 div.split-test-details { color: #ddd; display: flex; flex-wrap: wrap; gap: 5px 10px; }
@@ -455,7 +831,7 @@
                 span.lifecycle-marker.observed { background: #2e7d32; color: #fff; }
                 span.lifecycle-marker.error { background: #c62828; color: #fff; }
                 span.plugin-error { color: #ff8a80; display: inline-block; margin-top: 6px; }
-                #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
+                #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
@@ -474,6 +850,7 @@
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
                         <button class="tab" data-tab="inspect">Inspect</button>
+                        <button class="tab" data-tab="channel">Channel</button>
                     </div>
                 </header>
                 <div id="log-container" class="container active"></div>
@@ -481,6 +858,7 @@
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
                 <div id="inspect-container" class="container"></div>
+                <div id="channel-container" class="container"></div>
             </div>
             <div id="payload-modal" role="presentation" aria-hidden="true">
                 <div class="payload-dialog" role="dialog" aria-modal="true" aria-labelledby="payload-modal-title">
@@ -505,6 +883,7 @@
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
             this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
+            this.$channelContainer = this.$shadowRoot.find('#channel-container');
             this.$payloadModal = this.$shadowRoot.find('#payload-modal');
             this.$payloadModalTitle = this.$shadowRoot.find('#payload-modal-title');
             this.$payloadModalContent = this.$shadowRoot.find('.payload-dialog-content pre');
@@ -538,6 +917,11 @@
                     this._renderInspect(inspectionElement);
                 }
             });
+            $(document).on('breinifyDevStudioChannelChanged', () => {
+                if (this.$channelContainer.hasClass('active')) {
+                    this._renderChannel();
+                }
+            });
 
             this._renderConsole();
             _private.resizable(this.$shadowRoot);
@@ -548,7 +932,7 @@
         }
 
         _getDevStudioState() {
-            const allowedTabs = ['console', 'info', 'user', 'split-tests', 'inspect'];
+            const allowedTabs = ['console', 'info', 'user', 'split-tests', 'inspect', 'channel'];
             try {
                 const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
                 return {
@@ -1408,6 +1792,31 @@
             }
         }
 
+        _renderChannel() {
+            const status = _private.channel.getStatus();
+            const addStatus = (label, value, tone) => {
+                const $status = $('<div class="channel-status"></div>').addClass(tone || '');
+                $status.append($('<div class="channel-status-label"></div>').text(label));
+                $status.append($('<div class="channel-status-value"></div>').text(value));
+                this.$channelContainer.append($status);
+            };
+
+            this.$channelContainer.empty();
+            this.$channelContainer.append(this._createRefreshHeader(status.lastPoll, false, () => {
+                _private.channel.start();
+                this._renderChannel();
+            }));
+
+            addStatus('Channel ID', status.channelIdProvided ? 'Provided' : 'Not provided',
+                status.channelIdProvided ? 'active' : 'warning');
+            addStatus('Connection', status.active ? 'Active and polling' : status.state,
+                status.active ? 'active' : (status.lastError === null ? 'warning' : 'error'));
+            addStatus('Portal requests handled', String(status.receivedMessageCount), '');
+            if (status.lastError !== null) {
+                addStatus('Latest issue', status.lastError, 'error');
+            }
+        }
+
         _switchTab(event) {
             const selectedTab = event.target.dataset.tab;
             this.activeTab = selectedTab;
@@ -1423,6 +1832,7 @@
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.removeClass('active');
                 this.$inspectContainer.removeClass('active');
+                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'info') {
                 this._stopInspecting();
                 this._refreshInfo();
@@ -1431,6 +1841,7 @@
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.removeClass('active');
                 this.$inspectContainer.removeClass('active');
+                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'user') {
                 this._stopInspecting();
                 this._refreshUserInfo();
@@ -1439,6 +1850,7 @@
                 this.$userContainer.addClass('active');
                 this.$splitTestsContainer.removeClass('active');
                 this.$inspectContainer.removeClass('active');
+                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'split-tests') {
                 this._stopInspecting();
                 this._refreshSplitTests();
@@ -1447,6 +1859,7 @@
                 this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.addClass('active');
                 this.$inspectContainer.removeClass('active');
+                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'inspect') {
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.removeClass('active');
@@ -1454,6 +1867,16 @@
                 this.$splitTestsContainer.removeClass('active');
                 this.$inspectContainer.addClass('active');
                 this._startInspecting();
+                this.$channelContainer.removeClass('active');
+            } else if (selectedTab === 'channel') {
+                this._stopInspecting();
+                this._renderChannel();
+                this.$logContainer.removeClass('active');
+                this.$infoContainer.removeClass('active');
+                this.$userContainer.removeClass('active');
+                this.$splitTestsContainer.removeClass('active');
+                this.$inspectContainer.removeClass('active');
+                this.$channelContainer.addClass('active');
             }
 
             this._storeDevStudioState();
