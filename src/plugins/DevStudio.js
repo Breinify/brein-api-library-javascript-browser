@@ -554,7 +554,7 @@
 
                 const popup = document.createElement('div');
                 popup.setAttribute('role', 'status');
-                popup.style.cssText = 'background:#1e1e1e;border:1px solid #4fc3f7;border-radius:4px;color:#fff;font:12px monospace;max-width:280px;padding:10px;position:fixed;right:16px;top:16px;z-index:10000000;';
+                popup.style.cssText = 'background:#1e1e1e;border:1px solid #ffb74d;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.35);box-sizing:border-box;color:#fff;display:flex;flex-direction:column;font:12px monospace;gap:8px;max-width:calc(100vw - 24px);min-width:220px;padding:12px;position:fixed;top:12px;left:12px;z-index:10000000;';
                 popup.appendChild(document.createTextNode(matchedElementCount === -1
                     ? 'Unable to process the requested selector'
                     : matchedElementCount + ' element' + (matchedElementCount === 1 ? '' : 's') + ' highlighted'));
@@ -562,11 +562,33 @@
                 button.type = 'button';
                 button.textContent = 'Remove highlight';
                 button.setAttribute('aria-label', 'Remove highlight');
-                button.style.cssText = 'background:#2a2a2a;border:1px solid #4fc3f7;border-radius:3px;color:#4fc3f7;cursor:pointer;font:12px monospace;margin-left:10px;padding:3px 6px;';
+                button.style.cssText = 'align-self:flex-start;background:#2a2a2a;border:1px solid #ffb74d;border-radius:3px;color:#ffcc80;cursor:pointer;font:12px monospace;padding:5px 8px;';
                 button.addEventListener('click', () => this._removeHighlight());
                 popup.appendChild(button);
                 document.body.appendChild(popup);
                 this.highlight.popup = popup;
+
+                const firstEntry = this.highlight.elements.length > 0 ? this.highlight.elements[0] : null;
+                if (firstEntry === null) {
+                    return;
+                }
+
+                const bounds = firstEntry.element.getBoundingClientRect();
+                if (bounds.bottom < 0 || bounds.top > window.innerHeight || bounds.right < 0 || bounds.left > window.innerWidth) {
+                    return;
+                }
+
+                const margin = 12;
+                const maxLeft = Math.max(margin, window.innerWidth - popup.offsetWidth - margin);
+                const maxTop = Math.max(margin, window.innerHeight - popup.offsetHeight - margin);
+                const besideLeft = bounds.right + margin;
+                const left = besideLeft <= maxLeft
+                    ? besideLeft
+                    : Math.min(Math.max(margin, bounds.left), maxLeft);
+                const belowTop = besideLeft <= maxLeft ? bounds.top : bounds.bottom + margin;
+                const top = Math.min(Math.max(margin, belowTop), maxTop);
+                popup.style.left = left + 'px';
+                popup.style.top = top + 'px';
             },
 
             _applyHighlight: function (elements) {
@@ -576,7 +598,7 @@
                         value: element.style.getPropertyValue(name),
                         priority: element.style.getPropertyPriority(name)
                     }));
-                    element.style.setProperty('outline', '3px solid #00bcd4', 'important');
+                    element.style.setProperty('outline', '3px solid #ffb74d', 'important');
                     element.style.setProperty('outline-offset', '2px', 'important');
                     return {element: element, properties: properties};
                 });
