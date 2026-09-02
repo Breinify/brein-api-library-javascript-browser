@@ -300,6 +300,7 @@
         inspectHoverElement = null;
         inspectPinnedElement = null;
         inspectPointerMoveHandler = null;
+        inspectKeyDownHandler = null;
 
         constructor() {
             super();
@@ -362,8 +363,8 @@
                 div.console-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
                 span.console-tag { background: #172f3b; border: 1px solid #285269; border-radius: 3px; color: #d7effa; font-size: 11px; max-width: 100%; overflow: hidden; padding: 3px 5px; text-overflow: ellipsis; white-space: nowrap; }
                 span.console-tag-key { color: #8ed1ed; }
-                div.inspect-header { align-items: center; display: flex; gap: 8px; margin-bottom: 10px; }
-                div.inspect-mode { color: #bbbbbb; flex-grow: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                div.inspect-header { align-items: center; display: flex; gap: 8px; margin-bottom: 10px; min-height: 30px; }
+                div.inspect-mode { color: #bbbbbb; flex-grow: 1; font-size: 11px; line-height: 15px; }
                 button.inspect-pin-btn { background: transparent; border: 1px solid #ffb74d; border-radius: 3px; color: #ffcc80; cursor: pointer; flex: 0 0 auto; font-family: inherit; font-size: 11px; padding: 3px 6px; }
                 button.inspect-pin-btn:hover { background: #333; color: #fff; }
                 div.inspect-status { background: #2a2a2a; border: 1px solid #444; border-left: 4px solid #777; border-radius: 4px; color: #ddd; margin-bottom: 10px; padding: 8px 10px; }
@@ -651,6 +652,18 @@
             document.addEventListener('pointermove', this.inspectPointerMoveHandler, true);
             document.addEventListener('mousemove', this.inspectPointerMoveHandler, true);
             document.addEventListener('mouseover', this.inspectPointerMoveHandler, true);
+            this.inspectKeyDownHandler = event => {
+                const target = event.target;
+                const tagName = target !== null && typeof target.tagName === 'string' ? target.tagName.toLowerCase() : '';
+                const isTyping = target?.isContentEditable === true || tagName === 'input' || tagName === 'select' || tagName === 'textarea';
+                if (isTyping || event.key.toLowerCase() !== 'p' || event.metaKey || event.ctrlKey || event.altKey) {
+                    return;
+                }
+
+                event.preventDefault();
+                this._toggleInspectPin();
+            };
+            document.addEventListener('keydown', this.inspectKeyDownHandler, true);
         }
 
         _stopInspecting() {
@@ -661,10 +674,12 @@
             document.removeEventListener('pointermove', this.inspectPointerMoveHandler, true);
             document.removeEventListener('mousemove', this.inspectPointerMoveHandler, true);
             document.removeEventListener('mouseover', this.inspectPointerMoveHandler, true);
+            document.removeEventListener('keydown', this.inspectKeyDownHandler, true);
             this.inspectActive = false;
             this.inspectHoverElement = null;
             this.inspectPinnedElement = null;
             this.inspectPointerMoveHandler = null;
+            this.inspectKeyDownHandler = null;
         }
 
         _getInspectHoverElement(event) {
@@ -846,15 +861,17 @@
 
         _summarizeInspectComponents(components) {
             const item = components.find(component => component.name === 'Breinify recommendation item');
-            if (typeof item === 'undefined') {
+            const control = components.find(component => component.name === 'Breinify recommendation control group');
+            const primary = typeof item === 'undefined' ? control : item;
+            if (typeof primary === 'undefined') {
                 return components;
             }
 
             const summary = {
-                name: 'Breinify recommendation item',
+                name: typeof item === 'undefined' ? 'Breinify recommendation control group' : 'Breinify recommendation item',
                 details: {},
-                data: item.data,
-                dataTitle: item.dataTitle
+                data: primary.data,
+                dataTitle: primary.dataTitle
             };
             const addDetails = (details, prefix) => {
                 Object.keys(details).forEach(label => {
@@ -866,7 +883,7 @@
             };
 
             components.forEach(component => {
-                if (component === item) {
+                if (component === primary) {
                     addDetails(component.details, null);
                 } else if (component.name === 'Breinify carousel item') {
                     addDetails(component.details, 'Carousel');
@@ -876,7 +893,7 @@
                     addDetails(component.details, null);
                 } else if (component.name.indexOf('Observed Breinify recommendation') === 0) {
                     addDetails(component.details, 'Render');
-                } else if (component.name === 'Breinify recommendation control group') {
+                } else if (component.name === 'Breinify recommendation control group' && primary !== component) {
                     addDetails(component.details, 'Control');
                 }
             });
@@ -894,7 +911,7 @@
             $header.append($('<div class="inspect-mode"></div>').text(message));
             if (element !== null) {
                 const $pinButton = $('<button class="inspect-pin-btn" type="button"></button>')
-                    .text(isPinned ? 'Unpin' : 'Pin current');
+                    .text(isPinned ? 'Unpin (P)' : 'Pin (P)');
                 $pinButton.click(() => this._toggleInspectPin());
                 $header.append($pinButton);
             }
