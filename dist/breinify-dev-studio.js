@@ -183,6 +183,7 @@
 
         inspectEvents: {
             renderedRecommendations: new WeakMap(),
+            modifiedContents: new WeakMap(),
 
             install: function () {
                 $(document).on('renderedRecommendation', (event, settings) => {
@@ -201,11 +202,52 @@
                     });
                     $(document).trigger('breinifyDevStudioInspectDataChanged', [element]);
                 });
+
+                $(document).on('modifiedContent', (event, settings) => {
+                    const modifications = $.isArray(settings?.modifications) ? settings.modifications : [];
+                    const modifiedElements = $.isArray(settings?.modifiedElements) ? settings.modifiedElements : [];
+                    const inspectData = {
+                        webExId: settings?.webExId,
+                        webExVersionId: settings?.webExVersionId,
+                        selectedGroupId: settings?.selectedGroupId
+                    };
+
+                    for (let index = 0; index < modifiedElements.length; index++) {
+                        const element = modifiedElements[index];
+                        if (element === null || element?.nodeType !== 1) {
+                            continue;
+                        }
+
+                        const elementModifications = modifications
+                            .filter(modification => modification?.modifiedElement === element)
+                            .map(modification => ({
+                                action: modification.action,
+                                actionIndex: modification.actionIndex,
+                                actionType: modification.actionType,
+                                operation: modification.operation
+                            }));
+                        this.modifiedContents.set(element, $.extend({}, inspectData, {
+                            modifications: elementModifications
+                        }));
+                        $(document).trigger('breinifyDevStudioInspectDataChanged', [element]);
+                    }
+                });
             },
 
             getRenderedRecommendation: function (nodes) {
                 for (let index = 0; index < nodes.length; index++) {
                     const data = this.renderedRecommendations.get(nodes[index]);
+                    if (typeof data !== 'undefined') {
+                        return data;
+                    }
+                }
+
+                return null;
+            },
+
+            getModifiedContent: function (nodes) {
+                for (let index = 0; index < nodes.length; index++) {
+                    const data = this.modifiedContents.get(nodes[index]);
                     if (typeof data !== 'undefined') {
                         return data;
                     }
@@ -301,17 +343,23 @@
         inspectPinnedElement = null;
         inspectPointerMoveHandler = null;
         inspectKeyDownHandler = null;
+        devStudioStateStorageKey = 'breinify::dev-studio::state';
 
         constructor() {
             super();
 
             this.attachShadow({mode: 'open'});
 
-            // SVG brein icon (16x16)
-            this.isVisible = true;
+            const savedState = this._getDevStudioState();
+            this.isVisible = false;
+            this.activeTab = savedState.activeTab;
 
             this.render();
-            this.toggleDevStudio();
+            const activeTab = this.$tabs.filter('[data-tab="' + this.activeTab + '"]').get(0);
+            if (activeTab !== null && typeof activeTab !== 'undefined') {
+                this._switchTab({target: activeTab});
+            }
+            this._setDevStudioVisibility(savedState.isVisible);
         }
 
         render() {
@@ -327,17 +375,18 @@
                 header { background: #111; padding: 6px 10px; display: flex; align-items: center; user-select: none; border-top-left-radius: 6px; color: #eee; }
                 header > .tabs { display: flex; gap: 5px; flex-grow: 1; overflow-x: auto; }
                 header button.tab { background: transparent; border: none; color: #ccc; cursor: pointer; flex: 0 0 auto; padding: 4px 6px; font-size: 12px; border-bottom: 2px solid transparent; transition: border-color 0.15s ease; white-space: nowrap; }
+                header button.tab:focus { outline: none; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
                 div.user-header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 16px; }
                 div.user-last-fetched { color: #bbbbbb; font-size: 11px; }
-                button.refresh-btn, button.copy-btn { background: #2a2a2a; border: 1px solid #4fc3f7; border-radius: 4px; color: #4fc3f7; cursor: pointer; font-family: inherit; }
-                button.refresh-btn { padding: 5px 8px; }
+                button.refresh-btn, button.copy-btn, button.inspect-pin-btn { background: #2a2a2a; border: 1px solid #4fc3f7; border-radius: 4px; color: #4fc3f7; cursor: pointer; font-family: inherit; }
+                button.refresh-btn, button.inspect-pin-btn { padding: 5px 8px; }
                 button.copy-btn { font-size: 14px; line-height: 18px; margin-left: 8px; min-width: 28px; padding: 1px 5px; }
-                button.refresh-btn:hover, button.copy-btn:hover { background: #333; color: #fff; }
-                button.refresh-btn:disabled, button.copy-btn:disabled { cursor: default; opacity: 0.65; }
+                button.refresh-btn:hover, button.copy-btn:hover, button.inspect-pin-btn:hover { background: #333; color: #fff; }
+                button.refresh-btn:disabled, button.copy-btn:disabled, button.inspect-pin-btn:disabled { cursor: default; opacity: 0.65; }
                 div.user-field { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
                 div.user-field-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase; }
                 div.user-field-value { align-items: center; color: #fff; display: flex; justify-content: space-between; }
@@ -365,17 +414,24 @@
                 span.console-tag-key { color: #8ed1ed; }
                 div.inspect-header { align-items: center; display: flex; gap: 8px; margin-bottom: 10px; min-height: 30px; }
                 div.inspect-mode { color: #bbbbbb; flex-grow: 1; font-size: 11px; line-height: 15px; }
-                button.inspect-pin-btn { background: transparent; border: 1px solid #ffb74d; border-radius: 3px; color: #ffcc80; cursor: pointer; flex: 0 0 auto; font-family: inherit; font-size: 11px; padding: 3px 6px; }
-                button.inspect-pin-btn:hover { background: #333; color: #fff; }
+                button.inspect-pin-btn { flex: 0 0 auto; font-size: 11px; }
                 div.inspect-status { background: #2a2a2a; border: 1px solid #444; border-left: 4px solid #777; border-radius: 4px; color: #ddd; margin-bottom: 10px; padding: 8px 10px; }
                 div.inspect-status.breinify { border-left-color: #43a047; color: #d8f4db; }
+                div.inspect-status.control { border-left-color: #ffb74d; color: #ffe0b2; }
+                div.inspect-status.modified { border-left-color: #4fc3f7; color: #d7effa; }
                 div.inspect-status.error { border-left-color: #ef5350; color: #ffcdd2; }
                 div.inspect-target { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 div.inspect-component { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #66bb6a; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
+                div.inspect-component.control { border-left-color: #ffb74d; }
+                div.inspect-component.control div.inspect-component-name { color: #ffcc80; }
+                div.inspect-component.modified { border-left-color: #4fc3f7; }
+                div.inspect-component.modified div.inspect-component-name { color: #8ed1ed; }
                 div.inspect-component-name { color: #fff; font-weight: bold; margin-bottom: 5px; }
                 div.inspect-component-detail { color: #ddd; margin-top: 3px; }
                 span.inspect-component-label { color: #bbbbbb; }
                 button.inspect-data-btn { background: transparent; border: 1px solid #66bb6a; border-radius: 3px; color: #a5d6a7; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 8px; padding: 3px 6px; }
+                div.inspect-component.control button.inspect-data-btn { border-color: #ffb74d; color: #ffcc80; }
+                div.inspect-component.modified button.inspect-data-btn { border-color: #4fc3f7; color: #8ed1ed; }
                 button.inspect-data-btn:hover { background: #333; color: #fff; }
                 #payload-modal { align-items: center; background: rgba(0, 0, 0, 0.68); color: #fff; display: none; font-family: monospace; font-size: 12px; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 10000000; }
                 #payload-modal.visible { display: flex; }
@@ -488,7 +544,35 @@
         }
 
         toggleDevStudio() {
-            this.isVisible = !this.isVisible;
+            this._setDevStudioVisibility(!this.isVisible);
+        }
+
+        _getDevStudioState() {
+            const allowedTabs = ['console', 'info', 'user', 'split-tests', 'inspect'];
+            try {
+                const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
+                return {
+                    isVisible: storedState?.isVisible === true,
+                    activeTab: allowedTabs.indexOf(storedState?.activeTab) > -1 ? storedState.activeTab : 'console'
+                };
+            } catch (error) {
+                return {isVisible: false, activeTab: 'console'};
+            }
+        }
+
+        _storeDevStudioState() {
+            try {
+                window.sessionStorage.setItem(this.devStudioStateStorageKey, JSON.stringify({
+                    isVisible: this.isVisible,
+                    activeTab: this.activeTab
+                }));
+            } catch (error) {
+                // Storage may be unavailable in restricted browser contexts.
+            }
+        }
+
+        _setDevStudioVisibility(isVisible) {
+            this.isVisible = isVisible === true;
 
             if (this.isVisible) {
                 this.$panel.css('transform', 'translateY(0)');
@@ -503,6 +587,8 @@
                 this.$toggleButton.css('display', 'flex');
                 this._stopInspecting();
             }
+
+            this._storeDevStudioState();
         }
 
         _formatConsoleTimestamp(timestamp) {
@@ -800,6 +886,7 @@
                 name: marker.name,
                 details: details,
                 data: data,
+                tone: typeof marker.tone === 'string' ? marker.tone : 'test',
                 dataTitle: dataConfig !== null && typeof dataConfig.viewTitle === 'string'
                     ? dataConfig.viewTitle
                     : null
@@ -834,6 +921,42 @@
                     : config.name,
                 details: details,
                 data: this._readInspectDataPath(eventData, config.viewPath),
+                tone: eventData.isControl === true ? 'control' : 'test',
+                dataTitle: typeof config.viewTitle === 'string' ? config.viewTitle : null
+            };
+        }
+
+        _getInspectModifiedContentComponent(nodes) {
+            const config = $.isPlainObject(DevStudio.inspectConfig?.events?.modifiedContent)
+                ? DevStudio.inspectConfig.events.modifiedContent
+                : null;
+            const eventData = _private.inspectEvents.getModifiedContent(nodes);
+            if (config === null || eventData === null) {
+                return null;
+            }
+
+            const modification = $.isArray(eventData.modifications) && eventData.modifications.length > 0
+                ? eventData.modifications[0]
+                : null;
+            const displayData = $.extend({}, eventData, {modification: modification});
+            const details = {};
+            const fields = $.isArray(config.fields) ? config.fields : [];
+            fields.forEach(field => {
+                if (!$.isPlainObject(field) || typeof field.path !== 'string') {
+                    return;
+                }
+
+                const value = this._readInspectDataPath(displayData, field.path);
+                if (value !== null && typeof value !== 'undefined' && typeof value !== 'object') {
+                    details[field.label || field.path] = value;
+                }
+            });
+
+            return {
+                name: config.name,
+                details: details,
+                data: this._readInspectDataPath(displayData, config.viewPath),
+                tone: typeof config.tone === 'string' ? config.tone : 'modified',
                 dataTitle: typeof config.viewTitle === 'string' ? config.viewTitle : null
             };
         }
@@ -856,6 +979,11 @@
                 components.unshift(eventComponent);
             }
 
+            const modifiedContentComponent = this._getInspectModifiedContentComponent(nodes);
+            if (modifiedContentComponent !== null) {
+                components.unshift(modifiedContentComponent);
+            }
+
             return components;
         }
 
@@ -871,6 +999,8 @@
                 name: typeof item === 'undefined' ? 'Breinify recommendation control group' : 'Breinify recommendation item',
                 details: {},
                 data: primary.data,
+                tone: components.some(component => component.tone === 'control') ? 'control' : 'test',
+                modified: components.some(component => component.tone === 'modified'),
                 dataTitle: primary.dataTitle
             };
             const addDetails = (details, prefix) => {
@@ -893,6 +1023,8 @@
                     addDetails(component.details, null);
                 } else if (component.name.indexOf('Observed Breinify recommendation') === 0) {
                     addDetails(component.details, 'Render');
+                } else if (component.name === 'Breinify modified content') {
+                    addDetails(component.details, 'Modification');
                 } else if (component.name === 'Breinify recommendation control group' && primary !== component) {
                     addDetails(component.details, 'Control');
                 }
@@ -911,7 +1043,8 @@
             $header.append($('<div class="inspect-mode"></div>').text(message));
             if (element !== null) {
                 const $pinButton = $('<button class="inspect-pin-btn" type="button"></button>')
-                    .text(isPinned ? 'Unpin (P)' : 'Pin (P)');
+                    .text(isPinned ? '📌 ✓ Pinned (P)' : '📌 Pin (P)')
+                    .attr('title', isPinned ? 'Unpin current item (P)' : 'Pin current item (P)');
                 $pinButton.click(() => this._toggleInspectPin());
                 $header.append($pinButton);
             }
@@ -945,9 +1078,17 @@
                 return;
             }
 
-            this.$inspectContainer.append($('<div class="inspect-status breinify">Breinify-generated UI detected.</div>'));
+            const isControl = components.some(component => component.tone === 'control');
+            const isModified = components.some(component => component.tone === 'modified' || component.modified === true);
+            this.$inspectContainer.append($('<div class="inspect-status breinify"></div>')
+                .addClass(isControl ? 'control' : (isModified ? 'modified' : 'test'))
+                .text(isControl
+                    ? 'Breinify control-group UI detected.'
+                    : (isModified ? 'Breinify-modified UI detected.' : 'Breinify-generated UI detected.')));
             components.forEach(component => {
-                const $component = $('<div class="inspect-component"></div>');
+                const $component = $('<div class="inspect-component"></div>').addClass(component.tone === 'control'
+                    ? 'control'
+                    : (component.tone === 'modified' ? 'modified' : 'test'));
                 $component.append($('<div class="inspect-component-name"></div>').text(component.name));
                 Object.keys(component.details).forEach(label => {
                     const $detail = $('<div class="inspect-component-detail"></div>');
@@ -1318,6 +1459,8 @@
                 this.$inspectContainer.addClass('active');
                 this._startInspecting();
             }
+
+            this._storeDevStudioState();
         }
     }
 
@@ -1337,6 +1480,18 @@
                     ],
                     viewPath: 'recommendationData',
                     viewTitle: 'Observed rendered recommendation data'
+                },
+                modifiedContent: {
+                    name: 'Breinify modified content',
+                    tone: 'modified',
+                    fields: [
+                        {label: 'Web experience ID', path: 'webExId'},
+                        {label: 'Action', path: 'modification.actionType'},
+                        {label: 'Operation', path: 'modification.operation'},
+                        {label: 'Group ID', path: 'selectedGroupId'}
+                    ],
+                    viewPath: '',
+                    viewTitle: 'Breinify modified-content event data'
                 }
             },
             markers: [
@@ -1399,6 +1554,7 @@
                 {
                     selector: '[data-br-rec-control-bind-token], [data-brrc-refresh-outcome="control"]',
                     name: 'Breinify recommendation control group',
+                    tone: 'control',
                     attributes: [
                         {name: 'data-brrc-refresh-outcome', label: 'Render outcome'},
                         {name: 'data-brrc-refresh-code', label: 'Response code'}
