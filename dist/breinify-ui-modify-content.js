@@ -488,14 +488,53 @@
     };
 
     /*
-     * Condition implementations are isolated by type. Conditions inside one
-     * conditionsGroups entry are combined with AND; the entries themselves
-     * are evaluated in order. Each condition can add preEvaluate, evaluate,
-     * and optional scheduling helpers as defined by its generated evaluation
+     * Condition implementations are isolated by type. A direct conditions
+     * array is an implicit all condition; explicit all and any conditions can
+     * nest further condition arrays. The condition groups themselves are
+     * evaluated in order. Each condition can add preEvaluate, evaluate, and
+     * optional scheduling helpers as defined by its generated evaluation
      * contract. Methods prefixed with _ are private helpers of the individual
      * condition implementation.
      */
     const conditions = {
+
+        /** Combines all nested conditions. */
+        all: {
+            evaluate: function (condition, runtime, visiting) {
+                const nestedConditions = this._getConditions(condition);
+                for (let i = 0; i < nestedConditions.length; i++) {
+                    if (_private.evaluateCondition(runtime, nestedConditions[i], visiting) !== true) {
+                        return false;
+                    }
+                }
+
+                return nestedConditions.length > 0;
+            },
+
+            _getConditions: function (condition) {
+                const settings = _private.getConditionSettings(condition);
+                return settings && Array.isArray(settings.conditions) ? settings.conditions : [];
+            }
+        },
+
+        /** Matches when at least one nested condition matches. */
+        any: {
+            evaluate: function (condition, runtime, visiting) {
+                const nestedConditions = this._getConditions(condition);
+                for (let i = 0; i < nestedConditions.length; i++) {
+                    if (_private.evaluateCondition(runtime, nestedConditions[i], visiting) === true) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
+            _getConditions: function (condition) {
+                const settings = _private.getConditionSettings(condition);
+                return settings && Array.isArray(settings.conditions) ? settings.conditions : [];
+            }
+        },
 
         /**
          * Resolves an opaque backend decision result returned for this
@@ -1505,10 +1544,31 @@
                 const group = conditionGroups[i];
                 const conditions = group && Array.isArray(group.conditions) ? group.conditions : [];
                 for (let j = 0; j < conditions.length; j++) {
-                    configuredConditions.push(conditions[j]);
+                    this.addConfiguredCondition(configuredConditions, conditions[j]);
                 }
             }
             return configuredConditions;
+        },
+
+        /**
+         * Adds all leaf conditions so pre-evaluation and time-boundary
+         * scheduling cover nested all/any expressions.
+         */
+        addConfiguredCondition: function (configuredConditions, condition) {
+            const implementation = this.getConditionImplementation(condition);
+            const settings = this.getConditionSettings(condition);
+            const nestedConditions = implementation &&
+            (condition.type === "all" || condition.type === "any") &&
+            settings && Array.isArray(settings.conditions) ? settings.conditions : null;
+
+            if (nestedConditions === null) {
+                configuredConditions.push(condition);
+                return;
+            }
+
+            for (let i = 0; i < nestedConditions.length; i++) {
+                this.addConfiguredCondition(configuredConditions, nestedConditions[i]);
+            }
         },
 
         getConditionSettings: function (condition) {
