@@ -298,6 +298,7 @@
         activeTab = 'console';
         inspectActive = false;
         inspectHoverElement = null;
+        inspectPinnedElement = null;
         inspectPointerMoveHandler = null;
 
         constructor() {
@@ -361,7 +362,10 @@
                 div.console-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
                 span.console-tag { background: #172f3b; border: 1px solid #285269; border-radius: 3px; color: #d7effa; font-size: 11px; max-width: 100%; overflow: hidden; padding: 3px 5px; text-overflow: ellipsis; white-space: nowrap; }
                 span.console-tag-key { color: #8ed1ed; }
-                div.inspect-mode { color: #bbbbbb; font-size: 11px; margin-bottom: 10px; }
+                div.inspect-header { align-items: center; display: flex; gap: 8px; margin-bottom: 10px; }
+                div.inspect-mode { color: #bbbbbb; flex-grow: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                button.inspect-pin-btn { background: transparent; border: 1px solid #ffb74d; border-radius: 3px; color: #ffcc80; cursor: pointer; flex: 0 0 auto; font-family: inherit; font-size: 11px; padding: 3px 6px; }
+                button.inspect-pin-btn:hover { background: #333; color: #fff; }
                 div.inspect-status { background: #2a2a2a; border: 1px solid #444; border-left: 4px solid #777; border-radius: 4px; color: #ddd; margin-bottom: 10px; padding: 8px 10px; }
                 div.inspect-status.breinify { border-left-color: #43a047; color: #d8f4db; }
                 div.inspect-status.error { border-left-color: #ef5350; color: #ffcdd2; }
@@ -389,7 +393,8 @@
                 div.plugin-header { align-items: center; display: flex; gap: 10px; }
                 div.plugin-name { flex-grow: 1; font-weight: bold; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 div.plugin-lifecycle { display: flex; flex: 0 0 auto; gap: 5px; margin-left: auto; }
-                span.lifecycle-marker { align-items: center; background: #555; border-radius: 50%; color: #ddd; display: inline-flex; font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; height: 18px; justify-content: center; width: 18px; }
+                span.lifecycle-marker { align-items: center; background: #555; border-radius: 50%; color: #ddd; cursor: help; display: inline-flex; font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; height: 18px; justify-content: center; width: 18px; }
+                span.lifecycle-marker:hover { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25); }
                 span.lifecycle-marker.observed { background: #2e7d32; color: #fff; }
                 span.lifecycle-marker.error { background: #c62828; color: #fff; }
                 span.plugin-error { color: #ff8a80; display: inline-block; margin-top: 6px; }
@@ -468,11 +473,12 @@
                 }
             });
             $(document).on('breinifyDevStudioInspectDataChanged', (event, container) => {
+                const inspectionElement = this.inspectPinnedElement || this.inspectHoverElement;
                 if (this.inspectActive === true &&
-                    this.inspectHoverElement !== null &&
+                    inspectionElement !== null &&
                     container !== null &&
-                    container.contains(this.inspectHoverElement)) {
-                    this._renderInspect(this.inspectHoverElement);
+                    container.contains(inspectionElement)) {
+                    this._renderInspect(inspectionElement);
                 }
             });
 
@@ -620,10 +626,18 @@
 
             this.inspectActive = true;
             this.inspectHoverElement = null;
+            this.inspectPinnedElement = null;
             this._renderInspect(null);
             this.inspectPointerMoveHandler = event => {
                 try {
+                    if (this.inspectPinnedElement !== null) {
+                        return;
+                    }
+
                     const element = this._getInspectHoverElement(event);
+                    if (typeof element === 'undefined') {
+                        return;
+                    }
                     if (element === this.inspectHoverElement) {
                         return;
                     }
@@ -649,13 +663,14 @@
             document.removeEventListener('mouseover', this.inspectPointerMoveHandler, true);
             this.inspectActive = false;
             this.inspectHoverElement = null;
+            this.inspectPinnedElement = null;
             this.inspectPointerMoveHandler = null;
         }
 
         _getInspectHoverElement(event) {
             const eventPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
             if (eventPath.indexOf(this) !== -1) {
-                return null;
+                return undefined;
             }
 
             const elementAtPointer = typeof event.clientX === 'number' && typeof event.clientY === 'number' &&
@@ -663,6 +678,12 @@
                 ? document.elementFromPoint(event.clientX, event.clientY)
                 : null;
             if (elementAtPointer !== null) {
+                const root = typeof elementAtPointer.getRootNode === 'function'
+                    ? elementAtPointer.getRootNode()
+                    : null;
+                if (elementAtPointer === this || this.contains(elementAtPointer) || root?.host === this) {
+                    return undefined;
+                }
                 return elementAtPointer;
             }
 
@@ -823,16 +844,84 @@
             return components;
         }
 
+        _summarizeInspectComponents(components) {
+            const item = components.find(component => component.name === 'Breinify recommendation item');
+            if (typeof item === 'undefined') {
+                return components;
+            }
+
+            const summary = {
+                name: 'Breinify recommendation item',
+                details: {},
+                data: item.data,
+                dataTitle: item.dataTitle
+            };
+            const addDetails = (details, prefix) => {
+                Object.keys(details).forEach(label => {
+                    const summaryLabel = prefix === null ? label : prefix + ' ' + label.toLowerCase();
+                    if (typeof summary.details[summaryLabel] === 'undefined') {
+                        summary.details[summaryLabel] = details[label];
+                    }
+                });
+            };
+
+            components.forEach(component => {
+                if (component === item) {
+                    addDetails(component.details, null);
+                } else if (component.name === 'Breinify carousel item') {
+                    addDetails(component.details, 'Carousel');
+                } else if (component.name === 'Breinify carousel') {
+                    addDetails(component.details, 'Carousel');
+                } else if (component.name === 'Breinify recommendation render') {
+                    addDetails(component.details, null);
+                } else if (component.name.indexOf('Observed Breinify recommendation') === 0) {
+                    addDetails(component.details, 'Render');
+                } else if (component.name === 'Breinify recommendation control group') {
+                    addDetails(component.details, 'Control');
+                }
+            });
+
+            return [summary];
+        }
+
+        _renderInspectHeader(element) {
+            const $header = $('<div class="inspect-header"></div>');
+            const isPinned = this.inspectPinnedElement !== null;
+            const message = isPinned
+                ? 'Inspect mode is pinned.'
+                : 'Inspect mode is on. Move over page content to inspect it.';
+
+            $header.append($('<div class="inspect-mode"></div>').text(message));
+            if (element !== null) {
+                const $pinButton = $('<button class="inspect-pin-btn" type="button"></button>')
+                    .text(isPinned ? 'Unpin' : 'Pin current');
+                $pinButton.click(() => this._toggleInspectPin());
+                $header.append($pinButton);
+            }
+
+            this.$inspectContainer.append($header);
+        }
+
+        _toggleInspectPin() {
+            if (this.inspectPinnedElement !== null) {
+                this.inspectPinnedElement = null;
+                this._renderInspect(this.inspectHoverElement);
+            } else if (this.inspectHoverElement !== null) {
+                this.inspectPinnedElement = this.inspectHoverElement;
+                this._renderInspect(this.inspectPinnedElement);
+            }
+        }
+
         _renderInspect(element) {
             this.$inspectContainer.empty();
-            this.$inspectContainer.append($('<div class="inspect-mode">Inspect mode is on. Move over page content to inspect it.</div>'));
+            this._renderInspectHeader(element);
 
             if (element === null) {
                 this.$inspectContainer.append($('<div class="inspect-status">Hover an element outside Dev Studio.</div>'));
                 return;
             }
 
-            const components = this._getInspectComponents(element);
+            const components = this._summarizeInspectComponents(this._getInspectComponents(element));
             this.$inspectContainer.append($('<div class="inspect-target"></div>').text('Hovered: ' + this._getInspectElementDescription(element)));
             if (components.length === 0) {
                 this.$inspectContainer.append($('<div class="inspect-status">This is not a recognized Breinify UI element.</div>'));
@@ -863,7 +952,7 @@
                 ? error.message
                 : 'An unknown error occurred while inspecting this element.';
             this.$inspectContainer.empty();
-            this.$inspectContainer.append($('<div class="inspect-mode">Inspect mode is on. Move over page content to inspect it.</div>'));
+            this._renderInspectHeader(this.inspectPinnedElement || this.inspectHoverElement);
             this.$inspectContainer.append($('<div class="inspect-status error"></div>')
                 .text('Inspection error: ' + message)
                 .attr('title', error instanceof Error && typeof error.stack === 'string' ? error.stack : message));
