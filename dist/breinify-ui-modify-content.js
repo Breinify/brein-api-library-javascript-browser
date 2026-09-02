@@ -1678,7 +1678,7 @@
         getRootElement: function ($el) {
             if ($el && typeof $el.get === "function") {
                 return $el.get(0) || null;
-            } else if ($el && $el.nodeType === 1) {
+            } else if (Breinify.UTL.dom.isNodeType($el, 1)) {
                 return $el;
             }
 
@@ -1686,7 +1686,7 @@
         },
 
         matchesSelector: function (element, selector) {
-            if (!element || element.nodeType !== 1 || !selector) {
+            if (!Breinify.UTL.dom.isNodeType(element, 1) || !selector) {
                 return false;
             }
 
@@ -1717,7 +1717,7 @@
 
         createModifiedContentRecord: function (action, actionIndex, target, content) {
             const settings = this.getActionSettings(action);
-            const modifiedElement = content !== null && typeof content === "object" && content.nodeType === 1
+            const modifiedElement = Breinify.UTL.dom.isNodeType(content, 1)
                 ? content
                 : target;
 
@@ -1740,9 +1740,12 @@
 
             const modifiedElements = [];
             for (let i = 0; i < modifications.length; i++) {
-                const element = modifications[i].modifiedElement;
-                if (element && modifiedElements.indexOf(element) === -1) {
-                    modifiedElements.push(element);
+                const elements = [modifications[i].target, modifications[i].modifiedElement];
+                for (let j = 0; j < elements.length; j++) {
+                    const element = elements[j];
+                    if (Breinify.UTL.dom.isNodeType(element, 1) && modifiedElements.indexOf(element) === -1) {
+                        modifiedElements.push(element);
+                    }
                 }
             }
 

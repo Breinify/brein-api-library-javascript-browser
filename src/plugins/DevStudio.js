@@ -189,7 +189,7 @@
                 $(document).on('renderedRecommendation', (event, settings) => {
                     const container = settings?.$recContainer;
                     const element = container?.jquery && container.length > 0 ? container.get(0) : null;
-                    if (element === null || element.nodeType !== 1) {
+                    if (Breinify.UTL.dom.isNodeType(element, 1) !== true) {
                         return;
                     }
 
@@ -214,12 +214,12 @@
 
                     for (let index = 0; index < modifiedElements.length; index++) {
                         const element = modifiedElements[index];
-                        if (element === null || element?.nodeType !== 1) {
+                        if (Breinify.UTL.dom.isNodeType(element, 1) !== true) {
                             continue;
                         }
 
                         const elementModifications = modifications
-                            .filter(modification => modification?.modifiedElement === element)
+                            .filter(modification => modification?.target === element || modification?.modifiedElement === element)
                             .map(modification => ({
                                 action: modification.action,
                                 actionIndex: modification.actionIndex,
@@ -788,7 +788,7 @@
                 return elementAtPointer;
             }
 
-            if (event.target !== null && event.target.nodeType === 1) {
+            if (Breinify.UTL.dom.isNodeType(event.target, 1)) {
                 return event.target;
             } else if (event.target !== null && event.target.parentElement !== null) {
                 return event.target.parentElement;
@@ -801,7 +801,7 @@
             const nodes = [];
             let current = element;
 
-            while (current !== null && current.nodeType === 1) {
+            while (Breinify.UTL.dom.isNodeType(current, 1)) {
                 nodes.push(current);
                 if (current.parentElement !== null) {
                     current = current.parentElement;
@@ -810,7 +810,7 @@
 
                 const root = current.getRootNode();
                 const host = root !== null && typeof root.host !== 'undefined' ? root.host : null;
-                current = host !== null && host.nodeType === 1 ? host : null;
+                current = Breinify.UTL.dom.isNodeType(host, 1) ? host : null;
             }
 
             return nodes;
