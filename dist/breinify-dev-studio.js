@@ -1043,7 +1043,7 @@
             $header.append($('<div class="inspect-mode"></div>').text(message));
             if (element !== null) {
                 const $pinButton = $('<button class="inspect-pin-btn" type="button"></button>')
-                    .text(isPinned ? '📌 ✓ Pinned (P)' : '📌 Pin (P)')
+                    .text(isPinned ? '✓ Pinned (P)' : '📌 Pin (P)')
                     .attr('title', isPinned ? 'Unpin current item (P)' : 'Pin current item (P)');
                 $pinButton.click(() => this._toggleInspectPin());
                 $header.append($pinButton);
