@@ -251,7 +251,6 @@
                     if (typeof data !== 'undefined') {
                         return data;
                     }
-
                 }
 
                 return null;
@@ -936,10 +935,6 @@
                 return null;
             }
 
-            const modification = $.isArray(eventData.modifications) && eventData.modifications.length > 0
-                ? eventData.modifications[0]
-                : null;
-            const displayData = $.extend({}, eventData, {modification: modification});
             const details = {};
             const fields = $.isArray(config.fields) ? config.fields : [];
             fields.forEach(field => {
@@ -947,7 +942,7 @@
                     return;
                 }
 
-                const value = this._readInspectDataPath(displayData, field.path);
+                const value = this._readInspectDataPath(eventData, field.path);
                 if (value !== null && typeof value !== 'undefined' && typeof value !== 'object') {
                     details[field.label || field.path] = value;
                 }
@@ -956,7 +951,7 @@
             return {
                 name: config.name,
                 details: details,
-                data: this._readInspectDataPath(displayData, config.viewPath),
+                data: this._readInspectDataPath(eventData, config.viewPath),
                 tone: typeof config.tone === 'string' ? config.tone : 'modified',
                 dataTitle: typeof config.viewTitle === 'string' ? config.viewTitle : null
             };
@@ -1487,8 +1482,8 @@
                     tone: 'modified',
                     fields: [
                         {label: 'Web experience ID', path: 'webExId'},
-                        {label: 'Action', path: 'modification.actionType'},
-                        {label: 'Operation', path: 'modification.operation'},
+                        {label: 'Action', path: 'modifications.0.actionType'},
+                        {label: 'Operation', path: 'modifications.0.operation'},
                         {label: 'Group ID', path: 'selectedGroupId'}
                     ],
                     viewPath: '',
