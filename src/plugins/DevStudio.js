@@ -496,7 +496,8 @@
 
                 this.requestInFlight = true;
                 try {
-                    const payload = await this._push(null);
+                    // The channel requires an explicit retrieve request for every normal poll.
+                    const payload = await this._push('v1|RETRIEVE|REQUEST|{}');
                     this.state = 'active';
                     this.lastError = null;
                     this.lastPoll = new Date();
