@@ -266,9 +266,12 @@
             apiKey: null,
             state: 'not configured',
             lastPoll: null,
+            lastStatsCheck: null,
+            remainingLifetimeMs: null,
             lastError: null,
             receivedMessageCount: 0,
             processedMessageIds: [],
+            closed: false,
             handlers: Object.create(null),
             highlight: {
                 elements: [],
@@ -332,8 +335,10 @@
                     active: this.state === 'active',
                     state: this.state,
                     lastPoll: this.lastPoll,
+                    lastStatsCheck: this.lastStatsCheck,
                     lastError: this.lastError,
-                    receivedMessageCount: this.receivedMessageCount
+                    receivedMessageCount: this.receivedMessageCount,
+                    remainingLifetimeMs: this.remainingLifetimeMs
                 };
             },
 
@@ -344,10 +349,17 @@
                 }
 
                 const credentials = this._getCredentials();
+                if (this.closed === true && credentials.channelId === this.channelId && credentials.apiKey === this.apiKey) {
+                    this.state = 'closed';
+                    this._notify();
+                    return;
+                }
                 this.channelId = credentials.channelId;
                 this.apiKey = credentials.apiKey;
+                this.closed = false;
                 this.lastError = null;
                 this.retryDelay = 2000;
+                this.remainingLifetimeMs = null;
 
                 if (this.channelId === null) {
                     this.state = 'no channel ID provided';
@@ -369,6 +381,59 @@
                 this.state = 'connecting';
                 this._notify();
                 this._poll();
+            },
+
+            checkStats: async function () {
+                if (this.channelId === null || this.apiKey === null || this.closed === true || this.requestInFlight === true) {
+                    return;
+                }
+                if (this.pollTimer !== null) {
+                    window.clearTimeout(this.pollTimer);
+                    this.pollTimer = null;
+                }
+
+                this.requestInFlight = true;
+                try {
+                    const payload = await this._push('v1|CHANNEL_STATS|REQUEST|{}');
+                    const channelStats = $.isPlainObject(payload.channelStats) ? payload.channelStats : null;
+                    if (channelStats === null || typeof channelStats.channelStatus !== 'string') {
+                        const malformedStats = new Error('Channel status response was malformed.');
+                        malformedStats.retryable = false;
+                        throw malformedStats;
+                    }
+
+                    this.lastStatsCheck = new Date();
+                    this.remainingLifetimeMs = typeof channelStats.remainingLifetimeMs === 'number'
+                        ? channelStats.remainingLifetimeMs
+                        : null;
+                    if (channelStats.channelStatus === 'CLOSED') {
+                        this.closed = true;
+                        this.state = 'closed';
+                        this.lastError = null;
+                        this._removeHighlight();
+                    } else if (channelStats.channelStatus === 'ACTIVE') {
+                        this.state = 'active';
+                        this.lastError = null;
+                        this._schedulePoll(2000);
+                    } else {
+                        const unsupportedStats = new Error('Channel status response was unsupported.');
+                        unsupportedStats.retryable = false;
+                        throw unsupportedStats;
+                    }
+                } catch (error) {
+                    const retryable = error?.retryable !== false;
+                    this.state = retryable ? 'retrying' : 'rejected';
+                    this.lastError = retryable
+                        ? 'Unable to check the integration channel.'
+                        : 'The integration channel returned an invalid status.';
+                    if (retryable) {
+                        this.retryDelay = Math.min(this.retryDelay * 2, 30000);
+                        this._schedulePoll(this.retryDelay);
+                    }
+                } finally {
+                    this.requestInFlight = false;
+                    this._notify();
+                }
             },
 
             _schedulePoll: function (delay) {
@@ -1826,15 +1891,27 @@
             };
 
             this.$channelContainer.empty();
-            this.$channelContainer.append(this._createRefreshHeader(status.lastPoll, false, () => {
-                _private.channel.start();
+            const lastChecked = status.lastStatsCheck === null
+                ? 'Last checked: Never'
+                : 'Last checked: ' + status.lastStatsCheck.toLocaleString();
+            const $header = $('<div class="user-header"></div>');
+            const $refreshButton = $('<button class="refresh-btn" type="button">↻ Refresh</button>');
+            $refreshButton.click(() => {
+                _private.channel.checkStats();
                 this._renderChannel();
-            }));
+            });
+            $header.append($('<div class="user-last-fetched"></div>').text(lastChecked));
+            $header.append($refreshButton);
+            this.$channelContainer.append($header);
 
             addStatus('Channel ID', status.channelIdProvided ? 'Provided' : 'Not provided',
                 status.channelIdProvided ? 'active' : 'warning');
             addStatus('Connection', status.active ? 'Active and polling' : status.state,
                 status.active ? 'active' : (status.lastError === null ? 'warning' : 'error'));
+            if (status.remainingLifetimeMs !== null && typeof status.remainingLifetimeMs !== 'undefined') {
+                addStatus('Estimated lifetime', Math.max(0, Math.ceil(status.remainingLifetimeMs / 1000)) + ' seconds',
+                    status.active ? 'active' : '');
+            }
             addStatus('Portal requests handled', String(status.receivedMessageCount), '');
             if (status.lastError !== null) {
                 addStatus('Latest issue', status.lastError, 'error');
@@ -1894,6 +1971,7 @@
                 this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'channel') {
                 this._stopInspecting();
+                _private.channel.checkStats();
                 this._renderChannel();
                 this.$logContainer.removeClass('active');
                 this.$infoContainer.removeClass('active');
