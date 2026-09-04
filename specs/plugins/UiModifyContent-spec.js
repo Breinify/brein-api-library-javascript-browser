@@ -41,12 +41,21 @@ describe('UiModifyContent', function () {
         $fixture.remove();
     });
 
-    it('requests a split-test-only decision and skips actions when it does not match', function (done) {
+    it('stores a split-test-only decision and skips actions when it does not match', function (done) {
         var $fixture = $('<div class="modify-content-split-test-target"></div>').appendTo('body');
         var module = {};
         var webExperienceId = 'modify-content-split-test-control';
         var webExperienceVersionId = 'version-1';
         var originalService = Breinify.service;
+        var originalReplaceSplitTestData = Breinify.UTL.user.replaceSplitTestData;
+        var storedSplitTestData = null;
+
+        Breinify.UTL.user.replaceSplitTestData = function (testName, splitTestData) {
+            storedSplitTestData = {
+                testName: testName,
+                splitTestData: splitTestData
+            };
+        };
 
         Breinify.service = function (service, payload, callback) {
             expect(service).toBe('webExperienceDecision');
@@ -56,7 +65,15 @@ describe('UiModifyContent', function () {
                 decisions: [{
                     configurationId: 'split-test-control',
                     matched: false,
-                    conditions: []
+                    conditions: [],
+                    additionalData: {
+                        splitTestData: {
+                            testName: 'Test: Modify Content',
+                            groupDecision: 'Control',
+                            isControlGroup: true,
+                            usedEnforcedGroup: false
+                        }
+                    }
                 }]
             });
         };
@@ -86,7 +103,10 @@ describe('UiModifyContent', function () {
 
         setTimeout(function () {
             expect($fixture.children('[data-br-webexpid="target-web-experience"]').length).toBe(0);
+            expect(storedSplitTestData.testName).toBe('Test: Modify Content');
+            expect(storedSplitTestData.splitTestData.groupDecision).toBe('Control');
             Breinify.service = originalService;
+            Breinify.UTL.user.replaceSplitTestData = originalReplaceSplitTestData;
             $fixture.remove();
             done();
         }, 10);

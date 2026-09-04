@@ -1219,6 +1219,8 @@
             const resolvedAt = Date.now();
             const storageEntries = [];
 
+            this.storeDecisionAdditionalData(response);
+
             for (let i = 0; i < conditions.length; i++) {
                 const condition = conditions[i];
                 const refId = this.getDecisionReferenceId(condition);
@@ -1261,6 +1263,37 @@
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
                 runtime.module.onChange({type: "decision", status: DECISION_STATUS_RESOLVED});
+            }
+        },
+
+        /**
+         * Persists standard split-test additional data returned by Discovery.
+         * The result is independent from the decision's matched state, so a
+         * control assignment is retained for future SDK user requests too.
+         */
+        storeDecisionAdditionalData: function (response) {
+            const additionalData = $.isPlainObject(response) && $.isPlainObject(response.additionalData)
+                ? response.additionalData
+                : null;
+            const splitTestData = additionalData && $.isPlainObject(additionalData.splitTestData)
+                ? additionalData.splitTestData
+                : null;
+            const testName = splitTestData === null
+                ? null
+                : Breinify.UTL.isNonEmptyString(splitTestData.testName);
+            const groupDecision = splitTestData === null
+                ? null
+                : Breinify.UTL.isNonEmptyString(splitTestData.groupDecision);
+
+            if (testName === null || groupDecision === null || !Breinify.UTL.user ||
+                typeof Breinify.UTL.user.replaceSplitTestData !== "function") {
+                return;
+            }
+
+            try {
+                Breinify.UTL.user.replaceSplitTestData(testName, splitTestData);
+            } catch (e) {
+                // Storing client-side split-test data must not block actions.
             }
         },
 
