@@ -914,7 +914,9 @@
                 div.info-section { margin-bottom: 16px; }
                 div.info-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
                 div.info-value { color: #4fc3f7; font-size: 14px; }
-                div.info-section div.user-header { margin-bottom: 4px; }
+                div.development-cache-details { align-items: flex-start; display: flex; gap: 10px; justify-content: space-between; }
+                div.development-cache-lines { display: flex; flex-direction: column; gap: 2px; }
+                div.development-cache-details button.refresh-btn { flex: 0 0 auto; }
                 ul.plugin-list { list-style: none; margin: 0; padding: 0; }
                 ul.plugin-list li { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; color: #fff; margin-bottom: 6px; padding: 8px 10px; }
                 div.plugin-header { align-items: center; display: flex; gap: 10px; }
@@ -1614,12 +1616,14 @@
             const $cache = $('<div class="info-section"></div>');
             const $cacheRefresh = $('<div class="user-last-fetched"></div>');
             const $refreshButton = $('<button class="refresh-btn" type="button">Force Reload</button>');
-            const $cacheHeader = $('<div class="user-header"></div>');
+            const $cacheDetails = $('<div class="development-cache-details"></div>');
+            const $cacheLines = $('<div class="development-cache-lines"></div>');
             $cache.append($('<div class="info-label">Development script cache</div>'));
-            $cacheHeader.append($cacheRefresh);
-            $cacheHeader.append($refreshButton);
-            $cache.append($cacheHeader);
-            $cache.append($('<div class="user-last-fetched"></div>').text('Browser cache: disabled'));
+            $cacheLines.append($cacheRefresh);
+            $cacheLines.append($('<div class="user-last-fetched"></div>').text('Browser cache: disabled'));
+            $cacheDetails.append($cacheLines);
+            $cacheDetails.append($refreshButton);
+            $cache.append($cacheDetails);
 
             if (devScriptUrl === null) {
                 $cacheRefresh.text('Cache refresh: unavailable');
