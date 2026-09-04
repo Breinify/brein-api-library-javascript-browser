@@ -794,6 +794,7 @@
         inspectPinnedElement = null;
         inspectPointerMoveHandler = null;
         inspectKeyDownHandler = null;
+        developmentCacheRefreshing = false;
         devStudioStateStorageKey = 'breinify::dev-studio::state';
 
         constructor() {
@@ -911,6 +912,8 @@
                 div.info-section { margin-bottom: 16px; }
                 div.info-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
                 div.info-value { color: #4fc3f7; font-size: 14px; }
+                div.info-detail { color: #bbbbbb; line-height: 16px; margin-top: 4px; }
+                div.info-section button.refresh-btn { margin-top: 8px; }
                 ul.plugin-list { list-style: none; margin: 0; padding: 0; }
                 ul.plugin-list li { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; color: #fff; margin-bottom: 6px; padding: 8px 10px; }
                 div.plugin-header { align-items: center; display: flex; gap: 10px; }
@@ -1606,6 +1609,27 @@
                     .append($('<div class="info-value"></div>').text(version))
             );
 
+            const devScriptUrl = this._getDevelopmentScriptUrl();
+            const $cache = $('<div class="info-section"></div>');
+            const $cacheStatus = $('<div class="info-detail"></div>');
+            const $refreshButton = $('<button class="refresh-btn" type="button">↻ Refresh script</button>');
+            $cache.append($('<div class="info-label">Development script cache</div>'));
+            $cache.append($('<div class="info-value"></div>').text('Nginx: 5 minutes per public IP'));
+            $cache.append($('<div class="info-detail"></div>').text('Browser cache: disabled'));
+
+            if (devScriptUrl === null) {
+                $cacheStatus.text('Refresh is unavailable because the development script URL was not found.');
+                $refreshButton.prop('disabled', true);
+            } else {
+                $cacheStatus.text('Refresh rebuilds this IP\'s cache entry and reloads the page.');
+                $refreshButton.prop('disabled', this.developmentCacheRefreshing === true);
+                $refreshButton.click(() => this._refreshDevelopmentScript(devScriptUrl, $refreshButton, $cacheStatus));
+            }
+
+            $cache.append($cacheStatus);
+            $cache.append($refreshButton);
+            this.$infoContainer.append($cache);
+
             const $plugins = $('<div class="info-section"></div>');
             $plugins.append($('<div class="info-label"></div>').text('Loaded plugins (' + pluginNames.length + ')'));
 
@@ -1632,6 +1656,51 @@
 
             $plugins.append($pluginList);
             this.$infoContainer.append($plugins);
+        }
+
+        _getDevelopmentScriptUrl() {
+            const script = document.getElementById('breinify-injected-dev-script');
+            if (script === null || typeof script.src !== 'string' || script.src === '') {
+                return null;
+            }
+
+            try {
+                return new URL(script.src);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async _refreshDevelopmentScript(devScriptUrl, $refreshButton, $cacheStatus) {
+            this.developmentCacheRefreshing = true;
+            $refreshButton.prop('disabled', true);
+            $cacheStatus.text('Refreshing the development script cache…');
+
+            try {
+                const refreshUrl = new URL(devScriptUrl.toString());
+                const response = await window.fetch(refreshUrl.toString(), {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    mode: 'cors',
+                    headers: {'X-Breinify-Force-Refresh': '1'}
+                });
+                const script = await response.text();
+                if (!response.ok || script === '') {
+                    throw new Error('The development script could not be refreshed.');
+                }
+
+                $cacheStatus.text('Development script refreshed. Reloading the page…');
+                window.location.reload();
+            } catch (error) {
+                const message = error instanceof Error && typeof error.message === 'string' && error.message !== ''
+                    ? error.message
+                    : 'The development script could not be refreshed.';
+                $cacheStatus.text(message);
+                $refreshButton.prop('disabled', false);
+            } finally {
+                this.developmentCacheRefreshing = false;
+            }
         }
 
         _createLifecycleMarker(label, count, lifecycle) {
