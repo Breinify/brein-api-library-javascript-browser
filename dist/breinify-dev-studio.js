@@ -75,6 +75,8 @@
 
         pluginLifecycle: {
             states: Object.create(null),
+            scriptExecutions: new WeakMap(),
+            nextScriptExecutionId: 1,
 
             get: function (name) {
                 if (!Object.prototype.hasOwnProperty.call(this.states, name)) {
@@ -91,6 +93,11 @@
                         },
                         notApplicable: {
                             setup: false
+                        },
+                        sources: {
+                            bound: [],
+                            setup: [],
+                            added: []
                         }
                     };
                 }
@@ -110,9 +117,36 @@
                 $(document).on('breinifyPlugInAdded[' + name + ']', () => this.record(name, 'added'));
             },
 
+            getCurrentScriptExecution: function () {
+                const script = document.currentScript;
+                if (script === null || typeof script !== 'object') {
+                    return {id: null, label: 'Unknown script'};
+                }
+
+                let execution = this.scriptExecutions.get(script);
+                if (typeof execution !== 'undefined') {
+                    return execution;
+                }
+
+                let label = typeof script.src === 'string' && script.src !== '' ? script.src : 'Inline script';
+                try {
+                    const url = new URL(label);
+                    url.search = '';
+                    url.hash = '';
+                    label = url.toString();
+                } catch (error) {
+                    // The source can be a relative URL or an inline script.
+                }
+
+                execution = {id: this.nextScriptExecutionId++, label: label};
+                this.scriptExecutions.set(script, execution);
+                return execution;
+            },
+
             record: function (name, lifecycle) {
                 const state = this.get(name);
                 state[lifecycle]++;
+                state.sources[lifecycle].push(this.getCurrentScriptExecution());
                 $(document).trigger('breinifyDevStudioPluginLifecycleChanged');
             },
 
@@ -1765,6 +1799,19 @@
                 Added: '+'
             };
             const lifecycleName = label.toLowerCase();
+            const sources = $.isArray(lifecycle.sources[lifecycleName]) ? lifecycle.sources[lifecycleName] : [];
+            const distinctScripts = [];
+            sources.forEach(source => {
+                if (source === null || source.id === null ||
+                    distinctScripts.some(script => script.id === source.id)) {
+                    return;
+                }
+
+                distinctScripts.push(source);
+            });
+            const describeSources = () => sources.map(source => {
+                return source.id === null ? source.label : 'Script ' + source.id + ': ' + source.label;
+            }).join('\n');
             let state = 'unobserved';
             const icon = icons[label];
             let tooltip = label + ' lifecycle event was not observed since DevStudio loaded.';
@@ -1778,10 +1825,22 @@
                 }[label];
                 if (lifecycle.inferred[lifecycleName] === true) {
                     tooltip += ' Inferred from the loaded plugin state because DevStudio began observing after it was initialized.';
+                } else if (sources.length === 1) {
+                    tooltip += '\n' + describeSources();
                 }
             } else if (count > 1) {
-                state = 'error';
-                tooltip = label + ' lifecycle event was called ' + count + ' times. It should only be called once.';
+                if (sources.length === count && distinctScripts.length === count) {
+                    state = 'observed';
+                    tooltip = label + ' lifecycle event was observed once for each of ' + count + ' script tags.\n' +
+                        describeSources();
+                } else {
+                    state = 'error';
+                    tooltip = label + ' lifecycle event was called ' + count +
+                        ' times from the same script or an unknown source.';
+                    if (sources.length > 0) {
+                        tooltip += '\n' + describeSources();
+                    }
+                }
             } else if (lifecycle.notApplicable[lifecycleName] === true) {
                 state = 'not-applicable';
                 tooltip = 'No ' + lifecycleName + ' lifecycle applies to this plugin.';
