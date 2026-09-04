@@ -752,6 +752,11 @@
             return $.isPlainObject(decision) && decision.required === true;
         },
 
+        hasPageDecisionEvaluation: function (runtime) {
+            const decision = this.getDecisionSettings(runtime);
+            return decision.pageEvaluation === true;
+        },
+
         getDecisionSettings: function (runtime) {
             return runtime && runtime.config && $.isPlainObject(runtime.config.decision)
                 ? runtime.config.decision
@@ -1210,6 +1215,7 @@
             const conditionResults = runtime.decision.conditionResults || {};
             const conditionCache = runtime.decision.conditionCache || {};
             const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
+            const decisionMatched = this.getDecisionMatched(response);
             const resolvedAt = Date.now();
             const storageEntries = [];
 
@@ -1243,11 +1249,15 @@
             runtime.decision.inFlight = false;
             runtime.decision.resolved = true;
             runtime.decision.status = DECISION_STATUS_RESOLVED;
+            runtime.decision.matched = decisionMatched === null ? true : decisionMatched;
+            runtime.decision.pageDecisionPageKey = this.hasPageDecisionEvaluation(runtime)
+                ? requestPageKey
+                : null;
             runtime.decision.conditionResults = conditionResults;
             runtime.decision.conditionCache = conditionCache;
             runtime.conditionResults = runtime.decision.conditionResults;
             this.updateDecisionCache(runtime, storageEntries);
-            runtime.selectedGroupId = this.selectGroup(runtime);
+            runtime.selectedGroupId = runtime.decision.matched === true ? this.selectGroup(runtime) : null;
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
                 runtime.module.onChange({type: "decision", status: DECISION_STATUS_RESOLVED});
@@ -1258,10 +1268,12 @@
             runtime.decision.inFlight = false;
             runtime.decision.resolved = false;
             runtime.decision.status = DECISION_STATUS_FAILED;
+            runtime.decision.matched = false;
+            runtime.decision.failurePageKey = this.getDecisionPageKey();
             runtime.decision.conditionResults = {};
             runtime.decision.conditionCache = {};
             runtime.conditionResults = {};
-            runtime.selectedGroupId = FAILURE_ACTION_GROUP;
+            runtime.selectedGroupId = this.getFailureActionGroup(runtime);
 
             if (runtime.module && typeof runtime.module.onChange === "function") {
                 runtime.module.onChange({type: "decision", status: DECISION_STATUS_FAILED});
@@ -1277,14 +1289,25 @@
             if (decisionState.inFlight === true) {
                 return true;
             }
+            const requestPageKey = this.getDecisionPageKey();
             if (decisionState.status === DECISION_STATUS_FAILED) {
-                return true;
+                if (decisionState.failurePageKey === requestPageKey) {
+                    return true;
+                }
+
+                decisionState.status = DECISION_STATUS_IDLE;
+                decisionState.matched = null;
             }
 
             const conditionReferences = this.getDecisionReferencesToResolve(runtime);
-            if (conditionReferences.length === 0) {
+            if (this.hasPageDecisionEvaluation(runtime) && decisionState.resolved === true &&
+                decisionState.pageDecisionPageKey === requestPageKey && conditionReferences.length === 0) {
+                return true;
+            }
+            if (conditionReferences.length === 0 && !this.hasPageDecisionEvaluation(runtime)) {
                 decisionState.resolved = true;
                 decisionState.status = DECISION_STATUS_RESOLVED;
+                decisionState.matched = true;
                 return true;
             }
 
@@ -1293,7 +1316,6 @@
                 return true;
             }
 
-            const requestPageKey = this.getDecisionPageKey();
             const previousResults = decisionState.conditionResults || {};
             const previousCache = decisionState.conditionCache || {};
             for (let i = 0; i < conditionReferences.length; i++) {
@@ -1518,10 +1540,16 @@
             if (this.isDecisionRequired(runtime)) {
                 if (runtime.decision && runtime.decision.status === DECISION_STATUS_FAILED) {
                     const failureActions = configuredActions[FAILURE_ACTION_GROUP];
-                    return Array.isArray(failureActions) ? failureActions : [];
+                    if (Array.isArray(failureActions)) {
+                        return failureActions;
+                    }
+
+                    const defaultActions = configuredActions[DEFAULT_ACTION_GROUP];
+                    return Array.isArray(defaultActions) ? defaultActions : [];
                 }
 
-                if (!runtime.decision || runtime.decision.resolved !== true) {
+                if (!runtime.decision || runtime.decision.resolved !== true ||
+                    runtime.decision.matched !== true) {
                     return [];
                 }
             }
@@ -1533,6 +1561,13 @@
 
             const defaultActions = configuredActions[DEFAULT_ACTION_GROUP];
             return Array.isArray(defaultActions) ? defaultActions : [];
+        },
+
+        getFailureActionGroup: function (runtime) {
+            const configuredActions = runtime && runtime.config && runtime.config.actions;
+            return configuredActions && Array.isArray(configuredActions[FAILURE_ACTION_GROUP])
+                ? FAILURE_ACTION_GROUP
+                : DEFAULT_ACTION_GROUP;
         },
 
         getConfiguredConditions: function (runtime) {
@@ -1879,8 +1914,10 @@
                 : {};
             runtime.selectedGroupId = this.isDecisionRequired(runtime) &&
             runtime.decision.status === DECISION_STATUS_FAILED
-                ? FAILURE_ACTION_GROUP
-                : this.selectGroup(runtime);
+                ? this.getFailureActionGroup(runtime)
+                : this.isDecisionRequired(runtime) && runtime.decision.matched !== true
+                    ? null
+                    : this.selectGroup(runtime);
             const configuredActions = this.getConfiguredActions(runtime);
 
             for (let i = 0; i < configuredActions.length; i++) {
@@ -2083,6 +2120,9 @@
                     inFlight: false,
                     resolved: false,
                     status: DECISION_STATUS_IDLE,
+                    matched: null,
+                    pageDecisionPageKey: null,
+                    failurePageKey: null,
                     conditionResults: {},
                     conditionCache: {}
                 },
@@ -2120,8 +2160,10 @@
                 }
 
                 runtime.selectedGroupId = runtime.decision.status === DECISION_STATUS_FAILED
-                    ? FAILURE_ACTION_GROUP
-                    : _private.selectGroup(runtime);
+                    ? _private.getFailureActionGroup(runtime)
+                    : runtime.decision.matched !== true
+                        ? null
+                        : _private.selectGroup(runtime);
             } else {
                 runtime.preEvaluation = _private.preEvaluateConditions(runtime);
                 runtime.conditionResults = {};
