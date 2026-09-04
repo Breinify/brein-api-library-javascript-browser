@@ -145,7 +145,11 @@
 
             record: function (name, lifecycle) {
                 const state = this.get(name);
-                state[lifecycle]++;
+                if (state.inferred[lifecycle] === true && state[lifecycle] === 1) {
+                    state.inferred[lifecycle] = false;
+                } else {
+                    state[lifecycle]++;
+                }
                 state.sources[lifecycle].push(this.getCurrentScriptExecution());
                 $(document).trigger('breinifyDevStudioPluginLifecycleChanged');
             },
