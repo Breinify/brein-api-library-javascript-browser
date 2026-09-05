@@ -29,6 +29,20 @@
     const DECISION_STATUS_RESOLVED = "resolved";
     const DECISION_STATUS_FAILED = "failed";
 
+    // keeps these values aligned with RenderedElementStatusCodes in brein-common
+    const renderedElementStatusCodes = Object.freeze({
+        RENDERED: 200,
+        NOT_RENDERED: 13000,
+        INVALID_CONFIGURATION: 13200,
+        RENDERING_FAILED: 500
+    });
+    const RENDERED_ELEMENT_ACTIVITY_TYPE = "renderedElement";
+    const MODIFY_CONTENT_WIDGET_TYPE = "modifyContent";
+    const ACTION_TYPE_EXECUTED = "executed";
+    const SPLIT_TEST_GROUP_TYPE_CONTROL = "control";
+    const SPLIT_TEST_GROUP_TYPE_TEST = "test";
+    const SPLIT_TEST_GROUP_TYPE_NONE = "none";
+
     /*
      * Action implementations are isolated by type. New actions belong here;
      * the runtime coordinator only resolves and invokes them. Methods prefixed
@@ -44,6 +58,7 @@
             execute: function (action) {
                 const settings = action && action.settings;
                 console.log(settings && settings.message);
+                return true;
             }
         },
 
@@ -747,6 +762,168 @@
                 : null;
         },
 
+        isRuntimeConfigurationValid: function (runtime) {
+            const config = runtime && runtime.config;
+            if (!$.isPlainObject(config) || !$.isPlainObject(config.actions)) {
+                return false;
+            }
+
+            if (typeof config.conditionsGroups !== "undefined" && !Array.isArray(config.conditionsGroups)) {
+                return false;
+            }
+
+            const actionGroups = Object.keys(config.actions);
+            for (let i = 0; i < actionGroups.length; i++) {
+                const configuredActions = config.actions[actionGroups[i]];
+                if (!Array.isArray(configuredActions)) {
+                    return false;
+                }
+
+                for (let j = 0; j < configuredActions.length; j++) {
+                    const action = configuredActions[j];
+                    const actionType = action && Breinify.UTL.isNonEmptyString(action.type);
+                    if (!$.isPlainObject(action) || actionType === null || !actions[actionType] ||
+                        !$.isPlainObject(action.settings)) {
+                        return false;
+                    }
+                }
+            }
+
+            const conditionGroups = Array.isArray(config.conditionsGroups) ? config.conditionsGroups : [];
+            for (let i = 0; i < conditionGroups.length; i++) {
+                const conditionGroup = conditionGroups[i];
+                const actionGroup = $.isPlainObject(conditionGroup)
+                    ? Breinify.UTL.isNonEmptyString(conditionGroup.actionGroup)
+                    : null;
+                if (actionGroup === null || !Array.isArray(conditionGroup.conditions) ||
+                    !Array.isArray(config.actions[actionGroup])) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
+        getActivityState: function (runtime) {
+            if (!$.isPlainObject(runtime.activity)) {
+                runtime.activity = {
+                    reportedPageKey: null
+                };
+            }
+
+            return runtime.activity;
+        },
+
+        hasReportedRenderedElementActivity: function (runtime) {
+            const activity = this.getActivityState(runtime);
+            const pageKey = this.getDecisionPageKey();
+            return activity.reportedPageKey === pageKey;
+        },
+
+        hasConfiguredActionGroup: function (runtime, actionGroup) {
+            const normalizedActionGroup = Breinify.UTL.isNonEmptyString(actionGroup);
+            const configuredActions = runtime && runtime.config && runtime.config.actions;
+            return normalizedActionGroup !== null && $.isPlainObject(configuredActions) &&
+                Array.isArray(configuredActions[normalizedActionGroup]);
+        },
+
+        getActivityActionGroup: function (runtime) {
+            if (runtime && runtime.decision && runtime.decision.status === DECISION_STATUS_FAILED) {
+                return FAILURE_ACTION_GROUP;
+            }
+
+            const actionGroup = runtime && Breinify.UTL.isNonEmptyString(runtime.selectedGroupId);
+            return this.hasConfiguredActionGroup(runtime, actionGroup) ? actionGroup : null;
+        },
+
+        getSplitTestActivityTags: function (runtime) {
+            const splitTestData = runtime && runtime.decision && $.isPlainObject(runtime.decision.splitTestData)
+                ? runtime.decision.splitTestData
+                : null;
+            if (splitTestData === null) {
+                return {
+                    groupType: SPLIT_TEST_GROUP_TYPE_NONE,
+                    splitTest: null,
+                    group: null
+                };
+            }
+
+            const testName = Breinify.UTL.isNonEmptyString(splitTestData.testName);
+            const selectedInstance = Breinify.UTL.isNonEmptyString(splitTestData.selectedInstance);
+            return {
+                groupType: splitTestData.isControlGroup === true
+                    ? SPLIT_TEST_GROUP_TYPE_CONTROL
+                    : SPLIT_TEST_GROUP_TYPE_TEST,
+                splitTest: testName === null
+                    ? null
+                    : testName + (selectedInstance === null ? "" : " (" + selectedInstance + ")"),
+                group: Breinify.UTL.isNonEmptyString(splitTestData.groupDecision)
+            };
+        },
+
+        createRenderedElementTags: function (runtime, rendered, status, actionGroup) {
+            const splitTestTags = this.getSplitTestActivityTags(runtime);
+            const tags = {
+                widgetType: MODIFY_CONTENT_WIDGET_TYPE,
+                campaignWebExId: Breinify.UTL.isNonEmptyString(runtime.webExVersionId),
+                status: status,
+                rendered: rendered === true,
+                groupType: splitTestTags.groupType,
+                splitTest: splitTestTags.splitTest,
+                group: splitTestTags.group,
+                actionType: ACTION_TYPE_EXECUTED
+            };
+
+            if (actionGroup !== null) {
+                tags.action = actionGroup;
+            }
+
+            return tags;
+        },
+
+        sendRenderedElementActivity: function (runtime, rendered, status, actionGroup) {
+            const activity = this.getActivityState(runtime);
+            const pageKey = this.getDecisionPageKey();
+            const activities = Breinify.plugins && Breinify.plugins.activities;
+            if (activity.reportedPageKey === pageKey || !activities ||
+                typeof activities.generic !== "function") {
+                return false;
+            }
+
+            try {
+                activities.generic(RENDERED_ELEMENT_ACTIVITY_TYPE, {},
+                    this.createRenderedElementTags(runtime, rendered, status, actionGroup));
+                activity.reportedPageKey = pageKey;
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+
+        createRenderedElementOutcome: function (runtime, execution) {
+            const actionGroup = this.getActivityActionGroup(runtime);
+            const rendered = execution.executed === true;
+            let status;
+            if (execution.failed === true) {
+                status = renderedElementStatusCodes.RENDERING_FAILED;
+            } else if (rendered) {
+                status = renderedElementStatusCodes.RENDERED;
+            } else {
+                status = renderedElementStatusCodes.NOT_RENDERED;
+            }
+
+            return {
+                actionGroup: actionGroup,
+                rendered: rendered,
+                status: status
+            };
+        },
+
+        reportRenderedElementOutcome: function (runtime, execution) {
+            const outcome = this.createRenderedElementOutcome(runtime, execution);
+            return this.sendRenderedElementActivity(runtime, outcome.rendered, outcome.status, outcome.actionGroup);
+        },
+
         isDecisionRequired: function (runtime) {
             const decision = runtime && runtime.config && runtime.config.decision;
             return $.isPlainObject(decision) && decision.required === true;
@@ -1219,7 +1396,8 @@
             const resolvedAt = Date.now();
             const storageEntries = [];
 
-            this.storeDecisionAdditionalData(response);
+            const splitTestData = this.getDecisionSplitTestData(response);
+            this.storeDecisionAdditionalData(splitTestData);
 
             for (let i = 0; i < conditions.length; i++) {
                 const condition = conditions[i];
@@ -1257,6 +1435,7 @@
                 : null;
             runtime.decision.conditionResults = conditionResults;
             runtime.decision.conditionCache = conditionCache;
+            runtime.decision.splitTestData = splitTestData;
             runtime.conditionResults = runtime.decision.conditionResults;
             this.updateDecisionCache(runtime, storageEntries);
             runtime.selectedGroupId = runtime.decision.matched === true ? this.selectGroup(runtime) : null;
@@ -1266,18 +1445,16 @@
             }
         },
 
-        /**
-         * Persists standard split-test additional data returned by Discovery.
-         * The result is independent from the decision's matched state, so a
-         * control assignment is retained for future SDK user requests too.
-         */
-        storeDecisionAdditionalData: function (response) {
+        getDecisionSplitTestData: function (response) {
             const additionalData = $.isPlainObject(response) && $.isPlainObject(response.additionalData)
                 ? response.additionalData
                 : null;
-            const splitTestData = additionalData && $.isPlainObject(additionalData.splitTestData)
+            return additionalData && $.isPlainObject(additionalData.splitTestData)
                 ? additionalData.splitTestData
                 : null;
+        },
+
+        storeDecisionAdditionalData: function (splitTestData) {
             const testName = splitTestData === null
                 ? null
                 : Breinify.UTL.isNonEmptyString(splitTestData.testName);
@@ -1305,6 +1482,7 @@
             runtime.decision.failurePageKey = this.getDecisionPageKey();
             runtime.decision.conditionResults = {};
             runtime.decision.conditionCache = {};
+            runtime.decision.splitTestData = null;
             runtime.conditionResults = {};
             runtime.selectedGroupId = this.getFailureActionGroup(runtime);
 
@@ -1931,6 +2109,8 @@
             const changeType = data && data.type ? data.type : "full-scan";
             if (changeType !== "full-scan" && changeType !== "added-element" && changeType !== "attribute-change") {
                 return false;
+            } else if (!this.isRuntimeConfigurationValid(runtime)) {
+                return !this.hasReportedRenderedElementActivity(runtime);
             }
 
             if (this.isDecisionRequired(runtime)) {
@@ -1972,7 +2152,7 @@
                 }
             }
 
-            return false;
+            return !this.hasReportedRenderedElementActivity(runtime);
         },
 
         getAppliedTargets: function (runtime, actionIndex) {
@@ -2092,6 +2272,10 @@
         executeActions: function (runtime) {
             const configuredActions = this.getConfiguredActions(runtime);
             const modifications = [];
+            const execution = {
+                executed: false,
+                failed: false
+            };
 
             for (let i = 0; i < configuredActions.length; i++) {
                 const action = this.getEffectiveAction(runtime, configuredActions[i]);
@@ -2106,21 +2290,38 @@
                 if (typeof handler === "function" &&
                     (this.isDomAction(action) === true ||
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] !== true)) {
-                    const actionModifications = handler.call(implementation, action, runtime, i);
-                    if (this.isDomAction(action) === true && Array.isArray(actionModifications)) {
-                        for (let j = 0; j < actionModifications.length; j++) {
-                            modifications.push(actionModifications[j]);
+                    try {
+                        const actionModifications = handler.call(implementation, action, runtime, i);
+                        if (this.isDomAction(action) === true && Array.isArray(actionModifications)) {
+                            for (let j = 0; j < actionModifications.length; j++) {
+                                modifications.push(actionModifications[j]);
+                            }
                         }
-                    }
-                    this.applyActionSnippets(runtime, action, i);
+                        this.applyActionSnippets(runtime, action, i);
 
-                    if (this.isDomAction(action) !== true) {
-                        runtime.executedActions[this.getActionStateIndex(runtime, i)] = true;
+                        if (this.isDomAction(action) === true) {
+                            execution.executed = Array.isArray(actionModifications) && actionModifications.length > 0 ||
+                                execution.executed;
+                        } else {
+                            runtime.executedActions[this.getActionStateIndex(runtime, i)] = true;
+                            execution.executed = actionModifications !== false || execution.executed;
+                        }
+                    } catch (e) {
+                        execution.failed = true;
+                        this.logActionError(action, e);
+                        break;
                     }
                 }
             }
 
             this.triggerModifiedContent(runtime, modifications);
+            return execution;
+        },
+
+        logActionError: function (action, error) {
+            if (typeof console === "object" && typeof console.error === "function") {
+                console.error("uiModifyContent: action execution failed", action, error);
+            }
         }
     };
 
@@ -2157,7 +2358,11 @@
                     pageDecisionPageKey: null,
                     failurePageKey: null,
                     conditionResults: {},
-                    conditionCache: {}
+                    conditionCache: {},
+                    splitTestData: null
+                },
+                activity: {
+                    reportedPageKey: null
                 },
                 conditionEvaluationTimer: null
             };
@@ -2181,30 +2386,41 @@
             const runtime = _private.getRuntime(webExId, webExVersionId);
             if (runtime === null) {
                 return false;
+            } else if (!_private.isRuntimeConfigurationValid(runtime)) {
+                _private.sendRenderedElementActivity(runtime, false,
+                    renderedElementStatusCodes.INVALID_CONFIGURATION, null);
+                return false;
             }
 
-            _private.scheduleConditionEvaluation(runtime);
+            try {
+                _private.scheduleConditionEvaluation(runtime);
 
-            if (_private.isDecisionRequired(runtime)) {
-                _private.requestDecision(runtime);
-                if (runtime.decision.resolved !== true &&
-                    runtime.decision.status !== DECISION_STATUS_FAILED) {
-                    return true;
+                if (_private.isDecisionRequired(runtime)) {
+                    _private.requestDecision(runtime);
+                    if (runtime.decision.resolved !== true &&
+                        runtime.decision.status !== DECISION_STATUS_FAILED) {
+                        return true;
+                    }
+
+                    runtime.selectedGroupId = runtime.decision.status === DECISION_STATUS_FAILED
+                        ? _private.getFailureActionGroup(runtime)
+                        : runtime.decision.matched !== true
+                            ? null
+                            : _private.selectGroup(runtime);
+                } else {
+                    runtime.preEvaluation = _private.preEvaluateConditions(runtime);
+                    runtime.conditionResults = {};
+                    runtime.selectedGroupId = _private.selectGroup(runtime);
                 }
 
-                runtime.selectedGroupId = runtime.decision.status === DECISION_STATUS_FAILED
-                    ? _private.getFailureActionGroup(runtime)
-                    : runtime.decision.matched !== true
-                        ? null
-                        : _private.selectGroup(runtime);
-            } else {
-                runtime.preEvaluation = _private.preEvaluateConditions(runtime);
-                runtime.conditionResults = {};
-                runtime.selectedGroupId = _private.selectGroup(runtime);
+                const execution = _private.executeActions(runtime);
+                _private.reportRenderedElementOutcome(runtime, execution);
+                return true;
+            } catch (e) {
+                _private.sendRenderedElementActivity(runtime, false,
+                    renderedElementStatusCodes.RENDERING_FAILED, _private.getActivityActionGroup(runtime));
+                return false;
             }
-
-            _private.executeActions(runtime);
-            return true;
         }
     };
 
