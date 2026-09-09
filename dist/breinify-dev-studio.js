@@ -978,9 +978,9 @@
                 button.preview-indicator:hover { filter: brightness(1.2); }
                 button.preview-indicator:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
                 button.preview-indicator[hidden] { display: none; }
-                #preview-floating { position: fixed; bottom: 10px; right: 50px; max-width: calc(100vw - 65px);
+                #preview-floating { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+                    width: max-content; max-width: calc(100vw - 110px); text-align: center;
                     z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); }
-                #preview-banner { margin: 0 10px 8px; }
                 .preview-indicator span { display: block; }
                 .preview-time { font-size: 10px; opacity: 0.85; }
                 .preview-note { color: #bbb; line-height: 1.5; margin-bottom: 12px; }
@@ -1010,9 +1010,6 @@
                         <button class="tab" data-tab="channel">Channel</button>
                     </div>
                 </header>
-                <button id="preview-banner" class="preview-indicator" type="button" hidden>
-                    <span class="preview-summary"></span><span class="preview-time"></span>
-                </button>
                 <div id="log-container" class="container"></div>
                 <div id="info-container" class="container active"></div>
                 <div id="previews-container" class="container"></div>
@@ -1032,7 +1029,8 @@
                 </div>
             </div>
             <button id="preview-floating" class="preview-indicator" type="button" hidden>
-                <span class="preview-summary"></span><span class="preview-time"></span>
+                <span class="preview-summary"></span><span class="preview-names"></span>
+                <span class="preview-time"></span>
             </button>
             <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
 
@@ -1074,6 +1072,7 @@
                 }
             });
             $(document).on('breinifyDevStudioConsoleChanged', () => {
+                this._updateConsoleTab();
                 if (this.$logContainer.hasClass('active')) {
                     this._renderConsole();
                 }
@@ -1088,6 +1087,7 @@
                 }
             });
             $(document).on('breinifyDevStudioChannelChanged', () => {
+                this._updateChannelTab();
                 if (this.$channelContainer.hasClass('active')) {
                     this._renderChannel();
                 }
@@ -1129,6 +1129,7 @@
                     previews.set(preview.previewId, {
                         previewId: preview.previewId,
                         sourceWebExperienceId: webExperienceId,
+                        campaignName: preview.campaignName,
                         status: 'APPLIED',
                         refreshedAt: preview.refreshedAt
                     });
@@ -1152,6 +1153,7 @@
 
         _updatePreviews() {
             window.clearTimeout(this.previewTimer);
+            this._updateTabCounts();
             const previews = this._getPreviews();
             const loaded = previews.filter(preview => preview.status === 'APPLIED');
             const unavailable = previews.length - loaded.length;
@@ -1166,14 +1168,16 @@
             const refresh = loaded.length > 0
                 ? 'Latest preview refresh: ' + this._formatPreviewRefresh(latest)
                 : 'Open Previews for details';
-            this.$previewIndicators.toggleClass('warning', unavailable > 0);
+            const names = loaded.map(preview => this._getPreviewName(preview));
+            const nameLabel = names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '');
+            const showIndicator = this._hasRequestedPreviews() || loaded.length > 0;
+            this.$previewIndicators.toggleClass('warning', unavailable > 0 || loaded.length === 0);
             this.$previewIndicators.find('.preview-summary').text(summary);
+            this.$previewIndicators.find('.preview-names').text(nameLabel).prop('hidden', names.length === 0);
             this.$previewIndicators.find('.preview-time').text(refresh);
-            this.$previewIndicators.attr('title', summary + '. ' + refresh);
-            this.$shadowRoot.find('#preview-banner').prop('hidden', previews.length === 0);
-            this.$shadowRoot.find('#preview-floating').prop('hidden', previews.length === 0 || this.isVisible);
-            const tabLabel = previews.length === 0 ? 'Previews' : 'Previews (' + previews.length + ')';
-            this.$tabs.filter('[data-tab="previews"]').text(tabLabel);
+            this.$previewIndicators.attr('title', [summary, ...names, refresh].join('\n'));
+            this.$previewIndicators.prop('hidden', !showIndicator || this.isVisible);
+            this._setTabLabel('previews', 'Previews', previews.length, 'Preview resolutions in the loaded script');
             if (this.activeTab === 'previews') {
                 this._renderPreviews(previews);
             }
@@ -1211,6 +1215,9 @@
                     $card.append($detail);
                 };
                 addDetail('Preview ID', preview.previewId);
+                if (typeof preview.campaignName === 'string' && preview.campaignName.trim() !== '') {
+                    addDetail('Experience name', preview.campaignName);
+                }
                 if (typeof preview.sourceWebExperienceId === 'string') {
                     addDetail('Web experience', preview.sourceWebExperienceId);
                 }
@@ -1221,6 +1228,81 @@
                 }
                 this.$previewsContainer.append($card);
             });
+        }
+
+        _hasRequestedPreviews() {
+            const params = new URLSearchParams(window.location.search);
+            for (const [key, value] of params.entries()) {
+                if (key.toLowerCase() === 'previewids' && value.trim() !== '') {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        _getPreviewName(preview) {
+            if (typeof preview.campaignName === 'string' && preview.campaignName.trim() !== '') {
+                return preview.campaignName;
+            }
+            return preview.sourceWebExperienceId || preview.previewId;
+        }
+
+        _setTabLabel(tab, label, value, description) {
+            const $tab = this.$tabs.filter('[data-tab="' + tab + '"]');
+            $tab.text(label + ' (' + value + ')').attr('title', description);
+        }
+
+        _updateConsoleTab() {
+            const count = _private.consoleEvents.entries.length;
+            this._setTabLabel('console', 'Console', count, 'Recorded SDK events (up to 100)');
+        }
+
+        _updateChannelTab() {
+            const status = _private.channel.getStatus();
+            const label = status.active ? 'Active' : (status.channelIdProvided ? status.state : 'None');
+            this._setTabLabel('channel', 'Channel', label, 'Current portal channel state');
+        }
+
+        _getUserIdentifierCount(userData) {
+            const identifiers = new Set();
+            const add = (type, values) => {
+                const entries = Array.isArray(values) ? values : [values];
+                entries.forEach(value => {
+                    if (typeof value === 'string' && value.trim() !== '') {
+                        identifiers.add(type + ':' + value.trim());
+                    }
+                });
+            };
+            add('session', userData.sessionId);
+            add('browser', userData.additional?.identifiers?.browserId);
+            add('email', userData.email);
+            add('phone', userData.phone);
+            add('user', userData.userId);
+            add('user', userData.userIds);
+            return identifiers.size;
+        }
+
+        _updateUserTabs(userData) {
+            const user = $.isPlainObject(userData) ? userData : {};
+            const identifierCount = this._getUserIdentifierCount(user);
+            this._setTabLabel('user', 'User', identifierCount,
+                'Identifiers shown in User: session, browser, email, phone, and distinct user IDs');
+            const assignments = user.additional?.splitTests;
+            const splitTests = $.isPlainObject(assignments) ? assignments : {};
+            const count = Object.keys(splitTests).filter(key => $.isPlainObject(splitTests[key])).length;
+            this._setTabLabel('split-tests', 'Split Tests', count, 'Current user split-test assignments');
+        }
+
+        _updateTabCounts() {
+            this._updateConsoleTab();
+            this._updateChannelTab();
+            try {
+                const userData = Breinify.UTL.user.create();
+                this._updateUserTabs(userData);
+            } catch (error) {
+                this._setTabLabel('user', 'User', '?', 'Unable to read current user identifiers');
+                this._setTabLabel('split-tests', 'Split Tests', '?', 'Unable to read split-test assignments');
+            }
         }
 
         _getDevStudioState() {
@@ -2149,6 +2231,7 @@
         }
 
         _renderUserInfo(userData) {
+            this._updateUserTabs(userData);
             userData = $.isPlainObject(userData) ? userData : {};
             const additional = $.isPlainObject(userData.additional) ? userData.additional : {};
             const identifiers = $.isPlainObject(additional.identifiers) ? additional.identifiers : {};
@@ -2203,6 +2286,7 @@
                 const additional = $.isPlainObject(userData.additional) ? userData.additional : {};
                 this.splitTestsLastFetched = new Date();
                 this._renderSplitTestsInfo(additional.splitTests, false);
+                this._updateUserTabs(userData);
             } catch (error) {
                 this.$splitTestsContainer.empty();
                 this.$splitTestsContainer.append(this._createRefreshHeader(this.splitTestsLastFetched, false, () => this._refreshSplitTests()));
