@@ -97,6 +97,71 @@ describe('UiModifyContent', function () {
         $fixture.remove();
     });
 
+    it('keeps a random condition result stable for the current browser session', function () {
+        var $fixture = $('<div class="modify-content-random-target"></div>').appendTo('body');
+        var webExperienceId = 'modify-content-random-session-test';
+        var webExperienceVersionId = 'version-1';
+        var conditionReference = 'random-session-condition';
+        var configuration = {
+            actions: {
+                random: [createPlacementAction('.modify-content-random-target', null)]
+            },
+            conditionsGroups: [{
+                actionGroup: 'random',
+                conditions: [{
+                    type: 'random',
+                    randomRefId: conditionReference,
+                    settings: {
+                        probability: 1
+                    }
+                }]
+            }]
+        };
+
+        window.sessionStorage.removeItem('br::wemc::random');
+        uiModifyContent.register({}, webExperienceId, webExperienceVersionId, configuration);
+        uiModifyContent.handle(webExperienceId, webExperienceVersionId, {type: 'full-scan'});
+
+        expect($fixture.children('[data-br-webexpid="target-web-experience"]').length).toBe(1);
+
+        $fixture.empty();
+        configuration.conditionsGroups[0].conditions[0].settings.probability = 0;
+        uiModifyContent.register({}, webExperienceId, webExperienceVersionId, configuration);
+        uiModifyContent.handle(webExperienceId, webExperienceVersionId, {type: 'full-scan'});
+
+        expect($fixture.children('[data-br-webexpid="target-web-experience"]').length).toBe(1);
+
+        window.sessionStorage.removeItem('br::wemc::random');
+        $fixture.remove();
+    });
+
+    it('does not select a random condition whose probability is zero', function () {
+        var $fixture = $('<div class="modify-content-random-zero-target"></div>').appendTo('body');
+        var webExperienceId = 'modify-content-random-zero-test';
+        var webExperienceVersionId = 'version-1';
+
+        uiModifyContent.register({}, webExperienceId, webExperienceVersionId, {
+            actions: {
+                random: [createPlacementAction('.modify-content-random-zero-target', null)]
+            },
+            conditionsGroups: [{
+                actionGroup: 'random',
+                conditions: [{
+                    type: 'random',
+                    randomRefId: 'random-zero-condition',
+                    settings: {
+                        probability: 0
+                    }
+                }]
+            }]
+        });
+        uiModifyContent.handle(webExperienceId, webExperienceVersionId, {type: 'full-scan'});
+
+        expect($fixture.children('[data-br-webexpid="target-web-experience"]').length).toBe(0);
+
+        $fixture.remove();
+    });
+
     it('tracks a successful selected condition group with non-control split-test data', function (done) {
         var $fixture = $('<div class="modify-content-selected-activity-target"></div>').appendTo('body');
         var activitySpy = createActivitySpy();

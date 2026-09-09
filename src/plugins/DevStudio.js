@@ -820,13 +820,16 @@
         $splitTestsContainer = null;
         $inspectContainer = null;
         $channelContainer = null;
+        $previewsContainer = null;
+        $previewIndicators = null;
+        previewTimer = null;
         $payloadModal = null;
         $payloadModalTitle = null;
         $payloadModalContent = null;
 
         userLastFetched = null;
         splitTestsLastFetched = null;
-        activeTab = 'console';
+        activeTab = 'info';
         inspectActive = false;
         inspectHoverElement = null;
         inspectPinnedElement = null;
@@ -967,6 +970,25 @@
                 span.plugin-error { color: #ff8a80; display: inline-block; margin-top: 6px; }
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
+                button.preview-indicator {
+                    background: #352748; border: 1px solid #c49bf5; border-radius: 5px; color: #f1e4ff;
+                    cursor: pointer; font: 11px/1.5 monospace; padding: 6px 10px; text-align: left;
+                }
+                button.preview-indicator.warning { background: #3b301d; border-color: #ffb74d; color: #ffe0b2; }
+                button.preview-indicator:hover { filter: brightness(1.2); }
+                button.preview-indicator:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+                button.preview-indicator[hidden] { display: none; }
+                #preview-floating { position: fixed; bottom: 10px; right: 50px; max-width: calc(100vw - 65px);
+                    z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+                #preview-banner { margin: 0 10px 8px; }
+                .preview-indicator span { display: block; }
+                .preview-time { font-size: 10px; opacity: 0.85; }
+                .preview-note { color: #bbb; line-height: 1.5; margin-bottom: 12px; }
+                .preview-card { border: 1px solid #444; border-left: 4px solid #c49bf5;
+                    border-radius: 4px; margin-bottom: 10px; padding: 10px; line-height: 1.5; }
+                .preview-card.warning { border-left-color: #ffb74d; }
+                .preview-status { font-weight: bold; color: #e1c4ff; margin-bottom: 5px; }
+                .preview-card.warning .preview-status { color: #ffcc80; }
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
                 ::-webkit-scrollbar-thumb:hover { background: #555; }
@@ -979,16 +1001,21 @@
                 </div>
                 <header>
                     <div class="tabs">
-                        <button class="tab active" data-tab="console">Console</button>
-                        <button class="tab" data-tab="info">Info</button>
+                        <button class="tab active" data-tab="info">Info</button>
+                        <button class="tab" data-tab="previews">Previews</button>
+                        <button class="tab" data-tab="inspect">Inspect</button>
+                        <button class="tab" data-tab="console">Console</button>
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
-                        <button class="tab" data-tab="inspect">Inspect</button>
                         <button class="tab" data-tab="channel">Channel</button>
                     </div>
                 </header>
-                <div id="log-container" class="container active"></div>
-                <div id="info-container" class="container"></div>
+                <button id="preview-banner" class="preview-indicator" type="button" hidden>
+                    <span class="preview-summary"></span><span class="preview-time"></span>
+                </button>
+                <div id="log-container" class="container"></div>
+                <div id="info-container" class="container active"></div>
+                <div id="previews-container" class="container"></div>
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
                 <div id="inspect-container" class="container"></div>
@@ -1004,6 +1031,9 @@
                     <div class="payload-dialog-content"><pre></pre></div>
                 </div>
             </div>
+            <button id="preview-floating" class="preview-indicator" type="button" hidden>
+                <span class="preview-summary"></span><span class="preview-time"></span>
+            </button>
             <div id="toggle-button" title="Show Breinify DevStudio" role="button" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M12 2C8.1 2 6 4.4 6 7v5c0 .5-.2.9-.5 1.3-.3.4-.5.9-.5 1.4v.3c.1.6.5 1.1 1 1.5.5.4.8 1 .8 1.6 0 .6.2 1.1.5 1.5s.7.7 1.2.9V21c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-1.5c.5-.2.9-.5 1.2-.9s.5-.9.5-1.5c0-.6.3-1.2.8-1.6.5-.4.9-.9 1-1.5v-.3c0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.3V7c0-2.6-2.1-5-6-5z"/></svg></div>`;
 
             this.$shadowRoot = $(this.shadowRoot);
@@ -1018,6 +1048,12 @@
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
             this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
             this.$channelContainer = this.$shadowRoot.find('#channel-container');
+            this.$previewsContainer = this.$shadowRoot.find('#previews-container');
+            this.$previewIndicators = this.$shadowRoot.find('.preview-indicator');
+            this.$previewIndicators.click(() => {
+                this._switchTab({target: {dataset: {tab: 'previews'}}});
+                this._setDevStudioVisibility(true);
+            });
             this.$payloadModal = this.$shadowRoot.find('#payload-modal');
             this.$payloadModalTitle = this.$shadowRoot.find('#payload-modal-title');
             this.$payloadModalContent = this.$shadowRoot.find('.payload-dialog-content pre');
@@ -1065,16 +1101,138 @@
             this._setDevStudioVisibility(!this.isVisible);
         }
 
+        connectedCallback() {
+            // defer until the generated script has assigned its preview metadata
+            this.previewTimer = window.setTimeout(() => this._updatePreviews(), 0);
+        }
+
+        disconnectedCallback() {
+            window.clearTimeout(this.previewTimer);
+            this.previewTimer = null;
+        }
+
+        _getPreviews() {
+            const webExperiences = Breinify.plugins.webExperiences || {};
+            const resolutions = Array.isArray(webExperiences._previewResolutions)
+                ? webExperiences._previewResolutions : [];
+            const previews = new Map();
+            resolutions.forEach(resolution => {
+                if ($.isPlainObject(resolution) && typeof resolution.previewId === 'string') {
+                    previews.set(resolution.previewId, {...resolution});
+                }
+            });
+
+            const metadata = $.isPlainObject(webExperiences._previews) ? webExperiences._previews : {};
+            Object.keys(metadata).forEach(webExperienceId => {
+                const preview = metadata[webExperienceId];
+                if ($.isPlainObject(preview) && typeof preview.previewId === 'string') {
+                    previews.set(preview.previewId, {
+                        previewId: preview.previewId,
+                        sourceWebExperienceId: webExperienceId,
+                        status: 'APPLIED',
+                        refreshedAt: preview.refreshedAt
+                    });
+                }
+            });
+            return Array.from(previews.values());
+        }
+
+        _formatPreviewRefresh(timestamp) {
+            if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp < 0) {
+                return 'Unknown';
+            }
+            const date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) {
+                return 'Unknown';
+            }
+            const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+            const age = minutes < 1 ? 'just now' : minutes + ' min ago';
+            return date.toLocaleString() + ' (' + age + ')';
+        }
+
+        _updatePreviews() {
+            window.clearTimeout(this.previewTimer);
+            const previews = this._getPreviews();
+            const loaded = previews.filter(preview => preview.status === 'APPLIED');
+            const unavailable = previews.length - loaded.length;
+            const loadedLabel = loaded.length === 1 ? '1 preview loaded' : loaded.length + ' previews loaded';
+            let summary = loaded.length > 0 ? loadedLabel : 'No previews loaded';
+            if (unavailable > 0) {
+                summary += ' · ' + unavailable + ' not applied';
+            }
+            const timestamps = loaded.map(preview => preview.refreshedAt)
+                .filter(time => typeof time === 'number' && Number.isFinite(time) && time >= 0);
+            const latest = timestamps.length > 0 ? Math.max(...timestamps) : -1;
+            const refresh = loaded.length > 0
+                ? 'Latest preview refresh: ' + this._formatPreviewRefresh(latest)
+                : 'Open Previews for details';
+            this.$previewIndicators.toggleClass('warning', unavailable > 0);
+            this.$previewIndicators.find('.preview-summary').text(summary);
+            this.$previewIndicators.find('.preview-time').text(refresh);
+            this.$previewIndicators.attr('title', summary + '. ' + refresh);
+            this.$shadowRoot.find('#preview-banner').prop('hidden', previews.length === 0);
+            this.$shadowRoot.find('#preview-floating').prop('hidden', previews.length === 0 || this.isVisible);
+            const tabLabel = previews.length === 0 ? 'Previews' : 'Previews (' + previews.length + ')';
+            this.$tabs.filter('[data-tab="previews"]').text(tabLabel);
+            if (this.activeTab === 'previews') {
+                this._renderPreviews(previews);
+            }
+            if (this.isConnected) {
+                this.previewTimer = window.setTimeout(() => this._updatePreviews(), 15000);
+            }
+        }
+
+        _renderPreviews(previews) {
+            const descriptions = {
+                APPLIED: ['Loaded', 'This preview configuration is included in the loaded script.'],
+                NOT_FOUND_OR_EXPIRED: ['Not found or expired', 'The preview was not found or has expired.'],
+                SCRIPT_CHANGED: ['Script changed', 'The preview belongs to a different script.'],
+                WEB_EXPERIENCE_NOT_IN_SCRIPT: ['Experience not in script',
+                    'The original web experience is no longer part of this script.'],
+                SUPERSEDED: ['Superseded', 'Another requested preview was selected for this web experience.']
+            };
+            this.$previewsContainer.empty();
+            const note = previews.length === 0 ? 'No previews are included in this script.'
+                : 'These statuses describe the loaded script. Loaded does not mean rendered on this page. ' +
+                    'Refresh times refer to the saved preview configuration, not this page load. ' +
+                    'Reload the page to load portal updates; this view does not check preview expiration live.';
+            const $note = $('<div class="preview-note"></div>').text(note);
+            this.$previewsContainer.append($note);
+            previews.forEach(preview => {
+                const description = Object.prototype.hasOwnProperty.call(descriptions, preview.status)
+                    ? descriptions[preview.status] : ['Unknown status', String(preview.status || 'Unknown')];
+                const $card = $('<div class="preview-card"></div>');
+                $card.toggleClass('warning', preview.status !== 'APPLIED');
+                const $status = $('<div class="preview-status"></div>').text(description[0]);
+                const $description = $('<div></div>').text(description[1]);
+                $card.append($status, $description);
+                const addDetail = (label, value) => {
+                    const $detail = $('<div></div>').text(label + ': ' + value);
+                    $card.append($detail);
+                };
+                addDetail('Preview ID', preview.previewId);
+                if (typeof preview.sourceWebExperienceId === 'string') {
+                    addDetail('Web experience', preview.sourceWebExperienceId);
+                }
+                const refreshed = this._formatPreviewRefresh(preview.refreshedAt);
+                addDetail('Last refreshed', refreshed);
+                if (typeof preview.appliedPreviewId === 'string') {
+                    addDetail('Selected preview', preview.appliedPreviewId);
+                }
+                this.$previewsContainer.append($card);
+            });
+        }
+
         _getDevStudioState() {
-            const allowedTabs = ['console', 'info', 'user', 'split-tests', 'inspect', 'channel'];
+            const allowedTabs = ['info', 'previews', 'inspect', 'console', 'user', 'split-tests', 'channel'];
             try {
                 const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
                 return {
                     isVisible: storedState?.isVisible === true,
-                    activeTab: allowedTabs.indexOf(storedState?.activeTab) > -1 ? storedState.activeTab : 'console'
+                    activeTab: allowedTabs.indexOf(storedState?.activeTab) > -1 ? storedState.activeTab : 'info'
                 };
             } catch (error) {
-                return {isVisible: false, activeTab: 'console'};
+                return {isVisible: false, activeTab: 'info'};
             }
         }
 
@@ -1091,6 +1249,7 @@
 
         _setDevStudioVisibility(isVisible) {
             this.isVisible = isVisible === true;
+            this._updatePreviews();
 
             if (this.isVisible) {
                 this.$panel.css('transform', 'translateY(0)');
@@ -2108,12 +2267,18 @@
 
         _switchTab(event) {
             const selectedTab = event.target.dataset.tab;
+            this.$previewsContainer.removeClass('active');
             this.activeTab = selectedTab;
             this.$tabs.each(function () {
                 this.classList.toggle('active', this.dataset.tab === selectedTab);
             });
 
-            if (selectedTab === 'console') {
+            if (selectedTab === 'previews') {
+                this._stopInspecting();
+                this.$shadowRoot.find('div.container').removeClass('active');
+                this.$previewsContainer.addClass('active');
+                this._updatePreviews();
+            } else if (selectedTab === 'console') {
                 this._stopInspecting();
                 this._renderConsole();
                 this.$logContainer.addClass('active');
