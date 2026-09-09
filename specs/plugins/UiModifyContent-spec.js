@@ -32,15 +32,19 @@ describe('UiModifyContent', function () {
         };
     }
 
-    function createPlacementAction(selector) {
+    function createPlacementAction(selector, positionId) {
+        var settings = {
+            selector: selector,
+            operation: 'append',
+            webExperienceId: 'target-web-experience'
+        };
+        if (positionId !== null) {
+            settings.positionId = positionId || 'target-position';
+        }
+
         return {
             type: 'placeWebExperience',
-            settings: {
-                selector: selector,
-                operation: 'append',
-                webExperienceId: 'target-web-experience',
-                positionId: 'target-position'
-            }
+            settings: settings
         };
     }
 
@@ -73,7 +77,7 @@ describe('UiModifyContent', function () {
 
         uiModifyContent.register(module, webExperienceId, webExperienceVersionId, {
             actions: {
-                _default: [createPlacementAction('.modify-content-placement-target')]
+                _default: [createPlacementAction('.modify-content-placement-target', null)]
             }
         });
 
@@ -82,6 +86,7 @@ describe('UiModifyContent', function () {
 
         var $container = $fixture.children('[data-br-webexpid="target-web-experience"]');
         expect($container.length).toBe(1);
+        expect($container.attr('data-br-webexppos')).toBeUndefined();
         expect(activitySpy.renderedElements.length).toBe(1);
         expectRenderedElement(activitySpy.renderedElements[0], true, 200, '_default');
         expect(activitySpy.renderedElements[0].tags.groupType).toBe('none');

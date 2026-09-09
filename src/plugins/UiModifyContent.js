@@ -451,15 +451,16 @@
             _createContainer: function (settings, runtime) {
                 const webExperienceId = Breinify.UTL.isNonEmptyString(settings && settings.webExperienceId);
                 const positionId = Breinify.UTL.isNonEmptyString(settings && settings.positionId);
-                if (webExperienceId === null || positionId === null ||
-                    webExperienceId === runtime.webExId || typeof document !== "object" ||
+                if (webExperienceId === null || webExperienceId === runtime.webExId || typeof document !== "object" ||
                     typeof document.createElement !== "function") {
                     return null;
                 }
 
                 const container = document.createElement("div");
                 container.setAttribute("data-br-webexpid", webExperienceId);
-                container.setAttribute("data-br-webexppos", positionId);
+                if (positionId !== null) {
+                    container.setAttribute("data-br-webexppos", positionId);
+                }
                 this._applyClasses(container, settings && settings.classes);
                 this._applyAttributes(container, settings && settings.attributes);
                 return container;
