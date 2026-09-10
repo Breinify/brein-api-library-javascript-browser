@@ -722,7 +722,8 @@
                 _counter: 0
             };
 
-            const regex = /%%([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z](?:(?:::)?[a-zA-Z0-9_])*)*|[a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
+            // allow hyphenated keys in dotted paths, e.g. additionalData.background-color
+            const regex = /%%([a-zA-Z][a-zA-Z0-9_-]*(?:\.[a-zA-Z](?:(?:::)?[a-zA-Z0-9_-])*)*|[a-zA-Z][a-zA-Z0-9_-]*(?:::[a-zA-Z][a-zA-Z0-9_-]*)?)%%/g;
             const result = value.replace(regex, function (match, name) {
                 const placeholderOption = option?.placeholders?.[name];
                 const hasPlaceholderOption = $.isFunction(placeholderOption) || typeof placeholderOption === "string";
