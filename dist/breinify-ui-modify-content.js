@@ -961,7 +961,7 @@
 
         getDecisionPayload: function (runtime, conditionReferences) {
             const decision = this.getDecisionSettings(runtime);
-            return {
+            const payload = {
                 webExperienceId: Breinify.UTL.isNonEmptyString(runtime.webExId),
                 webExperienceVersionId: Breinify.UTL.isNonEmptyString(runtime.webExVersionId),
                 configurationId: Breinify.UTL.isNonEmptyString(decision.configurationId),
@@ -969,6 +969,13 @@
                     ? conditionReferences
                     : this.getDecisionConditionReferences(runtime)
             };
+            const previews = Breinify.plugins.webExperiences?._previews;
+            const preview = $.isPlainObject(previews) ? previews[runtime.webExId] : null;
+            const previewId = $.isPlainObject(preview) ? Breinify.UTL.isNonEmptyString(preview.previewId) : null;
+            if (previewId !== null) {
+                payload.previewId = previewId;
+            }
+            return payload;
         },
 
         getDecisionConfigurationId: function (runtime) {

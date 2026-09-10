@@ -864,7 +864,11 @@
                 div.title { display: flex; flex-flow: row; font-weight: bold; font-size: 14px; line-height: 14px; padding: 6px 10px; }
                 button.close-btn { background: transparent; border: none; color: #ccc; font-size: 18px; cursor: pointer; padding: 0 6px; user-select: none; }
                 button.close-btn:hover { color: white; }
-                #panel { position: fixed; bottom: 0; right: 0; width: 460px; height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff; background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px; display: flex; flex-direction: column; z-index: 9999998; transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
+                #panel { position: fixed; bottom: 0; right: 0; width: 640px; max-width: 100vw;
+                    height: 80vh; max-height: 1000px; font-family: monospace; font-size: 12px; color: #fff;
+                    background: #1e1e1e; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-top-left-radius: 6px;
+                    display: flex; flex-direction: column; z-index: 9999998;
+                    transition: transform 0.2s ease-out, opacity 0.2s ease-out; overflow: hidden; }
                 #resize-handle { position: absolute; left: 0; top: 0; width: 6px; height: 100%; cursor: ew-resize; z-index: 9999999; }
                 #resize-handle:hover { background: rgba(255, 255, 255, 0.1); }
                 @media (max-width: 540px) {
@@ -971,7 +975,7 @@
                 #toggle-button { position: fixed; bottom: 10px; right: 10px; width: 32px; height: 32px; background: #333; border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation; z-index: 9999998; box-shadow: 0 0 5px rgba(0,0,0,0.3); transition: opacity 0.2s ease-out; display: none; }
                 #toggle-button:hover svg path { fill: #ccc; }
                 button.preview-indicator {
-                    background: #352748; border: 1px solid #c49bf5; border-radius: 5px; color: #f1e4ff;
+                    background: #172f3b; border: 1px solid #4fc3f7; border-radius: 5px; color: #d7effa;
                     cursor: pointer; font: 11px/1.5 monospace; padding: 6px 10px; text-align: left;
                 }
                 button.preview-indicator.warning { background: #3b301d; border-color: #ffb74d; color: #ffe0b2; }
@@ -984,11 +988,32 @@
                 .preview-indicator span { display: block; }
                 .preview-time { font-size: 10px; opacity: 0.85; }
                 .preview-note { color: #bbb; line-height: 1.5; margin-bottom: 12px; }
-                .preview-card { border: 1px solid #444; border-left: 4px solid #c49bf5;
-                    border-radius: 4px; margin-bottom: 10px; padding: 10px; line-height: 1.5; }
+                .preview-card { background: #242424; border: 1px solid #3c3c3c; border-left: 4px solid #4fc3f7;
+                    border-radius: 6px; margin-bottom: 12px; padding: 14px; line-height: 1.5;
+                    font-weight: normal; white-space: normal; }
                 .preview-card.warning { border-left-color: #ffb74d; }
-                .preview-status { font-weight: bold; color: #e1c4ff; margin-bottom: 5px; }
-                .preview-card.warning .preview-status { color: #ffcc80; }
+                .preview-card-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+                .preview-card-name { color: #fff; font-size: 13px; font-weight: bold; flex: 1; min-width: 140px; }
+                .preview-status { background: #172f3b; border: 1px solid #285269; border-radius: 4px;
+                    color: #4fc3f7; font-size: 11px; padding: 2px 7px; }
+                .preview-card.warning .preview-status { background: #3b301d; border-color: #6f542d; color: #ffcc80; }
+                .preview-remove { background: transparent; border: 1px solid #555; border-radius: 4px;
+                    color: #bbb; cursor: pointer; font: 18px/1 monospace; width: 28px; height: 28px; }
+                .preview-remove:hover { background: #402626; border-color: #ef5350; color: #fff; }
+                .preview-remove:focus-visible { outline: 2px solid #4fc3f7; outline-offset: 2px; }
+                .preview-remove:disabled { cursor: default; opacity: 0.5; }
+                .preview-remove-error { color: #ff8a80; margin-top: 10px; }
+                .preview-description { color: #bbb; margin: 8px 0 14px; }
+                .preview-details { display: grid; grid-template-columns: 120px minmax(0, 1fr);
+                    gap: 10px 14px; border-top: 1px solid #3c3c3c; margin: 0; padding-top: 12px; }
+                .preview-details dt { color: #aaa; }
+                .preview-details dd { color: #e6e6e6; margin: 0; overflow-wrap: anywhere; }
+                .preview-details dd.preview-id { color: #8ed1ed; font-size: 11px; }
+                @media (max-width: 540px) {
+                    .preview-details { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+                    .preview-details dd { margin-bottom: 9px; }
+                    .preview-details dd:last-child { margin-bottom: 0; }
+                }
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
                 ::-webkit-scrollbar-thumb:hover { background: #555; }
@@ -1196,10 +1221,8 @@
                 SUPERSEDED: ['Superseded', 'Another requested preview was selected for this web experience.']
             };
             this.$previewsContainer.empty();
-            const note = previews.length === 0 ? 'No previews are included in this script.'
-                : 'These statuses describe the loaded script. Loaded does not mean rendered on this page. ' +
-                    'Refresh times refer to the saved preview configuration, not this page load. ' +
-                    'Reload the page to load portal updates; this view does not check preview expiration live.';
+            const note = previews.length === 0 ? 'No previews to show.'
+                : 'Reload the page to see your latest preview changes.';
             const $note = $('<div class="preview-note"></div>').text(note);
             this.$previewsContainer.append($note);
             previews.forEach(preview => {
@@ -1207,27 +1230,83 @@
                     ? descriptions[preview.status] : ['Unknown status', String(preview.status || 'Unknown')];
                 const $card = $('<div class="preview-card"></div>');
                 $card.toggleClass('warning', preview.status !== 'APPLIED');
-                const $status = $('<div class="preview-status"></div>').text(description[0]);
-                const $description = $('<div></div>').text(description[1]);
-                $card.append($status, $description);
-                const addDetail = (label, value) => {
-                    const $detail = $('<div></div>').text(label + ': ' + value);
-                    $card.append($detail);
+                const name = typeof preview.campaignName === 'string' && preview.campaignName.trim() !== ''
+                    ? preview.campaignName : 'Web experience preview';
+                const $header = $('<div class="preview-card-header"></div>');
+                const $name = $('<div class="preview-card-name"></div>').text(name);
+                const $status = $('<span class="preview-status"></span>').text(description[0]);
+                const $remove = $('<button class="preview-remove" type="button">×</button>');
+                const removeLabel = 'Remove preview: ' + name;
+                $remove.attr('title', 'Remove this preview and reload the page').attr('aria-label', removeLabel);
+                $remove.click(() => this._removePreview(preview.previewId, $remove, $card));
+                const $description = $('<div class="preview-description"></div>').text(description[1]);
+                const $details = $('<dl class="preview-details"></dl>');
+                $header.append($name, $status, $remove);
+                $card.append($header, $description, $details);
+                const addDetail = (label, value, isId) => {
+                    const $label = $('<dt></dt>').text(label);
+                    const $value = $('<dd></dd>').text(value).toggleClass('preview-id', isId === true);
+                    $details.append($label, $value);
                 };
-                addDetail('Preview ID', preview.previewId);
-                if (typeof preview.campaignName === 'string' && preview.campaignName.trim() !== '') {
-                    addDetail('Experience name', preview.campaignName);
-                }
+                addDetail('Preview ID', preview.previewId, true);
                 if (typeof preview.sourceWebExperienceId === 'string') {
-                    addDetail('Web experience', preview.sourceWebExperienceId);
+                    addDetail('Web experience', preview.sourceWebExperienceId, true);
                 }
                 const refreshed = this._formatPreviewRefresh(preview.refreshedAt);
-                addDetail('Last refreshed', refreshed);
+                addDetail('Last refreshed', refreshed, false);
                 if (typeof preview.appliedPreviewId === 'string') {
-                    addDetail('Selected preview', preview.appliedPreviewId);
+                    addDetail('Selected preview', preview.appliedPreviewId, true);
                 }
                 this.$previewsContainer.append($card);
             });
+        }
+
+        _removePreview(previewId, $button, $card) {
+            $button.prop('disabled', true);
+            $card.find('.preview-remove-error').remove();
+            try {
+                const url = new URL(window.location.href);
+                const values = [];
+                const queryKeys = [];
+                for (const [key, value] of url.searchParams.entries()) {
+                    if (key.toLowerCase() === 'previewids') {
+                        values.push(value);
+                        queryKeys.push(key);
+                    }
+                }
+                const stored = window.sessionStorage.getItem('previewIds');
+                if (typeof stored === 'string') {
+                    values.push(stored);
+                }
+                const remaining = new Map();
+                const removedId = previewId.toLowerCase();
+                values.forEach(value => {
+                    value.split(',').forEach(id => {
+                        const trimmedId = id.trim();
+                        const normalizedId = trimmedId.toLowerCase();
+                        if (normalizedId !== '' && normalizedId !== removedId && !remaining.has(normalizedId)) {
+                            remaining.set(normalizedId, trimmedId);
+                        }
+                    });
+                });
+                const remainingIds = Array.from(remaining.values());
+                if (remainingIds.length === 0) {
+                    window.sessionStorage.removeItem('previewIds');
+                } else {
+                    const storedIds = remainingIds.join(',');
+                    window.sessionStorage.setItem('previewIds', storedIds);
+                }
+                queryKeys.forEach(key => url.searchParams.delete(key));
+                const nextUrl = url.toString();
+                const state = window.history.state;
+                window.history.replaceState(state, '', nextUrl);
+                window.location.reload();
+            } catch (error) {
+                $button.prop('disabled', false);
+                const $error = $('<div class="preview-remove-error" role="alert"></div>');
+                $error.text('Unable to remove this preview. Please allow session storage and try again.');
+                $card.append($error);
+            }
         }
 
         _hasRequestedPreviews() {

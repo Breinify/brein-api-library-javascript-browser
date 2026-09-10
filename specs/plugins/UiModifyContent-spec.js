@@ -162,6 +162,42 @@ describe('UiModifyContent', function () {
         $fixture.remove();
     });
 
+    it('sends the applied preview ID only for the preview experience in a decision batch', function (done) {
+        const originalService = Breinify.service;
+        const webExperiences = Breinify.plugins.webExperiences;
+        const originalPreviews = webExperiences._previews;
+        const previewId = 'aa46bd74-c6e0-4278-bb11-25edd430961f';
+        const previewExperienceId = 'decision-preview-experience';
+        const normalExperienceId = 'decision-normal-experience';
+        webExperiences._previews = {[previewExperienceId]: {previewId: previewId}};
+        Breinify.service = function (service, payload, callback) {
+            try {
+                expect(service).toBe('webExperienceDecision');
+                const preview = payload.webExperiences.find(entry => entry.webExperienceId === previewExperienceId);
+                const normal = payload.webExperiences.find(entry => entry.webExperienceId === normalExperienceId);
+                expect(preview.previewId).toBe(previewId);
+                expect(preview.webExperienceVersionId).toBe('temporary-preview-version');
+                expect(normal.previewId).toBeUndefined();
+                callback(null, null, {decisions: []});
+            } finally {
+                Breinify.service = originalService;
+                if (typeof originalPreviews === 'undefined') {
+                    delete webExperiences._previews;
+                } else {
+                    webExperiences._previews = originalPreviews;
+                }
+                done();
+            }
+        };
+        const register = (id, version) => {
+            const config = {actions: {}, decision: {required: true, pageEvaluation: true, configurationId: id}};
+            uiModifyContent.register({}, id, version, config);
+            uiModifyContent.handle(id, version, {type: 'full-scan'});
+        };
+        register(previewExperienceId, 'temporary-preview-version');
+        register(normalExperienceId, 'normal-version');
+    });
+
     it('tracks a successful selected condition group with non-control split-test data', function (done) {
         var $fixture = $('<div class="modify-content-selected-activity-target"></div>').appendTo('body');
         var activitySpy = createActivitySpy();
