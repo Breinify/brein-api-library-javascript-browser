@@ -520,13 +520,16 @@
         all: {
             evaluate: function (condition, runtime, visiting) {
                 const nestedConditions = this._getConditions(condition);
+                let pending = false;
                 for (let i = 0; i < nestedConditions.length; i++) {
-                    if (_private.evaluateCondition(runtime, nestedConditions[i], visiting) !== true) {
+                    const result = _private.evaluateCondition(runtime, nestedConditions[i], visiting);
+                    if (result === false) {
                         return false;
                     }
+                    pending = result === null || pending;
                 }
 
-                return nestedConditions.length > 0;
+                return pending ? null : nestedConditions.length > 0;
             },
 
             _getConditions: function (condition) {
@@ -539,18 +542,167 @@
         any: {
             evaluate: function (condition, runtime, visiting) {
                 const nestedConditions = this._getConditions(condition);
+                let pending = false;
                 for (let i = 0; i < nestedConditions.length; i++) {
-                    if (_private.evaluateCondition(runtime, nestedConditions[i], visiting) === true) {
+                    const result = _private.evaluateCondition(runtime, nestedConditions[i], visiting);
+                    if (result === true) {
                         return true;
                     }
+                    pending = result === null || pending;
                 }
 
-                return false;
+                return pending ? null : false;
             },
 
             _getConditions: function (condition) {
                 const settings = _private.getConditionSettings(condition);
                 return settings && Array.isArray(settings.conditions) ? settings.conditions : [];
+            }
+        },
+
+        /**
+         * Compares a declared feature, with bounded waiting for a relevant observation.
+         * null means pending, not false: ordered branches must not select a fallback prematurely.
+         */
+        feature: {
+            evaluate: function (condition, runtime) {
+                const settings = _private.getConditionSettings(condition) || {};
+                const storage = Breinify.plugins.featureStorage;
+                const lifecycle = runtime.featureLifecycle;
+                const key = '__br_feature.' + settings.featureId;
+                let state = lifecycle.states.get(condition);
+                if (!state) {
+                    state = {stopped: false, timer: null};
+                    lifecycle.states.set(condition, state);
+                } else if (state.stopped) {
+                    return false;
+                }
+
+                const value = storage.get(key);
+                const observation = storage.observation(key);
+                const source = settings.source || 'CURRENT';
+                const relevant = source === 'CURRENT' ||
+                    source === 'PAGE' && observation && observation.pageId === lifecycle.pageId ||
+                    source === 'CHANGE' && observation && observation.changedPageId === lifecycle.pageId;
+                if (value !== null && typeof value !== 'undefined' && relevant) {
+                    if (state.timer !== null) {
+                        window.clearTimeout(state.timer);
+                        lifecycle.timers.delete(state.timer);
+                        state.timer = null;
+                    }
+                    const definition = storage.getFeatureDefinition(key);
+                    return this._compare(value, definition && definition.valueType, settings);
+                } else if (settings.whenUnavailable === 'FALSE') {
+                    return false;
+                }
+
+                const timeout = typeof settings.waitTimeoutInMs === 'number' ? settings.waitTimeoutInMs : 3000;
+                const remaining = lifecycle.startedAt + timeout - Date.now();
+                if (remaining <= 0) {
+                    state.stopped = settings.afterTimeout !== 'CONTINUE';
+                    return false;
+                } else if (state.timer === null) {
+                    state.timer = window.setTimeout(function () {
+                        lifecycle.timers.delete(state.timer);
+                        state.timer = null;
+                        if (runtime.featureLifecycle === lifecycle) {
+                            conditions.feature._notify(runtime);
+                        }
+                    }, remaining);
+                    lifecycle.timers.add(state.timer);
+                }
+                return null;
+            },
+
+            /** Type compatibility is checked against the feature definition, never inferred from its current value. */
+            _compare: function (value, type, settings) {
+                const operator = settings.operator;
+                const fold = function (entry) {
+                    return settings.caseSensitive === false && typeof entry === 'string' ? entry.toLowerCase() : entry;
+                };
+                const expected = fold(settings.value);
+                const values = Array.isArray(settings.values) ? settings.values.map(fold) : [];
+                if (type === 'STRING_ARRAY') {
+                    if (!Array.isArray(value) || !value.every(function (entry) { return typeof entry === 'string'; })) {
+                        return false;
+                    }
+                    const actual = value.map(fold);
+                    const contains = function (entry) { return actual.indexOf(entry) !== -1; };
+                    if (values.length === 0) return false;
+                    if (operator === 'CONTAINS_ANY') return values.some(contains);
+                    if (operator === 'CONTAINS_ALL') return values.every(contains);
+                    if (operator === 'CONTAINS_NONE') return !values.some(contains);
+                    return false;
+                } else if (type === 'STRING' && typeof value === 'string') {
+                    const actual = fold(value);
+                    if (operator === 'IS_ONE_OF') return values.indexOf(actual) !== -1;
+                    if (operator === 'IS_NOT_ONE_OF') return values.length > 0 && values.indexOf(actual) === -1;
+                    if (typeof expected !== 'string') return false;
+                    if (operator === 'EQUALS') return actual === expected;
+                    if (operator === 'NOT_EQUALS') return actual !== expected;
+                    if (operator === 'CONTAINS') return actual.indexOf(expected) !== -1;
+                    if (operator === 'STARTS_WITH') return actual.startsWith(expected);
+                    if (operator === 'ENDS_WITH') return actual.endsWith(expected);
+                    return false;
+                } else if (type === 'BOOLEAN') {
+                    return operator === 'EQUALS' && typeof value === 'boolean' && value === expected;
+                } else if ((type === 'INTEGER' || type === 'FLOATING_NUMBER') &&
+                    typeof value === 'number' && isFinite(value)) {
+                    if (operator === 'BETWEEN') {
+                        return typeof settings.from === 'number' && typeof settings.to === 'number' &&
+                            value >= settings.from && value < settings.to;
+                    } else if (typeof expected !== 'number' || !isFinite(expected)) {
+                        return false;
+                    }
+                    if (operator === 'EQUALS') return value === expected;
+                    if (operator === 'NOT_EQUALS') return value !== expected;
+                    if (operator === 'GREATER_THAN') return value > expected;
+                    if (operator === 'GREATER_THAN_OR_EQUAL') return value >= expected;
+                    if (operator === 'LESS_THAN') return value < expected;
+                    if (operator === 'LESS_THAN_OR_EQUAL') return value <= expected;
+                }
+                return false;
+            },
+
+            _notify: function (runtime) {
+                if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime) return;
+                if (!runtime.module.isValidPage || runtime.module.isValidPage() === true) {
+                    runtime.module.onChange({type: 'feature'});
+                }
+            },
+
+            /** One subscription per experience; observations are already batched by FeatureStorage. */
+            _initialize: function (runtime) {
+                const featureConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
+                    return condition && condition.type === 'feature';
+                });
+                if (featureConditions.length === 0) return;
+                const names = featureConditions.map(function (condition) {
+                    return '__br_feature.' + condition.settings.featureId;
+                });
+                runtime.disposeFeatureListener = Breinify.plugins.featureStorage.onFeatureObservation(names, function () {
+                    conditions.feature._notify(runtime);
+                });
+            },
+
+            _preparePage: function (runtime) {
+                if (!runtime.disposeFeatureListener) return true;
+                if (runtime.module.isValidPage && runtime.module.isValidPage() !== true) return false;
+                const pageId = Breinify.plugins.featureStorage.getPageId();
+                if (runtime.featureLifecycle && runtime.featureLifecycle.pageId === pageId) return true;
+                this._clearTimers(runtime);
+                if (runtime.featureLifecycle) {
+                    _private.resetAppliedActions(runtime);
+                }
+                runtime.featureLifecycle = {
+                    pageId: pageId, startedAt: Date.now(), states: new WeakMap(), timers: new Set()
+                };
+                return true;
+            },
+
+            _clearTimers: function (runtime) {
+                if (!runtime.featureLifecycle) return;
+                runtime.featureLifecycle.timers.forEach(function (timer) { window.clearTimeout(timer); });
             }
         },
 
@@ -1837,6 +1989,16 @@
             return String(actionIndex) + ":" + String(runtime.selectedGroupId || "_none");
         },
 
+        /** A new feature page visit may apply actions again; same-page feature updates keep their limits. */
+        resetAppliedActions: function (runtime) {
+            runtime.appliedTargets = [];
+            runtime.applicationCounts = [];
+            runtime.executedActions = [];
+            runtime.appliedSnippets = {};
+            runtime.observedSnippets = {};
+            runtime.activity.reportedPageKey = null;
+        },
+
         getActionSelector: function (action) {
             const settings = this.getActionSettings(action);
             return $.isPlainObject(settings) ? Breinify.UTL.isNonEmptyString(settings.selector) : null;
@@ -1848,6 +2010,7 @@
         },
 
         getConfiguredActions: function (runtime) {
+            if (runtime.conditionsPending === true) return [];
             const configuredActions = runtime.config && runtime.config.actions;
             if (!configuredActions || typeof configuredActions !== "object") {
                 return [];
@@ -2218,6 +2381,7 @@
                 return !this.hasReportedRenderedElementActivity(runtime);
             }
 
+            if (conditions.feature._preparePage(runtime) !== true) return false;
             if (this.isDecisionRequired(runtime)) {
                 this.requestDecision(runtime);
                 if (!runtime.decision ||
@@ -2337,15 +2501,20 @@
             const implementation = this.getConditionImplementation(condition);
             let result = false;
             if (implementation && typeof implementation.evaluate === "function") {
-                result = implementation.evaluate.call(implementation, condition, runtime, visiting) === true;
+                result = implementation.evaluate.call(implementation, condition, runtime, visiting);
             } else if (implementation && typeof implementation.preEvaluate === "function") {
                 result = implementation.preEvaluate.call(implementation, condition, runtime) === true;
             }
 
-            return result;
+            return result === null ? null : result === true;
         },
 
         selectGroup: function (runtime) {
+            runtime.conditionsPending = false;
+            if (conditions.feature._preparePage(runtime) !== true) {
+                runtime.conditionsPending = true;
+                return null;
+            }
             const conditionGroups = runtime.config && Array.isArray(runtime.config.conditionsGroups)
                 ? runtime.config.conditionsGroups
                 : [];
@@ -2357,13 +2526,20 @@
                 }
 
                 let matches = true;
+                let pending = false;
                 for (let j = 0; j < group.conditions.length; j++) {
-                    if (!this.evaluateCondition(runtime, group.conditions[j], {})) {
+                    const result = this.evaluateCondition(runtime, group.conditions[j], {});
+                    if (result === false) {
                         matches = false;
                         break;
                     }
+                    pending = result === null || pending;
                 }
                 if (matches) {
+                    if (pending) {
+                        runtime.conditionsPending = true;
+                        return null;
+                    }
                     return group.actionGroup;
                 }
             }
@@ -2443,6 +2619,12 @@
             }
 
             const key = _private.key(webExId, webExVersionId);
+            const previousRuntime = _private.runtimes[key];
+            if (previousRuntime) {
+                conditions.feature._clearTimers(previousRuntime);
+                if (previousRuntime.disposeFeatureListener) previousRuntime.disposeFeatureListener();
+                window.clearTimeout(previousRuntime.conditionEvaluationTimer);
+            }
             const runtime = {
                 module: module,
                 config: config,
@@ -2485,6 +2667,7 @@
                 return _private.findRequirements(runtime, $el, data);
             };
 
+            conditions.feature._initialize(runtime);
             return runtime;
         },
 
@@ -2499,6 +2682,8 @@
             }
 
             try {
+                if (conditions.feature._preparePage(runtime) !== true) return false;
+                runtime.conditionsPending = false;
                 _private.scheduleConditionEvaluation(runtime);
 
                 if (_private.isDecisionRequired(runtime)) {
@@ -2519,6 +2704,7 @@
                     runtime.selectedGroupId = _private.selectGroup(runtime);
                 }
 
+                if (runtime.conditionsPending === true) return true;
                 const execution = _private.executeActions(runtime);
                 _private.reportRenderedElementOutcome(runtime, execution);
                 return true;

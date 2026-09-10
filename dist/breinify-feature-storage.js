@@ -24,11 +24,17 @@
 
     const _private = {
         featureChangeTimer: null,
+        flushingFeatureChanges: false,
         currentFeatures: {},
         currentFeatureMeta: {},
         pendingFeatureChanges: {},
         listeners: [],
         featureListeners: [],
+        observationListeners: [],
+        observations: {},
+        pendingObservations: {},
+        pageHref: null,
+        pageId: 0,
 
         featureDefinitions: {},
 
@@ -139,6 +145,7 @@
             try {
                 Breinify.plugins.trigger.init();
                 Breinify.plugins.trigger.addUrlChangeObserver('featureStorage-location-watchers', function () {
+                    self.getPageId();
                     self.reconcileLocationWatchers(false);
                 });
 
@@ -357,9 +364,13 @@
                 return null;
             }
 
-            return {
+            const definition = {
                 persistence: this.cloneObject(value.persistence)
             };
+            if (typeof value.valueType === 'string') {
+                definition.valueType = value.valueType;
+            }
+            return definition;
         },
 
         createChangePayload: function () {
@@ -534,13 +545,17 @@
                 ? type
                 : defaults.persistence.type;
 
-            return {
+            const definitionResult = {
                 persistence: {
                     enabled: enabled,
                     type: type,
                     ttlInMs: ttlInMs
                 }
             };
+            if (typeof normalizedInput.valueType === 'string') {
+                definitionResult.valueType = normalizedInput.valueType;
+            }
+            return definitionResult;
         },
 
         extractInlineFeatureDefinition: function (additional) {
@@ -974,31 +989,64 @@
          * Flushes pending feature changes (debounced).
          *
          * This method:
-         * 1) Builds a normalized payload of all feature changes
-         * 2) Clears pending changes
-         * 3) Notifies:
+         * 1) Captures the change payload and observation batch.
+         * 2) Clears only the captured pending batch.
+         * 3) Notifies in order:
          *    - global listeners (onChange)
          *    - feature-specific listeners (onFeatureChange)
+         *    - observation listeners (onFeatureObservation)
          *
-         * Triggered automatically via debounce when features change.
+         * Callback writes belong to the next batch. Recursive flush calls are deferred to avoid nested delivery.
+         * Triggered automatically via debounce when features change, or explicitly through flush().
          */
         flushFeatureChanges: function () {
-            if ($.isEmptyObject(this.pendingFeatureChanges)) {
+            if (this.flushingFeatureChanges) {
                 return;
             }
+            if (this.featureChangeTimer !== null) {
+                window.clearTimeout(this.featureChangeTimer);
+                this.featureChangeTimer = null;
+            }
 
-            const payload = this.createChangePayload();
-            this.pendingFeatureChanges = {};
+            this.flushingFeatureChanges = true;
+            try {
+                const payload = $.isEmptyObject(this.pendingFeatureChanges) ? null : this.createChangePayload();
+                const observedNames = Object.keys(this.pendingObservations);
+                const observationListeners = this.observationListeners.slice();
+                this.pendingFeatureChanges = {};
+                this.pendingObservations = {};
 
-            this.listeners.slice().forEach(function (listener) {
-                try {
-                    listener(payload);
-                } catch (e) {
-                    _private.debugError('listener failed', e);
+                if (payload !== null) {
+                    this.listeners.slice().forEach(function (listener) {
+                        try {
+                            listener(payload);
+                        } catch (e) {
+                            _private.debugError('listener failed', e);
+                        }
+                    });
+                    this.notifyFeatureListeners(payload);
+                }
+
+                this.notifyFeatureObservations(observedNames, observationListeners);
+            } finally {
+                this.flushingFeatureChanges = false;
+            }
+        },
+
+        /** Delivers the captured observations without consuming changes made during callback execution. */
+        notifyFeatureObservations: function (observedNames, listeners) {
+            if (observedNames.length === 0) {
+                return;
+            }
+            listeners.forEach(function (entry) {
+                if (entry.names.some(function (name) { return observedNames.indexOf(name) !== -1; })) {
+                    try {
+                        entry.listener();
+                    } catch (e) {
+                        _private.debugError('observation listener failed', e);
+                    }
                 }
             });
-
-            this.notifyFeatureListeners(payload);
         },
 
         isEqual: function (left, right) {
@@ -1048,6 +1096,52 @@
             }
         },
 
+        /** Tracks visits, not just URLs, so returning to a previous SPA URL is a new page context. */
+        getPageId: function () {
+            const href = window.location.href;
+            if (this.pageHref !== href) {
+                this.pageHref = href;
+                this.pageId += 1;
+            }
+            return this.pageId;
+        },
+
+        /** Numeric DOM strings may be normalized; invalid declared values become unavailable, never zero. */
+        normalizeFeatureValue: function (value, type) {
+            if (value === null || typeof value === 'undefined') {
+                return null;
+            } else if (type === 'INTEGER' || type === 'FLOATING_NUMBER') {
+                if (typeof value === 'string' && /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) {
+                    value = Number(value.trim());
+                }
+                const finite = typeof value === 'number' && isFinite(value);
+                const integer = finite && Math.floor(value) === value && Math.abs(value) <= 9007199254740991;
+                return finite && (type !== 'INTEGER' || integer) ? value : null;
+            } else if (type === 'STRING') {
+                return typeof value === 'string' ? value : null;
+            } else if (type === 'BOOLEAN') {
+                return typeof value === 'boolean' ? value : null;
+            } else if (type === 'STRING_ARRAY') {
+                return Array.isArray(value) && value.every(function (entry) {
+                    return typeof entry === 'string';
+                }) ? value : null;
+            }
+            return value;
+        },
+
+        recordObservation: function (name, changed, hadValue) {
+            const pageId = this.getPageId();
+            const previous = this.observations[name];
+            this.observations[name] = {
+                pageId: pageId,
+                changedPageId: changed && hadValue ? pageId : previous ? previous.changedPageId : null
+            };
+            if (!previous || previous.pageId !== pageId || changed) {
+                this.pendingObservations[name] = true;
+                this.scheduleFlush();
+            }
+        },
+
         applyFeatureChange: function (name, oldValue, newValue, additional) {
             const normalizedName = this.normalizeName(name);
             if (normalizedName === '') {
@@ -1055,8 +1149,12 @@
             }
 
             const normalizedOldValue = typeof oldValue === 'undefined' ? null : oldValue;
-            const normalizedNewValue = typeof newValue === 'undefined' ? null : newValue;
-            if (this.isEqual(normalizedOldValue, normalizedNewValue)) {
+            const definition = this.featureDefinitions[normalizedName];
+            const normalizedNewValue = this.normalizeFeatureValue(newValue, definition && definition.valueType);
+            const changed = !this.isEqual(normalizedOldValue, normalizedNewValue);
+            this.recordObservation(normalizedName, changed,
+                Object.prototype.hasOwnProperty.call(this.currentFeatures, normalizedName));
+            if (!changed) {
                 this.persistFeature(normalizedName, additional);
                 return false;
             }
@@ -1101,7 +1199,6 @@
 
             delete this.currentFeatures[normalizedName];
             delete this.currentFeatureMeta[normalizedName];
-            delete this.pendingFeatureChanges[normalizedName];
             this.removePersistedFeature(normalizedName);
             return changed;
         },
@@ -2149,7 +2246,35 @@
                 _private.touchPersistedFeature(normalizedName, null);
             }
 
-            return value;
+            const definition = _private.featureDefinitions[normalizedName];
+            return _private.normalizeFeatureValue(value, definition && definition.valueType);
+        },
+
+        /** Returns ephemeral observation metadata. Restoring storage does not count as observing a page. */
+        observation: function (name) {
+            const observation = _private.observations[name];
+            return observation ? $.extend({}, observation) : null;
+        },
+
+        /** Returns the current SPA visit identifier; it is not persisted across full page loads. */
+        getPageId: function () {
+            return _private.getPageId();
+        },
+
+        /**
+         * Subscribes to relevant observations, debounced with feature changes.
+         * Same-value observations notify only once per page, avoiding feedback loops.
+         * Returns a disposer; existing onFeatureChange listeners still receive only actual changes.
+         */
+        onFeatureObservation: function (names, listener) {
+            _private.ensureLocationWatcherSupport();
+            const entry = {names: _private.normalizeNames(names), listener: listener};
+            _private.observationListeners.push(entry);
+            return function () {
+                _private.observationListeners = _private.observationListeners.filter(function (candidate) {
+                    return candidate !== entry;
+                });
+            };
         },
 
         /**
@@ -2214,7 +2339,8 @@
          * Clears all current feature values, metadata and pending changes.
          *
          * Listener registrations and feature definitions are kept.
-         * Persisted state is also removed.
+         * Persisted state is also removed. Observation subscribers receive an invalidation;
+         * the existing change-listener contract remains silent for clear().
          *
          * @returns {Object} FeatureStorage
          */
@@ -2226,12 +2352,17 @@
 
             Object.keys(_private.currentFeatures).forEach(function (name) {
                 _private.removePersistedFeature(name);
+                _private.pendingObservations[name] = true;
             });
 
             _private.currentFeatures = {};
             _private.currentFeatureMeta = {};
             _private.pendingFeatureChanges = {};
+            _private.observations = {};
             _private.lastLocationHref = null;
+            if (!$.isEmptyObject(_private.pendingObservations)) {
+                _private.scheduleFlush();
+            }
             return this;
         },
 

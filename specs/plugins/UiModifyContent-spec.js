@@ -2,6 +2,334 @@
 
 describe('UiModifyContent', function () {
 
+    describe('feature conditions', function () {
+        var storage;
+        var runtime;
+        var module;
+        var activitySpy;
+        var featureKey;
+        var sequence = 0;
+        var webExId = 'modify-content-feature-condition-test';
+
+        beforeEach(function () {
+            storage = Breinify.plugins.featureStorage;
+            module = {isValidPage: function () { return true; }};
+            activitySpy = createActivitySpy();
+            sequence += 1;
+            featureKey = '__br_feature.test-feature-' + sequence;
+        });
+
+        afterEach(function () {
+            // replacing the runtime must dispose its observation subscription and outstanding timers
+            uiModifyContent.register({}, webExId, 'feature-version', {actions: {}});
+            storage.remove(featureKey);
+            storage.flush();
+            activitySpy.restore();
+        });
+
+        function setup(type, settings, expression) {
+            storage.defineFeature(featureKey, {valueType: type, persistence: {enabled: false}});
+            var feature = {type: 'feature', settings: $.extend({
+                featureId: featureKey.substring('__br_feature.'.length),
+                operator: 'EQUALS', value: '1234', waitTimeoutInMs: 3000
+            }, settings)};
+            runtime = uiModifyContent.register(module, webExId, 'feature-version', {
+                conditionsGroups: [{actionGroup: 'matched', conditions: expression ? expression(feature) : [feature]}],
+                actions: {matched: [], _default: []}
+            });
+            return feature;
+        }
+
+        function evaluate() {
+            uiModifyContent.handle(webExId, 'feature-version', {type: 'full-scan'});
+        }
+
+        it('defers default and renderedElement reporting until a feature arrives', function () {
+            setup('STRING');
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(activitySpy.renderedElements.length).toBe(0);
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('matched');
+            expect(runtime.conditionsPending).toBe(false);
+            expect(activitySpy.renderedElements.length).toBe(1);
+        });
+
+        it('locks a timed-out STOP condition, but allows CONTINUE to match a late value', function () {
+            setup('STRING');
+            evaluate();
+            runtime.featureLifecycle.startedAt -= 4000;
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('_default');
+
+            storage.remove(featureKey);
+            setup('STRING', {afterTimeout: 'CONTINUE'});
+            evaluate();
+            runtime.featureLifecycle.startedAt -= 4000;
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('does not consider initial discovery to be CHANGE, but does react to a changed value', function () {
+            setup('STRING', {source: 'CHANGE'});
+            storage.set(featureKey, '1234');
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            storage.set(featureKey, '5678');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('_default');
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('requires a fresh PAGE observation, including an unchanged value after SPA navigation', function () {
+            setup('STRING', {source: 'PAGE'});
+            storage.set(featureKey, '1234');
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+            var originalUrl = window.location.href;
+            try {
+                window.history.replaceState({}, '', '#feature-page-observation');
+                evaluate();
+                expect(runtime.conditionsPending).toBe(true);
+                storage.set(featureKey, '1234');
+                storage.flush();
+                expect(runtime.selectedGroupId).toBe('matched');
+            } finally {
+                window.history.replaceState({}, '', originalUrl);
+            }
+        });
+
+        it('lets a definitive false dominate pending in all, and true dominate pending in any', function () {
+            setup('STRING', {}, function (feature) {
+                return [{type: 'all', settings: {conditions: [
+                    feature, {type: 'random', randomRefId: 'feature-all-never', settings: {probability: 0}}
+                ]}}];
+            });
+            evaluate();
+            expect(runtime.conditionsPending).toBe(false);
+            expect(runtime.selectedGroupId).toBe('_default');
+            setup('STRING', {}, function (feature) {
+                return [{type: 'any', settings: {conditions: [
+                    feature, {type: 'random', randomRefId: 'feature-any-always', settings: {probability: 1}}
+                ]}}];
+            });
+            evaluate();
+            expect(runtime.conditionsPending).toBe(false);
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('compares numbers without lexicographic ordering and keeps zero available', function () {
+            setup('FLOATING_NUMBER', {operator: 'BETWEEN', from: 0, to: 10});
+            storage.set(featureKey, '0');
+            evaluate();
+            expect(storage.get(featureKey)).toBe(0);
+            expect(runtime.selectedGroupId).toBe('matched');
+            storage.set(featureKey, '10');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('_default');
+            storage.set(featureKey, 'not a number');
+            expect(storage.get(featureKey)).toBeNull();
+        });
+
+        it('holds an earlier possible group instead of executing a later matching group', function () {
+            setup('STRING');
+            runtime.config.conditionsGroups.push({
+                actionGroup: 'later',
+                conditions: [{type: 'random', randomRefId: 'feature-later-always', settings: {probability: 1}}]
+            });
+            runtime.config.actions.later = [];
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(runtime.selectedGroupId).toBeNull();
+            runtime.featureLifecycle.startedAt -= 4000;
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('later');
+        });
+
+        it('does not start a wait or execute actions while page activation is false', function () {
+            setup('STRING');
+            module.isValidPage = function () { return false; };
+            evaluate();
+            expect(runtime.featureLifecycle).toBeUndefined();
+            expect(activitySpy.renderedElements.length).toBe(0);
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(activitySpy.renderedElements.length).toBe(0);
+            module.isValidPage = function () { return true; };
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('enforces integer values and does not convert empty text or booleans into numbers', function () {
+            setup('INTEGER', {value: 12});
+            ['12.5', '', true, Infinity, '9007199254740992'].forEach(function (value) {
+                storage.set(featureKey, value);
+                expect(storage.get(featureKey)).toBeNull();
+            });
+            storage.set(featureKey, '12');
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('supports false and empty text as available values', function () {
+            setup('BOOLEAN', {value: false});
+            storage.set(featureKey, false);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+            setup('STRING', {value: ''});
+            storage.set(featureKey, '');
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('applies case sensitivity to every string-array membership comparison', function () {
+            setup('STRING_ARRAY', {operator: 'CONTAINS_ALL', values: ['Blue', '9'], caseSensitive: false});
+            storage.set(featureKey, ['BLUE', '9', 'extra']);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+            setup('STRING_ARRAY', {operator: 'CONTAINS_ALL', values: ['Blue', '9'], caseSensitive: true});
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+        });
+
+        it('delivers the original change before observation callbacks rewrite the feature', function () {
+            setup('STRING');
+            storage.flush();
+            var events = [];
+            var rewritten = false;
+            var globalListener = function (payload) {
+                if (payload.changed[featureKey]) events.push('global:' + payload.changed[featureKey].newValue);
+            };
+            var featureListener = function (payload) {
+                events.push('feature:' + payload.changed[featureKey].newValue);
+            };
+            storage.onChange(globalListener);
+            storage.onFeatureChange(featureKey, featureListener);
+            var dispose = storage.onFeatureObservation(featureKey, function () {
+                events.push('observation');
+                if (!rewritten) {
+                    rewritten = true;
+                    storage.set(featureKey, 'second');
+                }
+            });
+            try {
+                storage.set(featureKey, 'first');
+                storage.flush();
+                expect(events).toEqual(['global:first', 'feature:first', 'observation']);
+                expect(storage.get(featureKey)).toBe('second');
+                storage.flush();
+                expect(events).toEqual([
+                    'global:first', 'feature:first', 'observation',
+                    'global:second', 'feature:second', 'observation'
+                ]);
+            } finally {
+                dispose();
+                storage.offChange(globalListener);
+                storage.offFeatureChange(featureKey, featureListener);
+            }
+        });
+
+        it('preserves the original change and queues removal performed by an observation callback', function () {
+            setup('STRING');
+            storage.flush();
+            var changes = [];
+            var removed = false;
+            var listener = function (payload) {
+                changes.push(payload.changed[featureKey]);
+            };
+            storage.onFeatureChange(featureKey, listener);
+            var dispose = storage.onFeatureObservation(featureKey, function () {
+                if (!removed) {
+                    removed = true;
+                    storage.remove(featureKey);
+                }
+            });
+            try {
+                storage.set(featureKey, 'first');
+                storage.flush();
+                expect(changes.length).toBe(1);
+                expect(changes[0].newValue).toBe('first');
+                expect(storage.get(featureKey)).toBeNull();
+                storage.flush();
+                expect(changes.length).toBe(2);
+                expect(changes[1].oldValue).toBe('first');
+                expect(changes[1].newValue).toBeNull();
+                expect(changes[1].additional.removed).toBe(true);
+            } finally {
+                dispose();
+                storage.offFeatureChange(featureKey, listener);
+            }
+        });
+
+        it('defers recursive flushes so callback writes do not interrupt the original batch', function () {
+            setup('STRING');
+            storage.flush();
+            var events = [];
+            var updated = false;
+            var globalListener = function (payload) {
+                if (!payload.changed[featureKey]) return;
+                events.push('global:' + payload.changed[featureKey].newValue);
+                if (!updated) {
+                    updated = true;
+                    storage.set(featureKey, 'second');
+                    storage.flush();
+                }
+            };
+            var featureListener = function (payload) {
+                events.push('feature:' + payload.changed[featureKey].newValue);
+            };
+            storage.onChange(globalListener);
+            storage.onFeatureChange(featureKey, featureListener);
+            var dispose = storage.onFeatureObservation(featureKey, function () {
+                events.push('observation');
+                storage.flush();
+            });
+            try {
+                storage.set(featureKey, 'first');
+                storage.flush();
+                expect(events).toEqual(['global:first', 'feature:first', 'observation']);
+                storage.flush();
+                expect(events).toEqual([
+                    'global:first', 'feature:first', 'observation',
+                    'global:second', 'feature:second', 'observation'
+                ]);
+            } finally {
+                dispose();
+                storage.offChange(globalListener);
+                storage.offFeatureChange(featureKey, featureListener);
+            }
+        });
+
+        it('notifies removals while unchanged observations do not generate change events', function () {
+            setup('STRING');
+            storage.set(featureKey, '1234');
+            storage.flush();
+            var changes = 0;
+            var listener = function () { changes += 1; };
+            storage.onFeatureChange(featureKey, listener);
+            try {
+                storage.set(featureKey, '1234');
+                storage.flush();
+                expect(changes).toBe(0);
+                storage.remove(featureKey);
+                storage.flush();
+                expect(changes).toBe(1);
+                expect(runtime.conditionsPending).toBe(true);
+            } finally {
+                storage.offFeatureChange(featureKey, listener);
+            }
+        });
+    });
+
     //noinspection JSUnresolvedVariable
     var uiModifyContent = window['Breinify'].plugins.uiModifyContent;
 
