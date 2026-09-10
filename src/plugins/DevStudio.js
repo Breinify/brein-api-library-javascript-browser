@@ -910,6 +910,8 @@
                 div.split-test-name { color: #ffcc80; font-weight: bold; margin-bottom: 5px; }
                 div.split-test-details { color: #ddd; display: flex; flex-wrap: wrap; gap: 5px 10px; }
                 span.split-test-detail-label { color: #bbbbbb; }
+                div.split-test-reference { color: #ddd; margin-top: 7px; font-size: 11px; overflow-wrap: anywhere; }
+                div.split-test-reference code { font-size: inherit; }
                 div.console-empty { color: #bbbbbb; font-style: italic; }
                 div.console-entry { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
                 div.console-entry.ready { border-left-color: #ab47bc; }
@@ -2238,6 +2240,32 @@
             return true;
         }
 
+        // resolve gateway assignment labels without changing their storage or tracking identifiers
+        _resolveWebExperienceSplitTest(testName) {
+            const name = Breinify.UTL.isNonEmptyString(testName);
+            if (name === null || !name.startsWith('web-experience::')) {
+                return null;
+            }
+
+            const parts = name.split('::');
+            const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (parts.length !== 3 || !uuid.test(parts[1]) || !uuid.test(parts[2])) {
+                return null;
+            }
+
+            const webExId = parts[1];
+            const webExVersionId = parts[2];
+            const api = Breinify.plugins.api;
+            const module = api && typeof api.getModule === 'function'
+                ? api.getModule('web-experience-' + webExId) : null;
+            // a retained assignment can belong to a different version than the currently loaded module
+            const matchesVersion = $.isPlainObject(module) &&
+                module.webExId === webExId && module.webExVersionId === webExVersionId;
+            const campaignName = matchesVersion ? Breinify.UTL.isNonEmptyString(module.campaignName) : null;
+
+            return {webExId, webExVersionId, campaignName};
+        }
+
         _renderSplitTests(splitTests) {
             if (!$.isPlainObject(splitTests)) {
                 return null;
@@ -2274,7 +2302,14 @@
                 const $assignment = $('<div class="split-test"></div>');
                 const $details = $('<div class="split-test-details"></div>');
 
-                $assignment.append($('<div class="split-test-name"></div>').text(assignment.testName));
+                const webExperience = this._resolveWebExperienceSplitTest(assignment.testName);
+                const displayName = webExperience === null
+                    ? assignment.testName : webExperience.campaignName || 'Web experience split test';
+                $assignment.append($('<div class="split-test-name"></div>')
+                    .text(displayName).attr('title', assignment.testName));
+                if (webExperience !== null && webExperience.campaignName !== null) {
+                    $details.append($('<span></span>').text('Web experience split test'));
+                }
                 if (typeof assignment.groupDecision === 'string' && assignment.groupDecision !== '') {
                     $details.append($('<span></span>').append($('<span class="split-test-detail-label">Group: </span>')).append(document.createTextNode(assignment.groupDecision)));
                 }
@@ -2289,6 +2324,17 @@
                 }
 
                 $assignment.append($details);
+                if (webExperience !== null) {
+                    const $reference = $('<div class="split-test-reference"></div>');
+                    const $experience = $('<div></div>')
+                        .append($('<span class="split-test-detail-label"></span>').text('Experience: '))
+                        .append($('<code></code>').text(webExperience.webExId));
+                    const $version = $('<div></div>')
+                        .append($('<span class="split-test-detail-label"></span>').text('Version: '))
+                        .append($('<code></code>').text(webExperience.webExVersionId));
+                    $reference.append($experience, $version);
+                    $assignment.append($reference);
+                }
                 $section.append($assignment);
             });
 
