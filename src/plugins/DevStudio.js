@@ -908,10 +908,12 @@
                 div.channel-status-value { color: #fff; }
                 div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #ffb74d; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
                 div.split-test-name { color: #ffcc80; font-weight: bold; margin-bottom: 5px; }
-                div.split-test-details { color: #ddd; display: flex; flex-wrap: wrap; gap: 5px 10px; }
+                div.split-test-details { color: #ddd; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 2fr); gap: 5px 10px; }
+                div.split-test-details > span { min-width: 0; overflow-wrap: anywhere; }
                 span.split-test-detail-label { color: #bbbbbb; }
-                div.split-test-reference { color: #ddd; margin-top: 7px; font-size: 11px; overflow-wrap: anywhere; }
+                div.split-test-reference { color: #ddd; margin-top: 7px; font-size: 11px; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 8px; overflow-wrap: anywhere; }
                 div.split-test-reference code { font-size: inherit; }
+                @media (max-width: 600px) { div.split-test-details { grid-template-columns: minmax(0, 1fr); } }
                 div.console-empty { color: #bbbbbb; font-style: italic; }
                 div.console-entry { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
                 div.console-entry.ready { border-left-color: #ab47bc; }
@@ -2256,14 +2258,32 @@
             const webExId = parts[1];
             const webExVersionId = parts[2];
             const api = Breinify.plugins.api;
-            const module = api && typeof api.getModule === 'function'
+            const directModule = api && typeof api.getModule === 'function'
                 ? api.getModule('web-experience-' + webExId) : null;
-            // a retained assignment can belong to a different version than the currently loaded module
-            const matchesVersion = $.isPlainObject(module) &&
-                module.webExId === webExId && module.webExVersionId === webExVersionId;
-            const campaignName = matchesVersion ? Breinify.UTL.isNonEmptyString(module.campaignName) : null;
+            const modules = api && $.isPlainObject(api.modules) ? Object.values(api.modules) : [];
+            if ($.isPlainObject(directModule)) {
+                modules.unshift(directModule);
+            }
+            const matches = modules.filter(module => $.isPlainObject(module) &&
+                module.webExId === webExId && Breinify.UTL.isNonEmptyString(module.campaignName) !== null);
+            const exactVersion = matches.find(module => module.webExVersionId === webExVersionId);
+            // resolve the experience name even when a retained assignment refers to an older version
+            const module = exactVersion || matches[0];
+            const campaignName = module ? Breinify.UTL.isNonEmptyString(module.campaignName) : null;
 
             return {webExId, webExVersionId, campaignName};
+        }
+
+        _appendSplitTestDetail($details, label, value) {
+            const text = Breinify.UTL.isNonEmptyString(value);
+            $details.append($('<span></span>')
+                .append($('<span class="split-test-detail-label"></span>').text(label + ': '))
+                .append(document.createTextNode(text === null ? '—' : text)));
+        }
+
+        _appendSplitTestReference($reference, label, value) {
+            $reference.append($('<span class="split-test-detail-label"></span>').text(label + ':'));
+            $reference.append($('<code></code>').text(value));
         }
 
         _renderSplitTests(splitTests) {
@@ -2307,32 +2327,25 @@
                     ? assignment.testName : webExperience.campaignName || 'Web experience split test';
                 $assignment.append($('<div class="split-test-name"></div>')
                     .text(displayName).attr('title', assignment.testName));
-                if (webExperience !== null && webExperience.campaignName !== null) {
-                    $details.append($('<span></span>').text('Web experience split test'));
-                }
-                if (typeof assignment.groupDecision === 'string' && assignment.groupDecision !== '') {
-                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Group: </span>')).append(document.createTextNode(assignment.groupDecision)));
-                }
-                if (typeof assignment.selectedInstance === 'string' && assignment.selectedInstance !== '') {
-                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Instance: </span>')).append(document.createTextNode(assignment.selectedInstance)));
-                }
-                if (typeof assignment.usedEnforcedGroup === 'boolean') {
-                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Enforced: </span>')).append(document.createTextNode(assignment.usedEnforcedGroup ? 'Yes' : 'No')));
-                }
-                if (assignment.lastUpdated !== null) {
-                    $details.append($('<span></span>').append($('<span class="split-test-detail-label">Updated: </span>')).append(document.createTextNode(new Date(assignment.lastUpdated).toLocaleString())));
-                }
+                const enforced = typeof assignment.usedEnforcedGroup === 'boolean'
+                    ? (assignment.usedEnforcedGroup ? 'Yes' : 'No') : null;
+                const updated = assignment.lastUpdated === null
+                    ? null : new Date(assignment.lastUpdated).toLocaleString();
+                this._appendSplitTestDetail($details, 'Group', assignment.groupDecision);
+                this._appendSplitTestDetail($details, 'Enforced', enforced);
+                this._appendSplitTestDetail($details, 'Updated', updated);
 
                 $assignment.append($details);
+                const $reference = $('<div class="split-test-reference"></div>');
+                const selectedInstance = Breinify.UTL.isNonEmptyString(assignment.selectedInstance);
+                if (selectedInstance !== null) {
+                    this._appendSplitTestReference($reference, 'Instance', selectedInstance);
+                }
                 if (webExperience !== null) {
-                    const $reference = $('<div class="split-test-reference"></div>');
-                    const $experience = $('<div></div>')
-                        .append($('<span class="split-test-detail-label"></span>').text('Experience: '))
-                        .append($('<code></code>').text(webExperience.webExId));
-                    const $version = $('<div></div>')
-                        .append($('<span class="split-test-detail-label"></span>').text('Version: '))
-                        .append($('<code></code>').text(webExperience.webExVersionId));
-                    $reference.append($experience, $version);
+                    this._appendSplitTestReference($reference, 'Experience', webExperience.webExId);
+                    this._appendSplitTestReference($reference, 'Version', webExperience.webExVersionId);
+                }
+                if (selectedInstance !== null || webExperience !== null) {
                     $assignment.append($reference);
                 }
                 $section.append($assignment);
