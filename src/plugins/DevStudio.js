@@ -838,6 +838,8 @@
         developmentCacheRefreshing = false;
         developmentCacheExpiry = null;
         developmentCacheExpiryTimer = null;
+        developmentCacheRequest = null;
+        $developmentCacheRefresh = null;
         devStudioStateStorageKey = 'breinify::dev-studio::state';
 
         constructor() {
@@ -2061,10 +2063,38 @@
         }
 
         async _resolveDevelopmentCacheExpiry(devScriptUrl, $cacheRefresh) {
-            $cacheRefresh.text('Cache refresh: checking…');
+            const url = devScriptUrl.toString();
+            this.$developmentCacheRefresh = $cacheRefresh;
+            if (this.developmentCacheExpiryTimer !== null) {
+                window.clearTimeout(this.developmentCacheExpiryTimer);
+                this.developmentCacheExpiryTimer = null;
+            }
+            $cacheRefresh.text(this.developmentCacheRefreshing === true
+                ? 'Cache refresh: refreshing…'
+                : 'Cache refresh: checking…');
 
+            // reuse the cache check across plugin lifecycle updates and tab switches, including failed checks
+            if (this.developmentCacheRequest === null || this.developmentCacheRequest.url !== url) {
+                this.developmentCacheRequest = {
+                    url: url,
+                    promise: this._fetchDevelopmentCacheExpiry(url)
+                };
+            }
+
+            const request = this.developmentCacheRequest;
+            const expiry = await request.promise;
+            if (this.developmentCacheRequest !== request || this.$developmentCacheRefresh !== $cacheRefresh ||
+                this.developmentCacheRefreshing === true) {
+                return;
+            }
+
+            this.developmentCacheExpiry = expiry;
+            this._renderDevelopmentCacheRefresh($cacheRefresh);
+        }
+
+        async _fetchDevelopmentCacheExpiry(url) {
             try {
-                const response = await window.fetch(devScriptUrl.toString(), {
+                const response = await window.fetch(url, {
                     method: 'GET',
                     cache: 'no-store',
                     credentials: 'omit',
@@ -2073,15 +2103,13 @@
                 const script = await response.text();
                 const date = Date.parse(response.headers.get('Date'));
                 if (!response.ok || script === '' || Number.isNaN(date)) {
-                    this.developmentCacheExpiry = null;
+                    return null;
                 } else {
-                    this.developmentCacheExpiry = date + 5 * 60 * 1000;
+                    return date + 5 * 60 * 1000;
                 }
             } catch (error) {
-                this.developmentCacheExpiry = null;
+                return null;
             }
-
-            this._renderDevelopmentCacheRefresh($cacheRefresh);
         }
 
         async _refreshDevelopmentScript(devScriptUrl, $refreshButton, $cacheRefresh) {
