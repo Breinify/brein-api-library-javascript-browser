@@ -1383,11 +1383,15 @@
         _updatePortalLinksTab() {
             const status = _private.channel.getStatus();
             const connected = status.active === true;
-            const previewCount = this._getPreviews().length;
+            const previews = this._getPreviews();
+            const loadedCount = previews.filter(preview => preview.status === 'APPLIED').length;
+            const unavailableCount = previews.length - loadedCount;
+            const linked = connected || loadedCount > 0;
             const description = (connected ? 'Linked to portal' : 'Not linked to portal') + ' · ' +
-                previewCount + (previewCount === 1 ? ' preview' : ' previews');
+                loadedCount + (loadedCount === 1 ? ' preview loaded' : ' previews loaded') +
+                (unavailableCount > 0 ? ' · ' + unavailableCount + ' not applied' : '');
             const $status = $('<span class="portal-link-status" aria-hidden="true"></span>')
-                .text(connected ? '(✓)' : '(-)');
+                .text(linked ? '(✓)' : '(-)');
             this.$tabs.filter('[data-tab="portal-links"]').text('Links').append($status)
                 .attr('title', description).attr('aria-label', 'Links: ' + description);
         }
