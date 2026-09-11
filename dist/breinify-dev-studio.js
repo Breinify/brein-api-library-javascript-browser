@@ -819,6 +819,7 @@
         $userContainer = null;
         $splitTestsContainer = null;
         $inspectContainer = null;
+        $portalLinksContainer = null;
         $channelContainer = null;
         $previewsContainer = null;
         $previewIndicators = null;
@@ -886,6 +887,9 @@
                 header button.tab:hover:not(.active) { color: #fff; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
+                #portal-links-container { white-space: normal; }
+                .portal-links-section + .portal-links-section { border-top: 1px solid #333; margin-top: 20px; padding-top: 16px; }
+                .portal-links-heading { color: #ddd; font-size: 12px; margin: 0 0 12px; }
                 div.user-header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 16px; }
                 div.user-last-fetched { color: #bbbbbb; font-size: 11px; }
                 button.refresh-btn, button.copy-btn, button.inspect-pin-btn { background: #2a2a2a; border: 1px solid #4fc3f7; border-radius: 4px; color: #4fc3f7; cursor: pointer; font-family: inherit; }
@@ -906,8 +910,10 @@
                 div.channel-status.error { border-left-color: #ef5350; }
                 div.channel-status-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase; }
                 div.channel-status-value { color: #fff; }
-                div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #ffb74d; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
-                div.split-test-name { color: #ffcc80; font-weight: bold; margin-bottom: 5px; }
+                div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #bbbbbb; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
+                div.split-test-name { color: #ddd; font-weight: bold; margin-bottom: 5px; }
+                div.split-test.test { border-left-color: #4fc3f7; }
+                div.split-test.test div.split-test-name { color: #4fc3f7; }
                 div.split-test-details { color: #ddd; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 2fr); gap: 5px 10px; }
                 div.split-test-details > span { min-width: 0; overflow-wrap: anywhere; }
                 span.split-test-detail-label { color: #bbbbbb; }
@@ -1033,21 +1039,28 @@
                 <header>
                     <div class="tabs">
                         <button class="tab active" data-tab="info">Info</button>
-                        <button class="tab" data-tab="previews">Previews</button>
+                        <button class="tab" data-tab="portal-links">Portal Links (0 | 0)</button>
                         <button class="tab" data-tab="inspect">Inspect</button>
                         <button class="tab" data-tab="console">Console</button>
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
-                        <button class="tab" data-tab="channel">Channel</button>
                     </div>
                 </header>
                 <div id="log-container" class="container"></div>
                 <div id="info-container" class="container active"></div>
-                <div id="previews-container" class="container"></div>
+                <div id="portal-links-container" class="container">
+                    <section class="portal-links-section" aria-labelledby="portal-channel-heading">
+                        <h2 id="portal-channel-heading" class="portal-links-heading">Portal Channel</h2>
+                        <div id="channel-container"></div>
+                    </section>
+                    <section class="portal-links-section" aria-labelledby="portal-previews-heading">
+                        <h2 id="portal-previews-heading" class="portal-links-heading">Web Experience Previews</h2>
+                        <div id="previews-container"></div>
+                    </section>
+                </div>
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
                 <div id="inspect-container" class="container"></div>
-                <div id="channel-container" class="container"></div>
             </div>
             <div id="payload-modal" role="presentation" aria-hidden="true">
                 <div class="payload-dialog" role="dialog" aria-modal="true" aria-labelledby="payload-modal-title">
@@ -1076,11 +1089,12 @@
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
             this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
+            this.$portalLinksContainer = this.$shadowRoot.find('#portal-links-container');
             this.$channelContainer = this.$shadowRoot.find('#channel-container');
             this.$previewsContainer = this.$shadowRoot.find('#previews-container');
             this.$previewIndicators = this.$shadowRoot.find('.preview-indicator');
             this.$previewIndicators.click(() => {
-                this._switchTab({target: {dataset: {tab: 'previews'}}});
+                this._switchTab({target: {dataset: {tab: 'portal-links'}}});
                 this._setDevStudioVisibility(true);
             });
             this.$payloadModal = this.$shadowRoot.find('#payload-modal');
@@ -1118,8 +1132,8 @@
                 }
             });
             $(document).on('breinifyDevStudioChannelChanged', () => {
-                this._updateChannelTab();
-                if (this.$channelContainer.hasClass('active')) {
+                this._updatePortalLinksTab();
+                if (this.activeTab === 'portal-links') {
                     this._renderChannel();
                 }
             });
@@ -1198,7 +1212,7 @@
             const latest = timestamps.length > 0 ? Math.max(...timestamps) : -1;
             const refresh = loaded.length > 0
                 ? 'Latest preview refresh: ' + this._formatPreviewRefresh(latest)
-                : 'Open Previews for details';
+                : 'Open Portal Links for preview details';
             const names = loaded.map(preview => this._getPreviewName(preview));
             const nameLabel = names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '');
             const showIndicator = this._hasRequestedPreviews() || loaded.length > 0;
@@ -1208,8 +1222,7 @@
             this.$previewIndicators.find('.preview-time').text(refresh);
             this.$previewIndicators.attr('title', [summary, ...names, refresh].join('\n'));
             this.$previewIndicators.prop('hidden', !showIndicator || this.isVisible);
-            this._setTabLabel('previews', 'Previews', previews.length, 'Preview resolutions in the loaded script');
-            if (this.activeTab === 'previews') {
+            if (this.activeTab === 'portal-links') {
                 this._renderPreviews(previews);
             }
             if (this.isConnected) {
@@ -1342,10 +1355,13 @@
             this._setTabLabel('console', 'Console', count, 'Recorded SDK events (up to 100)');
         }
 
-        _updateChannelTab() {
+        _updatePortalLinksTab() {
             const status = _private.channel.getStatus();
-            const label = status.active ? 'Active' : (status.channelIdProvided ? status.state : 'None');
-            this._setTabLabel('channel', 'Channel', label, 'Current portal channel state');
+            const channelCount = status.active === true ? 1 : 0;
+            const previewCount = this._getPreviews().length;
+            const description = channelCount + ' active portal channel · ' + previewCount +
+                (previewCount === 1 ? ' preview' : ' previews') + ' (channel | previews)';
+            this._setTabLabel('portal-links', 'Portal Links', channelCount + ' | ' + previewCount, description);
         }
 
         _getUserIdentifierCount(userData) {
@@ -1380,7 +1396,7 @@
 
         _updateTabCounts() {
             this._updateConsoleTab();
-            this._updateChannelTab();
+            this._updatePortalLinksTab();
             try {
                 const userData = Breinify.UTL.user.create();
                 this._updateUserTabs(userData);
@@ -1391,12 +1407,14 @@
         }
 
         _getDevStudioState() {
-            const allowedTabs = ['info', 'previews', 'inspect', 'console', 'user', 'split-tests', 'channel'];
+            const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests'];
             try {
                 const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
+                const storedTab = storedState?.activeTab;
+                const activeTab = storedTab === 'previews' || storedTab === 'channel' ? 'portal-links' : storedTab;
                 return {
                     isVisible: storedState?.isVisible === true,
-                    activeTab: allowedTabs.indexOf(storedState?.activeTab) > -1 ? storedState.activeTab : 'info'
+                    activeTab: allowedTabs.indexOf(activeTab) > -1 ? activeTab : 'info'
                 };
             } catch (error) {
                 return {isVisible: false, activeTab: 'info'};
@@ -2300,6 +2318,8 @@
                             ? assignment.testName
                             : testName,
                         groupDecision: assignment.groupDecision,
+                        isControlGroup: typeof assignment.isControlGroup === 'boolean'
+                            ? assignment.isControlGroup : assignment.isControl,
                         selectedInstance: assignment.selectedInstance,
                         usedEnforcedGroup: assignment.usedEnforcedGroup,
                         lastUpdated: typeof assignment.lastUpdated === 'number' ? assignment.lastUpdated : null
@@ -2319,7 +2339,10 @@
             $section.append($('<div class="split-tests-title"></div>').text('Split tests (' + assignments.length + ')'));
 
             assignments.forEach(assignment => {
-                const $assignment = $('<div class="split-test"></div>');
+                // only an explicit non-control assignment receives the test color; unknown assignments stay neutral
+                const $assignment = $('<div class="split-test"></div>')
+                    .toggleClass('test', assignment.isControlGroup === false)
+                    .toggleClass('control', assignment.isControlGroup === true);
                 const $details = $('<div class="split-test-details"></div>');
 
                 const webExperience = this._resolveWebExperienceSplitTest(assignment.testName);
@@ -2517,71 +2540,37 @@
 
         _switchTab(event) {
             const selectedTab = event.target.dataset.tab;
-            this.$previewsContainer.removeClass('active');
+            this.$shadowRoot.find('div.container').removeClass('active');
             this.activeTab = selectedTab;
             this.$tabs.each(function () {
                 this.classList.toggle('active', this.dataset.tab === selectedTab);
             });
 
-            if (selectedTab === 'previews') {
+            if (selectedTab === 'portal-links') {
                 this._stopInspecting();
-                this.$shadowRoot.find('div.container').removeClass('active');
-                this.$previewsContainer.addClass('active');
+                this.$portalLinksContainer.addClass('active');
+                _private.channel.checkStats();
+                this._renderChannel();
                 this._updatePreviews();
             } else if (selectedTab === 'console') {
                 this._stopInspecting();
                 this._renderConsole();
                 this.$logContainer.addClass('active');
-                this.$infoContainer.removeClass('active');
-                this.$userContainer.removeClass('active');
-                this.$splitTestsContainer.removeClass('active');
-                this.$inspectContainer.removeClass('active');
-                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'info') {
                 this._stopInspecting();
                 this._refreshInfo();
-                this.$logContainer.removeClass('active');
                 this.$infoContainer.addClass('active');
-                this.$userContainer.removeClass('active');
-                this.$splitTestsContainer.removeClass('active');
-                this.$inspectContainer.removeClass('active');
-                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'user') {
                 this._stopInspecting();
                 this._refreshUserInfo();
-                this.$logContainer.removeClass('active');
-                this.$infoContainer.removeClass('active');
                 this.$userContainer.addClass('active');
-                this.$splitTestsContainer.removeClass('active');
-                this.$inspectContainer.removeClass('active');
-                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'split-tests') {
                 this._stopInspecting();
                 this._refreshSplitTests();
-                this.$logContainer.removeClass('active');
-                this.$infoContainer.removeClass('active');
-                this.$userContainer.removeClass('active');
                 this.$splitTestsContainer.addClass('active');
-                this.$inspectContainer.removeClass('active');
-                this.$channelContainer.removeClass('active');
             } else if (selectedTab === 'inspect') {
-                this.$logContainer.removeClass('active');
-                this.$infoContainer.removeClass('active');
-                this.$userContainer.removeClass('active');
-                this.$splitTestsContainer.removeClass('active');
                 this.$inspectContainer.addClass('active');
                 this._startInspecting();
-                this.$channelContainer.removeClass('active');
-            } else if (selectedTab === 'channel') {
-                this._stopInspecting();
-                _private.channel.checkStats();
-                this._renderChannel();
-                this.$logContainer.removeClass('active');
-                this.$infoContainer.removeClass('active');
-                this.$userContainer.removeClass('active');
-                this.$splitTestsContainer.removeClass('active');
-                this.$inspectContainer.removeClass('active');
-                this.$channelContainer.addClass('active');
             }
 
             this._storeDevStudioState();
