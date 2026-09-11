@@ -1208,38 +1208,39 @@
             referrerSessionId: null,
             referrerUrl: null,
 
-            getSplitTestData: function (updateChanges) {
-                if ($.isPlainObject(this.splitTestData)) {
-                    return this.splitTestData;
+            /**
+             * Returns current assignments, removing expired entries from memory and storage on every read.
+             * Preview assignments also honor expiresAt (epoch milliseconds); reads never extend their lifetime.
+             */
+            getSplitTestData: function () {
+                if (!$.isPlainObject(this.splitTestData)) {
+                    BreinifyUtil.storage.init({});
+                    this.splitTestData = BreinifyUtil.storage.get(BreinifyUtil.storage.splitTestDataInstanceName);
+                    if (!$.isPlainObject(this.splitTestData)) {
+                        this.splitTestData = {};
+                    }
                 }
 
-                // make sure the instance is initialized
-                BreinifyUtil.storage.init({});
-
-                // get the information from it
-                this.splitTestData = BreinifyUtil.storage.get(BreinifyUtil.storage.splitTestDataInstanceName);
-                if (this.splitTestData === null || !$.isPlainObject(this.splitTestData)) {
-                    this.splitTestData = {};
-
-                    return this.splitTestData;
-                }
-
-                // clean-up old split-test information (older than 7 days)
-                let testExpiration = new Date().getTime() - (24 * 60 * 60 * 1000);
+                // check each read without renewing assignment timestamps, including while the tab stays open
+                const now = Date.now();
+                const testExpiration = now - (24 * 60 * 60 * 1000);
                 let deletedInformation = false;
                 for (let key in this.splitTestData) {
                     if (!this.splitTestData.hasOwnProperty(key)) {
                         continue;
                     }
 
-                    let lastUpdated = this.splitTestData[key].lastUpdated;
-                    if (typeof lastUpdated !== 'number' || lastUpdated < testExpiration) {
+                    const assignment = this.splitTestData[key];
+                    const lastUpdated = $.isPlainObject(assignment) ? assignment.lastUpdated : null;
+                    const previewExpired = $.isPlainObject(assignment) && assignment.preview === true &&
+                        (!Number.isFinite(assignment.expiresAt) || assignment.expiresAt <= now);
+                    if (!Number.isFinite(lastUpdated) || lastUpdated < testExpiration || previewExpired) {
                         delete this.splitTestData[key];
                         deletedInformation = true;
                     }
                 }
 
-                if (updateChanges === true && deletedInformation === true) {
+                if (deletedInformation === true) {
                     this.updateSplitTestData(this.splitTestData);
                 }
 
@@ -1257,6 +1258,8 @@
              *   "usedEnforcedGroup": false
              * }
              * </pre>
+             * Preview assignments additionally include preview: true and expiresAt in epoch milliseconds.
+             * The caller supplies their expiry when recording a new assignment, not when inspecting it.
              *
              * @param name the name of the test to replace the data for
              * @param splitTestData the data to replace with
@@ -1322,7 +1325,7 @@
 
                 let splitTestData;
                 try {
-                    splitTestData = this.getSplitTestData(true);
+                    splitTestData = this.getSplitTestData();
                 } catch (e) {
                     splitTestData = null;
                 }

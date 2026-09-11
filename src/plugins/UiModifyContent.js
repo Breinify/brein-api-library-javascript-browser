@@ -20,6 +20,7 @@
     const DECISION_CACHE_SCOPE_PERSISTENT = "PERSISTENT";
     const DEFAULT_ACTION_GROUP = "_default";
     const FAILURE_ACTION_GROUP = "_failure";
+    const PREVIEW_SPLIT_TEST_TTL_IN_MS = 30 * 60 * 1000;
 
     const SNIPPET_SETTING_JAVASCRIPT = "js";
     const SNIPPET_SETTING_CSS = "css";
@@ -1251,7 +1252,10 @@
             const webExperiences = [];
             for (let i = 0; i < requests.length; i++) {
                 const request = requests[i];
-                webExperiences.push(this.getDecisionPayload(request.runtime, request.conditionReferences));
+                const payload = this.getDecisionPayload(request.runtime, request.conditionReferences);
+                // retain the sent preview state even if the preview closes before the response arrives
+                request.preview = Breinify.UTL.isNonEmptyString(payload.previewId) !== null;
+                webExperiences.push(payload);
             }
 
             return {webExperiences: webExperiences};
@@ -1324,7 +1328,7 @@
                                 if (decision === null) {
                                     this.failDecision(runtime);
                                 } else {
-                                    this.completeDecision(runtime, decision, request.requestPageKey);
+                                    this.completeDecision(runtime, decision, request.requestPageKey, request.preview);
                                 }
                             }
                         }
@@ -1645,7 +1649,7 @@
             return unresolvedReferences;
         },
 
-        completeDecision: function (runtime, response, requestPageKey) {
+        completeDecision: function (runtime, response, requestPageKey, preview) {
             const conditionResults = runtime.decision.conditionResults || {};
             const conditionCache = runtime.decision.conditionCache || {};
             const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
@@ -1654,7 +1658,7 @@
             const storageEntries = [];
 
             const splitTestData = this.getDecisionSplitTestData(response);
-            this.storeDecisionAdditionalData(splitTestData);
+            this.storeDecisionAdditionalData(splitTestData, preview);
 
             for (let i = 0; i < conditions.length; i++) {
                 const condition = conditions[i];
@@ -1711,7 +1715,7 @@
                 : null;
         },
 
-        storeDecisionAdditionalData: function (splitTestData) {
+        storeDecisionAdditionalData: function (splitTestData, preview) {
             const testName = splitTestData === null
                 ? null
                 : Breinify.UTL.isNonEmptyString(splitTestData.testName);
@@ -1725,7 +1729,16 @@
             }
 
             try {
-                Breinify.UTL.user.replaceSplitTestData(testName, splitTestData);
+                const storedData = $.extend({}, splitTestData);
+                if (preview === true) {
+                    storedData.preview = true;
+                    storedData.expiresAt = Date.now() + PREVIEW_SPLIT_TEST_TTL_IN_MS;
+                } else {
+                    // a normal assignment replaces any preview-specific retention for the same key
+                    delete storedData.preview;
+                    delete storedData.expiresAt;
+                }
+                Breinify.UTL.user.replaceSplitTestData(testName, storedData);
             } catch (e) {
                 // Storing client-side split-test data must not block actions.
             }

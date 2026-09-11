@@ -2,6 +2,63 @@
 
 describe('BreinifyUtil', function () {
 
+    describe('split-test assignment expiry', function () {
+        var user;
+        var originalData;
+        var now;
+
+        beforeEach(function () {
+            user = Breinify.UTL.user;
+            originalData = user.splitTestData;
+            now = Date.now();
+            spyOn(Date, 'now').and.callFake(function () { return now; });
+            spyOn(Breinify.UTL.storage, 'init');
+            spyOn(Breinify.UTL.storage, 'get');
+            spyOn(Breinify.UTL.storage, 'update');
+        });
+
+        afterEach(function () {
+            user.splitTestData = originalData;
+        });
+
+        it('removes an expired preview from memory and persistence while retaining normal assignments', function () {
+            user.splitTestData = {
+                preview: {preview: true, expiresAt: now, lastUpdated: now - 1800000},
+                normal: {lastUpdated: now - 3600000, groupDecision: 'Control'}
+            };
+            var data = user.getSplitTestData();
+            expect(data.preview).toBeUndefined();
+            expect(data.normal.groupDecision).toBe('Control');
+            expect(Breinify.UTL.storage.update).toHaveBeenCalledWith(
+                Breinify.UTL.storage.splitTestDataInstanceName, 30 * 24 * 60, data);
+        });
+
+        it('does not renew a preview on inspection and expires it on a later in-memory read', function () {
+            var expiresAt = now + 1800000;
+            var lastUpdated = now;
+            user.splitTestData = {preview: {preview: true, expiresAt: expiresAt, lastUpdated: lastUpdated}};
+            now += 600000;
+            var data = user.getSplitTestData();
+            expect(data.preview.expiresAt).toBe(expiresAt);
+            expect(data.preview.lastUpdated).toBe(lastUpdated);
+            expect(Breinify.UTL.storage.update).not.toHaveBeenCalled();
+            now = expiresAt;
+            expect(user.getSplitTestData().preview).toBeUndefined();
+        });
+
+        it('cleans restored expired previews and keeps the existing normal retention window', function () {
+            user.splitTestData = null;
+            Breinify.UTL.storage.get.and.returnValue({
+                preview: {preview: true, expiresAt: now - 1, lastUpdated: now - 1800000},
+                old: {lastUpdated: now - 86400001},
+                current: {lastUpdated: now - 3600000}
+            });
+            var data = user.getSplitTestData();
+            expect(Object.keys(data)).toEqual(['current']);
+            expect(Breinify.UTL.storage.update).toHaveBeenCalled();
+        });
+    });
+
     //noinspection JSUnresolvedFunction
     it('is available through Breinify', function () {
 

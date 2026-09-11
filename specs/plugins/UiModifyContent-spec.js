@@ -645,6 +645,8 @@ describe('UiModifyContent', function () {
         setTimeout(function () {
             expect(storedSplitTestData.testName).toBe('Test: Modify Content');
             expect(storedSplitTestData.splitTestData.groupDecision).toBe('Control');
+            expect(storedSplitTestData.splitTestData.preview).toBeUndefined();
+            expect(storedSplitTestData.splitTestData.expiresAt).toBeUndefined();
             expect(activitySpy.renderedElements.length).toBe(1);
             expectRenderedElement(activitySpy.renderedElements[0], false, 13000, undefined);
             expect(activitySpy.renderedElements[0].tags.groupType).toBe('control');
@@ -655,6 +657,50 @@ describe('UiModifyContent', function () {
             Breinify.UTL.user.replaceSplitTestData = originalReplaceSplitTestData;
             activitySpy.restore();
             done();
+        }, 10);
+    });
+
+    it('stores preview assignment expiry using the preview state sent in the request', function (done) {
+        var activitySpy = createActivitySpy();
+        var originalService = Breinify.service;
+        var originalWebExperiences = Breinify.plugins.webExperiences;
+        var originalReplace = Breinify.UTL.user.replaceSplitTestData;
+        var stored = null;
+        var webExId = 'modify-content-preview-expiry';
+        var startedAt = Date.now();
+        var responseData = {testName: 'preview-expiry', groupDecision: 'Control', isControlGroup: true};
+        Breinify.plugins.webExperiences = {_previews: {}};
+        Breinify.plugins.webExperiences._previews[webExId] = {previewId: 'preview-expiry-id'};
+        Breinify.UTL.user.replaceSplitTestData = function (name, data) { stored = data; };
+        Breinify.service = function (service, payload, callback) {
+            expect(payload.webExperiences[0].previewId).toBe('preview-expiry-id');
+            // simulate the preview closing while the request is in flight
+            delete Breinify.plugins.webExperiences._previews[webExId];
+            callback(null, null, {decisions: [{
+                configurationId: 'preview-expiry', matched: false, conditions: [],
+                additionalData: {splitTestData: responseData}
+            }]});
+        };
+        uiModifyContent.register({}, webExId, 'preview-version', {
+            actions: {},
+            decision: {required: true, pageEvaluation: true, service: 'webExperienceDecision',
+                configurationId: 'preview-expiry', conditions: []}
+        });
+        uiModifyContent.handle(webExId, 'preview-version', {type: 'full-scan'});
+        setTimeout(function () {
+            try {
+                expect(stored.preview).toBe(true);
+                expect(stored.expiresAt).not.toBeLessThan(startedAt + 1800000);
+                expect(stored.expiresAt).not.toBeGreaterThan(Date.now() + 1800000);
+                expect(responseData.preview).toBeUndefined();
+                expect(responseData.expiresAt).toBeUndefined();
+            } finally {
+                Breinify.service = originalService;
+                Breinify.plugins.webExperiences = originalWebExperiences;
+                Breinify.UTL.user.replaceSplitTestData = originalReplace;
+                activitySpy.restore();
+                done();
+            }
         }, 10);
     });
 
