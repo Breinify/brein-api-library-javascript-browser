@@ -934,6 +934,10 @@
                 .split-test-preview { color: #bbbbbb; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 11px; line-height: 1.3; flex-shrink: 0; }
                 div.split-test.test { border-left-color: #4fc3f7; }
                 div.split-test.test div.split-test-name { color: #4fc3f7; }
+                div.split-test.preview { border-left-color: #888; }
+                div.split-test.preview div.split-test-name { color: #bbbbbb; }
+                div.split-test.test.preview { border-left-color: rgba(79, 195, 247, 0.6); }
+                div.split-test.test.preview div.split-test-name { color: rgba(79, 195, 247, 0.8); }
                 div.split-test-details { color: #ddd; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 2fr); gap: 5px 10px; }
                 div.split-test-details > span { min-width: 0; overflow-wrap: anywhere; }
                 span.split-test-detail-label { color: #bbbbbb; }
@@ -2377,7 +2381,8 @@
                 // only an explicit non-control assignment receives the test color; unknown assignments stay neutral
                 const $assignment = $('<div class="split-test"></div>')
                     .toggleClass('test', assignment.isControlGroup === false)
-                    .toggleClass('control', assignment.isControlGroup === true);
+                    .toggleClass('control', assignment.isControlGroup === true)
+                    .toggleClass('preview', assignment.preview);
                 const $details = $('<div class="split-test-details"></div>');
 
                 const webExperience = this._resolveWebExperienceSplitTest(assignment.testName);
