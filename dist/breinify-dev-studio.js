@@ -885,6 +885,7 @@
                 header button.tab:focus { outline: none; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
+                .portal-link-status { display: inline-block; width: 1em; margin-left: 4px; text-align: center; font-weight: bold; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
                 #portal-links-container { white-space: normal; }
@@ -1039,11 +1040,11 @@
                 <header>
                     <div class="tabs">
                         <button class="tab active" data-tab="info">Info</button>
-                        <button class="tab" data-tab="portal-links">Portal Links (0 | 0)</button>
-                        <button class="tab" data-tab="inspect">Inspect</button>
-                        <button class="tab" data-tab="console">Console</button>
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
+                        <button class="tab" data-tab="inspect">Inspect</button>
+                        <button class="tab" data-tab="console">Console</button>
+                        <button class="tab" data-tab="portal-links">Portal Links<span class="portal-link-status" aria-hidden="true">—</span></button>
                     </div>
                 </header>
                 <div id="log-container" class="container"></div>
@@ -1357,11 +1358,14 @@
 
         _updatePortalLinksTab() {
             const status = _private.channel.getStatus();
-            const channelCount = status.active === true ? 1 : 0;
+            const connected = status.active === true;
             const previewCount = this._getPreviews().length;
-            const description = channelCount + ' active portal channel · ' + previewCount +
-                (previewCount === 1 ? ' preview' : ' previews') + ' (channel | previews)';
-            this._setTabLabel('portal-links', 'Portal Links', channelCount + ' | ' + previewCount, description);
+            const description = (connected ? '1 active portal channel' : 'No active portal channel') + ' · ' +
+                previewCount + (previewCount === 1 ? ' preview' : ' previews');
+            const $status = $('<span class="portal-link-status" aria-hidden="true"></span>')
+                .text(connected ? '✓' : '—');
+            this.$tabs.filter('[data-tab="portal-links"]').text('Portal Links').append($status)
+                .attr('title', description).attr('aria-label', 'Portal Links: ' + description);
         }
 
         _getUserIdentifierCount(userData) {
@@ -2539,7 +2543,7 @@
         }
 
         _switchTab(event) {
-            const selectedTab = event.target.dataset.tab;
+            const selectedTab = (event.currentTarget || event.target).dataset.tab;
             this.$shadowRoot.find('div.container').removeClass('active');
             this.activeTab = selectedTab;
             this.$tabs.each(function () {
