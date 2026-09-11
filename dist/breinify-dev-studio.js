@@ -885,7 +885,7 @@
                 header button.tab:focus { outline: none; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
-                .portal-link-status { display: inline-block; width: 1em; margin-left: 4px; text-align: center; font-weight: bold; }
+                .portal-link-status { display: inline-block; margin-left: 4px; text-align: center; font-weight: bold; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
                 #portal-links-container { white-space: normal; }
@@ -1044,7 +1044,7 @@
                         <button class="tab" data-tab="split-tests">Split Tests</button>
                         <button class="tab" data-tab="inspect">Inspect</button>
                         <button class="tab" data-tab="console">Console</button>
-                        <button class="tab" data-tab="portal-links">Portal Links<span class="portal-link-status" aria-hidden="true">—</span></button>
+                        <button class="tab" data-tab="portal-links">Links<span class="portal-link-status" aria-hidden="true">(-)</span></button>
                     </div>
                 </header>
                 <div id="log-container" class="container"></div>
@@ -1213,7 +1213,7 @@
             const latest = timestamps.length > 0 ? Math.max(...timestamps) : -1;
             const refresh = loaded.length > 0
                 ? 'Latest preview refresh: ' + this._formatPreviewRefresh(latest)
-                : 'Open Portal Links for preview details';
+                : 'Open Links for preview details';
             const names = loaded.map(preview => this._getPreviewName(preview));
             const nameLabel = names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '');
             const showIndicator = this._hasRequestedPreviews() || loaded.length > 0;
@@ -1360,12 +1360,12 @@
             const status = _private.channel.getStatus();
             const connected = status.active === true;
             const previewCount = this._getPreviews().length;
-            const description = (connected ? '1 active portal channel' : 'No active portal channel') + ' · ' +
+            const description = (connected ? 'Linked to portal' : 'Not linked to portal') + ' · ' +
                 previewCount + (previewCount === 1 ? ' preview' : ' previews');
             const $status = $('<span class="portal-link-status" aria-hidden="true"></span>')
-                .text(connected ? '✓' : '—');
-            this.$tabs.filter('[data-tab="portal-links"]').text('Portal Links').append($status)
-                .attr('title', description).attr('aria-label', 'Portal Links: ' + description);
+                .text(connected ? '(✓)' : '(-)');
+            this.$tabs.filter('[data-tab="portal-links"]').text('Links').append($status)
+                .attr('title', description).attr('aria-label', 'Links: ' + description);
         }
 
         _getUserIdentifierCount(userData) {
