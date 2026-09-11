@@ -929,7 +929,9 @@
                 div.channel-status-label { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase; }
                 div.channel-status-value { color: #fff; }
                 div.split-test { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #bbbbbb; border-radius: 4px; margin-bottom: 6px; padding: 8px 10px; }
-                div.split-test-name { color: #ddd; font-weight: bold; margin-bottom: 5px; }
+                div.split-test-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+                div.split-test-name { color: #ddd; font-weight: bold; min-width: 0; overflow-wrap: anywhere; }
+                .split-test-preview { color: #bbbbbb; border: 1px solid #555; border-radius: 4px; padding: 2px 6px; font-size: 11px; line-height: 1.3; flex-shrink: 0; }
                 div.split-test.test { border-left-color: #4fc3f7; }
                 div.split-test.test div.split-test-name { color: #4fc3f7; }
                 div.split-test-details { color: #ddd; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 2fr); gap: 5px 10px; }
@@ -2349,6 +2351,8 @@
                             ? assignment.isControlGroup : assignment.isControl,
                         selectedInstance: assignment.selectedInstance,
                         usedEnforcedGroup: assignment.usedEnforcedGroup,
+                        preview: assignment.preview === true,
+                        expiresAt: Number.isFinite(assignment.expiresAt) ? assignment.expiresAt : null,
                         lastUpdated: typeof assignment.lastUpdated === 'number' ? assignment.lastUpdated : null
                     };
                 })
@@ -2375,8 +2379,16 @@
                 const webExperience = this._resolveWebExperienceSplitTest(assignment.testName);
                 const displayName = webExperience === null
                     ? assignment.testName : webExperience.campaignName || 'Web experience split test';
-                $assignment.append($('<div class="split-test-name"></div>')
+                const $heading = $('<div class="split-test-heading"></div>');
+                $heading.append($('<div class="split-test-name"></div>')
                     .text(displayName).attr('title', assignment.testName));
+                if (assignment.preview) {
+                    const expires = assignment.expiresAt === null
+                        ? '' : ' Expires: ' + new Date(assignment.expiresAt).toLocaleString() + '.';
+                    $heading.append($('<span class="split-test-preview"></span>').text('Preview')
+                        .attr('title', 'Assignment from a web-experience preview.' + expires));
+                }
+                $assignment.append($heading);
                 const enforced = typeof assignment.usedEnforcedGroup === 'boolean'
                     ? (assignment.usedEnforcedGroup ? 'Yes' : 'No') : null;
                 const updated = assignment.lastUpdated === null
