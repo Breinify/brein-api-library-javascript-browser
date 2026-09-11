@@ -733,7 +733,7 @@
         /**
          * Provides a low-cost browser-side device-type candidate. It is not a
          * final result; Customer Journey remains authoritative for user-agent
-         * classification through the future decision service.
+         * classification through the decision service.
          */
         deviceType: {
 
