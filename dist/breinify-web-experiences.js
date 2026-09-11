@@ -28,8 +28,10 @@
             const currentIsValidPage = $.isFunction(module.isValidPage) ? module.isValidPage : null;
 
             module.isValidPage = function () {
-                return _self.checkActivityLogic(configuration, module) === true &&
+                const active = _self.checkActivityLogic(configuration, module) === true &&
                     (currentIsValidPage === null || currentIsValidPage.call(module) === true);
+                if (!active) module._webExperienceActivation = null;
+                return active;
             };
         },
 
@@ -238,7 +240,8 @@
             return result.length > 0 ? result : null;
         },
 
-        checkActivityLogic: function (configuration) {
+        checkActivityLogic: function (configuration, module) {
+            if (module) module._webExperienceActivation = null;
             if (!$.isPlainObject(configuration?.activationLogic)) {
                 return true;
             }
@@ -248,8 +251,12 @@
 
             let isValidPage = paths.length === 0;
             let hasAttribute = false;
+            let captures = null;
+            const url = window.location.href;
+            const pathname = window.location.pathname;
 
             for (let i = 0; i < paths.length && isValidPage === false; i++) {
+                captures = null;
                 const path = $.isPlainObject(paths[i]) ? paths[i] : {};
                 const type = Breinify.UTL.isNonEmptyString(path.type);
                 const value = Breinify.UTL.isNonEmptyString(path.value);
@@ -260,13 +267,14 @@
                 } else if (type === "ALL_PATHS") {
                     isValidPage = true;
                 } else if (type === "STATIC_PATHS") {
-                    if (value === window.location.pathname) {
+                    if (value === pathname) {
                         isValidPage = true;
                     }
                 } else if (type === "REGEX") {
                     try {
-                        if (value !== null && new RegExp(value).test(window.location.pathname) === true) {
-                            isValidPage = true;
+                        if (value !== null) {
+                            captures = new RegExp(value).exec(pathname);
+                            isValidPage = captures !== null;
                         }
                     } catch (e) {
                         // invalid regex
@@ -278,13 +286,18 @@
                         isValidPage = this.checkSearchParams(path.searchParameters[j]);
                     }
                 }
+                if (!isValidPage) captures = null;
             }
 
             if (isValidPage !== true && hasAttribute === true) {
                 isValidPage = true;
             }
 
-            return isValidPage === true ? this._checkActivationSnippet(logic.snippet) : false;
+            const active = isValidPage === true ? this._checkActivationSnippet(logic.snippet) : false;
+            if (active === true && module && captures !== null && window.location.href === url) {
+                module._webExperienceActivation = {url: url, captures: captures.slice(1)};
+            }
+            return active;
         },
 
         hasAttributeActivation: function (configuration) {
@@ -473,6 +486,22 @@
     };
 
     const WebExperiences = {
+
+        /** Checks activation and replaces the module's capture snapshot, without changing existing boolean semantics. */
+        checkActivationLogic: function (configuration, module) {
+            return _private.checkActivityLogic(configuration, module);
+        },
+
+        /** Returns a one-based capture from the current activation, or null when unavailable; empty strings are valid. */
+        getActivationGroup: function (module, group) {
+            const activation = module && module._webExperienceActivation;
+            if (!Number.isInteger(group) || group < 1 || !activation ||
+                activation.url !== window.location.href || !Array.isArray(activation.captures)) {
+                return null;
+            }
+            const value = activation.captures[group - 1];
+            return typeof value === 'string' ? value : null;
+        },
 
         hasAttributeActivation: function (configuration) {
             return _private.hasAttributeActivation(configuration);

@@ -517,6 +517,62 @@
      */
     const conditions = {
 
+        /** Compares the current pathname or a capture from the successful activation rule. */
+        url: {
+            evaluate: function (condition, runtime) {
+                const settings = _private.getConditionSettings(condition);
+                if (!$.isPlainObject(settings)) return false;
+                const value = this._getValue(settings, runtime);
+                // unavailable captures must not match negative operators either
+                if (value === null) return false;
+                return this._matches(value, settings);
+            },
+
+            _getValue: function (settings, runtime) {
+                const source = $.isPlainObject(settings.source) ? settings.source : {};
+                if (source.type === 'PATHNAME') {
+                    return window.location.pathname;
+                } else if (source.type === 'ACTIVATION_GROUP') {
+                    return Breinify.plugins.webExperiences.getActivationGroup(runtime.module, source.group);
+                }
+                return null;
+            },
+
+            _matches: function (actual, settings) {
+                const operator = settings.operator;
+                const caseSensitive = settings.caseSensitive !== false;
+                if (operator === 'REGEX') {
+                    if (typeof settings.value !== 'string') return false;
+                    try {
+                        return new RegExp(settings.value, caseSensitive ? '' : 'i').test(actual);
+                    } catch (e) {
+                        return false;
+                    }
+                }
+                const normalize = value => caseSensitive ? value : value.toLowerCase();
+                const value = normalize(actual);
+                if (operator === 'IS_ONE_OF' || operator === 'IS_NOT_ONE_OF') {
+                    const values = settings.values;
+                    if (!Array.isArray(values) || values.length === 0 ||
+                        values.some(entry => typeof entry !== 'string')) return false;
+                    const matched = values.some(entry => normalize(entry) === value);
+                    return operator === 'IS_ONE_OF' ? matched : !matched;
+                } else if (typeof settings.value !== 'string') {
+                    return false;
+                }
+                const expected = normalize(settings.value);
+                switch (operator) {
+                    case 'EQUALS': return value === expected;
+                    case 'NOT_EQUALS': return value !== expected;
+                    case 'STARTS_WITH': return value.startsWith(expected);
+                    case 'ENDS_WITH': return value.endsWith(expected);
+                    case 'CONTAINS': return value.includes(expected);
+                    case 'NOT_CONTAINS': return !value.includes(expected);
+                    default: return false;
+                }
+            }
+        },
+
         /** Combines all nested conditions. */
         all: {
             evaluate: function (condition, runtime, visiting) {
@@ -2386,7 +2442,20 @@
             return targets;
         },
 
+        isRuntimeActive: function (runtime) {
+            if (typeof runtime.module.isValidPage === 'function') {
+                const active = runtime.module.isValidPage() === true;
+                if (!active) runtime.module._webExperienceActivation = null;
+                return active;
+            } else if ($.isPlainObject(runtime.config.activationLogic)) {
+                return Breinify.plugins.webExperiences.checkActivationLogic(runtime.config, runtime.module) === true;
+            }
+            runtime.module._webExperienceActivation = null;
+            return true;
+        },
+
         findRequirements: function (runtime, $el, data) {
+            if (!this.isRuntimeActive(runtime)) return false;
             const changeType = data && data.type ? data.type : "full-scan";
             if (changeType !== "full-scan" && changeType !== "added-element" && changeType !== "attribute-change") {
                 return false;
@@ -2688,13 +2757,15 @@
             const runtime = _private.getRuntime(webExId, webExVersionId);
             if (runtime === null) {
                 return false;
-            } else if (!_private.isRuntimeConfigurationValid(runtime)) {
-                _private.sendRenderedElementActivity(runtime, false,
-                    renderedElementStatusCodes.INVALID_CONFIGURATION, null);
-                return false;
             }
 
             try {
+                if (!_private.isRuntimeActive(runtime)) return false;
+                if (!_private.isRuntimeConfigurationValid(runtime)) {
+                    _private.sendRenderedElementActivity(runtime, false,
+                        renderedElementStatusCodes.INVALID_CONFIGURATION, null);
+                    return false;
+                }
                 if (conditions.feature._preparePage(runtime) !== true) return false;
                 runtime.conditionsPending = false;
                 _private.scheduleConditionEvaluation(runtime);

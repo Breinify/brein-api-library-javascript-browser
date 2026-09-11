@@ -2,6 +2,116 @@
 
 describe('UiModifyContent', function () {
 
+    describe('URL conditions and activation captures', function () {
+        var webExperiences = Breinify.plugins.webExperiences;
+        var webExId = 'modify-content-url-condition-test';
+        var versionId = 'url-condition-version';
+        var module;
+        var activitySpy;
+
+        beforeEach(function () {
+            module = {};
+            activitySpy = createActivitySpy();
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, webExId, versionId, {actions: {}});
+            activitySpy.restore();
+        });
+
+        function evaluate(settings, paths) {
+            var runtime = uiModifyContent.register(module, webExId, versionId, {
+                activationLogic: {paths: paths || [{type: 'ALL_PATHS'}]},
+                conditionsGroups: [{actionGroup: 'matched', conditions: [{type: 'url', settings: settings}]}],
+                actions: {matched: [], _default: []}
+            });
+            uiModifyContent.handle(webExId, versionId, {type: 'full-scan'});
+            return runtime;
+        }
+
+        it('compares pathnames using scalar, array and regex operators', function () {
+            var path = window.location.pathname;
+            var cases = [
+                {operator: 'EQUALS', value: path},
+                {operator: 'NOT_EQUALS', value: path + '/different'},
+                {operator: 'STARTS_WITH', value: '/'},
+                {operator: 'ENDS_WITH', value: path.slice(-1)},
+                {operator: 'CONTAINS', value: '/'},
+                {operator: 'NOT_CONTAINS', value: 'not-a-real-path-fragment'},
+                {operator: 'IS_ONE_OF', values: [path]},
+                {operator: 'IS_NOT_ONE_OF', values: [path + '/different']},
+                {operator: 'REGEX', value: '^/'}
+            ];
+            cases.forEach(function (settings) {
+                settings.source = {type: 'PATHNAME'};
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+            });
+        });
+
+        it('supports case-insensitive capture comparisons and regex matching', function () {
+            var paths = [{type: 'REGEX', value: '^(.*)$'}];
+            var settings = {source: {type: 'ACTIVATION_GROUP', group: 1},
+                operator: 'EQUALS', value: window.location.pathname.toUpperCase(), caseSensitive: false};
+            expect(evaluate(settings, paths).selectedGroupId).toBe('matched');
+            settings.operator = 'REGEX';
+            settings.value = '^/';
+            expect(evaluate(settings, paths).selectedGroupId).toBe('matched');
+        });
+
+        it('uses the first rule that passes both path and query checks', function () {
+            var paths = [
+                {type: 'REGEX', value: '^(.*)$', searchParameters: [
+                    {param: '__missing_url_condition_test__', operator: 'equals', value: 'required'}
+                ]},
+                {type: 'REGEX', value: '^(/)(.*)$'}
+            ];
+            var settings = {source: {type: 'ACTIVATION_GROUP', group: 1}, operator: 'EQUALS', value: '/'};
+            expect(evaluate(settings, paths).selectedGroupId).toBe('matched');
+            expect(webExperiences.getActivationGroup(module, 1)).toBe('/');
+        });
+
+        it('does not match unavailable captures even with negative operators', function () {
+            ['NOT_EQUALS', 'NOT_CONTAINS', 'IS_NOT_ONE_OF'].forEach(function (operator) {
+                var settings = {source: {type: 'ACTIVATION_GROUP', group: 1},
+                    operator: operator, value: 'anything', values: ['anything']};
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+                expect(evaluate(settings, [{type: 'REGEX', value: '^(missing)?/'}])
+                    .selectedGroupId).toBe('_default');
+                settings.source.group = 99;
+                expect(evaluate(settings, [{type: 'REGEX', value: '^(.*)$'}])
+                    .selectedGroupId).toBe('_default');
+            });
+        });
+
+        it('preserves an existing empty-string capture', function () {
+            var settings = {source: {type: 'ACTIVATION_GROUP', group: 1}, operator: 'EQUALS', value: ''};
+            expect(evaluate(settings, [{type: 'REGEX', value: '^()'}]).selectedGroupId).toBe('matched');
+        });
+
+        it('invalidates captures on SPA navigation and on failed activation', function () {
+            var config = {activationLogic: {paths: [{type: 'REGEX', value: '^(.*)$'}]}};
+            var originalUrl = window.location.href;
+            expect(webExperiences.checkActivationLogic(config, module)).toBe(true);
+            try {
+                window.history.replaceState({}, '', '#url-condition-new-page');
+                expect(webExperiences.getActivationGroup(module, 1)).toBe(null);
+                expect(webExperiences.checkActivationLogic(config, module)).toBe(true);
+                expect(webExperiences.getActivationGroup(module, 1)).toBe(window.location.pathname);
+                config.activationLogic.paths = [{type: 'REGEX', value: '(?!)'}];
+                expect(webExperiences.checkActivationLogic(config, module)).toBe(false);
+                expect(webExperiences.getActivationGroup(module, 1)).toBe(null);
+            } finally {
+                window.history.replaceState({}, '', originalUrl);
+            }
+        });
+
+        it('does not evaluate or report an experience outside activation', function () {
+            var settings = {source: {type: 'PATHNAME'}, operator: 'STARTS_WITH', value: '/'};
+            evaluate(settings, [{type: 'REGEX', value: '(?!)'}]);
+            expect(activitySpy.renderedElements.length).toBe(0);
+        });
+    });
+
     describe('feature conditions', function () {
         var storage;
         var runtime;
