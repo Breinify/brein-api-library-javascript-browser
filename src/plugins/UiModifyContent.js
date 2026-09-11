@@ -517,11 +517,14 @@
      */
     const conditions = {
 
-        /** Compares the current pathname or a capture from the successful activation rule. */
+        /** Compares the pathname, activation captures, or decoded values of a named query parameter. */
         url: {
             evaluate: function (condition, runtime) {
                 const settings = _private.getConditionSettings(condition);
                 if (!$.isPlainObject(settings)) return false;
+                if (settings.source && settings.source.type === 'QUERY_PARAMETER') {
+                    return this._matchesQueryParameter(settings);
+                }
                 const value = this._getValue(settings, runtime);
                 // unavailable captures must not match negative operators either
                 if (value === null) return false;
@@ -536,6 +539,19 @@
                     return Breinify.plugins.webExperiences.getActivationGroup(runtime.module, source.group);
                 }
                 return null;
+            },
+
+            _matchesQueryParameter: function (settings) {
+                const name = settings.source.name;
+                if (Breinify.UTL.isNonEmptyString(name) === null) return false;
+                const params = new URLSearchParams(window.location.search);
+                const values = params.getAll(name);
+                // a missing parameter is not an empty value, including for negative comparisons
+                if (values.length === 0) return false;
+                const negative = settings.operator === 'NOT_EQUALS' || settings.operator === 'NOT_CONTAINS' ||
+                    settings.operator === 'IS_NOT_ONE_OF';
+                const matches = value => this._matches(value, settings);
+                return negative ? values.every(matches) : values.some(matches);
             },
 
             _matches: function (actual, settings) {

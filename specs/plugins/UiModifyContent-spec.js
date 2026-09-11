@@ -105,6 +105,55 @@ describe('UiModifyContent', function () {
             }
         });
 
+        it('compares decoded query values and distinguishes missing and empty parameters', function () {
+            var originalUrl = window.location.href;
+            try {
+                window.history.replaceState({}, '', '?channel=Social+Media&empty=&encoded=%2B');
+                var settings = {source: {type: 'QUERY_PARAMETER', name: 'channel'},
+                    operator: 'EQUALS', value: 'social media', caseSensitive: false};
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                settings.caseSensitive = true;
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+                settings.source.name = 'encoded';
+                settings.value = '+';
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                settings.source.name = 'empty';
+                settings.value = '';
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                settings.source.name = 'absent';
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+                settings.operator = 'NOT_EQUALS';
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+                settings.source.name = 'Channel';
+                settings.caseSensitive = false;
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+            } finally {
+                window.history.replaceState({}, '', originalUrl);
+            }
+        });
+
+        it('checks all repeated values for negative comparisons and any for positive comparisons', function () {
+            var originalUrl = window.location.href;
+            try {
+                window.history.replaceState({}, '', '?tag=red&tag=blue');
+                var settings = {source: {type: 'QUERY_PARAMETER', name: 'tag'}, operator: 'EQUALS', value: 'blue'};
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                settings.operator = 'IS_ONE_OF';
+                settings.values = ['green', 'blue'];
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                ['NOT_EQUALS', 'NOT_CONTAINS', 'IS_NOT_ONE_OF'].forEach(function (operator) {
+                    settings.operator = operator;
+                    expect(evaluate(settings).selectedGroupId).toBe('_default');
+                });
+                settings.values = ['green'];
+                expect(evaluate(settings).selectedGroupId).toBe('matched');
+                window.history.replaceState({}, '', '?tag=green');
+                expect(evaluate(settings).selectedGroupId).toBe('_default');
+            } finally {
+                window.history.replaceState({}, '', originalUrl);
+            }
+        });
+
         it('does not evaluate or report an experience outside activation', function () {
             var settings = {source: {type: 'PATHNAME'}, operator: 'STARTS_WITH', value: '/'};
             evaluate(settings, [{type: 'REGEX', value: '(?!)'}]);
