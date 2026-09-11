@@ -2300,6 +2300,61 @@
             return _private.cloneObject(_private.currentFeatures);
         },
 
+        /** Returns known feature names, including definitions which do not have a value yet. */
+        getFeatureNames: function () {
+            return Array.from(new Set(Object.keys(_private.featureDefinitions)
+                .concat(Object.keys(_private.currentFeatures)))).sort();
+        },
+
+        /**
+         * Returns diagnostic state without renewing TTLs, restoring values, cleaning storage or emitting events.
+         * Expiration describes the persisted copy, not the lifetime of the current in-memory value.
+         * Values follow all()'s shallow snapshot semantics and must not be modified by the consumer.
+         *
+         * @returns {{capturedAt: number, features: Array}} names, values, definitions, change/observation metadata,
+         * and persistence state (disabled, unavailable, missing, invalid, expired or stored) with timestamps
+         */
+        inspect: function () {
+            const capturedAt = Date.now();
+            const storage = _private.getLocalStorage();
+            const features = this.getFeatureNames().map(name => {
+                const definition = this.getFeatureDefinition(name);
+                const hasValue = Object.prototype.hasOwnProperty.call(_private.currentFeatures, name);
+                const persistence = {state: 'disabled', persistedAt: null, expiresAt: null};
+                if (definition.persistence.enabled === true) {
+                    persistence.state = storage === null ? 'unavailable' : 'missing';
+                    if (storage !== null) {
+                        try {
+                            const raw = storage.getItem(_private.getPersistenceKey(name));
+                            const entry = _private.parsePersistedFeatureEntry(raw);
+                            if (raw !== null && raw !== undefined) {
+                                if (entry === null || !Number.isFinite(entry.expiresAt)) {
+                                    persistence.state = 'invalid';
+                                } else {
+                                    persistence.state = entry.expiresAt <= capturedAt ? 'expired' : 'stored';
+                                    persistence.expiresAt = entry.expiresAt;
+                                    persistence.persistedAt = Number.isFinite(entry.persistedAt)
+                                        ? entry.persistedAt : null;
+                                }
+                            }
+                        } catch (e) {
+                            persistence.state = 'unavailable';
+                        }
+                    }
+                }
+                return {
+                    name: name,
+                    hasValue: hasValue,
+                    value: hasValue ? _private.currentFeatures[name] : undefined,
+                    definition: definition,
+                    meta: this.meta(name),
+                    observation: this.observation(name),
+                    persistence: persistence
+                };
+            });
+            return {capturedAt: capturedAt, features: features};
+        },
+
         allMeta: function () {
             const result = {};
 

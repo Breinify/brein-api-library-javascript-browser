@@ -818,6 +818,7 @@
         $infoContainer = null;
         $userContainer = null;
         $splitTestsContainer = null;
+        $featuresContainer = null;
         $inspectContainer = null;
         $portalLinksContainer = null;
         $channelContainer = null;
@@ -830,6 +831,7 @@
 
         userLastFetched = null;
         splitTestsLastFetched = null;
+        featuresLastFetched = null;
         activeTab = 'info';
         inspectActive = false;
         inspectHoverElement = null;
@@ -885,6 +887,7 @@
                 header button.tab:focus { outline: none; }
                 header button.tab.active { border-bottom-color: #fff; color: white; }
                 header button.tab:hover:not(.active) { color: #fff; }
+                header button.tab[hidden] { display: none; }
                 .portal-link-status { display: inline-block; margin-left: 4px; text-align: center; font-weight: bold; }
                 div.container { display: none; flex-grow: 1; background: #1e1e1e; padding: 10px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: white; }
                 div.container.active { display: block; }
@@ -903,6 +906,14 @@
                 div.user-field-value { align-items: center; color: #fff; display: flex; justify-content: space-between; }
                 div.user-field-value span { flex-grow: 1; min-width: 0; }
                 div.user-empty { color: #bbbbbb; font-style: italic; }
+                .feature-card { background: #242424; border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-top: 10px; padding: 10px; }
+                .feature-name { color: #4fc3f7; font-size: 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
+                .feature-value { background: #1e1e1e; color: #eee; padding: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+                .feature-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; margin: 10px 0; }
+                .feature-details dt { color: #bbbbbb; }
+                .feature-details dd { margin: 0; overflow-wrap: anywhere; }
+                .feature-card summary { color: #bbbbbb; cursor: pointer; }
+                #features-container { white-space: normal; }
                 div.split-tests-section { margin-top: 16px; }
                 div.split-tests-title { color: #bbbbbb; font-size: 11px; font-weight: bold; letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase; }
                 div.channel-status { background: linear-gradient(to bottom, #2a2a2a, #1f1f1f); border: 1px solid #333; border-left: 4px solid #777; border-radius: 4px; margin-bottom: 8px; padding: 8px 10px; }
@@ -1042,6 +1053,7 @@
                         <button class="tab active" data-tab="info">Info</button>
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
+                        <button class="tab" data-tab="features" hidden>Features</button>
                         <button class="tab" data-tab="inspect">Inspect</button>
                         <button class="tab" data-tab="console">Console</button>
                         <button class="tab" data-tab="portal-links">Links<span class="portal-link-status" aria-hidden="true">(-)</span></button>
@@ -1061,6 +1073,7 @@
                 </div>
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
+                <div id="features-container" class="container"></div>
                 <div id="inspect-container" class="container"></div>
             </div>
             <div id="payload-modal" role="presentation" aria-hidden="true">
@@ -1089,6 +1102,7 @@
             this.$infoContainer = this.$shadowRoot.find('#info-container');
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
+            this.$featuresContainer = this.$shadowRoot.find('#features-container');
             this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
             this.$portalLinksContainer = this.$shadowRoot.find('#portal-links-container');
             this.$channelContainer = this.$shadowRoot.find('#channel-container');
@@ -1113,6 +1127,7 @@
 
             this.$tabs.click(e => this._switchTab(e));
             $(document).on('breinifyDevStudioPluginLifecycleChanged', () => {
+                this._updateFeaturesTab();
                 if (this.$infoContainer.hasClass('active')) {
                     this._refreshInfo();
                 }
@@ -1140,6 +1155,7 @@
             });
 
             this._renderConsole();
+            this._updateFeaturesTab();
             _private.resizable(this.$shadowRoot);
         }
 
@@ -1401,6 +1417,7 @@
         _updateTabCounts() {
             this._updateConsoleTab();
             this._updatePortalLinksTab();
+            this._updateFeaturesTab();
             try {
                 const userData = Breinify.UTL.user.create();
                 this._updateUserTabs(userData);
@@ -1411,7 +1428,7 @@
         }
 
         _getDevStudioState() {
-            const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests'];
+            const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests', 'features'];
             try {
                 const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
                 const storedTab = storedState?.activeTab;
@@ -2505,6 +2522,107 @@
             }
         }
 
+        _updateFeaturesTab() {
+            const storage = Breinify.plugins.featureStorage;
+            const available = $.isPlainObject(storage);
+            const $tab = this.$tabs.filter('[data-tab="features"]');
+            $tab.prop('hidden', !available);
+            if (!available && this.activeTab === 'features') {
+                this._switchTab({target: {dataset: {tab: 'info'}}});
+            } else if (available) {
+                try {
+                    const count = storage.getFeatureNames().length;
+                    this._setTabLabel('features', 'Features', count, 'Features currently known to FeatureStorage');
+                } catch (e) {
+                    this._setTabLabel('features', 'Features', '?', 'Unable to read FeatureStorage');
+                }
+            }
+        }
+
+        _formatFeatureValue(value) {
+            if (typeof value === 'undefined') return 'undefined';
+            try {
+                const json = JSON.stringify(value, null, 2);
+                return typeof json === 'string' ? json : String(value);
+            } catch (e) {
+                return '[Value cannot be represented as JSON]';
+            }
+        }
+
+        _formatFeatureDuration(ms) {
+            const seconds = Math.max(0, Math.ceil(ms / 1000));
+            if (seconds >= 86400) return Math.floor(seconds / 86400) + 'd ' + Math.floor(seconds % 86400 / 3600) + 'h';
+            if (seconds >= 3600) return Math.floor(seconds / 3600) + 'h ' + Math.floor(seconds % 3600 / 60) + 'm';
+            if (seconds >= 60) return Math.floor(seconds / 60) + 'm ' + seconds % 60 + 's';
+            return seconds + 's';
+        }
+
+        _renderFeature(feature, capturedAt) {
+            const $card = $('<article class="feature-card"></article>');
+            $card.append($('<h3 class="feature-name"></h3>').text(feature.name));
+            const value = feature.hasValue ? this._formatFeatureValue(feature.value) : 'Not set yet';
+            $card.append($('<pre class="feature-value" aria-label="Current value"></pre>').text(value));
+            const $details = $('<dl class="feature-details"></dl>');
+            const add = (label, text) => {
+                $details.append($('<dt></dt>').text(label), $('<dd></dd>').text(text));
+            };
+            const settings = feature.definition.persistence;
+            const persistence = feature.persistence;
+            const states = {
+                disabled: 'Memory only', stored: 'Local storage', expired: 'Local storage (expired)',
+                missing: 'Persistence enabled; no stored copy', invalid: 'Stored copy is invalid',
+                unavailable: 'Local storage unavailable'
+            };
+            const valueType = feature.value === null ? 'null' : Array.isArray(feature.value) ? 'array' : typeof feature.value;
+            add('Type', feature.definition.valueType || (feature.hasValue ? valueType : 'Not declared'));
+            add('Storage', states[persistence.state] || 'Unknown');
+            if (settings.enabled) add('Configured TTL', this._formatFeatureDuration(settings.ttlInMs));
+            if (persistence.expiresAt !== null) {
+                const remaining = persistence.expiresAt - capturedAt;
+                const suffix = remaining <= 0 ? ' (expired)' : ' (in ' + this._formatFeatureDuration(remaining) + ')';
+                add('Stored copy expires', new Date(persistence.expiresAt).toLocaleString() + suffix);
+            } else {
+                add('Stored copy expires', settings.enabled ? 'Unavailable' : 'Not applicable');
+            }
+            if (persistence.persistedAt !== null) add('Last persisted', new Date(persistence.persistedAt).toLocaleString());
+            const changedAt = feature.meta && feature.meta.changedAt;
+            add('Last changed', Number.isFinite(changedAt) ? new Date(changedAt).toLocaleString() : 'Not recorded');
+            if (feature.observation) add('Observed page ID', String(feature.observation.pageId));
+            $card.append($details);
+            if (feature.meta !== null) {
+                const $meta = $('<details></details>').append($('<summary></summary>').text('Change metadata'));
+                $meta.append($('<pre class="feature-value"></pre>').text(this._formatFeatureValue(feature.meta)));
+                $card.append($meta);
+            }
+            return $card;
+        }
+
+        _refreshFeatures() {
+            this._updateFeaturesTab();
+            const storage = Breinify.plugins.featureStorage;
+            if (!$.isPlainObject(storage)) return;
+            this.$featuresContainer.empty();
+            try {
+                const snapshot = storage.inspect();
+                this.featuresLastFetched = new Date(snapshot.capturedAt);
+                this.$featuresContainer.append(this._createRefreshHeader(this.featuresLastFetched, false,
+                    () => this._refreshFeatures()));
+                this.$featuresContainer.append($('<div class="user-empty"></div>').text(
+                    'Snapshot at refresh time. Inspecting does not renew TTLs. Expiry applies to the stored copy, not the current in-memory value.'));
+                if (snapshot.features.length === 0) {
+                    this.$featuresContainer.append($('<div class="user-empty"></div>').text('No features loaded yet.'));
+                }
+                snapshot.features.forEach(feature => {
+                    this.$featuresContainer.append(this._renderFeature(feature, snapshot.capturedAt));
+                });
+            } catch (e) {
+                this.$featuresContainer.empty();
+                this.$featuresContainer.append(this._createRefreshHeader(this.featuresLastFetched, false,
+                    () => this._refreshFeatures()));
+                this.$featuresContainer.append($('<div class="user-empty"></div>').text('Unable to inspect FeatureStorage.'));
+            }
+        }
+
         _renderChannel() {
             const status = _private.channel.getStatus();
             const addStatus = (label, value, tone) => {
@@ -2543,7 +2661,9 @@
         }
 
         _switchTab(event) {
-            const selectedTab = (event.currentTarget || event.target).dataset.tab;
+            const requestedTab = (event.currentTarget || event.target).dataset.tab;
+            const selectedTab = requestedTab === 'features' && !$.isPlainObject(Breinify.plugins.featureStorage)
+                ? 'info' : requestedTab;
             this.$shadowRoot.find('div.container').removeClass('active');
             this.activeTab = selectedTab;
             this.$tabs.each(function () {
@@ -2572,6 +2692,10 @@
                 this._stopInspecting();
                 this._refreshSplitTests();
                 this.$splitTestsContainer.addClass('active');
+            } else if (selectedTab === 'features') {
+                this._stopInspecting();
+                this._refreshFeatures();
+                this.$featuresContainer.addClass('active');
             } else if (selectedTab === 'inspect') {
                 this.$inspectContainer.addClass('active');
                 this._startInspecting();
