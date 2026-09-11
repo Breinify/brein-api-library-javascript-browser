@@ -367,9 +367,9 @@
             const definition = {
                 persistence: this.cloneObject(value.persistence)
             };
-            if (typeof value.valueType === 'string') {
-                definition.valueType = value.valueType;
-            }
+            ['valueType', 'name', 'description', 'source'].forEach(function (field) {
+                if (typeof value[field] === 'string') definition[field] = value[field];
+            });
             return definition;
         },
 
@@ -552,9 +552,9 @@
                     ttlInMs: ttlInMs
                 }
             };
-            if (typeof normalizedInput.valueType === 'string') {
-                definitionResult.valueType = normalizedInput.valueType;
-            }
+            ['valueType', 'name', 'description', 'source'].forEach(function (field) {
+                if (typeof normalizedInput[field] === 'string') definitionResult[field] = normalizedInput[field];
+            });
             return definitionResult;
         },
 
@@ -2106,6 +2106,10 @@
          *
          * Definition shape:
          * {
+         *   name?: string,           // display name; the feature's runtime key stays unchanged
+         *   description?: string,    // optional explanation for inspection tools
+         *   source?: string,         // generated registrations identify themselves as 'scriptCreator'
+         *   valueType?: string,
          *   persistence?: {
          *     enabled?: boolean,      // default true
          *     type?: 'localStorage',  // currently only localStorage is supported

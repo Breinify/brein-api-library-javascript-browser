@@ -908,6 +908,12 @@
                 div.user-empty { color: #bbbbbb; font-style: italic; }
                 .feature-card { background: #242424; border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-top: 10px; padding: 10px; }
                 .feature-name { color: #4fc3f7; font-size: 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
+                .feature-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+                .feature-heading .feature-name { min-width: 0; }
+                .feature-source { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; height: 20px; color: #bbbbbb; }
+                .feature-source.managed { color: #4fc3f7; }
+                .feature-key { display: block; color: #bbbbbb; font-size: 11px; overflow-wrap: anywhere; margin-bottom: 8px; }
+                .feature-description { color: #ddd; margin: 0 0 8px; }
                 .feature-value { background: #1e1e1e; color: #eee; padding: 8px; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
                 .feature-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; margin: 10px 0; }
                 .feature-details dt { color: #bbbbbb; }
@@ -2559,7 +2565,27 @@
 
         _renderFeature(feature, capturedAt) {
             const $card = $('<article class="feature-card"></article>');
-            $card.append($('<h3 class="feature-name"></h3>').text(feature.name));
+            const name = Breinify.UTL.isNonEmptyString(feature.definition.name);
+            const description = Breinify.UTL.isNonEmptyString(feature.definition.description);
+            const managed = feature.definition.source === 'scriptCreator';
+            const $heading = $('<div class="feature-heading"></div>');
+            $heading.append($('<h3 class="feature-name"></h3>').text(name === null ? feature.name : name));
+            const sourceLabel = managed ? 'Script Creator feature'
+                : 'Runtime feature — no Script Creator source metadata recorded';
+            const sourceIcon = managed
+                ? '<path d="M3 6h4m4 0h10M3 12h10m4 0h4M3 18h4m4 0h10"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/>'
+                : '<path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 4l-4 16"/>';
+            const $source = $('<span class="feature-source" role="img"></span>').toggleClass('managed', managed)
+                .attr('title', sourceLabel).attr('aria-label', sourceLabel)
+                .append($('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + sourceIcon + '</svg>'));
+            $heading.append($source);
+            $card.append($heading);
+            if (name !== null && name !== feature.name) {
+                $card.append($('<code class="feature-key"></code>').text(feature.name));
+            }
+            if (description !== null) {
+                $card.append($('<p class="feature-description"></p>').text(description));
+            }
             const value = feature.hasValue ? this._formatFeatureValue(feature.value) : 'Not set yet';
             $card.append($('<pre class="feature-value" aria-label="Current value"></pre>').text(value));
             const $details = $('<dl class="feature-details"></dl>');
