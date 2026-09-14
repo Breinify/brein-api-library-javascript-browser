@@ -54,6 +54,203 @@
     const actions = {
 
         /**
+         * Plays a bundled snippet once per target. Reservations are recorded before scheduling so DOM changes
+         * during the delay or playback cannot start duplicates. The template owns drawing; this action owns hosts.
+         */
+        showAnimation: {
+            isDomAction: true,
+            isAsyncAction: true,
+            defaultMaxApplications: 1,
+            _hosts: new WeakMap(),
+
+            findRequirements: function (runtime, action, actionIndex, root) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) return false;
+                return this._targets(action, root).some(function (target) {
+                    return !_private.hasAppliedTarget(runtime, actionIndex, target);
+                });
+            },
+
+            execute: function (action, runtime, actionIndex) {
+                this._preparePage(runtime);
+                const stateIndex = _private.getActionStateIndex(runtime, actionIndex);
+                const entries = runtime.animations.entries[stateIndex] || [];
+                runtime.animations.entries[stateIndex] = entries;
+                const settings = _private.getActionSettings(action);
+                const playback = $.isPlainObject(settings.playback) ? settings.playback : {};
+                const targets = _private.hasReachedApplicationLimit(runtime, actionIndex, action)
+                    ? [] : this._targets(action, null);
+                for (const target of targets) {
+                    if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) break;
+                    if (_private.hasAppliedTarget(runtime, actionIndex, target)) continue;
+
+                    // reserve before inserting any DOM or scheduling a timer, including a zero-delay start
+                    _private.markAppliedTarget(runtime, actionIndex, target);
+                    _private.markApplication(runtime, actionIndex);
+                    const entry = {
+                        target: target, group: runtime.selectedGroupId, page: runtime.animations.page,
+                        pending: true, executed: false, failed: false, disposed: false,
+                        timer: null, handle: null, host: null, release: null
+                    };
+                    entries.push(entry);
+                    const delay = Number.isFinite(playback.delayInMs) ? playback.delayInMs : 0;
+                    entry.timer = window.setTimeout(function () {
+                        this._start(entry, action, runtime, actionIndex);
+                    }.bind(this), Math.max(0, Math.min(10000, delay)));
+                }
+                return {
+                    pending: entries.some(function (entry) { return entry.pending; }),
+                    executed: entries.some(function (entry) { return entry.executed; }),
+                    failed: entries.some(function (entry) { return entry.failed; })
+                };
+            },
+
+            _targets: function (action, root) {
+                return _private.getActionSelector(action) === null
+                    ? (document.body ? [document.body] : []) : _private.getTargets(action, root);
+            },
+
+            /** All executable code comes from the existing snippet registry, never from configuration strings. */
+            _start: function (entry, action, runtime, actionIndex) {
+                if (entry.disposed) return;
+                if (entry.page !== _private.getDecisionPageKey() || !_private.isRuntimeActive(runtime) ||
+                    entry.group !== runtime.selectedGroupId || !entry.target.isConnected) {
+                    this._finish(entry, runtime, action, {status: 'cancelled'});
+                    return;
+                }
+                const settings = _private.getActionSettings(action);
+                try {
+                    const snippetId = Breinify.UTL.isNonEmptyString(settings.snippetId);
+                    const render = snippetId === null ? null : Breinify.plugins.snippetManager.get(snippetId);
+                    if (typeof render !== 'function') throw new Error('The animation renderer is not registered.');
+                    this._createHost(entry, _private.getActionSelector(action) === null);
+                    const playback = $.isPlainObject(settings.playback) ? settings.playback : {};
+                    const handle = render({
+                        container: entry.host, durationInMs: playback.durationInMs,
+                        options: $.isPlainObject(settings.options) ? settings.options : {}
+                    });
+                    if (!handle || typeof handle.cancel !== 'function' || !handle.finished ||
+                        typeof handle.finished.then !== 'function') {
+                        throw new Error('The animation renderer returned an invalid playback handle.');
+                    }
+                    entry.handle = handle;
+                    entry.executed = handle.started === true;
+                    if (entry.executed) _private.applyActionSnippets(runtime, action, actionIndex);
+                    handle.finished.then(function (result) {
+                        this._finish(entry, runtime, action, result);
+                    }.bind(this), function (error) {
+                        this._finish(entry, runtime, action, {status: 'failed', error: error});
+                    }.bind(this));
+                } catch (error) {
+                    if (entry.handle) entry.handle.cancel();
+                    this._finish(entry, runtime, action, {status: 'failed', error: error});
+                }
+            },
+
+            /** Leases the positioning change so simultaneous animations cannot restore it underneath each other. */
+            _createHost: function (entry, viewport) {
+                const host = document.createElement('div');
+                entry.host = host;
+                host.setAttribute('aria-hidden', 'true');
+                host.setAttribute('data-br-animation', '');
+                host.style.cssText = 'inset:0;pointer-events:none;overflow:hidden;';
+                host.style.position = viewport ? 'fixed' : 'absolute';
+                host.style.zIndex = viewport ? '2147483000' : '1';
+                if (!viewport) {
+                    const target = entry.target;
+                    let lease = this._hosts.get(target);
+                    if (lease) {
+                        lease.count++;
+                    } else if (window.getComputedStyle(target).position === 'static') {
+                        lease = {
+                            count: 1, value: target.style.getPropertyValue('position'),
+                            priority: target.style.getPropertyPriority('position')
+                        };
+                        this._hosts.set(target, lease);
+                        target.style.setProperty('position', 'relative', 'important');
+                    }
+                    if (lease) {
+                        entry.release = function () {
+                            if (--lease.count !== 0) return;
+                            this._hosts.delete(target);
+                            // preserve a position change made by the page while our overlay was active
+                            if (target.style.position === 'relative' &&
+                                target.style.getPropertyPriority('position') === 'important') {
+                                if (lease.value) target.style.setProperty('position', lease.value, lease.priority);
+                                else target.style.removeProperty('position');
+                            }
+                        }.bind(this);
+                    }
+                }
+                entry.target.appendChild(host);
+            },
+
+            _cleanup: function (entry) {
+                window.clearTimeout(entry.timer);
+                if (entry.host) entry.host.remove();
+                if (entry.release) entry.release();
+                entry.release = null;
+                entry.host = null;
+                entry.timer = null;
+                entry.handle = null;
+            },
+
+            _finish: function (entry, runtime, action, result) {
+                if (entry.disposed) return;
+                entry.pending = false;
+                entry.disposed = true;
+                entry.failed = !result || result.status === 'failed';
+                this._cleanup(entry);
+                if (entry.failed) _private.logActionError(action, result && result.error);
+                if (entry.page === _private.getDecisionPageKey() &&
+                    _private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime) {
+                    runtime.module.onChange({type: 'animation'});
+                }
+            },
+
+            /** Cancelling never undoes other actions and never makes an attempted target eligible again. */
+            _cancel: function (runtime) {
+                if (!runtime.animations) return;
+                Object.values(runtime.animations.entries).forEach(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.disposed) return;
+                        entry.disposed = true;
+                        entry.pending = false;
+                        if (entry.handle) entry.handle.cancel();
+                        this._cleanup(entry);
+                    }, this);
+                }, this);
+            },
+
+            _preparePage: function (runtime) {
+                if (!runtime.animations) return;
+                const page = _private.getDecisionPageKey();
+                if (runtime.animations.page === page) return;
+                _private.resetAppliedActions(runtime);
+                runtime.animations = {page: page, entries: {}};
+            },
+
+            /** Reuses Trigger's URL observation; there is no additional DOM observer or polling interval. */
+            _initialize: function (runtime) {
+                const groups = runtime.config && runtime.config.actions;
+                const configured = $.isPlainObject(groups) && Object.values(groups).some(function (group) {
+                    return Array.isArray(group) && group.some(function (action) {
+                        return action && action.type === 'showAnimation' && action.enabled !== false;
+                    });
+                });
+                if (!configured) return;
+                runtime.animations = {page: _private.getDecisionPageKey(), entries: {}};
+                const observerId = 'uiModifyContent-animation-' + _private.key(runtime.webExId, runtime.webExVersionId);
+                Breinify.plugins.trigger.addUrlChangeObserver(observerId, function () {
+                    this._preparePage(runtime);
+                    runtime.module.onChange({type: 'urlChange'});
+                }.bind(this));
+                runtime.disposeAnimationListener = function () {
+                    Breinify.plugins.trigger.removeUrlChangeObserver(observerId);
+                };
+            }
+        },
+
+        /**
          * Writes the configured message to the browser console. This is the
          * initial Modify Content action used to verify lifecycle handling.
          */
@@ -1159,6 +1356,18 @@
         },
 
         reportRenderedElementOutcome: function (runtime, execution) {
+            if (runtime.animations) {
+                const previous = runtime.pendingAnimationOutcome;
+                if (previous && previous.group === runtime.selectedGroupId) {
+                    execution.executed = execution.executed || previous.executed;
+                    execution.failed = execution.failed || previous.failed;
+                }
+                runtime.pendingAnimationOutcome = {
+                    group: runtime.selectedGroupId, executed: execution.executed, failed: execution.failed
+                };
+                // delayed playback must not be reported as a completed no-op before it even starts
+                if (execution.pending && !execution.failed) return false;
+            }
             const outcome = this.createRenderedElementOutcome(runtime, execution);
             return this.sendRenderedElementActivity(runtime, outcome.rendered, outcome.status, outcome.actionGroup);
         },
@@ -2076,6 +2285,9 @@
 
         /** A new feature page visit may apply actions again; same-page feature updates keep their limits. */
         resetAppliedActions: function (runtime) {
+            actions.showAnimation._cancel(runtime);
+            if (runtime.animations) runtime.animations.entries = {};
+            runtime.pendingAnimationOutcome = null;
             runtime.appliedTargets = [];
             runtime.applicationCounts = [];
             runtime.executedActions = [];
@@ -2459,12 +2671,18 @@
         },
 
         isRuntimeActive: function (runtime) {
+            actions.showAnimation._preparePage(runtime);
             if (typeof runtime.module.isValidPage === 'function') {
                 const active = runtime.module.isValidPage() === true;
-                if (!active) runtime.module._webExperienceActivation = null;
+                if (!active) {
+                    runtime.module._webExperienceActivation = null;
+                    actions.showAnimation._cancel(runtime);
+                }
                 return active;
             } else if ($.isPlainObject(runtime.config.activationLogic)) {
-                return Breinify.plugins.webExperiences.checkActivationLogic(runtime.config, runtime.module) === true;
+                const active = Breinify.plugins.webExperiences.checkActivationLogic(runtime.config, runtime.module) === true;
+                if (!active) actions.showAnimation._cancel(runtime);
+                return active;
             }
             runtime.module._webExperienceActivation = null;
             return true;
@@ -2653,7 +2871,8 @@
             const modifications = [];
             const execution = {
                 executed: false,
-                failed: false
+                failed: false,
+                pending: false
             };
 
             for (let i = 0; i < configuredActions.length; i++) {
@@ -2675,6 +2894,12 @@
                             for (let j = 0; j < actionModifications.length; j++) {
                                 modifications.push(actionModifications[j]);
                             }
+                        }
+                        if (implementation.isAsyncAction === true) {
+                            execution.executed = actionModifications.executed || execution.executed;
+                            execution.failed = actionModifications.failed || execution.failed;
+                            execution.pending = actionModifications.pending || execution.pending;
+                            continue;
                         }
                         this.applyActionSnippets(runtime, action, i);
 
@@ -2719,6 +2944,8 @@
             const key = _private.key(webExId, webExVersionId);
             const previousRuntime = _private.runtimes[key];
             if (previousRuntime) {
+                actions.showAnimation._cancel(previousRuntime);
+                if (previousRuntime.disposeAnimationListener) previousRuntime.disposeAnimationListener();
                 conditions.feature._clearTimers(previousRuntime);
                 if (previousRuntime.disposeFeatureListener) previousRuntime.disposeFeatureListener();
                 window.clearTimeout(previousRuntime.conditionEvaluationTimer);
@@ -2766,6 +2993,7 @@
             };
 
             conditions.feature._initialize(runtime);
+            actions.showAnimation._initialize(runtime);
             return runtime;
         },
 

@@ -2,6 +2,207 @@
 
 describe('UiModifyContent', function () {
 
+    describe('showAnimation lifecycle', function () {
+        var id = 'modify-content-animation-test';
+        var version = 'animation-version';
+        var module;
+        var activitySpy;
+        var originalGet;
+        var renderCount;
+        var finish;
+        var target;
+        var cancelled;
+        var context;
+
+        beforeEach(function () {
+            module = {isValidPage: function () { return true; }};
+            activitySpy = createActivitySpy();
+            originalGet = Breinify.plugins.snippetManager.get;
+            renderCount = 0;
+            cancelled = 0;
+            target = document.createElement('div');
+            target.id = 'animation-action-target';
+            document.body.appendChild(target);
+            Breinify.plugins.snippetManager.get = function () {
+                return function (ctx) {
+                    context = ctx;
+                    renderCount++;
+                    return {
+                        started: true,
+                        cancel: function () { cancelled++; },
+                        finished: {then: function (callback) { finish = callback; }}
+                    };
+                };
+            };
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, id, version, {actions: {}});
+            Breinify.plugins.snippetManager.get = originalGet;
+            target.remove();
+            activitySpy.restore();
+        });
+
+        function setup(settings) {
+            return uiModifyContent.register(module, id, version, {
+                conditionsGroups: [],
+                actions: {_default: [{type: 'showAnimation', settings: settings}]}
+            });
+        }
+
+        // callbacks are deliberately controlled so lifecycle assertions do not depend on actual drawing duration
+        it('reserves before delayed playback and cleans up without replaying after completion', function (done) {
+            setup({snippetId: 'animation-renderer', playback: {delayInMs: 10, durationInMs: 1200}});
+            uiModifyContent.handle(id, version, {});
+            uiModifyContent.handle(id, version, {});
+            expect(renderCount).toBe(0);
+            expect(activitySpy.renderedElements.length).toBe(0);
+            setTimeout(function () {
+                expect(renderCount).toBe(1);
+                expect(context.container.style.position).toBe('fixed');
+                expect(context.durationInMs).toBe(1200);
+                uiModifyContent.handle(id, version, {});
+                expect(renderCount).toBe(1);
+                finish({status: 'completed'});
+                expect(context.container.isConnected).toBe(false);
+                expect(activitySpy.renderedElements[0].tags.status).toBe(200);
+                uiModifyContent.handle(id, version, {});
+                expect(renderCount).toBe(1);
+                done();
+            }, 25);
+        });
+
+        it('uses the existing target limit and restores section positioning', function (done) {
+            target.style.position = 'static';
+            setup({selector: '#animation-action-target', snippetId: 'animation-renderer', maxApplications: 1});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(context.container.parentElement).toBe(target);
+                expect(target.style.position).toBe('relative');
+                finish({status: 'completed'});
+                expect(target.style.position).toBe('static');
+                uiModifyContent.handle(id, version, {});
+                expect(renderCount).toBe(1);
+                done();
+            }, 10);
+        });
+
+        it('can discover a target added after the first scan', function (done) {
+            target.remove();
+            setup({selector: '#animation-action-target', snippetId: 'animation-renderer'});
+            uiModifyContent.handle(id, version, {});
+            expect(renderCount).toBe(0);
+            document.body.appendChild(target);
+            expect(module.findRequirements(target, {type: 'added-element'})).toBe(true);
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(renderCount).toBe(1);
+                finish({status: 'completed'});
+                done();
+            }, 10);
+        });
+
+        it('cancels running playback when the experience is replaced', function (done) {
+            setup({snippetId: 'animation-renderer'});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                uiModifyContent.register({}, id, version, {actions: {}});
+                expect(cancelled).toBe(1);
+                expect(context.container.isConnected).toBe(false);
+                finish({status: 'completed'});
+                expect(activitySpy.renderedElements.length).toBe(0);
+                done();
+            }, 10);
+        });
+
+        it('cancels a pending start when activation is lost', function (done) {
+            setup({snippetId: 'animation-renderer', playback: {delayInMs: 20}});
+            uiModifyContent.handle(id, version, {});
+            module.isValidPage = function () { return false; };
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(renderCount).toBe(0);
+                expect(document.querySelector('[data-br-animation]')).toBe(null);
+                done();
+            }, 30);
+        });
+
+        it('cancels on SPA navigation and allows a new visit without accepting old completion callbacks', function (done) {
+            var originalUrl = window.location.href;
+            setup({snippetId: 'animation-renderer'});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                var oldFinish = finish;
+                var oldHost = context.container;
+                window.history.replaceState({}, '', '#animation-next-page');
+                uiModifyContent.handle(id, version, {});
+                expect(cancelled).toBe(1);
+                expect(oldHost.isConnected).toBe(false);
+                oldFinish({status: 'completed'});
+                expect(activitySpy.renderedElements.length).toBe(0);
+                setTimeout(function () {
+                    expect(renderCount).toBe(2);
+                    finish({status: 'completed'});
+                    expect(activitySpy.renderedElements.length).toBe(1);
+                    uiModifyContent.register({}, id, version, {actions: {}});
+                    window.history.replaceState({}, '', originalUrl);
+                    done();
+                }, 10);
+            }, 10);
+        });
+
+        it('preserves an earlier successful action when a pending animation is skipped', function (done) {
+            Breinify.plugins.snippetManager.get = function () {
+                return function () {
+                    return {started: false, cancel: function () {},
+                        finished: {then: function (callback) { callback({status: 'skipped'}); }}};
+                };
+            };
+            uiModifyContent.register(module, id, version, {
+                conditionsGroups: [], actions: {_default: [
+                    {type: 'writeToConsole', settings: {message: 'animation activity test'}},
+                    {type: 'showAnimation', settings: {snippetId: 'skipped-animation'}}
+                ]}
+            });
+            uiModifyContent.handle(id, version, {});
+            expect(activitySpy.renderedElements.length).toBe(0);
+            setTimeout(function () {
+                expect(activitySpy.renderedElements[0].tags.status).toBe(200);
+                expect(activitySpy.renderedElements[0].tags.rendered).toBe(true);
+                done();
+            }, 10);
+        });
+
+        it('reports missing renderer failures instead of a successful no-op', function (done) {
+            Breinify.plugins.snippetManager.get = function () { return null; };
+            setup({snippetId: 'missing-animation'});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(activitySpy.renderedElements[0].tags.status).toBe(500);
+                expect(activitySpy.renderedElements[0].tags.rendered).toBe(false);
+                expect(document.querySelector('[data-br-animation]')).toBe(null);
+                done();
+            }, 10);
+        });
+
+        it('reports reduced-motion or zero-size skips without claiming an animation was rendered', function (done) {
+            Breinify.plugins.snippetManager.get = function () {
+                return function () {
+                    return {started: false, cancel: function () {},
+                        finished: {then: function (callback) { callback({status: 'skipped'}); }}};
+                };
+            };
+            setup({snippetId: 'skipped-animation'});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(activitySpy.renderedElements[0].tags.status).toBe(13000);
+                expect(activitySpy.renderedElements[0].tags.rendered).toBe(false);
+                expect(document.querySelector('[data-br-animation]')).toBe(null);
+                done();
+            }, 10);
+        });
+    });
+
     describe('URL conditions and activation captures', function () {
         var webExperiences = Breinify.plugins.webExperiences;
         var webExId = 'modify-content-url-condition-test';
