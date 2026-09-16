@@ -264,6 +264,175 @@
         },
 
         /**
+         * Applies one primary CSS source, separately from advanced css/js snippets. Stylesheets are document-wide;
+         * element declarations reuse target tracking and the existing page-scoped application limit.
+         */
+        applyCss: {
+            isDomAction: true,
+            isAsyncAction: true,
+
+            findRequirements: function (runtime, action, actionIndex, root) {
+                const settings = _private.getActionSettings(action);
+                if ($.isPlainObject(settings.elementStyle)) {
+                    if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) return false;
+                    const elementAction = this._elementAction(action);
+                    return _private.getTargets(elementAction, root).some(function (target) {
+                        return !_private.hasAppliedTarget(runtime, actionIndex, target);
+                    });
+                }
+                const state = _private.getActionStateIndex(runtime, actionIndex);
+                return runtime.executedActions[state] !== true && document.body !== null;
+            },
+
+            execute: function (action, runtime, actionIndex) {
+                const settings = _private.getActionSettings(action);
+                if ($.isPlainObject(settings.elementStyle)) {
+                    return this._applyElements(action, runtime, actionIndex);
+                }
+                const state = _private.getActionStateIndex(runtime, actionIndex);
+                if (runtime.executedActions[state] === true) return {executed: true};
+                if (!document.body) return {pending: true};
+
+                const snippetId = Breinify.UTL.isNonEmptyString(settings.snippetId);
+                const style = Breinify.UTL.isNonEmptyString(settings.style);
+                let code;
+                if (style !== null && snippetId === null) {
+                    // normal generated scripts use a local snippet; direct registrations use the same injector
+                    const styleId = Breinify.UTL.isNonEmptyString(settings.styleId) ||
+                        [runtime.webExId, runtime.webExVersionId, state].map(encodeURIComponent).join('-');
+                    const element = document.createElement('style');
+                    element.id = 'br-style-' + styleId;
+                    element.textContent = style;
+                    code = element.outerHTML;
+                } else if (snippetId !== null && style === null) {
+                    const snippet = _private.resolveSnippet(runtime, snippetId);
+                    if (snippet === null) {
+                        this._observe(runtime, actionIndex, snippetId);
+                        return {pending: true};
+                    }
+                    if (snippet.type && _private.normalizeSnippetType(snippet.type) !== SNIPPET_TYPE_CSS) {
+                        throw new Error('applyCss requires a CSS snippet.');
+                    }
+                    code = snippet.value;
+                } else {
+                    throw new Error('applyCss requires exactly one CSS source.');
+                }
+
+                // inspect in an inert template before using the shared injector; never accept HTML or JS snippets
+                const element = this._styleElement(code, snippetId);
+                const existing = document.getElementById(element.id);
+                if (existing && existing.tagName !== 'STYLE') {
+                    throw new Error('The applyCss style ID is already used by a non-style element.');
+                } else if (existing && existing.textContent !== element.textContent) {
+                    _private.logSnippetWarning('style ID already exists with different CSS; keeping existing style', {
+                        styleId: element.id
+                    });
+                } else if (!existing) {
+                    const pendingKey = 'applyCssInject:' + state;
+                    if (runtime.observedSnippets[pendingKey] === true) return {pending: true};
+                    const page = _private.getDecisionPageKey();
+                    runtime.observedSnippets[pendingKey] = true;
+                    let synchronous = true;
+                    const onInjected = function () {
+                        if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                            page !== _private.getDecisionPageKey()) return;
+                        delete runtime.observedSnippets[pendingKey];
+                        if (!synchronous && state === _private.getActionStateIndex(runtime, actionIndex) &&
+                            _private.isRuntimeActive(runtime)) runtime.module.onChange({type: 'snippet'});
+                    };
+                    if (snippetId !== null) _private.injectCssSnippet(snippetId, code, onInjected);
+                    else Breinify.plugins.snippetManager.injectCode(code, 'body', 'prepend', onInjected);
+                    synchronous = false;
+                }
+                if (!document.getElementById(element.id)) return {pending: true};
+                runtime.executedActions[state] = true;
+                _private.applyActionSnippets(runtime, action, actionIndex);
+                return {executed: true};
+            },
+
+            _styleElement: function (code, snippetId) {
+                if (typeof code !== 'string') throw new Error('applyCss requires CSS style markup.');
+                const template = document.createElement('template');
+                template.innerHTML = code.trim();
+                const nodes = Array.from(template.content.childNodes).filter(function (node) {
+                    return node.nodeType !== 8 && !(node.nodeType === 3 && node.textContent.trim() === '');
+                });
+                if (nodes.length !== 1 || nodes[0].nodeType !== 1 || nodes[0].tagName !== 'STYLE') {
+                    throw new Error('applyCss requires a snippet containing exactly one style element.');
+                }
+                const element = nodes[0];
+                if (!element.id && snippetId !== null) element.id = 'br-' + snippetId;
+                if (!element.id) throw new Error('applyCss requires a stable style ID.');
+                return element;
+            },
+
+            _observe: function (runtime, actionIndex, snippetId) {
+                if (snippetId.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) === 0) {
+                    throw new Error('The local applyCss snippet is missing.');
+                }
+                const state = _private.getActionStateIndex(runtime, actionIndex);
+                const key = 'applyCss:' + state;
+                if (runtime.observedSnippets[key] === true) return;
+                const page = _private.getDecisionPageKey();
+                runtime.observedSnippets[key] = true;
+                Breinify.plugins.snippetManager.onSnippetRegistered(snippetId, function () {
+                    // a delayed registration must not execute an old page, group, or replaced runtime
+                    if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                        page !== _private.getDecisionPageKey()) return;
+                    delete runtime.observedSnippets[key];
+                    if (state === _private.getActionStateIndex(runtime, actionIndex) &&
+                        _private.isRuntimeActive(runtime)) runtime.module.onChange({type: 'snippet'});
+                });
+            },
+
+            _elementAction: function (action) {
+                const settings = _private.getActionSettings(action);
+                return {type: action.type, settings: {selector: settings.elementStyle.selector}};
+            },
+
+            _applyElements: function (action, runtime, actionIndex) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) return {executed: false};
+                const settings = _private.getActionSettings(action);
+                const properties = settings.elementStyle.properties;
+                if (!$.isPlainObject(properties) || Object.keys(properties).length === 0) {
+                    throw new Error('applyCss requires non-empty elementStyle properties.');
+                }
+                const declarations = Object.keys(properties).map(function (name) {
+                    const value = Breinify.UTL.isNonEmptyString(properties[name]);
+                    if (value === null || !/^(?:--[A-Za-z0-9_-]+|-?[a-z][a-z0-9-]*)$/.test(name)) {
+                        throw new Error('applyCss requires named CSS properties with non-empty string values.');
+                    }
+                    const important = /\\s*!important\\s*$/i.test(value);
+                    const content = important ? value.replace(/\\s*!important\\s*$/i, '').trim() : value;
+                    const priority = important ? 'important' : '';
+                    const probe = document.createElement('div').style;
+                    probe.setProperty(name, content, priority);
+                    if (probe.getPropertyValue(name) === '') {
+                        throw new Error('Unsupported CSS declaration: ' + name);
+                    }
+                    return {name: name, value: content, priority: priority};
+                });
+                const elementAction = this._elementAction(action);
+                const modifications = [];
+                for (const target of _private.getTargets(elementAction, null)) {
+                    if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) break;
+                    if (_private.hasAppliedTarget(runtime, actionIndex, target) || !target.style) continue;
+                    declarations.forEach(function (declaration) {
+                        target.style.setProperty(declaration.name, declaration.value, declaration.priority);
+                    });
+                    _private.markAppliedTarget(runtime, actionIndex, target);
+                    _private.markApplication(runtime, actionIndex);
+                    modifications.push(_private.createModifiedContentRecord(elementAction, actionIndex, target, null));
+                }
+                if (modifications.length > 0) {
+                    _private.applyActionSnippets(runtime, action, actionIndex);
+                    _private.triggerModifiedContent(runtime, modifications);
+                }
+                return {executed: modifications.length > 0};
+            }
+        },
+
+        /**
          * Applies the configured HTML operation to matching targets, subject
          * to the optional maxApplications limit. The action owns its
          * operation-specific behavior while the runtime coordinator provides
@@ -1360,16 +1529,16 @@
         },
 
         reportRenderedElementOutcome: function (runtime, execution) {
-            if (runtime.animations) {
-                const previous = runtime.pendingAnimationOutcome;
+            const previous = runtime.pendingActionOutcome;
+            if (runtime.animations || execution.pending || previous) {
                 if (previous && previous.group === runtime.selectedGroupId) {
                     execution.executed = execution.executed || previous.executed;
                     execution.failed = execution.failed || previous.failed;
                 }
-                runtime.pendingAnimationOutcome = {
+                runtime.pendingActionOutcome = {
                     group: runtime.selectedGroupId, executed: execution.executed, failed: execution.failed
                 };
-                // delayed playback must not be reported as a completed no-op before it even starts
+                // delayed playback or snippet injection must not be reported as a completed no-op
                 if (execution.pending && !execution.failed) return false;
             }
             const outcome = this.createRenderedElementOutcome(runtime, execution);
@@ -2280,13 +2449,13 @@
             };
         },
 
-        injectCssSnippet: function (snippetId, snippet) {
+        injectCssSnippet: function (snippetId, snippet, onInjected) {
             if (snippetId.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) !== 0) {
-                Breinify.plugins.snippetManager.inject(snippetId, "body", "prepend");
+                Breinify.plugins.snippetManager.inject(snippetId, "body", "prepend", onInjected);
                 return true;
             }
 
-            Breinify.plugins.snippetManager.injectCode(snippet, "body", "prepend");
+            Breinify.plugins.snippetManager.injectCode(snippet, "body", "prepend", onInjected);
             return true;
         },
 
@@ -2324,7 +2493,7 @@
         resetAppliedActions: function (runtime) {
             actions.showAnimation._cancel(runtime);
             if (runtime.animations) runtime.animations.entries = {};
-            runtime.pendingAnimationOutcome = null;
+            runtime.pendingActionOutcome = null;
             runtime.appliedTargets = [];
             runtime.applicationCounts = [];
             runtime.executedActions = [];

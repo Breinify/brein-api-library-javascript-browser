@@ -2,6 +2,173 @@
 
 describe('UiModifyContent', function () {
 
+    describe('applyCss', function () {
+        var id = 'apply-css-spec';
+        var version = 'version-1';
+        var activitySpy;
+        var fixture;
+        var runtime;
+        var registeredIds;
+
+        beforeEach(function () {
+            activitySpy = createActivitySpy();
+            fixture = document.createElement('div');
+            fixture.id = 'apply-css-fixture';
+            document.body.appendChild(fixture);
+            registeredIds = [];
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, id, version, {actions: {}});
+            registeredIds.forEach(function (snippetId) {
+                Breinify.plugins.snippetManager.registerSnippet(snippetId, null);
+            });
+            document.querySelectorAll('[id^="br-style-apply-css-"], [id^="br-apply-css-"]').forEach(function (el) {
+                el.remove();
+            });
+            fixture.remove();
+            activitySpy.restore();
+        });
+
+        function setup(settings, module, enabled) {
+            runtime = uiModifyContent.register(module || {}, id, version, {
+                conditionsGroups: [],
+                actions: {_default: [{type: 'applyCss', enabled: enabled !== false, settings: settings}]}
+            });
+            return runtime.module;
+        }
+
+        function evaluate() {
+            uiModifyContent.handle(id, version, {});
+        }
+
+        // a document-wide style stays deduplicated even when the action runtime is recreated
+        it('injects inline CSS once, honors enabled, and keeps an existing conflicting style', function () {
+            setup({style: '.promotion { color: green; }', styleId: 'apply-css-primary'}, {}, false);
+            evaluate();
+            expect(document.getElementById('br-style-apply-css-primary')).toBeNull();
+            setup({style: '.promotion { color: green; }', styleId: 'apply-css-primary'});
+            evaluate();
+            evaluate();
+            var style = document.getElementById('br-style-apply-css-primary');
+            expect(style.parentNode).toBe(document.body);
+            expect(style.textContent).toBe('.promotion { color: green; }');
+            setup({style: '.promotion { color: red; }', styleId: 'apply-css-primary'});
+            evaluate();
+            expect(document.querySelectorAll('#br-style-apply-css-primary').length).toBe(1);
+            expect(style.textContent).toBe('.promotion { color: green; }');
+        });
+
+        // primary local snippets have their own ID and do not replace optional advanced css/js
+        it('renders generated local styles and invokes advanced JavaScript after insertion', function () {
+            var localId = 'web-experience:apply-css-primary';
+            var jsId = 'web-experience:apply-css-js';
+            var cssId = 'web-experience:apply-css-advanced';
+            var calls = 0;
+            var snippets = {};
+            snippets[localId] = {type: 'css',
+                value: '<style id="br-style-apply-css-local">.primary { color: green; }</style>'};
+            snippets[jsId] = {type: 'javascript', value: function () {
+                expect(document.getElementById('br-style-apply-css-local')).not.toBeNull();
+                calls++;
+            }};
+            snippets[cssId] = {type: 'css',
+                value: '<style id="br-style-apply-css-advanced">.advanced { color: blue; }</style>'};
+            setup({snippetId: localId, js: {snippetId: jsId}, css: {snippetId: cssId}},
+                {webExperienceSnippets: snippets});
+            evaluate();
+            evaluate();
+            expect(calls).toBe(1);
+            expect(document.getElementById('br-style-apply-css-advanced')).not.toBeNull();
+            expectRenderedElement(activitySpy.renderedElements[0], true, 200, '_default');
+        });
+
+        // the public injector is asynchronous even for a registered snippet; completion must wake the action
+        it('waits for a registered CSS snippet and reports success only after injection', function (done) {
+            var snippetId = 'apply-css-late';
+            registeredIds.push(snippetId);
+            setup({snippetId: snippetId});
+            evaluate();
+            evaluate();
+            expect(activitySpy.renderedElements.length).toBe(0);
+            Breinify.plugins.snippetManager.registerSnippet(snippetId, '<style>.late { color: green; }</style>');
+            setTimeout(function () {
+                expect(document.querySelectorAll('#br-apply-css-late').length).toBe(1);
+                expect(activitySpy.renderedElements.length).toBe(1);
+                expectRenderedElement(activitySpy.renderedElements[0], true, 200, '_default');
+                done();
+            }, 20);
+        });
+
+        // an observer from an old registration must not apply CSS or run advanced code on a replaced runtime
+        it('ignores late snippet registration after the experience runtime is replaced', function (done) {
+            var snippetId = 'apply-css-obsolete';
+            registeredIds.push(snippetId);
+            setup({snippetId: snippetId});
+            evaluate();
+            uiModifyContent.register({}, id, version, {actions: {}});
+            Breinify.plugins.snippetManager.registerSnippet(snippetId,
+                '<style id="br-apply-css-obsolete">.obsolete { color: red; }</style>');
+            setTimeout(function () {
+                expect(document.getElementById('br-apply-css-obsolete')).toBeNull();
+                done();
+            }, 20);
+        });
+
+        // a registered JS/HTML snippet must never be executed as though it were CSS
+        it('rejects a non-CSS snippet without injecting or executing it', function () {
+            var snippetId = 'apply-css-not-css';
+            var invoked = false;
+            registeredIds.push(snippetId);
+            Breinify.plugins.snippetManager.registerSnippet(snippetId, function () { invoked = true; });
+            setup({snippetId: snippetId});
+            evaluate();
+            expect(invoked).toBe(false);
+            expectRenderedElement(activitySpy.renderedElements[0], false, 500, '_default');
+        });
+
+        // shared target tracking, rather than another observer, handles late elements and excludes already applied ones
+        it('styles late targets once and stops at maxApplications without replacing unrelated styles', function () {
+            var module = setup({elementStyle: {selector: '#apply-css-fixture .promotion',
+                properties: {'background-color': 'green', '--accent': 'gold', color: 'red !important'}},
+                maxApplications: 3});
+            evaluate();
+            for (var i = 0; i < 4; i++) {
+                var target = document.createElement('div');
+                target.className = 'promotion';
+                target.style.padding = '4px';
+                fixture.appendChild(target);
+                var required = module.findRequirements($(target), {type: 'added-element'});
+                expect(required).toBe(i < 3);
+                if (required) evaluate();
+                if (i < 3) {
+                    expect(target.style.backgroundColor).toBe('green');
+                    expect(target.style.getPropertyValue('--accent')).toBe('gold');
+                    expect(target.style.getPropertyPriority('color')).toBe('important');
+                    expect(target.style.padding).toBe('4px');
+                } else {
+                    expect(target.style.backgroundColor).toBe('');
+                }
+            }
+            fixture.firstChild.style.backgroundColor = 'blue';
+            evaluate();
+            expect(fixture.firstChild.style.backgroundColor).toBe('blue');
+            fixture.innerHTML = '<div class="promotion"></div>';
+            evaluate();
+            expect(fixture.firstChild.style.backgroundColor).toBe('');
+        });
+
+        // invalid declarations must fail before the selected element receives any partial inline changes
+        it('does not count invalid CSS declarations as a successful application', function () {
+            fixture.innerHTML = '<div class="promotion"></div>';
+            setup({elementStyle: {selector: '#apply-css-fixture .promotion',
+                properties: {color: 'green', 'background-color': 'not-a-color'}}});
+            evaluate();
+            expect(fixture.firstChild.style.color).toBe('');
+            expectRenderedElement(activitySpy.renderedElements[0], false, 500, '_default');
+        });
+    });
+
     describe('attribute decision freshness', function () {
         var id = 'attribute-decision-freshness';
         var ref = 'attribute-freshness-ref';

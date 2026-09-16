@@ -75,10 +75,10 @@
          * @param {*} target jQuery|Element|string|null
          * @param {string} position 'prepend'|'append' (default: 'prepend')
          */
-        inject: function (snippetId, target, position) {
+        inject: function (snippetId, target, position, onInjected) {
             const code = this.get(snippetId);
 
-            this.injectCode(code, target, position, snippetId);
+            this.injectCode(code, target, position, snippetId, onInjected);
         },
 
         /**
@@ -89,8 +89,9 @@
          * @param {*} target jQuery|Element|string|null
          * @param {string} position 'prepend'|'append' (default: 'prepend')
          * @param {string} [snippetId] optional ID used for generated de-duplication IDs
+         * @param {function} [onInjected] called with the existing or newly injected element
          */
-        injectCode: function (code, target, position, snippetId) {
+        injectCode: function (code, target, position, snippetId, onInjected) {
 
             // For injection, we only accept non-empty strings (DOM-like snippets)
             if (!Breinify.UTL.isNonEmptyString(code) || $.isFunction(code)) {
@@ -111,6 +112,7 @@
 
             // Global de-dupe: if an element with that id exists anywhere, do nothing
             if (id !== null && document.getElementById(id)) {
+                if ($.isFunction(onInjected)) onInjected(document.getElementById(id));
                 return;
             }
 
@@ -118,10 +120,12 @@
             this._waitForTarget(target, function ($target) {
                 // Re-check after waiting (someone else may have inserted it)
                 if (id !== null && document.getElementById(id)) {
+                    if ($.isFunction(onInjected)) onInjected(document.getElementById(id));
                     return;
                 }
 
                 $target[pos]($el);
+                if ($.isFunction(onInjected)) onInjected($el.get(0));
             }, 5000);
         },
 
@@ -308,10 +312,11 @@
          * @param {string} snippetId
          * @param {*} target jQuery|Element|string|null (default: 'body')
          * @param {string} position 'prepend'|'append' (default: 'prepend')
+         * @param {function} [onInjected] optional completion notification; existing callers remain unchanged
          */
-        inject: function (snippetId, target, position) {
+        inject: function (snippetId, target, position, onInjected) {
             this.onSnippetRegistered(snippetId, function () {
-                _private.inject(snippetId, target, position);
+                _private.inject(snippetId, target, position, onInjected);
             });
         },
 
@@ -332,9 +337,10 @@
          * @param {string} code string representing a DOM node
          * @param {*} target jQuery|Element|string|null (default: 'body')
          * @param {string} position 'prepend'|'append' (default: 'prepend')
+         * @param {function} [onInjected] called after injection or when the same element ID already exists
          */
-        injectCode: function (code, target, position) {
-            _private.injectCode(code, target, position);
+        injectCode: function (code, target, position, onInjected) {
+            _private.injectCode(code, target, position, null, onInjected);
         },
 
         /**
