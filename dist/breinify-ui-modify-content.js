@@ -18,6 +18,7 @@
     const DECISION_CACHE_SCOPE_PAGE = "PAGE";
     const DECISION_CACHE_SCOPE_SESSION = "SESSION";
     const DECISION_CACHE_SCOPE_PERSISTENT = "PERSISTENT";
+    const DECISION_CACHE_SCOPE_MEMORY = "MEMORY";
     const DEFAULT_ACTION_GROUP = "_default";
     const FAILURE_ACTION_GROUP = "_failure";
     const PREVIEW_SPLIT_TEST_TTL_IN_MS = 30 * 60 * 1000;
@@ -1182,6 +1183,9 @@
 
     const _private = {
         runtimes: {},
+        decisionPageHref: null,
+        decisionPageVisit: 0,
+        decisionPageObserverAdded: false,
         decisionBatches: {},
 
         /*
@@ -1566,10 +1570,24 @@
         failDecisionBatch: function (requests) {
             for (let i = 0; i < requests.length; i++) {
                 const runtime = requests[i].runtime;
-                if (runtime.decision.status === DECISION_STATUS_PENDING) {
+                if (this.isCurrentDecisionRequest(requests[i])) {
                     this.failDecision(runtime);
                 }
             }
+        },
+
+        /** A response from a previous visit must not run actions or mark the new visit as failed. */
+        isCurrentDecisionRequest: function (request) {
+            const runtime = request.runtime;
+            if (this.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                runtime.decision.status !== DECISION_STATUS_PENDING) return false;
+            if (request.requestPageKey === this.getDecisionPageKey()) return true;
+
+            runtime.decision.inFlight = false;
+            runtime.decision.resolved = false;
+            runtime.decision.status = DECISION_STATUS_IDLE;
+            runtime.module.onChange({type: 'decision', status: DECISION_STATUS_IDLE});
+            return false;
         },
 
         executeDecisionBatch: function (service) {
@@ -1601,7 +1619,7 @@
                             for (let i = 0; i < requests.length; i++) {
                                 const request = requests[i];
                                 const runtime = request.runtime;
-                                if (runtime.decision.status !== DECISION_STATUS_PENDING) {
+                                if (!this.isCurrentDecisionRequest(request)) {
                                     continue;
                                 }
 
@@ -1627,9 +1645,24 @@
                 return "";
             }
 
+            const href = window.location.href;
+            if (this.decisionPageHref !== href) {
+                this.decisionPageHref = href;
+                this.decisionPageVisit++;
+            }
             return String(window.location.pathname || "") +
                 String(window.location.search || "") +
-                String(window.location.hash || "");
+                String(window.location.hash || "") + '|visit:' + this.decisionPageVisit;
+        },
+
+        /** Track navigation even when no Modify Content experience is active on an intermediate SPA route. */
+        initializeDecisionPageObserver: function () {
+            if (this.decisionPageObserverAdded) return;
+            this.decisionPageObserverAdded = true;
+            this.getDecisionPageKey();
+            Breinify.plugins.trigger.addUrlChangeObserver('uiModifyContent-decision-page', function () {
+                _private.getDecisionPageKey();
+            });
         },
 
         getDecisionConditionCache: function (condition) {
@@ -1904,12 +1937,16 @@
             const conditionCache = runtime.decision.conditionCache || {};
             const cache = conditionCache[refId];
             const currentPageKey = this.getDecisionPageKey();
-            const isFresh = cache && cache.scope === DECISION_CACHE_SCOPE_SESSION
-                ? cache.expiresAt === 0 || cache.expiresAt > Date.now()
-                : cache && cache.scope === DECISION_CACHE_SCOPE_PERSISTENT
-                    ? cache.expiresAt > 0 && cache.expiresAt > Date.now()
-                    : cache && (cache.pageKey === currentPageKey ||
-                        (cache.expiresAt > 0 && cache.expiresAt > Date.now()));
+            let isFresh = false;
+            if (cache && cache.scope === DECISION_CACHE_SCOPE_SESSION) {
+                isFresh = cache.expiresAt === 0 || cache.expiresAt > Date.now();
+            } else if (cache && (cache.scope === DECISION_CACHE_SCOPE_PERSISTENT ||
+                cache.scope === DECISION_CACHE_SCOPE_MEMORY)) {
+                // MEMORY is a strict TTL, including on the same page, and is never persisted
+                isFresh = cache.expiresAt > 0 && cache.expiresAt > Date.now();
+            } else if (cache) {
+                isFresh = cache.pageKey === currentPageKey || cache.expiresAt > Date.now();
+            }
             if (isFresh !== true) {
                 return null;
             }
@@ -2940,6 +2977,8 @@
             if (!module || typeof module !== "object") {
                 return null;
             }
+
+            _private.initializeDecisionPageObserver();
 
             const key = _private.key(webExId, webExVersionId);
             const previousRuntime = _private.runtimes[key];

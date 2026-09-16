@@ -2,6 +2,133 @@
 
 describe('UiModifyContent', function () {
 
+    describe('attribute decision freshness', function () {
+        var id = 'attribute-decision-freshness';
+        var ref = 'attribute-freshness-ref';
+        var runtime;
+        var originalService;
+        var originalUrl;
+        var activitySpy;
+        var calls;
+        var callbacks;
+        var scope;
+
+        beforeEach(function () {
+            originalService = Breinify.service;
+            originalUrl = window.location.href;
+            activitySpy = createActivitySpy();
+            calls = 0;
+            callbacks = [];
+            scope = 'MEMORY';
+            Breinify.plugins.trigger.init();
+            Breinify.service = function (service, payload, callback) {
+                calls++;
+                callbacks.push(callback);
+            };
+            runtime = uiModifyContent.register({}, id, 'attribute-version', {
+                actions: {},
+                decision: {required: true, configurationId: id,
+                    conditions: [{type: 'decision', settings: {refId: ref}}]}
+            });
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, id, 'attribute-version', {actions: {}});
+            Breinify.service = originalService;
+            window.history.replaceState({}, '', originalUrl);
+            activitySpy.restore();
+        });
+
+        function evaluate() {
+            uiModifyContent.handle(id, 'attribute-version', {});
+        }
+
+        function complete(index) {
+            callbacks[index](null, null, {decisions: [{configurationId: id, matched: true,
+                conditions: [{refId: ref, matched: true,
+                    cache: {scope: scope, maxAgeSeconds: scope === 'MEMORY' ? 10 : 0}}]}]});
+        }
+
+        // expiration makes data stale but does not schedule a request until an evaluation is requested
+        it('expires memory results on the same page without polling or persisting them', function (done) {
+            evaluate();
+            setTimeout(function () {
+                complete(0);
+                evaluate();
+                expect(calls).toBe(1);
+                var session = window.sessionStorage.getItem('br::wemc::decision') || '';
+                var persistent = window.localStorage.getItem('br::wemc::decision') || '';
+                expect(session.indexOf(ref)).toBe(-1);
+                expect(persistent.indexOf(ref)).toBe(-1);
+                runtime.decision.conditionCache[ref].expiresAt = Date.now() - 1;
+                setTimeout(function () {
+                    expect(calls).toBe(1);
+                    evaluate();
+                    setTimeout(function () {
+                        expect(calls).toBe(2);
+                        complete(1);
+                        done();
+                    }, 10);
+                }, 10);
+            }, 10);
+        });
+
+        // returning to A is a new visit even when this experience was never evaluated on B
+        it('invalidates PAGE results after A to B to A navigation', function (done) {
+            scope = 'PAGE';
+            evaluate();
+            setTimeout(function () {
+                complete(0);
+                var firstPageKey = runtime.decision.conditionCache[ref].pageKey;
+                window.history.replaceState({}, '', '#attribute-intermediate-page');
+                window.history.replaceState({}, '', originalUrl);
+                evaluate();
+                setTimeout(function () {
+                    expect(calls).toBe(2);
+                    complete(1);
+                    expect(runtime.decision.conditionCache[ref].pageKey).not.toBe(firstPageKey);
+                    done();
+                }, 10);
+            }, 10);
+        });
+
+        // TTL may cross navigation while fresh, but registration does not reload it from browser storage
+        it('reuses fresh memory results across navigation but not runtime replacement', function (done) {
+            evaluate();
+            setTimeout(function () {
+                complete(0);
+                window.history.replaceState({}, '', '#attribute-fresh-memory-page');
+                evaluate();
+                expect(calls).toBe(1);
+                var config = runtime.config;
+                runtime = uiModifyContent.register({}, id, 'attribute-version', config);
+                evaluate();
+                setTimeout(function () {
+                    expect(calls).toBe(2);
+                    complete(1);
+                    done();
+                }, 10);
+            }, 10);
+        });
+
+        // a late response for the previous visit must not be treated as the current page's decision
+        it('discards a response received after navigation and requests the current visit', function (done) {
+            evaluate();
+            setTimeout(function () {
+                window.history.replaceState({}, '', '#attribute-late-response-page');
+                complete(0);
+                expect(runtime.decision.resolved).toBe(false);
+                expect(runtime.decision.conditionResults[ref]).toBeUndefined();
+                setTimeout(function () {
+                    expect(calls).toBe(2);
+                    complete(1);
+                    expect(runtime.decision.resolved).toBe(true);
+                    done();
+                }, 10);
+            }, 10);
+        });
+    });
+
     describe('showAnimation lifecycle', function () {
         var id = 'modify-content-animation-test';
         var version = 'animation-version';
