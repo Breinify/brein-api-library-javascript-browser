@@ -543,6 +543,29 @@ describe('UiModifyContent', function () {
             });
         });
 
+        it('evaluates nested condition types in any casing without rewriting the configuration', function () {
+            [['any', 'all', 'url'], ['ANY', 'ALL', 'URL'], ['Any', 'aLl', 'Url']].forEach(function (types) {
+                var leaf = {type: types[2], settings: {source: {type: 'PATHNAME'},
+                    operator: 'EQUALS', value: window.location.pathname}};
+                var expression = {type: types[0], settings: {conditions: [
+                    {type: 'url', settings: {source: {type: 'PATHNAME'}, operator: 'REGEX', value: '(?!)'}},
+                    {type: types[1], settings: {conditions: [leaf]}}
+                ]}};
+                var original = JSON.stringify(expression);
+                var runtime = uiModifyContent.register(module, webExId, versionId, {
+                    conditionsGroups: [{actionGroup: 'matched', conditions: [expression]}],
+                    actions: {matched: [], _default: []}
+                });
+                uiModifyContent.handle(webExId, versionId, {type: 'full-scan'});
+                expect(runtime.selectedGroupId).toBe('matched');
+                expect(JSON.stringify(expression)).toBe(original);
+
+                leaf.settings.value += '/different';
+                uiModifyContent.handle(webExId, versionId, {type: 'full-scan'});
+                expect(runtime.selectedGroupId).toBe('_default');
+            });
+        });
+
         it('supports case-insensitive capture comparisons and regex matching', function () {
             var paths = [{type: 'REGEX', value: '^(.*)$'}];
             var settings = {source: {type: 'ACTIVATION_GROUP', group: 1},
@@ -708,6 +731,22 @@ describe('UiModifyContent', function () {
             expect(runtime.selectedGroupId).toBe('matched');
             expect(runtime.conditionsPending).toBe(false);
             expect(activitySpy.renderedElements.length).toBe(1);
+        });
+
+        it('observes late features inside uppercase and mixed-case nested conditions', function () {
+            setup('STRING', {}, function (feature) {
+                feature.type = 'FEATURE';
+                return [{type: 'ANY', settings: {conditions: [
+                    {type: 'All', settings: {conditions: [feature]}}
+                ]}}];
+            });
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(typeof runtime.disposeFeatureListener).toBe('function');
+            storage.set(featureKey, '1234');
+            storage.flush();
+            expect(runtime.selectedGroupId).toBe('matched');
+            expect(runtime.conditionsPending).toBe(false);
         });
 
         it('locks a timed-out STOP condition, but allows CONTINUE to match a late value', function () {

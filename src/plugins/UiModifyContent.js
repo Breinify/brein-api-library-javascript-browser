@@ -1114,7 +1114,7 @@
             /** One subscription per experience; observations are already batched by FeatureStorage. */
             _initialize: function (runtime) {
                 const featureConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
-                    return condition && condition.type === 'feature';
+                    return _private.getConditionType(condition) === 'feature';
                 });
                 if (featureConditions.length === 0) return;
                 const names = featureConditions.map(function (condition) {
@@ -2572,10 +2572,11 @@
          * scheduling cover nested all/any expressions.
          */
         addConfiguredCondition: function (configuredConditions, condition) {
+            const conditionType = this.getConditionType(condition);
             const implementation = this.getConditionImplementation(condition);
             const settings = this.getConditionSettings(condition);
             const nestedConditions = implementation &&
-            (condition.type === "all" || condition.type === "any") &&
+            (conditionType === "all" || conditionType === "any") &&
             settings && Array.isArray(settings.conditions) ? settings.conditions : null;
 
             if (nestedConditions === null) {
@@ -2594,8 +2595,12 @@
                 : null;
         },
 
+        getConditionType: function (condition) {
+            return condition && typeof condition.type === "string" ? condition.type.toLowerCase() : null;
+        },
+
         getConditionImplementation: function (condition) {
-            const conditionType = condition && typeof condition.type === "string" ? condition.type : null;
+            const conditionType = this.getConditionType(condition);
             return conditionType === null ? null : conditions[conditionType] || null;
         },
 
