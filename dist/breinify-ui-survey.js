@@ -167,6 +167,70 @@
                     line-height: var(--br-survey-line-height-tight);
                 }
 
+                .br-survey-page-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                    padding-right: 1.25em;
+                }
+
+                .br-survey-question-explanation {
+                    margin: -0.5em 0 0;
+                    font-size: 0.7em;
+                    color: #666;
+                    line-height: var(--br-survey-line-height-base);
+                    white-space: pre-line;
+                    overflow-wrap: anywhere;
+                }
+
+                .br-survey-selected-answers {
+                    margin: 0 0 0.75em;
+                    padding: 0.75em;
+                    border: 1px solid #e1e1e1;
+                    border-radius: 0.75em;
+                    background: #f5f5f5;
+                    line-height: var(--br-survey-line-height-base);
+                }
+
+                .br-survey-selected-answers__title {
+                    margin: 0 0 0.75em;
+                    font-size: 0.65em;
+                    font-weight: 600;
+                    color: #666;
+                }
+
+                .br-survey-selected-answers__list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.6em;
+                    margin: 0;
+                    padding: 0;
+                    list-style: none;
+                }
+
+                .br-survey-selected-answer {
+                    min-width: 0;
+                    max-width: 100%;
+                    overflow-wrap: anywhere;
+                }
+
+                .br-survey-selected-answer__question {
+                    display: block;
+                    margin: 0 0 0.35em;
+                    font-size: 0.65em;
+                    color: #666;
+                }
+
+                .br-survey-selected-answer__answer {
+                    display: inline-block;
+                    max-width: 100%;
+                    box-sizing: border-box;
+                    padding: 0.4em 0.75em;
+                    border: 1px solid #e1e1e1;
+                    border-radius: 1.25em;
+                    background: #fff;
+                    font-size: 0.75em;
+                }
+
                 .br-survey-answers {
                     display: flex;
                     flex-direction: column;
@@ -830,7 +894,7 @@
             runtime._sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 5);
         },
 
-        _pushHistoryStateForCurrentPage: function (runtime) {
+        _updateHistoryStateForCurrentPage: function (runtime, replace) {
             if (typeof window === "undefined" || !window.history) {
                 return;
             }
@@ -844,9 +908,13 @@
             };
 
             try {
-                window.history.pushState(state, "", window.location.href);
+                if (replace === true) {
+                    window.history.replaceState(state, "", window.location.href);
+                } else {
+                    window.history.pushState(state, "", window.location.href);
+                }
             } catch (e) {
-                console.warn("Unable to pushState for survey navigation:", e);
+                console.warn("Unable to update history for survey navigation:", e);
             }
         },
 
@@ -1324,6 +1392,84 @@
             );
         },
 
+        _appendPageActions: function (runtime, container) {
+            const survey = $.isPlainObject(runtime.settings.survey) ? runtime.settings.survey : {};
+            const settings = $.isPlainObject(survey.settings) ? survey.settings : {};
+            if (settings.showRestartOverButton !== true) {
+                return;
+            }
+
+            const actions = document.createElement("div");
+            actions.className = "br-survey-page-actions";
+            const restart = document.createElement("button");
+            restart.type = "button";
+            restart.className = "br-survey-btn br-survey-btn--restart";
+            restart.textContent = "Start over";
+            restart.addEventListener("click", () => this._restartSurvey(runtime));
+            actions.appendChild(restart);
+            container.appendChild(actions);
+        },
+
+        _appendSelectedAnswers: function (runtime, node, container) {
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const settings = $.isPlainObject(data.settings) ? data.settings : {};
+            if (settings.showSelectedAnswers !== true) {
+                return;
+            }
+
+            const resolved = this._resolveSelectedAnswers(runtime);
+            const history = Array.isArray(runtime._history) ? runtime._history : [];
+            const seen = new Set();
+            const list = document.createElement("ul");
+            list.className = "br-survey-selected-answers__list";
+            history.forEach((questionId) => {
+                const selected = resolved.byQuestionId[questionId];
+                if (seen.has(questionId) || questionId === node.id || !selected ||
+                    !selected.node || selected.node.type !== "question" || !selected.answer) {
+                    return;
+                }
+                seen.add(questionId);
+
+                const question = Breinify.UTL.isNonEmptyString(selected.question);
+                const answer = Breinify.UTL.isNonEmptyString(selected.title);
+                if (answer === null) {
+                    return;
+                }
+
+                const item = document.createElement("li");
+                item.className = "br-survey-selected-answer";
+                item.setAttribute("data-br-survey-question-id", questionId);
+                item.setAttribute("data-br-survey-answer-id", selected.answerId);
+                item.setAttribute("data-br-survey-question", question || "");
+                item.setAttribute("data-br-survey-answer", answer);
+
+                if (question !== null) {
+                    const label = document.createElement("span");
+                    label.className = "br-survey-selected-answer__question";
+                    label.textContent = question;
+                    item.appendChild(label);
+                }
+                const value = document.createElement("span");
+                value.className = "br-survey-selected-answer__answer";
+                value.textContent = answer;
+                item.appendChild(value);
+                list.appendChild(item);
+            });
+
+            if (list.childNodes.length === 0) {
+                return;
+            }
+            const summary = document.createElement("section");
+            summary.className = "br-survey-selected-answers";
+            const title = document.createElement("h3");
+            title.className = "br-survey-selected-answers__title";
+            title.textContent = node.type === "recommendation" ? "Based on your selections" : "Your selections so far";
+            summary.setAttribute("aria-label", title.textContent);
+            summary.appendChild(title);
+            summary.appendChild(list);
+            container.appendChild(summary);
+        },
+
         _createQuestionPage: function (runtime, node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const questionText = Breinify.UTL.isNonEmptyString(data.question) || "";
@@ -1336,12 +1482,21 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--question";
+            this._appendPageActions(runtime, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
             titleEl.classList.add("br-survey-question-title");
             titleEl.textContent = questionText;
             container.appendChild(titleEl);
+
+            if (typeof data.explanation === "string" && data.explanation.trim() !== "") {
+                const explanation = document.createElement("p");
+                explanation.className = "br-survey-question-explanation";
+                explanation.textContent = data.explanation;
+                container.appendChild(explanation);
+            }
+            this._appendSelectedAnswers(runtime, node, container);
 
             if (answers.length > 0) {
                 const listEl = document.createElement("div");
@@ -1432,6 +1587,7 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
+            this._appendPageActions(runtime, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1443,6 +1599,7 @@
             subtitleEl.className = "br-survey-reco-subtitle";
             subtitleEl.textContent = subtitleText;
             container.appendChild(subtitleEl);
+            this._appendSelectedAnswers(runtime, node, container);
 
             const grid = document.createElement("div");
             grid.className = "br-survey-reco-grid";
@@ -1736,7 +1893,7 @@
                     this._renderCurrentPage(runtime, popup);
                 }
 
-                this._pushHistoryStateForCurrentPage(runtime);
+                this._updateHistoryStateForCurrentPage(runtime);
                 this._fireNavigatedEvent(runtime, prevNodeId, runtime._currentNodeId, "forward", fromStepNumber, toStepNumber);
             } else {
                 console.warn("No next edge found for", nodeId, answerId);
@@ -1749,6 +1906,37 @@
                 typeof window.history.back === "function") {
                 window.history.back();
             }
+        },
+
+        _restartSurvey: function (runtime) {
+            const popup = document.querySelector(popupElementName);
+            if (!popup || !popup.hasAttribute("open") || popup.meta.webExVersionId !== runtime.webExVersionId) {
+                return;
+            }
+
+            const previousNodeId = runtime._currentNodeId;
+            const fromStepNumber = this._getStepNumber(runtime);
+            this._resetSurveyState(runtime);
+            runtime._currentNodeId = this._findFirstNodeId(runtime);
+            this._ensureSessionId(runtime);
+            popup.meta = {
+                webExVersionId: runtime.webExVersionId,
+                sessionId: runtime._sessionId
+            };
+            this._renderCurrentPage(runtime, popup);
+
+            // old history entries belong to the discarded session and cannot restore its answers
+            this._updateHistoryStateForCurrentPage(runtime, true);
+            const body = popup.shadowRoot.querySelector(".br-popup-body");
+            if (body) {
+                body.scrollTop = 0;
+            }
+            const title = popup.shadowRoot.querySelector(".br-survey-page-title");
+            if (title) {
+                title.setAttribute("tabindex", "-1");
+                title.focus();
+            }
+            this._fireNavigatedEvent(runtime, previousNodeId, runtime._currentNodeId, "restart", fromStepNumber, 1);
         },
 
         openSurvey: function (webExVersionId) {
@@ -1787,7 +1975,7 @@
 
             this._renderCurrentPage(runtime, popup);
             this._ensureHistoryIntegration(runtime);
-            this._pushHistoryStateForCurrentPage(runtime);
+            this._updateHistoryStateForCurrentPage(runtime);
             popup.open();
 
             this._fireOpenedEvent(runtime);

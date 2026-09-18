@@ -16,6 +16,74 @@ A survey consists of:
 
 Only `question` nodes are considered *pages* for paging and step counting.
 
+### Display Settings
+
+These paths are relative to the web experience's `settings.configuration` object passed to the survey plugin.
+
+| Setting | Default | Behavior |
+| --- | --- | --- |
+| `survey.settings.showRestartOverButton` | `false` | Show **Start over** above every question and recommendation page. |
+| `survey.nodes[].data.explanation` | `null` | Show plain-text clarification directly below a question. Missing, null, empty, and whitespace-only values show nothing. |
+| `survey.nodes[].data.settings.showSelectedAnswers` | `false` | Show completed answers near the top of this question or recommendation page, below its heading and explanation/subtitle. |
+
+Each page enables its own selected-answer summary; there is no survey-wide inheritance. Only the boolean
+`true` enables either display switch. With the defaults, the existing page layout is unchanged.
+
+The summary follows the active navigation path. Each item displays the question above its selected answer
+bubble. It excludes the current question and any later or discarded answers, and is hidden when there are no
+completed answers. The items are informational and do not navigate or remove answers. Back navigation updates
+the summary as later selections are discarded. Labels and explanations are rendered as text, not HTML.
+
+**Start over** keeps the popup open, clears every selected answer and its recommendation attributes, and returns
+to the first page with a new session ID. It scrolls to the top and focuses the page heading. The current browser
+history entry is replaced; entries from the discarded session cannot restore its answers. Navigating into an
+old session entry closes the popup. Restart emits `br-ui-survey:navigated` with `reason: "restart"` and the new
+session ID.
+
+### Styling the Display Settings
+
+The default presentation inherits the survey font and uses its existing gray borders, neutral backgrounds,
+rounded corners, and button styling. Answer bubbles wrap onto additional rows and long labels wrap within
+the popup width. Start over uses the shared `.br-survey-btn` class.
+
+Apply custom CSS through the web experience's `configuration.style.snippet` reference. The stylesheet is
+applied inside the popup's shadow root after the default styles; ordinary page CSS does not cross that boundary.
+
+| CSS selector | Element |
+| --- | --- |
+| `.br-survey-page-actions` | Top row containing Start over |
+| `.br-survey-btn--restart` | Start over button |
+| `.br-survey-question-explanation` | Clarification below a question |
+| `.br-survey-selected-answers` | Summary panel |
+| `.br-survey-selected-answers__title` | “Your selections so far” or “Based on your selections” heading |
+| `.br-survey-selected-answers__list` | Wrapping list of completed answers |
+| `.br-survey-selected-answer` | One question/answer item |
+| `.br-survey-selected-answer__question` | Question label above the bubble |
+| `.br-survey-selected-answer__answer` | Selected-answer bubble |
+
+Every `.br-survey-selected-answer` item has these attributes for customer styling or DOM integration:
+
+| Attribute | Value |
+| --- | --- |
+| `data-br-survey-question-id` | Question node ID |
+| `data-br-survey-answer-id` | Selected answer's `_id` |
+| `data-br-survey-question` | Question text |
+| `data-br-survey-answer` | Selected answer's title |
+
+For example, a customer CSS snippet can hide question labels and recolor the bubbles:
+
+```css
+.br-survey-selected-answer__question {
+    display: none;
+}
+
+.br-survey-selected-answer__answer {
+    background: #e9f0ff;
+    border-color: #cbdcff;
+    color: #173b75;
+}
+```
+
 ### Popup Lifecycle
 
 The survey is displayed inside a singleton popup element attached to `<body>`.  
@@ -64,7 +132,7 @@ The following attributes are **specific to the `br-ui-survey:navigated` event** 
 | `canGoBack` | `boolean` | Indicates whether backward navigation is currently possible |
 | `isFirstStep` | `boolean` | Indicates whether the destination step is the first step |
 | `isFinalStep` | `boolean` | Indicates whether the destination step is considered final |
-| `reason` | `string` | Reason for navigation: `forward`, `back`, `history`, or `unspecified` |
+| `reason` | `string` | Reason for navigation: `forward`, `back`, `restart`, `history`, or `unspecified` |
 
 
 | Event |
@@ -74,7 +142,7 @@ The following attributes are **specific to the `br-ui-survey:navigated` event** 
 | **`br-ui-survey:opened`** |
 | *When it fires:* When the popup opens and the first page becomes visible<br>*Purpose:* Marks the start of a user survey session |
 | **`br-ui-survey:navigated`** |
-| *When it fires:* Whenever the user moves between survey steps (forward, back, or via browser history)<br>*Purpose:* Describes how the user progresses through the survey flow |
+| *When it fires:* Whenever the user moves between survey steps (forward, back, restart, or via browser history)<br>*Purpose:* Describes how the user progresses through the survey flow |
 | **`br-ui-survey:answer-clicked`** |
 | *When it fires:* When a user clicks an answer option without navigating yet<br>*Purpose:* Captures user interaction intent prior to committing a choice |
 | **`br-ui-survey:answer-selected`** |
@@ -97,7 +165,7 @@ Emitted when the popup opens and the first survey page is shown.
 
 **`br-ui-survey:navigated`**
 
-Emitted whenever the active survey page changes due to navigation (forward, back, or browser history navigation). This is the event that carries navigation semantics such as step numbers and whether the user can go back.
+Emitted whenever the active survey page changes due to navigation (forward, back, restart, or browser history navigation). This is the event that carries navigation semantics such as step numbers and whether the user can go back.
 
 **`br-ui-survey:answer-clicked`**
 
@@ -132,7 +200,7 @@ Fired when the popup is opened and the first page is visible.
 
 #### `br-ui-survey:navigated`
 
-Fired whenever the active page changes due to navigation (Next, Back, browser history).
+Fired whenever the active page changes due to navigation (Next, Back, Start over, browser history).
 
 **Detail**
 - `fromNodeId`
@@ -147,7 +215,7 @@ Fired whenever the active page changes due to navigation (Next, Back, browser hi
 - `canGoBack`
 - `isFirstStep`
 - `isFinalStep`
-- `reason` (`forward`, `back`, `history`, or `unspecified`)
+- `reason` (`forward`, `back`, `restart`, `history`, or `unspecified`)
 - `webExId`
 - `sessionId`
 
