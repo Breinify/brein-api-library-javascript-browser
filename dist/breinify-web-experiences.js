@@ -487,6 +487,17 @@
 
     const WebExperiences = {
 
+        /**
+         * Recognizes a named trigger for one experience on the current page visit.
+         * Both plugins must be loaded; the experience itself may register after this call.
+         */
+        trigger: function (webExId, triggerName) {
+            const runtime = Breinify.plugins.uiModifyContent;
+            return runtime && typeof runtime.trigger === 'function'
+                ? runtime.trigger(webExId, triggerName)
+                : false;
+        },
+
         /** Checks activation and replaces the module's capture snapshot, without changing existing boolean semantics. */
         checkActivationLogic: function (configuration, module) {
             return _private.checkActivityLogic(configuration, module);

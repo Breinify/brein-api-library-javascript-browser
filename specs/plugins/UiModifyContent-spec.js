@@ -366,6 +366,31 @@ describe('UiModifyContent', function () {
             }, 25);
         });
 
+        it('replays only on a new recognized call and cancels superseded animation playback', function (done) {
+            var name = 'repeat-animation';
+            uiModifyContent.register(module, id, version, {
+                conditionsGroups: [{actionGroup: 'animation', conditions: [
+                    {type: 'trigger', settings: {triggerName: name, frequency: 'everyTriggerCall'}}
+                ]}],
+                actions: {animation: [{type: 'showAnimation', settings: {snippetId: 'animation-renderer'}}]}
+            });
+            Breinify.plugins.webExperiences.trigger(id, name);
+            setTimeout(function () {
+                expect(renderCount).toBe(1);
+                var oldFinish = finish;
+                Breinify.plugins.webExperiences.trigger(id, name);
+                expect(cancelled).toBe(1);
+                oldFinish({status: 'completed'});
+                setTimeout(function () {
+                    expect(renderCount).toBe(2);
+                    finish({status: 'completed'});
+                    uiModifyContent.handle(id, version, {});
+                    expect(renderCount).toBe(2);
+                    done();
+                }, 10);
+            }, 10);
+        });
+
         it('uses the existing target limit and restores section positioning', function (done) {
             target.style.position = 'static';
             setup({selector: '#animation-action-target', snippetId: 'animation-renderer', maxApplications: 1});
@@ -676,6 +701,255 @@ describe('UiModifyContent', function () {
             var settings = {source: {type: 'PATHNAME'}, operator: 'STARTS_WITH', value: '/'};
             evaluate(settings, [{type: 'REGEX', value: '(?!)'}]);
             expect(activitySpy.renderedElements.length).toBe(0);
+        });
+    });
+
+    describe('trigger conditions', function () {
+        var id;
+        var sequence = 0;
+        var runtime;
+        var originalUrl;
+        var originalLog;
+        var originalService;
+        var activitySpy;
+        var messages;
+
+        beforeEach(function () {
+            id = 'trigger-condition-' + (++sequence);
+            originalUrl = window.location.href;
+            originalLog = console.log;
+            originalService = Breinify.service;
+            messages = [];
+            console.log = function (message) { messages.push(message); };
+            activitySpy = createActivitySpy();
+            Breinify.plugins.trigger.init();
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, id, 'trigger-version', {actions: {}});
+            window.history.replaceState({}, '', originalUrl);
+            console.log = originalLog;
+            Breinify.service = originalService;
+            activitySpy.restore();
+        });
+
+        function trigger(frequency, name) {
+            return {type: 'trigger', settings: {
+                triggerName: name || 'show-animation', frequency: frequency || 'oncePerPage'
+            }};
+        }
+
+        function path(matches) {
+            return {type: 'url', settings: {source: {type: 'PATHNAME'},
+                operator: 'REGEX', value: matches ? '^' : '(?!)'}};
+        }
+
+        function setup(conditions, module) {
+            runtime = uiModifyContent.register(module || {}, id, 'trigger-version', {
+                conditionsGroups: [{actionGroup: 'matched', conditions: conditions}],
+                actions: {
+                    matched: [{type: 'writeToConsole', settings: {message: 'matched'}}],
+                    _default: [{type: 'writeToConsole', settings: {message: 'fallback'}}]
+                }
+            });
+            evaluate();
+        }
+
+        function evaluate() {
+            uiModifyContent.handle(id, 'trigger-version', {});
+        }
+
+        function call(name, scope) {
+            return Breinify.plugins.webExperiences.trigger(scope || id, name || 'show-animation');
+        }
+
+        it('blocks fallback only while the trigger could change the result', function () {
+            var other = path(false);
+            setup([trigger(), other]);
+            expect(runtime.selectedGroupId).toBe('_default');
+            expect(runtime.conditionsPending).toBe(false);
+            other.settings.value = '^';
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(runtime.selectedGroupId).toBeNull();
+            expect(messages).toEqual(['fallback']);
+            call();
+            expect(runtime.selectedGroupId).toBe('matched');
+            expect(messages).toEqual(['fallback', 'matched']);
+        });
+
+        it('lets true dominate pending in any and false dominate pending in nested all', function () {
+            var expression = {type: 'any', settings: {conditions: [
+                {type: 'all', settings: {conditions: [trigger(), path(false)]}}, path(true)
+            ]}};
+            setup([expression]);
+            expect(runtime.selectedGroupId).toBe('matched');
+            expect(runtime.conditionsPending).toBe(false);
+            call();
+            expect(messages).toEqual(['matched']);
+        });
+
+        it('matches exact names in the owning experience scope', function () {
+            setup([trigger()]);
+            call('show-animation', id + '-other');
+            call('Show-animation');
+            expect(runtime.conditionsPending).toBe(true);
+            expect(messages.length).toBe(0);
+            expect(call()).toBe(true);
+            expect(messages).toEqual(['matched']);
+            expect(Breinify.plugins.webExperiences.trigger('', 'show-animation')).toBe(false);
+            expect(Breinify.plugins.webExperiences.trigger(id, ' show-animation')).toBe(false);
+        });
+
+        it('remembers calls made before registration and does not recognize a second once-per-page call', function () {
+            call();
+            call();
+            setup([trigger()]);
+            expect(messages).toEqual(['matched']);
+            call();
+            evaluate();
+            expect(messages).toEqual(['matched']);
+        });
+
+        it('counts the first call even when another condition is false and retains it for later evaluation', function () {
+            var other = path(false);
+            setup([trigger(), other]);
+            call();
+            other.settings.value = '^';
+            call();
+            expect(messages).toEqual(['fallback']);
+            evaluate();
+            expect(messages).toEqual(['fallback', 'matched']);
+        });
+
+        it('rearms a matching group for each recognized call without replaying on ordinary reevaluation', function () {
+            setup([trigger('everyTriggerCall')]);
+            call();
+            evaluate();
+            call();
+            evaluate();
+            expect(messages).toEqual(['matched', 'matched']);
+        });
+
+        it('does not rearm fallback or a branch where the called trigger did not contribute', function () {
+            var other = path(false);
+            setup([trigger('everyTriggerCall'), other]);
+            call();
+            call();
+            expect(messages).toEqual(['fallback']);
+            other.settings.value = '^';
+            evaluate();
+            expect(messages).toEqual(['fallback', 'matched']);
+            call();
+            expect(messages).toEqual(['fallback', 'matched', 'matched']);
+        });
+
+        it('resets on changed URLs and returning visits, but not history state changes at the same URL', function () {
+            setup([trigger()]);
+            call();
+            window.history.replaceState({updated: true}, '', originalUrl);
+            call();
+            expect(messages).toEqual(['matched']);
+            window.history.pushState({}, '', '#trigger-new-page');
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            call();
+            expect(messages).toEqual(['matched', 'matched']);
+            window.history.replaceState({}, '', originalUrl);
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            call();
+            expect(messages).toEqual(['matched', 'matched', 'matched']);
+        });
+
+        it('isolates hash changes from shared observers and unrelated experiences and deduplicates notifications',
+            function () {
+                var observerId = id + '-shared-observer';
+                var unrelatedId = id + '-unrelated';
+                var sharedCalls = 0;
+                var unrelatedCalls = 0;
+                var triggerChanges = 0;
+                setup([trigger()]);
+                call();
+                var onChange = runtime.module.onChange;
+                runtime.module.onChange = function (data) {
+                    triggerChanges++;
+                    return onChange(data);
+                };
+                var unrelated = uiModifyContent.register({}, unrelatedId, 'trigger-version', {actions: {}});
+                unrelated.module.onChange = function () { unrelatedCalls++; };
+                Breinify.plugins.trigger.addUrlChangeObserver(observerId, function () { sharedCalls++; });
+                try {
+                    // bypass the history wrapper to isolate delivery of the hash event itself
+                    History.prototype.replaceState.call(window.history, {}, '', '#isolated-trigger-hash');
+                    window.dispatchEvent(new Event('hashchange'));
+                    expect(triggerChanges).toBe(1);
+                    expect(runtime.conditionsPending).toBe(true);
+                    expect(sharedCalls).toBe(0);
+                    expect(unrelatedCalls).toBe(0);
+
+                    window.dispatchEvent(new Event('hashchange'));
+                    expect(triggerChanges).toBe(1);
+                    window.dispatchEvent(new Event('popstate'));
+                    window.dispatchEvent(new Event('hashchange'));
+                    expect(triggerChanges).toBe(1);
+                    expect(sharedCalls).toBe(1);
+                    expect(unrelatedCalls).toBe(0);
+                    call();
+                    expect(messages).toEqual(['matched', 'matched']);
+                } finally {
+                    Breinify.plugins.trigger.removeUrlChangeObserver(observerId);
+                    uiModifyContent.register({}, unrelatedId, 'trigger-version', {actions: {}});
+                }
+            });
+
+        it('records calls while inactive without executing until the experience becomes active', function () {
+            var active = false;
+            setup([trigger()], {isValidPage: function () { return active; }});
+            call();
+            expect(messages.length).toBe(0);
+            active = true;
+            evaluate();
+            expect(messages).toEqual(['matched']);
+        });
+
+        it('retains a call while weather is loading and selects only after the backend result arrives', function (done) {
+            var complete;
+            var weather = {type: 'decision', settings: {refId: id + '-weather'}};
+            Breinify.service = function (service, payload, callback) { complete = callback; };
+            runtime = uiModifyContent.register({}, id, 'trigger-version', {
+                conditionsGroups: [{actionGroup: 'matched', conditions: [trigger(), weather]}],
+                decision: {required: true, configurationId: id, conditions: [weather]},
+                actions: {
+                    matched: [{type: 'writeToConsole', settings: {message: 'matched'}}],
+                    _default: [{type: 'writeToConsole', settings: {message: 'fallback'}}]
+                }
+            });
+            evaluate();
+            call();
+            expect(messages.length).toBe(0);
+            setTimeout(function () {
+                complete(null, null, {decisions: [{configurationId: id, matched: true,
+                    conditions: [{refId: id + '-weather', matched: true,
+                        cache: {scope: 'PAGE', maxAgeSeconds: 0}}]}]});
+                expect(runtime.selectedGroupId).toBe('matched');
+                expect(messages).toEqual(['matched']);
+                call();
+                expect(messages).toEqual(['matched']);
+                done();
+            }, 10);
+        });
+
+        it('does not let pending higher-priority trigger groups fall through to later matching groups', function () {
+            setup([trigger()]);
+            runtime.config.conditionsGroups.push({actionGroup: '_default', conditions: [path(true)]});
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(messages.length).toBe(0);
+            runtime.config.conditionsGroups[0].conditions.push(path(false));
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            expect(messages).toEqual(['fallback']);
         });
     });
 

@@ -884,6 +884,37 @@
      */
     const conditions = {
 
+        /**
+         * A missing call is pending. Recognized calls remain true for the current page visit.
+         * Recognition is independent of whether this condition participates in a successful group.
+         */
+        trigger: {
+            evaluate: function (condition, runtime, visiting) {
+                const settings = _private.getConditionSettings(condition) || {};
+                const name = settings.triggerName;
+                const frequency = settings.frequency || 'oncePerPage';
+                if (!_private.isTriggerIdentifier(name) ||
+                    (frequency !== 'oncePerPage' && frequency !== 'everyTriggerCall')) return false;
+                const calls = _private.getTriggerCalls(runtime.webExId, name);
+                if (calls === 0) return null;
+                if (visiting && visiting.triggers) {
+                    const count = frequency === 'oncePerPage' ? 1 : calls;
+                    const key = JSON.stringify([name, frequency]);
+                    visiting.triggers.set(key, count);
+                }
+                return true;
+            },
+
+            _preparePage: function (runtime) {
+                if (!runtime.triggerConditions || runtime.triggerConditions.length === 0) return;
+                const page = _private.getDecisionPageKey();
+                if (runtime.triggerPage === page) return;
+                if (runtime.triggerPage !== undefined) _private.resetAppliedActions(runtime);
+                runtime.triggerPage = page;
+                runtime.triggerGroups = new Map();
+            }
+        },
+
         /** Compares the pathname, activation captures, or decoded values of a named query parameter. */
         url: {
             evaluate: function (condition, runtime) {
@@ -1355,7 +1386,19 @@
         decisionPageHref: null,
         decisionPageVisit: 0,
         decisionPageObserverAdded: false,
+        triggerPageObserverAdded: false,
         decisionBatches: {},
+        triggerCalls: new Map(),
+
+        isTriggerIdentifier: function (value) {
+            return typeof value === 'string' && value.length > 0 && value.trim() === value;
+        },
+
+        getTriggerCalls: function (webExId, name) {
+            this.getDecisionPageKey();
+            const names = this.triggerCalls.get(webExId);
+            return names ? names.get(name) || 0 : 0;
+        },
 
         /*
          * Actions are grouped in the generated configuration. The selected
@@ -1818,6 +1861,7 @@
             if (this.decisionPageHref !== href) {
                 this.decisionPageHref = href;
                 this.decisionPageVisit++;
+                this.triggerCalls.clear();
             }
             return String(window.location.pathname || "") +
                 String(window.location.search || "") +
@@ -1830,7 +1874,29 @@
             this.decisionPageObserverAdded = true;
             this.getDecisionPageKey();
             Breinify.plugins.trigger.addUrlChangeObserver('uiModifyContent-decision-page', function () {
-                _private.getDecisionPageKey();
+                _private.notifyTriggerPageChange();
+            });
+        },
+
+        /*
+         * Hash observation belongs only to custom trigger conditions. Never forward these events to the
+         * shared Trigger plugin, whose module scans and URL observers retain their existing behavior.
+         */
+        initializeTriggerPageObserver: function () {
+            if (this.triggerPageObserverAdded) return;
+            this.triggerPageObserverAdded = true;
+            window.addEventListener('hashchange', function () {
+                _private.notifyTriggerPageChange();
+            });
+        },
+
+        notifyTriggerPageChange: function () {
+            const page = this.getDecisionPageKey();
+            Object.values(this.runtimes).forEach(function (runtime) {
+                // an existing navigation scan or earlier event may already have prepared this page visit
+                if (runtime.triggerConditions && runtime.triggerConditions.length > 0 && runtime.triggerPage !== page) {
+                    runtime.module.onChange({type: 'urlChange'});
+                }
             });
         },
 
@@ -2486,7 +2552,60 @@
         },
 
         getActionStateIndex: function (runtime, actionIndex) {
-            return String(actionIndex) + ":" + String(runtime.selectedGroupId || "_none");
+            return this.getGroupActionStateIndex(runtime, runtime.selectedGroupId, actionIndex);
+        },
+
+        getGroupActionStateIndex: function (runtime, group, actionIndex) {
+            const state = runtime.triggerGroups && runtime.triggerGroups.get(group);
+            const suffix = state ? ':trigger:' + state.generation : '';
+            return String(actionIndex) + ':' + String(group || '_none') + suffix;
+        },
+
+        /**
+         * Only triggers that contributed to the selected branch may rearm its actions.
+         * Other groups, fallback actions, and ordinary DOM notifications keep their existing limits.
+         */
+        recognizeGroupTriggers: function (runtime, group, triggers) {
+            if (!triggers || triggers.size === 0) return;
+            let state = runtime.triggerGroups.get(group);
+            const recognized = state ? state.recognized : new Map();
+            let changed = false;
+            triggers.forEach(function (count, key) {
+                if (count > (recognized.get(key) || 0)) {
+                    recognized.set(key, count);
+                    changed = true;
+                }
+            });
+            if (!changed) return;
+
+            const configured = runtime.config.actions && runtime.config.actions[group];
+            const groupActions = Array.isArray(configured) ? configured : [];
+            groupActions.forEach(function (action, index) {
+                const key = this.getGroupActionStateIndex(runtime, group, index);
+                if (runtime.animations && runtime.animations.entries[key]) {
+                    runtime.animations.entries[key].forEach(function (entry) {
+                        if (!entry.disposed) {
+                            entry.disposed = true;
+                            entry.pending = false;
+                            if (entry.handle) entry.handle.cancel();
+                            actions.showAnimation._cleanup(entry);
+                        }
+                    });
+                    delete runtime.animations.entries[key];
+                }
+                delete runtime.appliedTargets[key];
+                delete runtime.applicationCounts[key];
+                delete runtime.executedActions[key];
+                Object.keys(runtime.appliedSnippets).forEach(function (snippetKey) {
+                    if (snippetKey.indexOf(key + ':snippet:') === 0) delete runtime.appliedSnippets[snippetKey];
+                });
+                Object.keys(runtime.observedSnippets).forEach(function (snippetKey) {
+                    if (snippetKey.indexOf(key + ':') === 0) delete runtime.observedSnippets[snippetKey];
+                });
+            }, this);
+            state = {recognized: recognized, generation: state ? state.generation + 1 : 1};
+            runtime.triggerGroups.set(group, state);
+            runtime.pendingActionOutcome = null;
         },
 
         /** A new feature page visit may apply actions again; same-page feature updates keep their limits. */
@@ -2882,6 +3001,7 @@
         },
 
         isRuntimeActive: function (runtime) {
+            conditions.trigger._preparePage(runtime);
             actions.showAnimation._preparePage(runtime);
             if (typeof runtime.module.isValidPage === 'function') {
                 const active = runtime.module.isValidPage() === true;
@@ -3025,6 +3145,7 @@
                 return false;
             }
 
+            const previousTriggers = visiting && visiting.triggers ? new Map(visiting.triggers) : null;
             const implementation = this.getConditionImplementation(condition);
             let result = false;
             if (implementation && typeof implementation.evaluate === "function") {
@@ -3033,10 +3154,12 @@
                 result = implementation.preEvaluate.call(implementation, condition, runtime) === true;
             }
 
+            if (result !== true && previousTriggers !== null) visiting.triggers = previousTriggers;
             return result === null ? null : result === true;
         },
 
         selectGroup: function (runtime) {
+            conditions.trigger._preparePage(runtime);
             runtime.conditionsPending = false;
             if (conditions.feature._preparePage(runtime) !== true) {
                 runtime.conditionsPending = true;
@@ -3054,8 +3177,9 @@
 
                 let matches = true;
                 let pending = false;
+                const visiting = {triggers: new Map()};
                 for (let j = 0; j < group.conditions.length; j++) {
-                    const result = this.evaluateCondition(runtime, group.conditions[j], {});
+                    const result = this.evaluateCondition(runtime, group.conditions[j], visiting);
                     if (result === false) {
                         matches = false;
                         break;
@@ -3067,6 +3191,7 @@
                         runtime.conditionsPending = true;
                         return null;
                     }
+                    this.recognizeGroupTriggers(runtime, group.actionGroup, visiting.triggers);
                     return group.actionGroup;
                 }
             }
@@ -3147,6 +3272,34 @@
      * conditions and actions evolve behind the implementation registries.
      */
     const UiModifyContent = {
+        /**
+         * Records an exact experience/name pair, even before that experience registers or becomes active.
+         * A true return value means the call was recorded, not that an experience matched or rendered.
+         */
+        trigger: function (webExId, name) {
+            if (!_private.isTriggerIdentifier(webExId) || !_private.isTriggerIdentifier(name)) return false;
+            _private.initializeDecisionPageObserver();
+            _private.initializeTriggerPageObserver();
+            _private.getDecisionPageKey();
+            let names = _private.triggerCalls.get(webExId);
+            if (!names) {
+                names = new Map();
+                _private.triggerCalls.set(webExId, names);
+            }
+            const count = (names.get(name) || 0) + 1;
+            names.set(name, count);
+            Object.values(_private.runtimes).forEach(function (runtime) {
+                if (runtime.webExId !== webExId || !runtime.triggerConditions) return;
+                const recognized = runtime.triggerConditions.some(function (condition) {
+                    const settings = condition.settings || {};
+                    return settings.triggerName === name &&
+                        (count === 1 || settings.frequency === 'everyTriggerCall');
+                });
+                if (recognized) runtime.module.onChange({type: 'triggerCall', triggerName: name});
+            });
+            return true;
+        },
+
         register: function (module, webExId, webExVersionId, config) {
             if (!module || typeof module !== "object") {
                 return null;
@@ -3196,6 +3349,11 @@
             _private.loadDecisionCache(runtime);
 
             _private.runtimes[key] = runtime;
+            runtime.triggerConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
+                return _private.getConditionType(condition) === 'trigger';
+            });
+            if (runtime.triggerConditions.length > 0) _private.initializeTriggerPageObserver();
+            conditions.trigger._preparePage(runtime);
 
             module.onChange = function (data) {
                 return UiModifyContent.handle(webExId, webExVersionId, data);
@@ -3215,6 +3373,18 @@
             if (runtime === null) {
                 return false;
             }
+
+            if (runtime.handling === true) {
+                const page = _private.getDecisionPageKey();
+                window.setTimeout(function () {
+                    if (_private.getRuntime(webExId, webExVersionId) === runtime &&
+                        _private.getDecisionPageKey() === page) {
+                        UiModifyContent.handle(webExId, webExVersionId, data);
+                    }
+                }, 0);
+                return true;
+            }
+            runtime.handling = true;
 
             try {
                 if (!_private.isRuntimeActive(runtime)) return false;
@@ -3253,6 +3423,8 @@
                 _private.sendRenderedElementActivity(runtime, false,
                     renderedElementStatusCodes.RENDERING_FAILED, _private.getActivityActionGroup(runtime));
                 return false;
+            } finally {
+                runtime.handling = false;
             }
         }
     };
