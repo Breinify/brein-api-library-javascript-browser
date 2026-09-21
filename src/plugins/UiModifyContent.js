@@ -884,6 +884,101 @@
      */
     const conditions = {
 
+        /** Counts DOM matches without involving feature definitions, FeatureStorage, or Discovery. */
+        elementexists: {
+            evaluate: function (condition, runtime) {
+                const lifecycle = runtime.elementLifecycle;
+                const settings = condition.settings;
+                let state = lifecycle.states.get(condition);
+                if (!state) {
+                    state = {stopped: false, matched: false, timer: null, revision: -1};
+                    lifecycle.states.set(condition, state);
+                }
+                if (state.matched) return true;
+                if (state.stopped) return false;
+                if (state.revision !== lifecycle.revision) {
+                    const count = document.querySelectorAll(settings.selector).length;
+                    state.matched = this._matches(count, settings.match || {});
+                    state.revision = lifecycle.revision;
+                }
+                if (state.matched) {
+                    _private.clearConditionWait(lifecycle, state);
+                    return true;
+                }
+                return _private.waitForCondition(runtime, lifecycle, state, settings, function () {
+                    conditions.elementexists._notify(runtime, lifecycle);
+                });
+            },
+
+            _matches: function (count, match) {
+                if (count <= 0) return false;
+                switch (match.operator || 'AT_LEAST') {
+                    case 'AT_LEAST': return count >= (match.count === undefined ? 1 : match.count);
+                    case 'EXACTLY': return count === match.count;
+                    case 'LESS_THAN': return count < match.count;
+                    case 'BETWEEN': return count >= match.min && count <= match.max;
+                    default: return false;
+                }
+            },
+
+            /** Browser CSS parsing is authoritative; an invalid selector must not fall through to default actions. */
+            _validate: function (runtime) {
+                if (runtime.elementConfigValid !== undefined) return runtime.elementConfigValid;
+                runtime.elementConfigValid = runtime.elementConditions.every(function (condition) {
+                    const settings = condition.settings;
+                    if (!$.isPlainObject(settings) || Breinify.UTL.isNonEmptyString(settings.selector) === null) {
+                        return false;
+                    }
+                    try {
+                        document.createDocumentFragment().querySelector(settings.selector);
+                        return true;
+                    } catch (error) {
+                        return false;
+                    }
+                });
+                return runtime.elementConfigValid;
+            },
+
+            _preparePage: function (runtime) {
+                if (runtime.elementConditions.length === 0) return;
+                const page = _private.getDecisionPageKey();
+                if (runtime.elementLifecycle && runtime.elementLifecycle.page === page) return;
+                if (runtime.elementLifecycle) {
+                    this._dispose(runtime);
+                    _private.resetAppliedActions(runtime);
+                }
+                runtime.elementLifecycle = {
+                    page: page, startedAt: Date.now(), states: new WeakMap(), timers: new Set(),
+                    scheduled: null, revision: 0
+                };
+            },
+
+            /** Coalesces the existing Trigger observer's events, including removals, into one document-wide check. */
+            _schedule: function (runtime) {
+                this._preparePage(runtime);
+                const lifecycle = runtime.elementLifecycle;
+                if (lifecycle.scheduled !== null) return;
+                lifecycle.scheduled = window.setTimeout(function () {
+                    lifecycle.scheduled = null;
+                    lifecycle.revision++;
+                    conditions.elementexists._notify(runtime, lifecycle);
+                }, 50);
+            },
+
+            _notify: function (runtime, lifecycle) {
+                if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                    lifecycle.page !== _private.getDecisionPageKey() || !_private.isRuntimeActive(runtime)) return;
+                runtime.module.onChange({type: 'elementCondition'});
+            },
+
+            _dispose: function (runtime) {
+                const lifecycle = runtime.elementLifecycle;
+                if (!lifecycle) return;
+                window.clearTimeout(lifecycle.scheduled);
+                lifecycle.timers.forEach(function (timer) { window.clearTimeout(timer); });
+            }
+        },
+
         /**
          * A missing call is pending. Recognized calls remain true for the current page visit.
          * Recognition is independent of whether this condition participates in a successful group.
@@ -1056,33 +1151,13 @@
                     source === 'PAGE' && observation && observation.pageId === lifecycle.pageId ||
                     source === 'CHANGE' && observation && observation.changedPageId === lifecycle.pageId;
                 if (value !== null && typeof value !== 'undefined' && relevant) {
-                    if (state.timer !== null) {
-                        window.clearTimeout(state.timer);
-                        lifecycle.timers.delete(state.timer);
-                        state.timer = null;
-                    }
+                    _private.clearConditionWait(lifecycle, state);
                     const definition = storage.getFeatureDefinition(key);
                     return this._compare(value, definition && definition.valueType, settings);
-                } else if (settings.whenUnavailable === 'FALSE') {
-                    return false;
                 }
-
-                const timeout = typeof settings.waitTimeoutInMs === 'number' ? settings.waitTimeoutInMs : 3000;
-                const remaining = lifecycle.startedAt + timeout - Date.now();
-                if (remaining <= 0) {
-                    state.stopped = settings.afterTimeout !== 'CONTINUE';
-                    return false;
-                } else if (state.timer === null) {
-                    state.timer = window.setTimeout(function () {
-                        lifecycle.timers.delete(state.timer);
-                        state.timer = null;
-                        if (runtime.featureLifecycle === lifecycle) {
-                            conditions.feature._notify(runtime);
-                        }
-                    }, remaining);
-                    lifecycle.timers.add(state.timer);
-                }
-                return null;
+                return _private.waitForCondition(runtime, lifecycle, state, settings, function () {
+                    if (runtime.featureLifecycle === lifecycle) conditions.feature._notify(runtime);
+                });
             },
 
             /** Type compatibility is checked against the feature definition, never inferred from its current value. */
@@ -1453,7 +1528,34 @@
                 }
             }
 
-            return true;
+            return conditions.elementexists._validate(runtime);
+        },
+
+        /** Shared bounded waiting, independent of whether the observed input is a feature or the DOM. */
+        waitForCondition: function (runtime, lifecycle, state, settings, notify) {
+            if (settings.whenUnavailable === 'FALSE') return false;
+            const timeout = typeof settings.waitTimeoutInMs === 'number' ? settings.waitTimeoutInMs : 3000;
+            const remaining = lifecycle.startedAt + timeout - Date.now();
+            if (remaining <= 0) {
+                this.clearConditionWait(lifecycle, state);
+                state.stopped = settings.afterTimeout !== 'CONTINUE';
+                return false;
+            } else if (state.timer === null) {
+                state.timer = window.setTimeout(function () {
+                    lifecycle.timers.delete(state.timer);
+                    state.timer = null;
+                    if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime) notify();
+                }, remaining);
+                lifecycle.timers.add(state.timer);
+            }
+            return null;
+        },
+
+        clearConditionWait: function (lifecycle, state) {
+            if (state.timer === null) return;
+            window.clearTimeout(state.timer);
+            lifecycle.timers.delete(state.timer);
+            state.timer = null;
         },
 
         getActivityState: function (runtime) {
@@ -1879,7 +1981,7 @@
         },
 
         /*
-         * Hash observation belongs only to custom trigger conditions. Never forward these events to the
+         * Hash observation belongs to page-scoped trigger and DOM conditions. Never forward these events to the
          * shared Trigger plugin, whose module scans and URL observers retain their existing behavior.
          */
         initializeTriggerPageObserver: function () {
@@ -1893,6 +1995,11 @@
         notifyTriggerPageChange: function () {
             const page = this.getDecisionPageKey();
             Object.values(this.runtimes).forEach(function (runtime) {
+                if (runtime.elementConditions.length > 0 && runtime.elementLifecycle &&
+                    runtime.elementLifecycle.page !== page) {
+                    conditions.elementexists._dispose(runtime);
+                    runtime.module.onChange({type: 'urlChange'});
+                }
                 // an existing navigation scan or earlier event may already have prepared this page visit
                 if (runtime.triggerConditions && runtime.triggerConditions.length > 0 && runtime.triggerPage !== page) {
                     runtime.module.onChange({type: 'urlChange'});
@@ -3020,8 +3127,13 @@
         },
 
         findRequirements: function (runtime, $el, data) {
+            if (this.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime) return false;
             if (!this.isRuntimeActive(runtime)) return false;
             const changeType = data && data.type ? data.type : "full-scan";
+            if (runtime.elementConditions.length > 0 && changeType !== 'full-scan') {
+                conditions.elementexists._schedule(runtime);
+                return false;
+            }
             if (changeType !== "full-scan" && changeType !== "added-element" && changeType !== "attribute-change") {
                 return false;
             } else if (!this.isRuntimeConfigurationValid(runtime)) {
@@ -3160,6 +3272,7 @@
 
         selectGroup: function (runtime) {
             conditions.trigger._preparePage(runtime);
+            conditions.elementexists._preparePage(runtime);
             runtime.conditionsPending = false;
             if (conditions.feature._preparePage(runtime) !== true) {
                 runtime.conditionsPending = true;
@@ -3310,6 +3423,7 @@
             const key = _private.key(webExId, webExVersionId);
             const previousRuntime = _private.runtimes[key];
             if (previousRuntime) {
+                conditions.elementexists._dispose(previousRuntime);
                 actions.showAnimation._cancel(previousRuntime);
                 if (previousRuntime.disposeAnimationListener) previousRuntime.disposeAnimationListener();
                 conditions.feature._clearTimers(previousRuntime);
@@ -3349,10 +3463,15 @@
             _private.loadDecisionCache(runtime);
 
             _private.runtimes[key] = runtime;
+            runtime.elementConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
+                return _private.getConditionType(condition) === 'elementexists';
+            });
             runtime.triggerConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
                 return _private.getConditionType(condition) === 'trigger';
             });
-            if (runtime.triggerConditions.length > 0) _private.initializeTriggerPageObserver();
+            if (runtime.triggerConditions.length > 0 || runtime.elementConditions.length > 0) {
+                _private.initializeTriggerPageObserver();
+            }
             conditions.trigger._preparePage(runtime);
 
             module.onChange = function (data) {
@@ -3361,6 +3480,11 @@
 
             module.findRequirements = function ($el, data) {
                 return _private.findRequirements(runtime, $el, data);
+            };
+
+            // opt in only when a standalone DOM condition needs selector changes caused by text mutations
+            module.triggerSettings = function () {
+                return {observeTextChanges: runtime.elementConditions.length > 0};
             };
 
             conditions.feature._initialize(runtime);
@@ -3388,6 +3512,8 @@
 
             try {
                 if (!_private.isRuntimeActive(runtime)) return false;
+                conditions.elementexists._preparePage(runtime);
+                if (runtime.elementLifecycle) runtime.elementLifecycle.revision++;
                 if (!_private.isRuntimeConfigurationValid(runtime)) {
                     _private.sendRenderedElementActivity(runtime, false,
                         renderedElementStatusCodes.INVALID_CONFIGURATION, null);

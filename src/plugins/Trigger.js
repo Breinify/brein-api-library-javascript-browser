@@ -31,6 +31,17 @@
                 for (let i = 0; i < mutations.length; i++) {
                     const mutation = mutations[i];
 
+                    // text updates can change selector results such as :empty without adding or removing an element
+                    if (mutation.type === 'characterData' && mutation.target.parentElement) {
+                        _self.handleDomChange($(mutation.target.parentElement), {type: 'text-change'});
+                    }
+                    // text-only child additions/removals also affect :empty; delivery is explicitly opt-in
+                    else if (mutation.type === 'childList') {
+                        const textChanged = Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes))
+                            .some(node => Breinify.UTL.dom.isNodeType(node, 3));
+                        if (textChanged) _self.handleDomChange($(mutation.target), {type: 'text-change'});
+                    }
+
                     // attributes: only Elements have attributes
                     if (mutation.type === 'attributes' && typeof mutation.attributeName === 'string' && mutation.attributeName.trim() !== '') {
                         const $target = Breinify.UTL.dom.isNodeType(mutation.target, 1) ? $(mutation.target) : null;
@@ -49,7 +60,7 @@
                             const addedNode = addedNodes[k];
                             const $addedNode = Breinify.UTL.dom.isNodeType(addedNode, 1) ? $(addedNode) : null;
                             if ($addedNode !== null && $addedNode.length === 1) {
-                                _self.handleDomChange($addedNode, { type: 'added-element' });
+                                _self.handleDomChange($addedNode, {type: 'added-element'});
                             }
                         }
                     }
@@ -62,7 +73,7 @@
                             const $removedNode = Breinify.UTL.dom.isNodeType(removedNode, 1) ? $(removedNode) : null;
 
                             if ($removedNode !== null && $removedNode.length > 0) {
-                                _self.handleDomChange($removedNode, { type: 'removed-element' });
+                                _self.handleDomChange($removedNode, {type: 'removed-element'});
                             }
                         }
                     }
@@ -80,7 +91,7 @@
             });
         },
 
-        addUrlChangeObserver: function(name, observer) {
+        addUrlChangeObserver: function (name, observer) {
             if (!$.isFunction(observer)) {
                 return;
             }
@@ -88,7 +99,7 @@
             this.urlChangeObservers[name] = observer;
         },
 
-        removeUrlChangeObserver: function(name) {
+        removeUrlChangeObserver: function (name) {
             delete this.urlChangeObservers[name];
         },
 
@@ -182,8 +193,28 @@
 
             // run through each module that is registered and execute the change
             $.each(this.domTreeDependModules, function (name, module) {
+
+                // text-change notifications are delivered only to modules that explicitly opt in
+                if (normalizedDetails.type === 'text-change' && !_self.observesTextChanges(module)) {
+                    return;
+                }
+
                 _self.executeOnChange(module, $el, normalizedDetails);
             });
+        },
+
+        /**
+         * Optional settings are read only for text changes; missing or invalid settings leave notifications disabled.
+         */
+        observesTextChanges: function (module) {
+            if (!$.isPlainObject(module) || !$.isFunction(module.triggerSettings)) return false;
+            try {
+                const settings = module.triggerSettings();
+                return $.isPlainObject(settings) && settings.observeTextChanges === true;
+            } catch (error) {
+                // an optional settings hook must not interrupt delivery to other subscribers
+                return false;
+            }
         },
 
         checkModule: function (name, module) {
@@ -256,11 +287,11 @@
             changeObserver.observeUrlChanges();
         },
 
-        addUrlChangeObserver: function(name, observer) {
+        addUrlChangeObserver: function (name, observer) {
             changeObserver.addUrlChangeObserver(name, observer);
         },
 
-        removeUrlChangeObserver: function(name) {
+        removeUrlChangeObserver: function (name) {
             changeObserver.removeUrlChangeObserver(name);
         }
     };

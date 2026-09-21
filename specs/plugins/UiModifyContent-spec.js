@@ -2,6 +2,266 @@
 
 describe('UiModifyContent', function () {
 
+    describe('Trigger text-change opt-in', function () {
+        var fixture;
+        var sequence = 0;
+        var subscribers;
+
+        beforeEach(function () {
+            subscribers = [];
+            fixture = document.createElement('div');
+            fixture.appendChild(document.createTextNode('initial'));
+            document.body.appendChild(fixture);
+            Breinify.plugins.trigger.init();
+        });
+
+        afterEach(function () {
+            subscribers.forEach(function (module) {
+                module.findRequirements = function () { return false; };
+                module.triggerSettings = function () { return {}; };
+            });
+            fixture.remove();
+        });
+
+        function subscribe(settings) {
+            var events = [];
+            var module = {
+                findRequirements: function ($el, event) {
+                    if ($el && $el[0] === fixture) events.push(event.type);
+                    return false;
+                },
+                onChange: function () {}
+            };
+            if (settings) module.triggerSettings = settings;
+            subscribers.push(module);
+            $(document).trigger('module-added', ['text-change-opt-in-' + (++sequence), module]);
+            return events;
+        }
+
+        it('delivers text only to explicit boolean opt-ins while preserving ordinary attribute delivery', function (done) {
+            var legacy = subscribe();
+            var disabled = subscribe(function () { return {observeTextChanges: false}; });
+            var malformed = subscribe(function () { return {observeTextChanges: 'true'}; });
+            var broken = subscribe(function () { throw new Error('invalid settings'); });
+            var enabled = subscribe(function () { return {observeTextChanges: true}; });
+            fixture.firstChild.nodeValue = 'updated';
+            fixture.setAttribute('data-test', 'changed');
+            setTimeout(function () {
+                [legacy, disabled, malformed, broken].forEach(function (events) {
+                    expect(events.indexOf('text-change')).toBe(-1);
+                    expect(events.indexOf('attribute-change')).not.toBe(-1);
+                });
+                expect(enabled.indexOf('text-change')).not.toBe(-1);
+                expect(enabled.indexOf('attribute-change')).not.toBe(-1);
+                done();
+            }, 40);
+        });
+
+        it('also delivers text-only child removal without notifying legacy modules', function (done) {
+            var legacy = subscribe();
+            var enabled = subscribe(function () { return {observeTextChanges: true}; });
+            fixture.removeChild(fixture.firstChild);
+            setTimeout(function () {
+                expect(legacy.indexOf('text-change')).toBe(-1);
+                expect(enabled.indexOf('text-change')).not.toBe(-1);
+                done();
+            }, 40);
+        });
+    });
+
+    describe('elementExists conditions', function () {
+        var id = 'element-exists-condition-spec';
+        var version = 'version-1';
+        var fixture;
+        var runtime;
+        var activitySpy;
+        var selector = '#element-exists-fixture .candidate';
+
+        beforeEach(function () {
+            fixture = document.createElement('div');
+            fixture.id = 'element-exists-fixture';
+            document.body.appendChild(fixture);
+            activitySpy = createActivitySpy();
+        });
+
+        afterEach(function () {
+            if (runtime) {
+                runtime.module.findRequirements = function () { return false; };
+                runtime.module.triggerSettings = function () { return {}; };
+            }
+            uiModifyContent.register({}, id, version, {actions: {}});
+            fixture.remove();
+            activitySpy.restore();
+        });
+
+        function setup(settings, wrap) {
+            var condition = {type: 'elementExists', settings: $.extend({selector: selector}, settings)};
+            runtime = uiModifyContent.register({}, id, version, {
+                conditionsGroups: [{actionGroup: 'matched', conditions: wrap ? wrap(condition) : [condition]}],
+                actions: {matched: [], _default: []}
+            });
+        }
+
+        function count(value) {
+            fixture.innerHTML = '';
+            for (var i = 0; i < value; i++) {
+                var element = document.createElement('span');
+                element.className = 'candidate';
+                fixture.appendChild(element);
+            }
+        }
+
+        function evaluate() {
+            return uiModifyContent.handle(id, version, {});
+        }
+
+        it('checks positive inclusive and exclusive boundaries without allowing zero matches', function () {
+            [
+                [{operator: 'AT_LEAST', count: 2}, [false, false, true, true, true]],
+                [{operator: 'EXACTLY', count: 2}, [false, false, true, false, false]],
+                [{operator: 'LESS_THAN', count: 3}, [false, true, true, false, false]],
+                [{operator: 'BETWEEN', min: 2, max: 3}, [false, false, true, true, false]]
+            ].forEach(function (test) {
+                test[1].forEach(function (expected, n) {
+                    setup({match: test[0], whenUnavailable: 'FALSE'});
+                    count(n);
+                    evaluate();
+                    expect(runtime.selectedGroupId).toBe(expected ? 'matched' : '_default');
+                });
+            });
+        });
+
+        it('waits for nested DOM conditions and retains success after the element disappears', function () {
+            setup({}, function (condition) {
+                condition.type = 'ELEMENTEXISTS';
+                return [{type: 'any', settings: {conditions: [
+                    {type: 'all', settings: {conditions: [condition]}}
+                ]}}];
+            });
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            expect(activitySpy.renderedElements.length).toBe(0);
+            count(1);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+            count(0);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+            expect(runtime.featureLifecycle).toBeUndefined();
+            expect(runtime.module.triggerSettings()).toEqual({observeTextChanges: true});
+        });
+
+        it('uses opt-in text notifications to recheck :empty through the shared observer', function (done) {
+            setup({selector: '#element-exists-fixture .candidate:empty'});
+            count(1);
+            fixture.firstChild.appendChild(document.createTextNode('loading'));
+            Breinify.plugins.trigger.init();
+            $(document).trigger('module-added', ['element-exists-text-fixture', runtime.module]);
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            fixture.firstChild.firstChild.nodeValue = '';
+            setTimeout(function () {
+                expect(runtime.selectedGroupId).toBe('matched');
+                done();
+            }, 100);
+        });
+
+        it('keeps STOP false after timeout but permits late matches with CONTINUE', function () {
+            setup({waitTimeoutInMs: 100});
+            evaluate();
+            runtime.elementLifecycle.startedAt -= 200;
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            count(1);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            count(0);
+            setup({waitTimeoutInMs: 100, afterTimeout: 'CONTINUE'});
+            evaluate();
+            runtime.elementLifecycle.startedAt -= 200;
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('_default');
+            count(1);
+            evaluate();
+            expect(runtime.selectedGroupId).toBe('matched');
+        });
+
+        it('wakes branch selection on timeout even when the DOM never changes', function (done) {
+            setup({waitTimeoutInMs: 10});
+            evaluate();
+            expect(runtime.conditionsPending).toBe(true);
+            setTimeout(function () {
+                expect(runtime.conditionsPending).toBe(false);
+                expect(runtime.selectedGroupId).toBe('_default');
+                done();
+            }, 40);
+        });
+
+        it('batches removals and attribute changes into a single check against the whole document', function (done) {
+            setup({match: {operator: 'LESS_THAN', count: 3}});
+            count(4);
+            evaluate();
+            var initialRevision = runtime.elementLifecycle.revision;
+            count(2);
+            for (var i = 0; i < 10; i++) {
+                var required = runtime.module.findRequirements($(fixture),
+                    {type: i % 2 === 0 ? 'removed-element' : 'attribute-change'});
+                expect(required).toBe(false);
+            }
+            expect(runtime.elementLifecycle.revision).toBe(initialRevision);
+            setTimeout(function () {
+                expect(runtime.selectedGroupId).toBe('matched');
+                expect(runtime.elementLifecycle.scheduled).toBeNull();
+                done();
+            }, 80);
+        });
+
+        it('reports invalid CSS selectors as configuration errors, not a false condition or fallback', function () {
+            setup({selector: '['});
+            expect(evaluate()).toBe(false);
+            expectRenderedElement(activitySpy.renderedElements[0], false, 13200, null);
+        });
+
+        it('does not enable text events for configurations without a DOM condition', function () {
+            var plain = uiModifyContent.register({}, id, version, {conditionsGroups: [], actions: {_default: []}});
+            expect(plain.module.triggerSettings()).toEqual({observeTextChanges: false});
+        });
+
+        it('resets the success latch when visiting a new SPA URL and returning to the original URL', function () {
+            var url = window.location.href;
+            try {
+                setup({whenUnavailable: 'FALSE'});
+                count(1);
+                evaluate();
+                expect(runtime.selectedGroupId).toBe('matched');
+                count(0);
+                window.history.replaceState({}, '', '#element-exists-new-page');
+                evaluate();
+                expect(runtime.selectedGroupId).toBe('_default');
+                window.history.replaceState({}, '', url);
+                evaluate();
+                expect(runtime.selectedGroupId).toBe('_default');
+            } finally {
+                window.history.replaceState({}, '', url);
+            }
+        });
+
+        it('disposes pending callbacks when the experience registration is replaced', function (done) {
+            setup({waitTimeoutInMs: 10});
+            evaluate();
+            runtime.module.findRequirements($(fixture), {type: 'added-element'});
+            var previous = runtime;
+            setup({whenUnavailable: 'FALSE'});
+            evaluate();
+            count(1);
+            setTimeout(function () {
+                expect(runtime.selectedGroupId).toBe('_default');
+                expect(previous.conditionsPending).toBe(true);
+                done();
+            }, 80);
+        });
+    });
+
     describe('applyCss', function () {
         var id = 'apply-css-spec';
         var version = 'version-1';
