@@ -13,24 +13,30 @@
 
     const selectedAnswersCss = `
         .br-survey-selected-answers {
+            container: br-survey-selected-answers / inline-size;
             margin: 0 0 0.75em;
             padding: 0.75em;
             border: 1px solid #e1e1e1;
-            border-radius: 0.75em;
-            background: #f5f5f5;
-            line-height: var(--br-survey-line-height-base);
+            border-radius: 0.9em;
+            background: #fff;
+            font-size: 0.65em;
+            line-height: var(--br-survey-line-height-base, 1.4);
+            text-align: left;
         }
 
         .br-survey-selected-answers__title {
-            margin: 0 0 0.75em;
-            font-size: 0.65em;
+            margin: 0;
+            font: inherit;
             font-weight: 600;
             color: #666;
         }
 
+        .br-survey-selected-answers__title:not(:empty) {
+            margin-bottom: 0.6em;
+        }
+
         .br-survey-selected-answers__list {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
             gap: 0.6em;
             margin: 0;
             padding: 0;
@@ -38,29 +44,61 @@
         }
 
         .br-survey-selected-answer {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) fit-content(40%);
+            align-items: center;
+            gap: 0.35em 0.75em;
             min-width: 0;
             max-width: 100%;
             overflow-wrap: anywhere;
         }
 
+        .br-survey-selected-answer + .br-survey-selected-answer {
+            padding-top: 0.6em;
+            border-top: 1px solid #eee;
+        }
+
         .br-survey-selected-answer__question {
             display: block;
-            margin: 0 0 0.35em;
-            font-size: 0.65em;
+            min-width: 0;
+            margin: 0;
+            font-size: inherit;
             color: #666;
         }
 
         .br-survey-selected-answer__answer {
-            display: inline-block;
+            display: block;
+            justify-self: end;
+            min-width: 0;
             max-width: 100%;
             box-sizing: border-box;
-            padding: 0.4em 0.75em;
+            padding: 0.25em 0.65em;
             border: 1px solid #e1e1e1;
-            border-radius: 1.25em;
-            background: #fff;
-            font-size: 0.75em;
+            border-radius: 0.65em;
+            background: #f5f5f5;
+            font-size: inherit;
+            font-weight: 600;
         }
 
+        @container br-survey-selected-answers (max-width: 360px) {
+            .br-survey-selected-answer {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .br-survey-selected-answer__answer {
+                justify-self: start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .br-survey-selected-answer {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .br-survey-selected-answer__answer {
+                justify-self: start;
+            }
+        }
     `;
 
     class UiSurveyPopup extends HTMLElement {
@@ -1465,8 +1503,8 @@
             summary.className = "br-survey-selected-answers";
             const title = document.createElement("h3");
             title.className = "br-survey-selected-answers__title";
-            title.textContent = node.type === "recommendation" ? "Based on your selections" : "Your selections so far";
-            summary.setAttribute("aria-label", title.textContent);
+            // keep an empty title hook for customer CSS without reserving heading space
+            summary.setAttribute("aria-label", "Selected answers");
             summary.appendChild(title);
             summary.appendChild(list);
             container.appendChild(summary);

@@ -49,8 +49,9 @@ Start over resolves the page's explicit boolean first, then the survey default, 
 Missing/null page settings preserve inheritance; changing the survey default affects only inheriting pages.
 
 
-The summary follows the active navigation path. Each item displays the question above its selected answer
-bubble. It excludes the current question and any later or discarded answers, and is hidden when there are no
+The summary follows the active navigation path. Each selection occupies a compact row with the question on
+the left and its answer badge on the right. On narrow screens or in narrow containers, the answer appears
+directly below the question. Questions and answers share the same text size and consistent row spacing. It excludes the current question and any later or discarded answers, and is hidden when there are no
 completed answers. The items are informational and do not navigate or remove answers. Back navigation updates
 the summary as later selections are discarded. Labels and explanations are rendered as text, not HTML.
 
@@ -69,8 +70,8 @@ session ID.
 ### Styling the Display Settings
 
 The default presentation inherits the survey font and uses its existing gray borders, neutral backgrounds,
-rounded corners, and button styling. Answer bubbles wrap onto additional rows and long labels wrap within
-the popup width. Start over uses the shared `.br-survey-btn` class.
+rounded corners, and button styling. Summary rows use subtle separators; long questions and answers wrap
+within the available width. Start over uses the shared `.br-survey-btn` class.
 
 Apply custom CSS through the web experience's `configuration.style.snippet` reference. The stylesheet is
 applied inside the popup's shadow root after the default styles; ordinary page CSS does not cross that boundary.
@@ -82,10 +83,10 @@ applied inside the popup's shadow root after the default styles; ordinary page C
 | `.br-survey-btn--restart` | Start over button |
 | `.br-survey-question-explanation` | Clarification below a question |
 | `.br-survey-selected-answers` | Summary panel |
-| `.br-survey-selected-answers__title` | “Your selections so far” or “Based on your selections” heading |
-| `.br-survey-selected-answers__list` | Wrapping list of completed answers |
+| `.br-survey-selected-answers__title` | Empty title hook; customer CSS can add content with `::before` or `::after` |
+| `.br-survey-selected-answers__list` | Compact list of evenly spaced question/answer rows |
 | `.br-survey-selected-answer` | One question/answer item |
-| `.br-survey-selected-answer__question` | Question label above the bubble |
+| `.br-survey-selected-answer__question` | Question label beside the answer, above it on narrow layouts |
 | `.br-survey-selected-answer__answer` | Selected-answer bubble |
 
 Every `.br-survey-selected-answer` item has these attributes for customer styling or DOM integration:
@@ -97,11 +98,15 @@ Every `.br-survey-selected-answer` item has these attributes for customer stylin
 | `data-br-survey-question` | Question text |
 | `data-br-survey-answer` | Selected answer's title |
 
-For example, a customer CSS snippet can hide question labels and recolor the bubbles:
+The title is empty and takes no space by default; it is not hidden, so pseudo-elements can supply a visible
+heading. The summary keeps an accessible “Selected answers” label independently of the empty title.
+For example, customer CSS can add a title and recolor the answer badges:
 
 ```css
-.br-survey-selected-answer__question {
-    display: none;
+.br-survey-selected-answers__title::before {
+    content: "Your selections";
+    display: block;
+    margin-bottom: 0.6em;
 }
 
 .br-survey-selected-answer__answer {
