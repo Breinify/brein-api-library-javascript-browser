@@ -11,6 +11,58 @@
     const popupElementName = "br-ui-survey-popup";
     const $ = Breinify.UTL._jquery();
 
+    const selectedAnswersCss = `
+        .br-survey-selected-answers {
+            margin: 0 0 0.75em;
+            padding: 0.75em;
+            border: 1px solid #e1e1e1;
+            border-radius: 0.75em;
+            background: #f5f5f5;
+            line-height: var(--br-survey-line-height-base);
+        }
+
+        .br-survey-selected-answers__title {
+            margin: 0 0 0.75em;
+            font-size: 0.65em;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .br-survey-selected-answers__list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6em;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .br-survey-selected-answer {
+            min-width: 0;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+        }
+
+        .br-survey-selected-answer__question {
+            display: block;
+            margin: 0 0 0.35em;
+            font-size: 0.65em;
+            color: #666;
+        }
+
+        .br-survey-selected-answer__answer {
+            display: inline-block;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 0.4em 0.75em;
+            border: 1px solid #e1e1e1;
+            border-radius: 1.25em;
+            background: #fff;
+            font-size: 0.75em;
+        }
+
+    `;
+
     class UiSurveyPopup extends HTMLElement {
 
         constructor() {
@@ -167,6 +219,12 @@
                     line-height: var(--br-survey-line-height-tight);
                 }
 
+                .br-survey-page-error {
+                    color: #a40000;
+                    font-size: 0.8em;
+                    margin: 0.75em 0;
+                }
+
                 .br-survey-page-actions {
                     display: flex;
                     justify-content: flex-end;
@@ -182,54 +240,7 @@
                     overflow-wrap: anywhere;
                 }
 
-                .br-survey-selected-answers {
-                    margin: 0 0 0.75em;
-                    padding: 0.75em;
-                    border: 1px solid #e1e1e1;
-                    border-radius: 0.75em;
-                    background: #f5f5f5;
-                    line-height: var(--br-survey-line-height-base);
-                }
-
-                .br-survey-selected-answers__title {
-                    margin: 0 0 0.75em;
-                    font-size: 0.65em;
-                    font-weight: 600;
-                    color: #666;
-                }
-
-                .br-survey-selected-answers__list {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 0.6em;
-                    margin: 0;
-                    padding: 0;
-                    list-style: none;
-                }
-
-                .br-survey-selected-answer {
-                    min-width: 0;
-                    max-width: 100%;
-                    overflow-wrap: anywhere;
-                }
-
-                .br-survey-selected-answer__question {
-                    display: block;
-                    margin: 0 0 0.35em;
-                    font-size: 0.65em;
-                    color: #666;
-                }
-
-                .br-survey-selected-answer__answer {
-                    display: inline-block;
-                    max-width: 100%;
-                    box-sizing: border-box;
-                    padding: 0.4em 0.75em;
-                    border: 1px solid #e1e1e1;
-                    border-radius: 1.25em;
-                    background: #fff;
-                    font-size: 0.75em;
-                }
+                ${selectedAnswersCss}
 
                 .br-survey-answers {
                     display: flex;
@@ -764,6 +775,7 @@
 
     const _private = {
         runtimeByWebExVersionId: {},
+        _selectedAnswersCss: selectedAnswersCss,
 
         getRuntime: function (module, settings) {
             const webExVersionId = Breinify.UTL.isNonEmptyString(module && module.webExVersionId);
@@ -783,6 +795,9 @@
                 settings: $.isPlainObject(settings) ? settings : {},
                 webExVersionId: webExVersionId,
                 triggers: [],
+                _activePage: null,
+                _pageStates: Object.create(null),
+                _browserIndex: 0,
                 _selectedAnswers: {},
                 _nodesById: {},
                 _edges: [],
@@ -870,6 +885,11 @@
         },
 
         _resetSurveyState: function (runtime) {
+            this._disposePage(runtime);
+            this._settleBack(runtime, false);
+            runtime._pageStates = Object.create(null);
+            runtime._historyReturn = null;
+            runtime._browserIndex = 0;
             runtime._currentNodeId = null;
             runtime._selectedAnswers = {};
             runtime._history = [];
@@ -900,7 +920,9 @@
             }
 
             const nodeId = Breinify.UTL.isNonEmptyString(runtime._currentNodeId);
+            const index = (runtime._browserIndex || 0) + (replace === true ? 0 : 1);
             const state = {
+                index: index,
                 brUiSurvey: true,
                 webExVersionId: runtime.webExVersionId,
                 nodeId: nodeId,
@@ -913,83 +935,72 @@
                 } else {
                     window.history.pushState(state, "", window.location.href);
                 }
+                runtime._browserIndex = index;
             } catch (e) {
                 console.warn("Unable to update history for survey navigation:", e);
             }
         },
 
         _onPopState: function (runtime, event) {
-            let reason = "unspecified";
-
             const popup = document.querySelector(popupElementName);
             const state = event.state;
-            const prevNodeId = runtime._currentNodeId;
-
-            if (state && state.brUiSurvey === true) {
-                if (state.webExVersionId !== runtime.webExVersionId) {
-                    return;
-                }
-
-                if (!runtime._sessionId || !state.sessionId || state.sessionId !== runtime._sessionId) {
-                    if (popup && popup.hasAttribute("open")) {
-                        popup.close("history", {
-                            webExVersionId: runtime.webExVersionId,
-                            sessionId: runtime._sessionId
-                        });
-                    }
-
-                    this._resetSurveyState(runtime);
-                    return;
-                }
-
-                const nodeId = Breinify.UTL.isNonEmptyString(state.nodeId);
-                if (!nodeId || !runtime._nodesById || !runtime._nodesById[nodeId]) {
-                    return;
-                }
-
-                if (runtime._currentNodeId === nodeId) {
-                    return;
-                }
-
-                const fromStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
-
-                if (Array.isArray(runtime._history) &&
-                    runtime._history.length > 0 &&
-                    runtime._history[runtime._history.length - 1] === nodeId) {
-                    reason = "back";
-                    runtime._currentNodeId = runtime._history.pop();
-                } else if (runtime._currentNodeId) {
-                    reason = "forward";
-                    runtime._history.push(runtime._currentNodeId);
-                    runtime._currentNodeId = nodeId;
-                } else {
-                    reason = "forward";
-                    runtime._currentNodeId = nodeId;
-                }
-
-                const toStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
-                this._pruneSelectedAnswersToActivePath(runtime);
-
-                if (popup) {
-                    this._renderCurrentPage(runtime, popup);
-
-                    if (!popup.hasAttribute("open")) {
-                        popup.open();
-                    }
-
-                    if (prevNodeId !== runtime._currentNodeId) {
-                        this._fireNavigatedEvent(runtime, prevNodeId, runtime._currentNodeId, reason, fromStepNumber, toStepNumber);
-                    }
-                }
-
+            const previousNodeId = runtime._currentNodeId;
+            if (state && state.brUiSurvey && state.webExVersionId !== runtime.webExVersionId) {
                 return;
             }
-
-            if (popup && popup.hasAttribute("open")) {
-                popup.close();
+            if (!state || state.brUiSurvey !== true || !runtime._sessionId || state.sessionId !== runtime._sessionId) {
+                if (popup && popup.hasAttribute("open") && popup.meta.webExVersionId === runtime.webExVersionId) {
+                    popup.close("history");
+                }
+                this._resetSurveyState(runtime);
+                return;
             }
-
-            this._resetSurveyState(runtime);
+            if (runtime._historyReturn) {
+                const returning = runtime._historyReturn;
+                runtime._historyReturn = null;
+                if (state.index === runtime._browserIndex && state.nodeId === previousNodeId) {
+                    // replay one forward transition through the same guard used by buttons and snippets
+                    const page = runtime._activePage;
+                    if (returning.advance && page && page.controller.getNextNodeId() === returning.nodeId) {
+                        this._goForward(runtime, previousNodeId, null, true);
+                    }
+                    return;
+                }
+            }
+            if (state.index > runtime._browserIndex) {
+                const delta = state.index - runtime._browserIndex;
+                runtime._historyReturn = {nodeId: state.nodeId, advance: delta === 1};
+                window.history.go(-delta);
+                return;
+            }
+            if (!runtime._nodesById[state.nodeId]) {
+                this._settleBack(runtime, false);
+                return;
+            }
+            runtime._browserIndex = state.index;
+            if (state.nodeId === previousNodeId) {
+                this._settleBack(runtime, false);
+                return;
+            }
+            const historyIndex = runtime._history.indexOf(state.nodeId);
+            if (historyIndex < 0) {
+                this._settleBack(runtime, false);
+                return;
+            }
+            const fromStepNumber = this._getStepNumber(runtime);
+            this._disposePage(runtime);
+            runtime._history = runtime._history.slice(0, historyIndex);
+            runtime._currentNodeId = state.nodeId;
+            this._pruneSelectedAnswersToActivePath(runtime);
+            if (popup) {
+                this._renderCurrentPage(runtime, popup);
+                if (!popup.hasAttribute("open")) {
+                    popup.open();
+                }
+            }
+            this._fireNavigatedEvent(runtime, previousNodeId, state.nodeId, "back", fromStepNumber,
+                this._getStepNumber(runtime));
+            this._settleBack(runtime, true);
         },
 
         _getPageNodes: function (runtime) {
@@ -1370,6 +1381,11 @@
                 allowed[current] = true;
             }
 
+            Object.keys(runtime._pageStates || {}).forEach(id => {
+                if (allowed[id] !== true) {
+                    delete runtime._pageStates[id];
+                }
+            });
             Object.keys(runtime._selectedAnswers).forEach((qid) => {
                 if (allowed[qid] !== true) {
                     delete runtime._selectedAnswers[qid];
@@ -1428,10 +1444,10 @@
             container.appendChild(actions);
         },
 
-        _appendSelectedAnswers: function (runtime, node, container) {
+        _appendSelectedAnswers: function (runtime, node, container, force) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const settings = $.isPlainObject(data.settings) ? data.settings : {};
-            if (settings.showSelectedAnswers !== true) {
+            if (force !== true && settings.showSelectedAnswers !== true) {
                 return;
             }
 
@@ -1646,11 +1662,10 @@
             return container;
         },
 
-        _requestRecommendations: function (runtime, popup, container, node) {
+        _requestRecommendations: function (runtime, popup, container, node, page) {
             const data = $.isPlainObject(node.data) ? node.data : {};
 
-            popup.setBodyContent(container);
-
+            const active = () => !page || this._isActivePage(runtime, page);
             const $container = $(container);
             const $grid = $container.find(".br-survey-reco-grid");
 
@@ -1689,13 +1704,13 @@
             Breinify.plugins.recommendations.render({
                 position: {
                     append: function () {
-                        return $container;
+                        return active() ? $container : $();
                     }
                 },
                 placeholders: this._createPlaceholders(runtime, node),
                 templates: {
                     container: function () {
-                        return $grid;
+                        return active() ? $grid : $();
                     },
                     item: snippet
                 },
@@ -1704,10 +1719,16 @@
                 },
                 process: {
                     pre: function (recData, option) {
+                        if (!active()) {
+                            return;
+                        }
                         $grid.find(".br-survey-skeleton-card").remove();
                     },
 
                     attached: function ($attachedContainer, $itemContainer, recData, option) {
+                        if (!active()) {
+                            return;
+                        }
                         const additional = recData && $.isPlainObject(recData.additionalData) ? recData.additionalData : {};
 
                         const resolvedTitle = Breinify.UTL.isNonEmptyString(additional.title) || defaultResultTitle;
@@ -1731,6 +1752,9 @@
                     },
 
                     error: function (error) {
+                        if (!active()) {
+                            return;
+                        }
                         $grid.find(".br-survey-skeleton-card").remove();
                     },
 
@@ -1749,6 +1773,8 @@
                 return wrapper;
             }
 
+            const page = runtime._activePage;
+            const settings = this._effectivePageSettings(runtime, node);
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
             const nodeType = Breinify.UTL.isNonEmptyString(node.type) || node.type || null;
             const selectedAnswerId = nodeId !== null && runtime._selectedAnswers
@@ -1785,25 +1811,25 @@
 
             wrapper.appendChild(hintEl);
 
-            if (Array.isArray(runtime._history) && runtime._history.length > 0) {
+            if (Array.isArray(runtime._history) && runtime._history.length > 0 && settings.showBackButton) {
                 const btnBack = document.createElement("button");
                 btnBack.type = "button";
                 btnBack.className = "br-survey-btn br-survey-btn--back";
                 btnBack.textContent = this._getButtonLabel(runtime, node, "backButtonLabel", "Back");
 
                 btnBack.addEventListener("click", () => {
-                    this._goBack();
+                    this._goBack(runtime);
                 });
 
                 wrapper.appendChild(btnBack);
             }
 
-            if (nodeType === "question") {
+            if (settings.showNextButton && (nodeType === "question" || nodeType === "custom")) {
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
                 btnNext.className = "br-survey-btn br-survey-btn--next";
                 btnNext.textContent = this._getButtonLabel(runtime, node, "nextButtonLabel", "Next");
-                btnNext.disabled = selectedAnswerId === null;
+                btnNext.disabled = page ? !this._canAdvance(runtime, page) : selectedAnswerId === null;
 
                 btnNext.addEventListener("click", () => {
                     this._goForward(runtime, nodeId, selectedAnswerId);
@@ -1815,38 +1841,329 @@
             return wrapper;
         },
 
+        // controllers own page content; the runtime owns transitions, history, and mount lifetime
+        _createPageController: function (runtime, node, page) {
+            if (node.type === "question") {
+                return {
+                    render: () => this._createQuestionPage(runtime, node),
+                    getNextNodeId: () => {
+                        const answer = runtime._selectedAnswers[node.id];
+                        return answer ? this._getNextNodeIdFromAnswer(runtime, node.id, answer) : null;
+                    }
+                };
+            } else if (node.type === "recommendation") {
+                return {
+                    render: () => this._createRecommendationPage(runtime, node),
+                    mount: (popup, content) => this._requestRecommendations(runtime, popup, content, node, page),
+                    getNextNodeId: () => null
+                };
+            } else if (node.type === "custom") {
+                return {
+                    render: () => this._createCustomPage(runtime, node, page),
+                    mount: () => this._mountCustomPage(runtime, node, page),
+                    validate: () => typeof page.hooks.validate === "function" ? page.hooks.validate() : true,
+                    destroy: () => this._destroyCustomHooks(page),
+                    getNextNodeId: () => {
+                        if (page.settings.isTerminal) {
+                            return null;
+                        }
+                        const edges = runtime._edges.filter(edge => edge.source === node.id);
+                        return edges.length === 1 && edges[0].sourceHandle == null ? edges[0].target : null;
+                    }
+                };
+            }
+            return {
+                render: () => {
+                    const content = document.createElement("div");
+                    content.className = "br-survey-page br-survey-page--error";
+                    content.textContent = "The survey is not correctly configured.";
+                    return content;
+                },
+                getNextNodeId: () => null
+            };
+        },
+
+        _effectivePageSettings: function (runtime, node) {
+            const data = node.data || {};
+            const settings = data.settings || {};
+            const general = (runtime.settings.survey || {}).settings || {};
+            const terminal = node.type === "recommendation" || (node.type === "custom" && settings.isTerminal === true);
+            return Object.freeze({
+                isTerminal: terminal,
+                showBackButton: node.type !== "custom" || settings.showBackButton !== false,
+                showNextButton: !terminal && (node.type !== "custom" || settings.showNextButton !== false),
+                showRestartOverButton: typeof settings.showRestartOverButton === "boolean"
+                    ? settings.showRestartOverButton : general.showRestartOverButton === true,
+                backButtonLabel: this._getButtonLabel(runtime, node, "backButtonLabel", "Back"),
+                nextButtonLabel: this._getButtonLabel(runtime, node, "nextButtonLabel", "Next"),
+                restartButtonLabel: this._getButtonLabel(runtime, node, "restartButtonLabel", "Start over")
+            });
+        },
+
+        _isActivePage: function (runtime, page) {
+            return runtime._activePage === page && !page.abort.signal.aborted;
+        },
+
+        _disposePage: function (runtime) {
+            const page = runtime._activePage;
+            if (!page) {
+                return;
+            }
+            runtime._activePage = null;
+            page.abort.abort();
+            try {
+                if (typeof page.controller.destroy === "function") {
+                    page.controller.destroy();
+                }
+            } catch (error) {
+                console.warn("Unable to clean up survey page:", error);
+            }
+        },
+
+        _destroyCustomHooks: function (page) {
+            if (page.hooksDestroyed || !page.hooks) {
+                return;
+            }
+            page.hooksDestroyed = true;
+            if (typeof page.hooks.destroy === "function") {
+                page.hooks.destroy();
+            }
+        },
+
+        _updatePageControls: function (runtime) {
+            const page = runtime._activePage;
+            const popup = document.querySelector(popupElementName);
+            if (page && popup && typeof popup.setFooterContent === "function") {
+                popup.setFooterContent(this._createFooterControls(runtime, page.node));
+            }
+        },
+
+        _canAdvance: function (runtime, page) {
+            return !!page && this._isActivePage(runtime, page) && page.ready && page.enabled &&
+                !page.pending && !runtime._backRequest && !runtime._historyReturn && !page.settings.isTerminal && !!page.controller.getNextNodeId();
+        },
+
+        _showPageError: function (page, message) {
+            if (!page.error) {
+                return;
+            }
+            page.error.textContent = message || "";
+            page.error.hidden = !message;
+        },
+
+        _resolveCustomSource: function (runtime, source, type, required) {
+            if (source === undefined || source === null) {
+                if (required) {
+                    throw new Error("Missing custom page " + type + " source.");
+                }
+                return null;
+            }
+            if (!$.isPlainObject(source) || (source.snippet != null) === (source.snippetId != null)) {
+                throw new Error("A custom page source needs exactly one snippet or snippetId.");
+            }
+            let value = source.snippet;
+            if (source.snippetId != null) {
+                const id = source.snippetId;
+                if (typeof id !== "string" || id.trim() === "") {
+                    throw new Error("Invalid custom page snippetId.");
+                }
+                if (id.indexOf("web-experience:") === 0) {
+                    const local = runtime.module && runtime.module.webExperienceSnippets;
+                    const entry = local && Object.prototype.hasOwnProperty.call(local, id) ? local[id] : null;
+                    if (!entry || entry.type !== (type === "js" ? "javascript" : type)) {
+                        throw new Error("Missing or incompatible local custom page snippet.");
+                    }
+                    value = entry.value;
+                } else {
+                    const manager = Breinify.plugins.snippetManager;
+                    value = manager && manager.get(id);
+                }
+            }
+            const expected = type === "js" ? "function" : "string";
+            if (typeof value !== expected || (expected === "string" && value.trim() === "")) {
+                throw new Error("Missing or incompatible custom page " + type + " snippet.");
+            }
+            return value;
+        },
+
+        _createCustomPage: function (runtime, node, page) {
+            const content = document.createElement("div");
+            content.className = "br-survey-page br-survey-page--custom";
+            this._appendPageActions(runtime, node, content);
+            const host = document.createElement("div");
+            host.className = "br-survey-custom-content";
+            page.root = host.attachShadow({mode: "open"});
+            content.appendChild(host);
+            page.error = document.createElement("p");
+            page.error.className = "br-survey-page-error";
+            page.error.setAttribute("role", "alert");
+            page.error.hidden = true;
+            content.appendChild(page.error);
+            page.ready = false;
+            return content;
+        },
+
+        _answerSnapshot: function (runtime, node) {
+            const resolved = this._resolveSelectedAnswers(runtime).byQuestionId;
+            const answers = (runtime._history || []).filter(id => {
+                const selected = resolved[id];
+                return id !== node.id && selected && selected.answer && selected.node.type === "question";
+            }).map(id => {
+                const answer = resolved[id];
+                return {
+                    questionId: id, questionLabel: answer.question || "", answerId: answer.answerId,
+                    answerLabel: answer.title || "", values: answer.answer.values || []
+                };
+            });
+            const snapshot = JSON.parse(JSON.stringify(answers));
+            const freeze = value => {
+                if (value && typeof value === "object") {
+                    Object.keys(value).forEach(key => freeze(value[key]));
+                    Object.freeze(value);
+                }
+                return value;
+            };
+            return freeze(snapshot);
+        },
+
+        _mountCustomPage: function (runtime, node, page) {
+            const data = node.data || {};
+            const html = this._resolveCustomSource(runtime, data.html, "html", true);
+            let css = this._resolveCustomSource(runtime, data.css, "css", false);
+            if (css && /^\s*<style[\s>]/i.test(css)) {
+                // global CSS snippets use the existing Script Creator style-element wrapper
+                const styles = document.createElement("template");
+                styles.innerHTML = css;
+                css = Array.from(styles.content.querySelectorAll("style")).map(style => style.textContent).join("\n");
+            }
+            const initialize = this._resolveCustomSource(runtime, data.js, "js", false);
+            const template = document.createElement("template");
+            template.innerHTML = html;
+            // HTML scripts are inert; page lifecycle code belongs in the JavaScript source
+            template.content.querySelectorAll("script").forEach(script => script.remove());
+            page.root.appendChild(template.content.cloneNode(true));
+            const style = document.createElement("style");
+            style.textContent = this._selectedAnswersCss + "\n" + (css || "");
+            page.root.prepend(style);
+            page.root.querySelectorAll("[data-br-survey-selected-answers]").forEach(placeholder => {
+                placeholder.textContent = "";
+                this._appendSelectedAnswers(runtime, node, placeholder, true);
+                placeholder.hidden = placeholder.childNodes.length === 0;
+            });
+            if (!runtime._pageStates) {
+                runtime._pageStates = Object.create(null);
+            }
+            if (!Object.prototype.hasOwnProperty.call(runtime._pageStates, node.id)) {
+                runtime._pageStates[node.id] = {};
+            }
+            const context = Object.freeze({
+                root: page.root,
+                webExVersionId: runtime.webExVersionId,
+                sessionId: runtime._sessionId,
+                nodeId: node.id,
+                settings: page.settings,
+                answers: this._answerSnapshot(runtime, node),
+                state: runtime._pageStates[node.id],
+                signal: page.abort.signal,
+                setNextEnabled: enabled => {
+                    if (!this._isActivePage(runtime, page)) {
+                        return;
+                    }
+                    if (typeof enabled !== "boolean") {
+                        throw new TypeError("setNextEnabled requires a boolean.");
+                    }
+                    page.enabled = enabled;
+                    this._updatePageControls(runtime);
+                },
+                next: () => this._isActivePage(runtime, page)
+                    ? this._goForward(runtime, node.id) : Promise.resolve(false),
+                back: () => this._isActivePage(runtime, page)
+                    ? this._goBack(runtime) : Promise.resolve(false)
+            });
+            return Promise.resolve(initialize === null ? undefined : initialize(context)).then(hooks => {
+                page.hooks = hooks;
+                if (!this._isActivePage(runtime, page)) {
+                    this._destroyCustomHooks(page);
+                    return;
+                }
+                if (hooks !== undefined && (!$.isPlainObject(hooks) ||
+                    ["validate", "destroy"].some(key => hooks[key] !== undefined && typeof hooks[key] !== "function"))) {
+                    throw new Error("Invalid custom page controller.");
+                }
+                page.hooks = hooks || {};
+            });
+        },
+
+        _ensurePageCloseHandler: function (runtime, popup) {
+            if (runtime._closeHandler) {
+                return;
+            }
+            const handleClosed = event => {
+                const detail = event && event.detail;
+                if (detail && detail.webExVersionId && detail.webExVersionId !== runtime.webExVersionId) {
+                    return;
+                }
+                this._disposePage(runtime);
+                this._settleBack(runtime, false);
+                if (runtime._resetOnClose) {
+                    this._resetSurveyState(runtime);
+                }
+                popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
+                runtime._closeHandler = null;
+            };
+            runtime._closeHandler = handleClosed;
+            popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
+        },
+
         _renderCurrentPage: function (runtime, popup) {
             if (!popup || typeof popup.setBodyContent !== "function") {
                 return;
             }
-
-            const nodeId = Breinify.UTL.isNonEmptyString(runtime._currentNodeId);
-            const node = nodeId !== null && runtime._nodesById ? runtime._nodesById[nodeId] : null;
-
-            if (!$.isPlainObject(node)) {
-                const fallback = document.createElement("div");
-                fallback.className = "br-survey-page br-survey-page--error";
-                fallback.textContent = "The survey is not correctly configured.";
-                popup.setBodyContent(fallback);
-            } else if (node.type === "question") {
-                popup.setBodyContent(this._createQuestionPage(runtime, node));
-            } else if (node.type === "recommendation") {
-                const recLoadingPage = this._createRecommendationPage(runtime, node);
-                this._requestRecommendations(runtime, popup, recLoadingPage, node);
-            } else {
-                const placeholder = document.createElement("div");
-                placeholder.className = "br-survey-page br-survey-page--unsupported";
-                placeholder.textContent = "This step type is not yet supported.";
-                popup.setBodyContent(placeholder);
+            if (popup._surveyRuntime && popup._surveyRuntime !== runtime) {
+                const previous = popup._surveyRuntime;
+                this._disposePage(previous);
+                popup.removeEventListener("br-ui-survey:popup-closed", previous._closeHandler);
+                previous._closeHandler = null;
             }
-
-            if (typeof popup.setFooterContent === "function") {
-                popup.setFooterContent(this._createFooterControls(runtime, node));
+            popup._surveyRuntime = runtime;
+            this._ensurePageCloseHandler(runtime, popup);
+            this._disposePage(runtime);
+            const node = runtime._nodesById[runtime._currentNodeId] || {};
+            const page = {
+                node: node, settings: this._effectivePageSettings(runtime, node), abort: new AbortController(),
+                ready: true, enabled: true, pending: false, hooks: null, hooksDestroyed: false
+            };
+            runtime._activePage = page;
+            page.controller = this._createPageController(runtime, node, page);
+            const fail = error => {
+                if (this._isActivePage(runtime, page)) {
+                    page.ready = false;
+                    this._showPageError(page, "This page could not be loaded. Please try again.");
+                    this._updatePageControls(runtime);
+                }
+                console.warn("Unable to initialize survey page:", error);
+            };
+            try {
+                const content = page.controller.render();
+                popup.setBodyContent(content);
+                const mounted = typeof page.controller.mount === "function" ? page.controller.mount(popup, content) : null;
+                if (mounted && typeof mounted.then === "function") {
+                    page.ready = false;
+                    Promise.resolve(mounted).then(() => {
+                        if (this._isActivePage(runtime, page)) {
+                            page.ready = true;
+                            this._updatePageControls(runtime);
+                        }
+                    }).catch(fail);
+                }
+            } catch (error) {
+                fail(error);
             }
+            this._updatePageControls(runtime);
         },
 
         _handleAnswerClick: function (runtime, nodeId, answerId, container, clickedButton) {
-            if (nodeId === null || answerId === null) {
+            if (nodeId === null || answerId === null || runtime._currentNodeId !== nodeId) {
                 return;
             }
 
@@ -1878,52 +2195,105 @@
         },
 
         _handleAnswerDoubleClick: function (runtime, nodeId, answerId) {
-            if (nodeId === null || answerId === null) {
+            if (nodeId === null || answerId === null || runtime._currentNodeId !== nodeId) {
                 return;
             }
 
             this._goForward(runtime, nodeId, answerId);
         },
 
-        _goForward: function (runtime, nodeId, answerId) {
-            if (!nodeId || !answerId) {
-                return;
+        _awaitPage: function (page, result) {
+            return new Promise((resolve, reject) => {
+                const cancel = () => resolve(false);
+                page.abort.signal.addEventListener("abort", cancel, {once: true});
+                Promise.resolve(result).then(resolve, reject).finally(() => {
+                    page.abort.signal.removeEventListener("abort", cancel);
+                });
+                if (page.abort.signal.aborted) {
+                    cancel();
+                }
+            });
+        },
+
+        _goForward: async function (runtime, nodeId, answerId, fromHistory) {
+            const page = runtime._activePage;
+            if (!page || page.node.id !== nodeId || !this._canAdvance(runtime, page)) {
+                return false;
             }
-
-            this._fireAnswerSelectedEvent(runtime, nodeId, answerId);
-
-            const nextNodeId = this._getNextNodeIdFromAnswer(runtime, nodeId, answerId);
-            if (nextNodeId !== null) {
-                const fromStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
-
-                if (!Array.isArray(runtime._history)) {
-                    runtime._history = [];
+            page.pending = true;
+            this._showPageError(page, null);
+            this._updatePageControls(runtime);
+            try {
+                let result = typeof page.controller.validate === "function" ? page.controller.validate() : true;
+                if (result && typeof result.then === "function") {
+                    result = await this._awaitPage(page, result);
                 }
-
+                if (!this._isActivePage(runtime, page) || !page.enabled || runtime._backRequest || runtime._historyReturn) {
+                    return false;
+                }
+                let valid;
+                let message = null;
+                if (typeof result === "boolean") {
+                    valid = result;
+                } else if ($.isPlainObject(result) && typeof result.valid === "boolean" &&
+                    (result.message == null || typeof result.message === "string")) {
+                    valid = result.valid;
+                    message = result.message;
+                } else {
+                    throw new Error("Invalid survey validation result.");
+                }
+                if (!valid) {
+                    this._showPageError(page, message && message.trim() ? message : "Please complete this page to continue.");
+                    return false;
+                }
+                const nextNodeId = page.controller.getNextNodeId();
+                if (!nextNodeId || !runtime._nodesById[nextNodeId]) {
+                    return false;
+                }
+                if (page.node.type === "question" && fromHistory !== true) {
+                    this._fireAnswerSelectedEvent(runtime, nodeId, runtime._selectedAnswers[nodeId]);
+                }
+                const fromStepNumber = this._getStepNumber(runtime);
                 runtime._history.push(nodeId);
-                const toStepNumber = (Array.isArray(runtime._history) ? runtime._history.length : 0) + 1;
-
-                const prevNodeId = runtime._currentNodeId;
                 runtime._currentNodeId = nextNodeId;
-
                 const popup = document.querySelector(popupElementName);
-                if (popup) {
-                    this._renderCurrentPage(runtime, popup);
-                }
-
+                this._renderCurrentPage(runtime, popup);
                 this._updateHistoryStateForCurrentPage(runtime);
-                this._fireNavigatedEvent(runtime, prevNodeId, runtime._currentNodeId, "forward", fromStepNumber, toStepNumber);
-            } else {
-                console.warn("No next edge found for", nodeId, answerId);
+                this._fireNavigatedEvent(runtime, nodeId, nextNodeId, "forward", fromStepNumber, fromStepNumber + 1);
+                return true;
+            } catch (error) {
+                if (this._isActivePage(runtime, page)) {
+                    this._showPageError(page, "This page could not be validated. Please try again.");
+                }
+                console.warn("Unable to validate survey page:", error);
+                return false;
+            } finally {
+                page.pending = false;
+                if (this._isActivePage(runtime, page)) {
+                    this._updatePageControls(runtime);
+                }
             }
         },
 
-        _goBack: function () {
-            if (typeof window !== "undefined" &&
-                window.history &&
-                typeof window.history.back === "function") {
-                window.history.back();
+        _settleBack: function (runtime, moved) {
+            if (runtime._backRequest) {
+                const request = runtime._backRequest;
+                runtime._backRequest = null;
+                clearTimeout(request.timer);
+                request.resolve(moved);
+                this._updatePageControls(runtime);
             }
+        },
+
+        _goBack: function (runtime) {
+            if (!runtime || !runtime._history.length || runtime._backRequest ||
+                typeof window === "undefined" || !window.history) {
+                return Promise.resolve(false);
+            }
+            return new Promise(resolve => {
+                runtime._backRequest = {resolve: resolve, timer: setTimeout(() => this._settleBack(runtime, false), 1000)};
+                window.history.back();
+            });
         },
 
         _restartSurvey: function (runtime) {
@@ -1964,21 +2334,6 @@
             }
 
             const popup = this.getPopup(runtime);
-
-            const handleClosed = (evt) => {
-                const detail = evt && evt.detail ? evt.detail : null;
-                if (detail && detail.webExVersionId && detail.webExVersionId !== runtime.webExVersionId) {
-                    return;
-                }
-
-                if (runtime._resetOnClose) {
-                    this._resetSurveyState(runtime);
-                }
-
-                popup.removeEventListener("br-ui-survey:popup-closed", handleClosed);
-            };
-
-            popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
 
             if (runtime._currentNodeId === null) {
                 runtime._currentNodeId = this._findFirstNodeId(runtime);

@@ -12,6 +12,7 @@ A survey consists of:
     - `start`: Entry point (not rendered).
     - `question`: A question with selectable answers.
     - `recommendation`: A results or recommendation step.
+    - `custom`: HTML content with optional scoped CSS and a JavaScript page controller; intermediate or terminal.
 - **Edges**: Directed connections between nodes, usually associated with an answer.
 
 Only `question` nodes are considered *pages* for paging and step counting.
@@ -22,7 +23,7 @@ These paths are relative to the web experience's `settings.configuration` object
 
 | Setting | Default | Behavior |
 | --- | --- | --- |
-| `survey.settings.showRestartOverButton` | `false` | Default **Start over** visibility for all question and recommendation pages. |
+| `survey.settings.showRestartOverButton` | `false` | Default **Start over** visibility for all visible pages. |
 | `survey.nodes[].data.settings.showRestartOverButton` | `null` (inherit) | Override Start over visibility for this page. Explicit `true` shows it, explicit `false` hides it, and missing/null inherits the survey default. |
 | `survey.nodes[].data.explanation` | `null` | Show plain-text clarification directly below a question. Missing, null, empty, and whitespace-only values show nothing. |
 | `survey.nodes[].data.settings.showSelectedAnswers` | `false` | Show completed answers near the top of this question or recommendation page, below its heading and explanation/subtitle. |
@@ -37,7 +38,7 @@ Button labels resolve independently: nonblank page label, then nonblank General 
 wording ("Back", "Next", "Start over"). Missing, null, empty, and whitespace-only page labels inherit;
 the same General values use the built-in wording. Nonblank text is preserved and rendered as plain text,
 not HTML. Labels do not enable buttons or change navigation: Back still requires history, Next still requires
-a selected answer and appears only on questions, and Start over follows its visibility setting.
+a selected answer on questions. Custom pages apply their readiness and validation hooks. Start over follows its visibility setting.
 
 The editor should use optional text inputs at both levels and show inherited wording as a placeholder on pages.
 Do not save the placeholder as a page override. Clearing a page label restores inheritance. General labels
@@ -102,6 +103,51 @@ For example, a customer CSS snippet can hide question labels and recolor the bub
     color: #173b75;
 }
 ```
+
+### Custom Pages and Page Lifecycle
+
+Question, recommendation, and custom pages use a common controller lifecycle. Content mounts once per entry;
+footer updates do not remount it. Leaving, closing, or restarting disposes the current mount. Recommendation
+callbacks from an inactive mount cannot update the current page.
+
+A custom node has `type: "custom"`, required `data.html`, and optional `data.css` / `data.js`. Each source uses
+`{snippet: ...}` or `{snippetId: ...}`; there is no `snippetType`. HTML and CSS resolve to strings. JavaScript
+resolves to `function (context) { ... }`; Script Creator compiles inline strings into executable functions in
+`module.webExperienceSnippets`. Direct `uiSurvey.render` callers must supply an executable function or a
+registered reference, since this plugin never evaluates JavaScript strings.
+
+Custom settings under `data.settings`:
+
+| Setting | Missing/null default | Behavior |
+| --- | --- | --- |
+| `isTerminal` | `false` | Terminal pages cannot advance and have no outgoing edge; intermediate pages have exactly one unconditional edge. |
+| `showBackButton` | `true` | Standard Back is shown when history exists. |
+| `showNextButton` | Intermediate: true; terminal: false | Hiding Next still permits `context.next()`. Terminal pages cannot show Next or advance. |
+| Restart and labels | Inherit General | Same overrides as other pages. |
+
+Custom HTML lives in a nested shadow root within `.br-popup-body`. Its CSS styles this content, including
+summary placeholders, while shared controls retain normal survey styling. CSS variables and fonts inherit.
+Global CSS snippets with Script Creator's `<style>` wrapper are supported. HTML script elements are removed.
+Place `<div data-br-survey-selected-answers></div>` wherever a summary belongs; each placeholder is filled
+before initialization and hidden when empty. `showSelectedAnswers` does not affect custom placeholders.
+
+The initializer runs once per mount with a frozen `context`: `root`, `webExVersionId`, `sessionId`, `nodeId`,
+resolved `settings`, a deeply frozen `answers` snapshot, mutable per-page `state`, `signal`,
+`setNextEnabled(boolean)`, `next(): Promise<boolean>`, and `back(): Promise<boolean>`.
+It can return nothing, `{validate, destroy}`, or a Promise resolving to either. Next is disabled while
+initialization is pending. Missing optional JavaScript enables Next by default; a configured missing or
+incompatible source fails immediately and keeps Next disabled. References must be registered before mount.
+
+An optional `validate()` hook returns a boolean or `{valid: boolean, message?: string | null}`, directly or
+through a Promise. Invalid results, errors, and rejections block navigation. Duplicate Next requests are
+ignored while validation is pending. Standard Next, double-tap on questions, `context.next()`, and browser
+Forward share navigation handling. Browser Forward cannot skip multiple pages or bypass custom validation.
+Back, close, and restart abort the old signal and invalidate pending results; `destroy()` runs once per mount.
+State survives a return from later pages, is discarded when navigating back past its page, and clears on restart.
+Close follows `popup.resetOnClose`; reopening creates a fresh context even when state is retained.
+
+The full [configuration and snippet-author contract](https://github.com/Breinify/brein-external/blob/master/brein-external-script-creator/docs/survey-custom-pages.md)
+includes all context types, failure messages, state rules, metadata, and a newsletter example.
 
 ### Popup Lifecycle
 
@@ -283,6 +329,6 @@ Fired when the popup closes for any reason.
 ### Step Numbers
 
 Step numbers (`fromStepNumber`, `toStepNumber`) are only emitted with navigation events.  
-They represent the position within the sequence of rendered question pages and are derived from the active navigation history.
+They represent the position within the sequence of rendered pages and are derived from the active navigation history.
 
 Answer-related events intentionally do **not** include step transition data, as they do not imply navigation.
