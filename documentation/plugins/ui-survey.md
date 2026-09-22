@@ -22,12 +22,31 @@ These paths are relative to the web experience's `settings.configuration` object
 
 | Setting | Default | Behavior |
 | --- | --- | --- |
-| `survey.settings.showRestartOverButton` | `false` | Show **Start over** above every question and recommendation page. |
+| `survey.settings.showRestartOverButton` | `false` | Default **Start over** visibility for all question and recommendation pages. |
+| `survey.nodes[].data.settings.showRestartOverButton` | `null` (inherit) | Override Start over visibility for this page. Explicit `true` shows it, explicit `false` hides it, and missing/null inherits the survey default. |
 | `survey.nodes[].data.explanation` | `null` | Show plain-text clarification directly below a question. Missing, null, empty, and whitespace-only values show nothing. |
 | `survey.nodes[].data.settings.showSelectedAnswers` | `false` | Show completed answers near the top of this question or recommendation page, below its heading and explanation/subtitle. |
+| `survey.settings.backButtonLabel` | `"Back"` | Default label for the Back button. |
+| `survey.nodes[].data.settings.backButtonLabel` | `null` (inherit) | Override this button label on the page. |
+| `survey.settings.nextButtonLabel` | `"Next"` | Default label for the Next button. |
+| `survey.nodes[].data.settings.nextButtonLabel` | `null` (inherit) | Override this button label on the page. |
+| `survey.settings.restartButtonLabel` | `"Start over"` | Default label for the Start over button. |
+| `survey.nodes[].data.settings.restartButtonLabel` | `null` (inherit) | Override this button label on the page. |
 
-Each page enables its own selected-answer summary; there is no survey-wide inheritance. Only the boolean
-`true` enables either display switch. With the defaults, the existing page layout is unchanged.
+Button labels resolve independently: nonblank page label, then nonblank General label, then the built-in
+wording ("Back", "Next", "Start over"). Missing, null, empty, and whitespace-only page labels inherit;
+the same General values use the built-in wording. Nonblank text is preserved and rendered as plain text,
+not HTML. Labels do not enable buttons or change navigation: Back still requires history, Next still requires
+a selected answer and appears only on questions, and Start over follows its visibility setting.
+
+The editor should use optional text inputs at both levels and show inherited wording as a placeholder on pages.
+Do not save the placeholder as a page override. Clearing a page label restores inheritance. General labels
+serialize with their defaults; unset page labels remain null and are omitted from normalized JSON.
+
+Each page enables its own selected-answer summary; that setting has no survey-wide inheritance.
+Start over resolves the page's explicit boolean first, then the survey default, then `false`.
+Missing/null page settings preserve inheritance; changing the survey default affects only inheriting pages.
+With the defaults, the existing page layout is unchanged.
 
 The summary follows the active navigation path. Each item displays the question above its selected answer
 bubble. It excludes the current question and any later or discarded answers, and is hidden when there are no

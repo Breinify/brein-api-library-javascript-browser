@@ -1392,10 +1392,28 @@
             );
         },
 
-        _appendPageActions: function (runtime, container) {
+        _getButtonLabel: function (runtime, node, setting, fallback) {
             const survey = $.isPlainObject(runtime.settings.survey) ? runtime.settings.survey : {};
             const settings = $.isPlainObject(survey.settings) ? survey.settings : {};
-            if (settings.showRestartOverButton !== true) {
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const pageSettings = $.isPlainObject(data.settings) ? data.settings : {};
+            for (const label of [pageSettings[setting], settings[setting]]) {
+                if (typeof label === "string" && label.trim() !== "") {
+                    return label;
+                }
+            }
+            return fallback;
+        },
+
+        _appendPageActions: function (runtime, node, container) {
+            const survey = $.isPlainObject(runtime.settings.survey) ? runtime.settings.survey : {};
+            const settings = $.isPlainObject(survey.settings) ? survey.settings : {};
+            const data = $.isPlainObject(node.data) ? node.data : {};
+            const pageSettings = $.isPlainObject(data.settings) ? data.settings : {};
+            const showRestart = typeof pageSettings.showRestartOverButton === "boolean"
+                ? pageSettings.showRestartOverButton
+                : settings.showRestartOverButton === true;
+            if (!showRestart) {
                 return;
             }
 
@@ -1404,7 +1422,7 @@
             const restart = document.createElement("button");
             restart.type = "button";
             restart.className = "br-survey-btn br-survey-btn--restart";
-            restart.textContent = "Start over";
+            restart.textContent = this._getButtonLabel(runtime, node, "restartButtonLabel", "Start over");
             restart.addEventListener("click", () => this._restartSurvey(runtime));
             actions.appendChild(restart);
             container.appendChild(actions);
@@ -1482,7 +1500,7 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--question";
-            this._appendPageActions(runtime, container);
+            this._appendPageActions(runtime, node, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1587,7 +1605,7 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
-            this._appendPageActions(runtime, container);
+            this._appendPageActions(runtime, node, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1771,7 +1789,7 @@
                 const btnBack = document.createElement("button");
                 btnBack.type = "button";
                 btnBack.className = "br-survey-btn br-survey-btn--back";
-                btnBack.textContent = "Back";
+                btnBack.textContent = this._getButtonLabel(runtime, node, "backButtonLabel", "Back");
 
                 btnBack.addEventListener("click", () => {
                     this._goBack();
@@ -1784,7 +1802,7 @@
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
                 btnNext.className = "br-survey-btn br-survey-btn--next";
-                btnNext.textContent = "Next";
+                btnNext.textContent = this._getButtonLabel(runtime, node, "nextButtonLabel", "Next");
                 btnNext.disabled = selectedAnswerId === null;
 
                 btnNext.addEventListener("click", () => {
