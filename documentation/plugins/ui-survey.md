@@ -47,14 +47,20 @@ serialize with their defaults; unset page labels remain null and are omitted fro
 Each page enables its own selected-answer summary; that setting has no survey-wide inheritance.
 Start over resolves the page's explicit boolean first, then the survey default, then `false`.
 Missing/null page settings preserve inheritance; changing the survey default affects only inheriting pages.
-With the defaults, the existing page layout is unchanged.
+
 
 The summary follows the active navigation path. Each item displays the question above its selected answer
 bubble. It excludes the current question and any later or discarded answers, and is hidden when there are no
 completed answers. The items are informational and do not navigate or remove answers. Back navigation updates
 the summary as later selections are discarded. Labels and explanations are rendered as text, not HTML.
 
-**Start over** keeps the popup open, clears every selected answer and its recommendation attributes, and returns
+Footer actions appear left to right as **Back | Start over | Next**, omitting hidden or unavailable controls.
+The primary action is the rightmost visible button: **Next**, otherwise **Start over**, otherwise **Back**.
+On an endpoint, Next is absent, so Start over is primary with Back to its left. If Start over is hidden,
+Back is primary. A visible but disabled Next remains primary while waiting for an answer, initialization,
+or validation; its disabled state does not promote another button. Restart and label inheritance remain unchanged.
+
+**Start over** appears in the shared footer. It keeps the popup open, clears every selected answer and its recommendation attributes, and returns
 to the first page with a new session ID. It scrolls to the top and focuses the page heading. The current browser
 history entry is replaced; entries from the discarded session cannot restore its answers. Navigating into an
 old session entry closes the popup. Restart emits `br-ui-survey:navigated` with `reason: "restart"` and the new
@@ -71,7 +77,8 @@ applied inside the popup's shadow root after the default styles; ordinary page C
 
 | CSS selector | Element |
 | --- | --- |
-| `.br-survey-page-actions` | Top row containing Start over |
+| `.br-survey-footer-controls` | Footer containing Back, Start over, and Next |
+| `.br-survey-btn--primary` | Primary visible action, selected by Next → Start over → Back priority |
 | `.br-survey-btn--restart` | Start over button |
 | `.br-survey-question-explanation` | Clarification below a question |
 | `.br-survey-selected-answers` | Summary panel |

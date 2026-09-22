@@ -225,12 +225,6 @@
                     margin: 0.75em 0;
                 }
 
-                .br-survey-page-actions {
-                    display: flex;
-                    justify-content: flex-end;
-                    padding-right: 1.25em;
-                }
-
                 .br-survey-question-explanation {
                     margin: -0.5em 0 0;
                     font-size: 0.7em;
@@ -430,6 +424,7 @@
 
                 .br-survey-footer-controls {
                     display: flex;
+                    flex-wrap: wrap;
                     justify-content: flex-end;
                     align-items: center;
                     gap: 0.5em;
@@ -473,10 +468,6 @@
                     line-height: var(--br-survey-line-height-tight);
                 }
 
-                .br-survey-hint--hidden {
-                    visibility: hidden;
-                }
-
                 .br-survey-btn {
                     padding: 0.45em 1em;
                     border-radius: 0.45em;
@@ -501,13 +492,13 @@
                     outline-offset: 2px;
                 }
 
-                .br-survey-btn--next {
+                .br-survey-btn--primary {
                     background: #333;
                     color: #fff;
                     border-color: #333;
                 }
 
-                .br-survey-btn--next:hover {
+                .br-survey-btn--primary:hover {
                     background: #000;
                     border-color: #000;
                 }
@@ -530,12 +521,12 @@
                     transform: none;
                 }
 
-                .br-survey-btn--back {
+                .br-survey-btn--back:not(.br-survey-btn--primary) {
                     background: transparent;
                     border-color: #bbb;
                 }
 
-                .br-survey-btn--back:hover {
+                .br-survey-btn--back:not(.br-survey-btn--primary):hover {
                     background: #eee;
                 }
 
@@ -1421,29 +1412,6 @@
             return fallback;
         },
 
-        _appendPageActions: function (runtime, node, container) {
-            const survey = $.isPlainObject(runtime.settings.survey) ? runtime.settings.survey : {};
-            const settings = $.isPlainObject(survey.settings) ? survey.settings : {};
-            const data = $.isPlainObject(node.data) ? node.data : {};
-            const pageSettings = $.isPlainObject(data.settings) ? data.settings : {};
-            const showRestart = typeof pageSettings.showRestartOverButton === "boolean"
-                ? pageSettings.showRestartOverButton
-                : settings.showRestartOverButton === true;
-            if (!showRestart) {
-                return;
-            }
-
-            const actions = document.createElement("div");
-            actions.className = "br-survey-page-actions";
-            const restart = document.createElement("button");
-            restart.type = "button";
-            restart.className = "br-survey-btn br-survey-btn--restart";
-            restart.textContent = this._getButtonLabel(runtime, node, "restartButtonLabel", "Start over");
-            restart.addEventListener("click", () => this._restartSurvey(runtime));
-            actions.appendChild(restart);
-            container.appendChild(actions);
-        },
-
         _appendSelectedAnswers: function (runtime, node, container, force) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const settings = $.isPlainObject(data.settings) ? data.settings : {};
@@ -1516,7 +1484,6 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--question";
-            this._appendPageActions(runtime, node, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1621,7 +1588,6 @@
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
-            this._appendPageActions(runtime, node, container);
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1803,13 +1769,10 @@
                 li1.textContent = "single tap to select";
                 li2.textContent = "double tap to select & answer";
                 wrapper.classList.add("br-survey-footer-controls--with-hint");
-            } else {
-                li1.textContent = "...";
-                li2.textContent = "...";
-                hintEl.classList.add("br-survey-hint--hidden");
+                wrapper.appendChild(hintEl);
             }
 
-            wrapper.appendChild(hintEl);
+            let primaryButton = null;
 
             if (Array.isArray(runtime._history) && runtime._history.length > 0 && settings.showBackButton) {
                 const btnBack = document.createElement("button");
@@ -1822,6 +1785,17 @@
                 });
 
                 wrapper.appendChild(btnBack);
+                primaryButton = btnBack;
+            }
+
+            if (settings.showRestartOverButton) {
+                const btnRestart = document.createElement("button");
+                btnRestart.type = "button";
+                btnRestart.className = "br-survey-btn br-survey-btn--restart";
+                btnRestart.textContent = settings.restartButtonLabel;
+                btnRestart.addEventListener("click", () => this._restartSurvey(runtime));
+                wrapper.appendChild(btnRestart);
+                primaryButton = btnRestart;
             }
 
             if (settings.showNextButton && (nodeType === "question" || nodeType === "custom")) {
@@ -1836,8 +1810,13 @@
                 });
 
                 wrapper.appendChild(btnNext);
+                primaryButton = btnNext;
             }
 
+            // the rightmost visible action is primary, even when Next is temporarily disabled
+            if (primaryButton) {
+                primaryButton.classList.add("br-survey-btn--primary");
+            }
             return wrapper;
         },
 
@@ -1989,7 +1968,6 @@
         _createCustomPage: function (runtime, node, page) {
             const content = document.createElement("div");
             content.className = "br-survey-page br-survey-page--custom";
-            this._appendPageActions(runtime, node, content);
             const host = document.createElement("div");
             host.className = "br-survey-custom-content";
             page.root = host.attachShadow({mode: "open"});
