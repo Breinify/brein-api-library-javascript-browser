@@ -145,7 +145,7 @@ before initialization and hidden when empty. `showSelectedAnswers` does not affe
 
 The initializer runs once per mount with a frozen `context`: `root`, `webExVersionId`, `sessionId`, `nodeId`,
 resolved `settings`, a deeply frozen `answers` snapshot, mutable per-page `state`, `signal`,
-`setNextEnabled(boolean)`, `next(): Promise<boolean>`, and `back(): Promise<boolean>`.
+`setNextEnabled(boolean)`, `next(): Promise<boolean>`, `back(): Promise<boolean>`, and `skip(): void`.
 It can return nothing, `{validate, destroy}`, or a Promise resolving to either. Next is disabled while
 initialization is pending. Missing optional JavaScript enables Next by default; a configured missing or
 incompatible source fails immediately and keeps Next disabled. References must be registered before mount.
@@ -157,6 +157,29 @@ Forward share navigation handling. Browser Forward cannot skip multiple pages or
 Back, close, and restart abort the old signal and invalidate pending results; `destroy()` runs once per mount.
 State survives a return from later pages, is discarded when navigating back past its page, and clears on restart.
 Close follows `popup.resetOnClose`; reopening creates a fresh context even when state is retained.
+
+Use `context.skip()` when an intermediate custom page does not apply, for example when a signup was already
+completed. It queues navigation until initialization succeeds and the current history transition finishes.
+Entering forward skips to the page's sole outgoing target; returning via Back skips backward to the previous
+page. Consecutive skipped pages continue in the same direction. Normal history entries and navigation events
+are retained, so the browser and the survey Back button follow the same path without bouncing to results.
+Opening or reopening a page directly uses the forward direction.
+
+Skipping intentionally bypasses `setNextEnabled(false)` and the custom `validate()` hook; use it only after
+deciding the whole page is unnecessary. Ordinary `next()` still enforces both guards. `skip()` returns nothing,
+so it can be called directly in an initializer without awaiting navigation. Duplicate requests, inactive contexts,
+terminal pages, and requests during pending forward validation are ignored. Closing or restarting cancels queued
+skips. Initialization failures still block skipping; a failed skip displays a page error.
+
+```javascript
+function (context) {
+    if (alreadySubscribed()) {
+        context.skip();
+        return;
+    }
+    // initialize the signup form here
+}
+```
 
 The full [configuration and snippet-author contract](https://github.com/Breinify/brein-external/blob/master/brein-external-script-creator/docs/survey-custom-pages.md)
 includes all context types, failure messages, state rules, metadata, and a newsletter example.

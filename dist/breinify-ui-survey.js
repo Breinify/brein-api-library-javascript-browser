@@ -1022,7 +1022,7 @@
             runtime._currentNodeId = state.nodeId;
             this._pruneSelectedAnswersToActivePath(runtime);
             if (popup) {
-                this._renderCurrentPage(runtime, popup);
+                this._renderCurrentPage(runtime, popup, "back");
                 if (!popup.hasAttribute("open")) {
                     popup.open();
                 }
@@ -1927,6 +1927,7 @@
                 return;
             }
             runtime._activePage = null;
+            clearTimeout(page.skipTimer);
             page.abort.abort();
             try {
                 if (typeof page.controller.destroy === "function") {
@@ -1955,9 +1956,45 @@
             }
         },
 
-        _canAdvance: function (runtime, page) {
-            return !!page && this._isActivePage(runtime, page) && page.ready && page.enabled &&
+        _canAdvance: function (runtime, page, skip) {
+            const skipping = skip === true && page && page.node.type === "custom";
+            return !!page && this._isActivePage(runtime, page) && page.ready && (page.enabled || skipping) &&
                 !page.pending && !runtime._backRequest && !runtime._historyReturn && !page.settings.isTerminal && !!page.controller.getNextNodeId();
+        },
+
+        _requestCustomSkip: function (runtime, page) {
+            if (!this._isActivePage(runtime, page) || page.node.type !== "custom" || page.settings.isTerminal ||
+                page.pending || page.skipRequested) {
+                return;
+            }
+            page.skipRequested = true;
+            this._scheduleCustomSkip(runtime, page);
+        },
+
+        _scheduleCustomSkip: function (runtime, page) {
+            if (!this._isActivePage(runtime, page) || !page.ready || !page.skipRequested || page.skipTimer != null) {
+                return;
+            }
+            // let mount completion and the current browser-history transition finish first
+            page.skipTimer = setTimeout(async () => {
+                page.skipTimer = null;
+                if (!this._isActivePage(runtime, page)) {
+                    return;
+                }
+                let moved = false;
+                try {
+                    moved = page.direction === "back"
+                        ? await this._goBack(runtime)
+                        : await this._goForward(runtime, page.node.id, null, false, true);
+                } catch (error) {
+                    console.warn("Unable to skip survey page:", error);
+                } finally {
+                    if (!moved && this._isActivePage(runtime, page)) {
+                        page.skipRequested = false;
+                        this._showPageError(page, "This page could not be skipped. Please try again.");
+                    }
+                }
+            }, 0);
         },
 
         _showPageError: function (page, message) {
@@ -2094,7 +2131,8 @@
                 next: () => this._isActivePage(runtime, page)
                     ? this._goForward(runtime, node.id) : Promise.resolve(false),
                 back: () => this._isActivePage(runtime, page)
-                    ? this._goBack(runtime) : Promise.resolve(false)
+                    ? this._goBack(runtime) : Promise.resolve(false),
+                skip: () => this._requestCustomSkip(runtime, page)
             });
             return Promise.resolve(initialize === null ? undefined : initialize(context)).then(hooks => {
                 page.hooks = hooks;
@@ -2131,7 +2169,7 @@
             popup.addEventListener("br-ui-survey:popup-closed", handleClosed);
         },
 
-        _renderCurrentPage: function (runtime, popup) {
+        _renderCurrentPage: function (runtime, popup, direction) {
             if (!popup || typeof popup.setBodyContent !== "function") {
                 return;
             }
@@ -2147,7 +2185,8 @@
             const node = runtime._nodesById[runtime._currentNodeId] || {};
             const page = {
                 node: node, settings: this._effectivePageSettings(runtime, node), abort: new AbortController(),
-                ready: true, enabled: true, pending: false, hooks: null, hooksDestroyed: false
+                ready: true, enabled: true, pending: false, hooks: null, hooksDestroyed: false,
+                direction: direction === "back" ? "back" : "forward", skipRequested: false, skipTimer: null
             };
             runtime._activePage = page;
             page.controller = this._createPageController(runtime, node, page);
@@ -2169,6 +2208,7 @@
                         if (this._isActivePage(runtime, page)) {
                             page.ready = true;
                             this._updatePageControls(runtime);
+                            this._scheduleCustomSkip(runtime, page);
                         }
                     }).catch(fail);
                 }
@@ -2231,20 +2271,23 @@
             });
         },
 
-        _goForward: async function (runtime, nodeId, answerId, fromHistory) {
+        _goForward: async function (runtime, nodeId, answerId, fromHistory, skip) {
             const page = runtime._activePage;
-            if (!page || page.node.id !== nodeId || !this._canAdvance(runtime, page)) {
+            const skipping = skip === true && page && page.node.type === "custom";
+            if (!page || page.node.id !== nodeId || !this._canAdvance(runtime, page, skipping)) {
                 return false;
             }
             page.pending = true;
             this._showPageError(page, null);
             this._updatePageControls(runtime);
             try {
-                let result = typeof page.controller.validate === "function" ? page.controller.validate() : true;
+                let result = !skipping && typeof page.controller.validate === "function"
+                    ? page.controller.validate() : true;
                 if (result && typeof result.then === "function") {
                     result = await this._awaitPage(page, result);
                 }
-                if (!this._isActivePage(runtime, page) || !page.enabled || runtime._backRequest || runtime._historyReturn) {
+                if (!this._isActivePage(runtime, page) || (!page.enabled && !skipping) ||
+                    runtime._backRequest || runtime._historyReturn) {
                     return false;
                 }
                 let valid;
