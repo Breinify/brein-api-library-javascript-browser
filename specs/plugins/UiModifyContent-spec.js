@@ -2,6 +2,254 @@
 
 describe('UiModifyContent', function () {
 
+    describe('showRecommendationBubble', function () {
+        var id = 'recommendation-bubble-spec';
+        var version = 'recommendation-bubble-version';
+        var callbacks;
+        var requests;
+        var retrieve;
+        var recommendations;
+        var activitySpy;
+        var runtime;
+        var page;
+
+        beforeEach(function () {
+            callbacks = [];
+            requests = [];
+            page = window.location.href;
+            activitySpy = createActivitySpy();
+            recommendations = Breinify.plugins.recommendations;
+            // mock transport only: the real renderer must set up recommendation data, bindings and tracking
+            retrieve = Breinify.plugins.recommendations._retrieveRecommendations;
+            Breinify.plugins.recommendations._retrieveRecommendations = function (payloads, callback) {
+                requests.push(payloads);
+                callbacks.push(callback);
+            };
+        });
+
+        afterEach(function () {
+            Breinify.plugins.recommendations = recommendations;
+            uiModifyContent.register({}, id, version, {actions: {}});
+            Breinify.plugins.recommendations._retrieveRecommendations = retrieve;
+            activitySpy.restore();
+            window.history.replaceState({}, '', page);
+        });
+
+        function setup(settings, enabled) {
+            runtime = uiModifyContent.register({}, id, version, {
+                conditionsGroups: [],
+                actions: {_default: [{type: 'showRecommendationBubble', enabled: enabled !== false,
+                    settings: $.extend(true, {
+                        recommender: {preconfiguredRecommendation: 'Bubble spec'},
+                        content: {message: 'Try %%name%% today', ctaText: 'View recipe'}
+                    }, settings)}]}
+            });
+            uiModifyContent.handle(id, version, {});
+        }
+
+        function respond(recs, extra, index) {
+            var result = $.extend({status: {code: 200, error: false}, recommendations: recs,
+                payload: {name: 'Bubble spec', recommenderName: 'Bubble spec'}}, extra);
+            callbacks[index || 0](null, {'Bubble spec': result});
+        }
+
+        function recipe(name) {
+            return {id: 'recipe-id', name: name || 'Recipe', url: 'https://example.com/recipe',
+                image: 'https://example.com/recipe.png'};
+        }
+
+        function outcomes() {
+            return activitySpy.renderedElements.filter(function (activity) { return activity.type === 'renderedElement'; });
+        }
+
+        it('uses real recommendation bindings and tracks only after a bubble is attached', function (done) {
+            setup();
+            uiModifyContent.handle(id, version, {});
+            expect(outcomes().length).toBe(0);
+            setTimeout(function () {
+                expect(requests.length).toBe(1);
+                expect(requests[0][0].namedRecommendations).toEqual(['Bubble spec']);
+                respond([recipe()]);
+                var host = document.querySelector('.br-recommendation-bubble');
+                var link = host.querySelector('.br-bubble-message a');
+                expect(link.textContent).toBe('Recipe');
+                expect(link.href).toBe('https://example.com/recipe');
+                var marker = Breinify.plugins.recommendations.marker;
+                var itemData = $(host.querySelector('.br-bubble-item')).data(marker.data);
+                expect(itemData.id).toBe('recipe-id');
+                expectRenderedElement(outcomes()[0], true, 200, '_default', version);
+                var impressions = activitySpy.renderedElements.filter(function (activity) {
+                    return activity.type === 'renderedRecommendation';
+                });
+                expect(impressions.length).toBe(1);
+                expect(impressions[0].tags.campaignWebExId).toBe(version);
+                // prevent navigation but keep the bubbling click seen by Recommendations' delegated binding
+                link.addEventListener('click', function (event) { event.preventDefault(); });
+                link.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, ctrlKey: true}));
+                var clicks = activitySpy.renderedElements.filter(function (activity) {
+                    return activity.type === 'clickedRecommendation';
+                });
+                expect(clicks.length).toBe(1);
+                expect(clicks[0].tags.campaignWebExId).toBe(version);
+                host.querySelector('.br-bubble-close').click();
+                uiModifyContent.handle(id, version, {});
+                expect(host.isConnected).toBe(false);
+                expect(requests.length).toBe(1);
+                done();
+            }, 15);
+        });
+
+        it('uses custom icons, safe literal text, accessible labels and centered presentation', function (done) {
+            setup({content: {message: '<b>Try</b> %%name%%', image: {source: 'CUSTOM', url: '/icon.png'},
+                closeLabel: 'Dismiss recipe', ariaLabel: 'Suggested recipe'},
+                placement: {anchor: 'TOP_CENTER'}, appearance: {backgroundColor: '#1B3687', textColor: '#FFFFFF'}});
+            setTimeout(function () {
+                var rec = recipe('<img src=x onerror=alert(1)>');
+                delete rec.image;
+                respond([rec]);
+                var host = document.querySelector('.br-recommendation-bubble');
+                expect(host.querySelector('.br-bubble-message').textContent)
+                    .toBe('<b>Try</b> <img src=x onerror=alert(1)>');
+                expect(host.querySelector('.br-bubble-message img')).toBe(null);
+                expect(host.querySelector('.br-bubble-message b')).toBe(null);
+                expect(host.querySelector('.br-bubble-image').src).toContain('/icon.png');
+                expect(host.style.top).toBe('24px');
+                expect(host.style.left).toBe('50%');
+                expect(host.querySelector('.br-bubble-close').getAttribute('aria-label')).toBe('Dismiss recipe');
+                done();
+            }, 15);
+        });
+
+        it('filters unsafe or incomplete recommendations and selects RANDOM only among usable ones', function (done) {
+            setup({selection: 'RANDOM'});
+            setTimeout(function () {
+                var unsafe = recipe('Unsafe');
+                unsafe.url = 'javascript:alert(1)';
+                var incomplete = recipe('Missing image');
+                delete incomplete.image;
+                spyOn(Math, 'random').and.returnValue(0.9);
+                respond([unsafe, incomplete, recipe('First'), recipe('Second')]);
+                expect(document.querySelector('.br-bubble-message a').textContent).toBe('Second');
+                done();
+            }, 15);
+        });
+
+        it('reports an empty result as an intentional no-op without an empty bubble or retries', function (done) {
+            setup();
+            setTimeout(function () {
+                respond([]);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                expectRenderedElement(outcomes()[0], false, 13000, '_default', version);
+                uiModifyContent.handle(id, version, {});
+                expect(requests.length).toBe(1);
+                done();
+            }, 15);
+        });
+
+        it('respects recommender control assignments rather than rendering their items', function (done) {
+            setup();
+            setTimeout(function () {
+                respond([recipe()], {splitTestData: {isControl: true}});
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                expectRenderedElement(outcomes()[0], false, 13000, '_default', version);
+                done();
+            }, 15);
+        });
+
+        it('reports transport failures once and does not execute a decision failure branch', function (done) {
+            setup();
+            setTimeout(function () {
+                callbacks[0](new Error('unavailable'), null);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                expectRenderedElement(outcomes()[0], false, 500, '_default', version);
+                uiModifyContent.handle(id, version, {});
+                expect(requests.length).toBe(1);
+                done();
+            }, 15);
+        });
+
+        it('discards an old response after navigation and permits one request on the new page', function (done) {
+            setup();
+            setTimeout(function () {
+                window.history.replaceState({}, '', '#bubble-next-page');
+                uiModifyContent.handle(id, version, {});
+                respond([recipe('Stale')]);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                setTimeout(function () {
+                    expect(requests.length).toBe(2);
+                    respond([recipe('Current')], null, 1);
+                    expect(document.querySelector('.br-bubble-message a').textContent).toBe('Current');
+                    done();
+                }, 15);
+            }, 15);
+        });
+
+        it('does not request recommendations for disabled actions', function (done) {
+            setup({}, false);
+            setTimeout(function () {
+                expect(requests.length).toBe(0);
+                done();
+            }, 15);
+        });
+
+        it('reports a missing optional plugin once without requests or retries', function (done) {
+            delete Breinify.plugins.recommendations;
+            setup();
+            setTimeout(function () {
+                expectRenderedElement(outcomes()[0], false, 500, '_default', version);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                expect(requests.length).toBe(0);
+                Breinify.plugins.recommendations = recommendations;
+                uiModifyContent.handle(id, version, {});
+                expect(requests.length).toBe(0);
+                expect(outcomes().length).toBe(1);
+                done();
+            }, 15);
+        });
+
+        it('keeps unrelated actions executable when the optional plugin is unavailable', function (done) {
+            delete Breinify.plugins.recommendations;
+            spyOn(console, 'log');
+            setup();
+            runtime.config.actions._default.push({type: 'writeToConsole', settings: {message: 'still executable'}});
+            uiModifyContent.handle(id, version, {});
+            setTimeout(function () {
+                expect(console.log).toHaveBeenCalledWith('still executable');
+                expectRenderedElement(outcomes()[0], true, 500, '_default', version);
+                expect(requests.length).toBe(0);
+                done();
+            }, 15);
+        });
+
+        it('cancels a scheduled start when its runtime is replaced', function (done) {
+            setup({display: {delayInMs: 10000}});
+            var entry = runtime.bubbles.entries['0:_default'];
+            uiModifyContent.register({}, id, version, {actions: {}});
+            expect(entry.disposed).toBe(true);
+            expect(entry.timer).toBe(null);
+            setTimeout(function () {
+                expect(requests.length).toBe(0);
+                done();
+            }, 15);
+        });
+
+        it('bounds missing network callbacks and ignores a response arriving after timeout', function () {
+            jasmine.clock().install();
+            try {
+                setup();
+                jasmine.clock().tick(1);
+                expect(requests.length).toBe(1);
+                jasmine.clock().tick(30000);
+                expectRenderedElement(outcomes()[0], false, 500, '_default', version);
+                respond([recipe('Too late')]);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                expect(outcomes().length).toBe(1);
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
+    });
+
     describe('Trigger text-change opt-in', function () {
         var fixture;
         var sequence = 0;
@@ -1612,10 +1860,10 @@ describe('UiModifyContent', function () {
         };
     }
 
-    function expectRenderedElement(activity, rendered, status, action) {
+    function expectRenderedElement(activity, rendered, status, action, version) {
         expect(activity.type).toBe('renderedElement');
         expect(activity.tags.widgetType).toBe('modifyContent');
-        expect(activity.tags.campaignWebExId).toBe('version-1');
+        expect(activity.tags.campaignWebExId).toBe(version || 'version-1');
         expect(activity.tags.rendered).toBe(rendered);
         expect(activity.tags.status).toBe(status);
         expect(activity.tags.actionType).toBe('executed');

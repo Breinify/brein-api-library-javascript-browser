@@ -55,6 +55,337 @@
     const actions = {
 
         /**
+         * Displays one recommendation using the shared request, control-group, impression and click pipeline.
+         * Conditions select content before this action runs; the bubble has no weather or scenario resolver.
+         */
+        showRecommendationBubble: {
+            isDomAction: true,
+            isAsyncAction: true,
+            defaultMaxApplications: 1,
+
+            findRequirements: function (runtime, action, index) {
+                const key = _private.getActionStateIndex(runtime, index);
+                return !!document.body && !runtime.bubbles.entries[key] &&
+                    !_private.hasReachedApplicationLimit(runtime, index, action);
+            },
+
+            execute: function (action, runtime, index) {
+                const key = _private.getActionStateIndex(runtime, index);
+                let entry = runtime.bubbles.entries[key];
+                if (!entry && document.body && !_private.hasReachedApplicationLimit(runtime, index, action)) {
+                    // reserve before delay/request to prevent duplicate starts from DOM notifications
+                    entry = {
+                        page: _private.getDecisionPageKey(), group: runtime.selectedGroupId, key: key,
+                        pending: true, executed: false, failed: false, disposed: false,
+                        host: null, timer: null, timeout: null, processId: null
+                    };
+                    runtime.bubbles.entries[key] = entry;
+                    _private.markApplication(runtime, index);
+                    const settings = _private.getActionSettings(action);
+                    const delay = settings.display && settings.display.delayInMs;
+                    entry.timer = window.setTimeout(function () {
+                        this._request(entry, action, runtime, index);
+                    }.bind(this), Number.isFinite(delay) ? Math.max(0, Math.min(10000, delay)) : 0);
+                }
+                return entry || {pending: false, executed: false, failed: false};
+            },
+
+            _current: function (entry, runtime) {
+                return !entry.disposed && entry.page === _private.getDecisionPageKey() &&
+                    _private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime &&
+                    entry.group === runtime.selectedGroupId && _private.isRuntimeActive(runtime);
+            },
+
+            _request: function (entry, action, runtime, index) {
+                if (!this._current(entry, runtime)) {
+                    this._dispose(entry);
+                    return;
+                }
+                const settings = _private.getActionSettings(action);
+                try {
+                    const recommendations = Breinify.plugins.recommendations;
+                    if (!recommendations || typeof recommendations.render !== 'function' ||
+                        typeof recommendations.cancel !== 'function') {
+                        throw new Error('showRecommendationBubble requires the Recommendations plugin. ' +
+                            'Add breinify-recommendations.js to the script dependencies.');
+                    }
+                    // retain the client used for this request so cleanup never depends on optional plugin discovery
+                    entry.recommendations = recommendations;
+                    const name = Breinify.UTL.isNonEmptyString(settings.recommender?.preconfiguredRecommendation);
+                    if (name === null) throw new Error('The bubble requires a preconfigured recommendation.');
+                    const option = {
+                        meta: {renderIdentity: {webExId: runtime.webExId, recommenderName: name}},
+                        recommender: {payload: {recommendationQueryName: name, namedRecommendations: [name]}},
+                        data: {
+                            modify: function (result, options) {
+                                const selected = this._select(result.recommendations, settings);
+                                const modified = $.extend({}, result, {recommendations: selected ? [selected] : []});
+                                return [{result: modified, option: options}];
+                            }.bind(this)
+                        },
+                        position: {
+                            externalRender: function (result, done) {
+                                if (!entry.pending || !this._current(entry, runtime) || !result.recommendations?.length) {
+                                    done(null);
+                                    return;
+                                }
+                                try {
+                                    const host = this._createHost(result.recommendations[0], settings);
+                                    entry.host = host;
+                                    document.body.appendChild(host);
+                                    done($(host), {
+                                        itemSelection: function () { return $(host).find('.br-bubble-item'); }
+                                    });
+                                } catch (error) {
+                                    this._finish(entry, action, runtime, index, error);
+                                    done(null, {error: true});
+                                }
+                            }.bind(this)
+                        },
+                        process: {
+                            error: function (error) {
+                                this._finish(entry, action, runtime, index, error);
+                            }.bind(this),
+                            finalize: function () {
+                                this._finish(entry, action, runtime, index, null);
+                            }.bind(this),
+                            createActivity: function (event, data) {
+                                // stale requests must not generate impressions after a route or branch change
+                                if (!this._current(entry, runtime)) {
+                                    data.additionalEventData.sendActivities = false;
+                                    return;
+                                }
+                                data.activityTags.campaignWebExId = runtime.webExVersionId;
+                                data.activityTags.action = entry.group;
+                            }.bind(this)
+                        }
+                    };
+                    // bound the pending state even if a network callback never arrives
+                    entry.timeout = window.setTimeout(function () {
+                        this._finish(entry, action, runtime, index, new Error('Recommendation bubble request timed out.'));
+                        if (entry.processId) recommendations.cancel(entry.processId);
+                    }.bind(this), 30000);
+                    entry.processId = recommendations.render([option]);
+                } catch (error) {
+                    this._finish(entry, action, runtime, index, error);
+                }
+            },
+
+            _select: function (recommendations, settings) {
+                const imageSource = settings.content?.image?.source || 'RECOMMENDATION';
+                const usable = (Array.isArray(recommendations) ? recommendations : []).map(function (rec) {
+                    if (!$.isPlainObject(rec)) return null;
+                    const additional = rec.additionalData || {};
+                    return $.extend({}, rec, {
+                        name: Breinify.UTL.isNonEmptyString(rec.name) || additional['product::productName'],
+                        url: this._url(rec.url || additional['product::productUrl']),
+                        image: this._url(rec.image || additional['product::productImageUrl'])
+                    });
+                }, this).filter(function (rec) {
+                    return rec && Breinify.UTL.isNonEmptyString(rec.name) !== null && rec.url !== null &&
+                        (imageSource !== 'RECOMMENDATION' || rec.image !== null);
+                });
+                if (usable.length === 0) return null;
+                const index = settings.selection === 'RANDOM' ? Math.floor(Math.random() * usable.length) : 0;
+                return usable[index];
+            },
+
+            _url: function (value) {
+                if (Breinify.UTL.isNonEmptyString(value) === null) return null;
+                try {
+                    const url = new URL(value, window.location.href);
+                    return ['https:', 'http:'].indexOf(url.protocol) === -1 ? null : url.href;
+                } catch (error) {
+                    return null;
+                }
+            },
+
+            _element: function (tag, className, text) {
+                const element = document.createElement(tag);
+                element.className = className;
+                if (typeof text === 'string') element.textContent = text;
+                return element;
+            },
+
+            _link: function (name, url, color) {
+                const link = this._element('a', 'br-rec-click br-bubble-link', name);
+                link.href = url;
+                link.style.color = color;
+                link.style.textDecoration = 'underline';
+                return link;
+            },
+
+            /**
+             * Uses the recommendation renderer's %%name%% notation, with one explicitly supported linked token.
+             * DOM construction keeps both configured text and recommendation values out of HTML interpretation.
+             */
+            _createHost: function (rec, settings) {
+                const content = settings.content || {};
+                const appearance = $.extend({
+                    backgroundColor: '#FFFFFF', textColor: '#253746', linkColor: '#0077AA',
+                    borderColor: '#E2E8ED', borderRadiusInPx: 24, maxWidthInPx: 560,
+                    imageShape: 'CIRCLE', shadow: 'SOFT'
+                }, settings.appearance);
+                const placement = settings.placement || {};
+                const anchor = placement.anchor || 'BOTTOM_RIGHT';
+                const offset = $.extend({horizontal: 24, vertical: 24}, placement.offsetInPx);
+                const host = this._element('aside', 'br-recommendation-bubble');
+                host.setAttribute('aria-label', content.ariaLabel || 'Recommendation');
+                Object.assign(host.style, {
+                    position: 'fixed', zIndex: '2147483000', boxSizing: 'border-box', padding: '20px',
+                    width: 'calc(100% - ' + (2 * offset.horizontal) + 'px)',
+                    maxWidth: appearance.maxWidthInPx + 'px',
+                    maxHeight: 'calc(100% - ' + (2 * offset.vertical) + 'px)', overflow: 'auto',
+                    backgroundColor: appearance.backgroundColor, color: appearance.textColor,
+                    border: '1px solid ' + appearance.borderColor, borderRadius: appearance.borderRadiusInPx + 'px',
+                    boxShadow: appearance.shadow === 'NONE' ? 'none' : '0 6px 24px rgba(0,0,0,.18)',
+                    fontFamily: 'inherit', fontSize: '16px', lineHeight: '1.5'
+                });
+                host.style[anchor.startsWith('TOP_') ? 'top' : 'bottom'] = offset.vertical + 'px';
+                if (anchor.endsWith('_CENTER')) {
+                    host.style.left = '50%';
+                    host.style.transform = 'translateX(-50%)';
+                    host.style.width = 'calc(100% - 24px)';
+                } else {
+                    host.style[anchor.endsWith('_LEFT') ? 'left' : 'right'] = offset.horizontal + 'px';
+                }
+
+                const item = this._element('div', 'br-bubble-item');
+                Object.assign(item.style, {display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'});
+                host.appendChild(item);
+                const image = content.image || {source: 'RECOMMENDATION'};
+                const imageUrl = image.source === 'CUSTOM' ? this._url(image.url) : rec.image;
+                if (imageUrl) {
+                    const img = this._element('img', 'br-bubble-image');
+                    img.src = imageUrl;
+                    img.alt = image.alt || '';
+                    Object.assign(img.style, {
+                        width: '80px', height: '80px', objectFit: 'cover', flexShrink: '0',
+                        borderRadius: appearance.imageShape === 'CIRCLE' ? '50%' :
+                            appearance.imageShape === 'ROUNDED' ? '12px' : '0'
+                    });
+                    item.appendChild(img);
+                }
+                const body = this._element('div', 'br-bubble-content');
+                Object.assign(body.style, {flex: '1 1 160px', minWidth: '0', overflowWrap: 'anywhere'});
+                item.appendChild(body);
+                const message = this._element('div', 'br-bubble-message');
+                String(content.message || '').split('%%name%%').forEach(function (text, index) {
+                    if (index > 0) message.appendChild(this._link(rec.name, rec.url, appearance.linkColor));
+                    message.appendChild(document.createTextNode(text));
+                }, this);
+                body.appendChild(message);
+                if (content.ctaText) {
+                    const cta = this._link(content.ctaText, rec.url, appearance.linkColor);
+                    cta.classList.add('br-bubble-cta');
+                    cta.style.display = 'inline-block';
+                    cta.style.marginTop = '8px';
+                    body.appendChild(cta);
+                }
+                if (content.attribution) {
+                    const attributionUrl = this._url(content.attribution.url);
+                    const attribution = this._element(attributionUrl ? 'a' : 'span',
+                        'br-bubble-attribution', content.attribution.text);
+                    if (attributionUrl) {
+                        attribution.href = attributionUrl;
+                        attribution.target = '_blank';
+                        attribution.rel = 'noopener noreferrer';
+                    }
+                    Object.assign(attribution.style, {
+                        display: 'block', marginTop: '8px', fontSize: '12px', color: appearance.textColor
+                    });
+                    host.appendChild(attribution);
+                }
+                if (settings.display?.dismissible !== false) {
+                    item.style.paddingRight = '20px';
+                    const close = this._element('button', 'br-bubble-close', '\u00d7');
+                    close.type = 'button';
+                    close.setAttribute('aria-label', content.closeLabel || 'Close recommendation');
+                    Object.assign(close.style, {
+                        position: 'absolute', top: '4px', right: '6px', background: 'transparent',
+                        border: '0', color: appearance.textColor, cursor: 'pointer', fontSize: '24px',
+                        minWidth: '32px', minHeight: '32px'
+                    });
+                    close.addEventListener('click', function () { $(host).remove(); });
+                    host.appendChild(close);
+                }
+                return host;
+            },
+
+            _finish: function (entry, action, runtime, index, error) {
+                if (!entry.pending) return;
+                if (!this._current(entry, runtime)) {
+                    this._dispose(entry);
+                    return;
+                }
+                window.clearTimeout(entry.timeout);
+                entry.pending = false;
+                entry.executed = !!entry.host?.isConnected;
+                entry.failed = !!error;
+                if (error) _private.logActionError(action, error);
+                if (entry.executed) {
+                    try {
+                        _private.applyActionSnippets(runtime, action, index);
+                    } catch (snippetError) {
+                        entry.failed = true;
+                        _private.logActionError(action, snippetError);
+                    }
+                }
+                runtime.module.onChange({type: 'recommendationBubble'});
+            },
+
+            _dispose: function (entry) {
+                if (entry.disposed) return;
+                entry.disposed = true;
+                entry.pending = false;
+                window.clearTimeout(entry.timer);
+                window.clearTimeout(entry.timeout);
+                if (entry.processId) entry.recommendations.cancel(entry.processId);
+                if (entry.host) $(entry.host).remove();
+                entry.host = null;
+                entry.timer = null;
+                entry.timeout = null;
+            },
+
+            _cancel: function (runtime, keepGroup) {
+                if (!runtime.bubbles) return;
+                Object.values(runtime.bubbles.entries).forEach(function (entry) {
+                    if (entry.group !== keepGroup) this._dispose(entry);
+                }, this);
+            },
+
+            _preparePage: function (runtime) {
+                if (!runtime.bubbles) return;
+                const page = _private.getDecisionPageKey();
+                if (runtime.bubbles.page === page) return;
+                _private.resetAppliedActions(runtime);
+                runtime.bubbles.page = page;
+            },
+
+            _initialize: function (runtime) {
+                const groups = runtime.config?.actions || {};
+                const configured = Object.values(groups).some(function (group) {
+                    return Array.isArray(group) && group.some(function (action) {
+                        return action?.type === 'showRecommendationBubble' && action.enabled !== false;
+                    });
+                });
+                if (!configured) return;
+                runtime.bubbles = {page: _private.getDecisionPageKey(), entries: {}};
+                const id = 'uiModifyContent-bubble-' + _private.key(runtime.webExId, runtime.webExVersionId);
+                Breinify.plugins.trigger.addUrlChangeObserver(id, function () {
+                    const page = _private.getDecisionPageKey();
+                    if (runtime.bubbles.page === page) return;
+                    _private.resetAppliedActions(runtime);
+                    runtime.bubbles.page = page;
+                    runtime.module.onChange({type: 'urlChange'});
+                });
+                runtime.disposeBubbleListener = function () {
+                    Breinify.plugins.trigger.removeUrlChangeObserver(id);
+                };
+            }
+        },
+
+        /**
          * Plays a bundled snippet once per target. Reservations are recorded before scheduling so DOM changes
          * during the delay or playback cannot start duplicates. The template owns drawing; this action owns hosts.
          */
@@ -2689,6 +3020,10 @@
             const groupActions = Array.isArray(configured) ? configured : [];
             groupActions.forEach(function (action, index) {
                 const key = this.getGroupActionStateIndex(runtime, group, index);
+                if (runtime.bubbles && runtime.bubbles.entries[key]) {
+                    actions.showRecommendationBubble._dispose(runtime.bubbles.entries[key]);
+                    delete runtime.bubbles.entries[key];
+                }
                 if (runtime.animations && runtime.animations.entries[key]) {
                     runtime.animations.entries[key].forEach(function (entry) {
                         if (!entry.disposed) {
@@ -2717,6 +3052,8 @@
 
         /** A new feature page visit may apply actions again; same-page feature updates keep their limits. */
         resetAppliedActions: function (runtime) {
+            actions.showRecommendationBubble._cancel(runtime);
+            if (runtime.bubbles) runtime.bubbles.entries = {};
             actions.showAnimation._cancel(runtime);
             if (runtime.animations) runtime.animations.entries = {};
             runtime.pendingActionOutcome = null;
@@ -3110,16 +3447,19 @@
         isRuntimeActive: function (runtime) {
             conditions.trigger._preparePage(runtime);
             actions.showAnimation._preparePage(runtime);
+            actions.showRecommendationBubble._preparePage(runtime);
             if (typeof runtime.module.isValidPage === 'function') {
                 const active = runtime.module.isValidPage() === true;
                 if (!active) {
                     runtime.module._webExperienceActivation = null;
                     actions.showAnimation._cancel(runtime);
+                    actions.showRecommendationBubble._cancel(runtime);
                 }
                 return active;
             } else if ($.isPlainObject(runtime.config.activationLogic)) {
                 const active = Breinify.plugins.webExperiences.checkActivationLogic(runtime.config, runtime.module) === true;
                 if (!active) actions.showAnimation._cancel(runtime);
+                if (!active) actions.showRecommendationBubble._cancel(runtime);
                 return active;
             }
             runtime.module._webExperienceActivation = null;
@@ -3316,6 +3656,7 @@
         },
 
         executeActions: function (runtime) {
+            actions.showRecommendationBubble._cancel(runtime, runtime.selectedGroupId);
             const configuredActions = this.getConfiguredActions(runtime);
             const modifications = [];
             const execution = {
@@ -3423,6 +3764,8 @@
             const key = _private.key(webExId, webExVersionId);
             const previousRuntime = _private.runtimes[key];
             if (previousRuntime) {
+                actions.showRecommendationBubble._cancel(previousRuntime);
+                if (previousRuntime.disposeBubbleListener) previousRuntime.disposeBubbleListener();
                 conditions.elementexists._dispose(previousRuntime);
                 actions.showAnimation._cancel(previousRuntime);
                 if (previousRuntime.disposeAnimationListener) previousRuntime.disposeAnimationListener();
@@ -3489,6 +3832,7 @@
 
             conditions.feature._initialize(runtime);
             actions.showAnimation._initialize(runtime);
+            actions.showRecommendationBubble._initialize(runtime);
             return runtime;
         },
 
