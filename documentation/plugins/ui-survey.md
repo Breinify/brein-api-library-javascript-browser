@@ -118,6 +118,9 @@ For example, customer CSS can add a title and recolor the answer badges:
 
 ### Custom Pages and Page Lifecycle
 
+For a complete authoring reference, see [Custom pages: context API](ui-survey-custom-pages-api.md), including
+every context member, navigation and state rules, cleanup, and copyable HTML/CSS/JavaScript examples.
+
 Question, recommendation, and custom pages use a common controller lifecycle. Content mounts once per entry;
 footer updates do not remount it. Leaving, closing, or restarting disposes the current mount. Recommendation
 callbacks from an inactive mount cannot update the current page.
