@@ -1,92 +1,42 @@
-# Survey custom pages: context API
+# Build custom survey pages with the context API
 
-This guide is for humans and AI assistants writing HTML, CSS, and JavaScript for survey nodes with
-`type: "custom"`. The survey calls your JavaScript initializer with a `context` object. Use that object to
-find your content, read earlier answers, retain page state, control navigation, and clean up work when the
-page closes. The survey owns the surrounding popup, footer, navigation history, and mount lifecycle.
+Custom pages let you add your own content and interactions to a survey: a welcome screen, an answer review,
+a signup form, or a custom final page. You provide the HTML, CSS, and JavaScript; the survey takes care of
+showing the page in its popup and moving visitors through the survey.
 
-This reference describes the implementation in [UiSurvey.js](../../src/plugins/UiSurvey.js).
-See [UI Survey](ui-survey.md) for survey settings and events, and the
-[Script Creator configuration guide](https://github.com/Breinify/brein-external/blob/master/brein-external-script-creator/docs/survey-custom-pages.md)
-for graph configuration, snippet generation, and editor metadata.
+Your JavaScript receives a `context` object whenever the page is shown. It gives you access to your page's
+HTML, earlier answers, saved page state, and navigation controls. You do not need to create this object or
+look up the survey yourself.
 
-## Contents
+Start with the working example below, then use the reference sections as you add behavior to your page.
+For survey-wide settings and events, see [UI Survey](ui-survey.md). To explore the implementation, see
+[UiSurvey.js](../../src/plugins/UiSurvey.js).
 
-- [Authoring contract](#authoring-contract)
-- [Complete example: require an acknowledgement](#complete-example-require-an-acknowledgement)
+## In this guide
+
+- [Let's get started](#lets-get-started)
+- [Connect your page to the survey](#connect-your-page-to-the-survey)
 - [Context reference](#context-reference)
 - [Navigation and validation](#navigation-and-validation)
 - [State and mount lifetime](#state-and-mount-lifetime)
 - [Asynchronous work and cleanup](#asynchronous-work-and-cleanup)
 - [Rendering and styling](#rendering-and-styling)
 - [Troubleshooting](#troubleshooting)
-- [Checklist for authors and AI assistants](#checklist-for-authors-and-ai-assistants)
+- [Before you publish](#before-you-publish)
 
-## Authoring contract
+## Let's get started
 
-A custom node supplies required `data.html` and optional `data.css` and `data.js`. Each source object uses
-exactly one of `snippet` or `snippetId`; it does not contain `snippetType`.
+Let's build a page that shows visitors their earlier answers and asks them to confirm they have reviewed
+them. Continue becomes available when they check the box. If they return from a later page, the box stays
+checked. This example needs no external service or additional library.
 
-```javascript
-const customNode = {
-    id: "acknowledgement",
-    type: "custom",
-    data: {
-        html: { snippetId: "acknowledgement-html" },
-        css: { snippetId: "acknowledgement-css" },
-        js: { snippetId: "acknowledgement-js" },
-        settings: {
-            isTerminal: false,
-            showBackButton: true,
-            showNextButton: true,
-            nextButtonLabel: "Continue"
-        }
-    }
-};
-```
+A custom page has three pieces: HTML for its content, optional CSS for its appearance, and optional
+JavaScript for its behavior. We'll create each piece, then connect them to the survey.
 
-This is one node, not a complete survey. An intermediate custom node needs exactly one outgoing edge
-without an answer handle. A terminal custom node uses `isTerminal: true`, has no outgoing edges, and cannot
-advance. Back and Start over remain subject to their normal settings and history requirements.
+### 1. Add the content
 
-The JavaScript snippet is a **function expression**:
-
-```javascript
-function (context) {
-    // initialize the mounted page here
-    return {
-        validate: function () {
-            return true;
-        },
-        destroy: function () {
-            // clean up resources owned by this mount here
-        }
-    };
-}
-```
-
-Script Creator accepts the function expression as a string and compiles it into an executable snippet.
-Direct browser configurations must supply an actual function as `js.snippet`, or a registered function
-reference through `js.snippetId`. The browser does not evaluate JavaScript strings. Referenced snippets
-must be available before mount; missing references fail immediately without a background retry.
-Put behavior in the initializer: `<script>` elements in custom HTML are removed.
-
-The initializer runs once per mount, after the runtime inserts the HTML, applies CSS, and fills selected-answer
-placeholders. It can return `undefined`, a plain controller object, or a Promise resolving to either.
-`validate` and `destroy` are optional functions; omit unused hooks. Returning `null`, a boolean, or a controller
-with non-function hook values is invalid. No particular `this` binding is part of this API; capture `context`
-in the initializer's closure.
-
-Next is unavailable until initialization succeeds. It then defaults to enabled unless the initializer called
-`context.setNextEnabled(false)`. Omitting JavaScript uses the normal defaults. Initialization failures show
-a page error and keep Next unavailable; Back, close, and restart remain available under their normal rules.
-
-## Complete example: require an acknowledgement
-
-Use these snippets for the intermediate node above. This example has no external dependencies. The standard
-footer provides Continue; page state restores the checkbox when the user comes back from a later page.
-
-HTML snippet:
+The survey fills `data-br-survey-selected-answers` with the visitor's earlier answers. The checkbox is ours
+to control. Save this as the page's HTML snippet.
 
 ```html
 <section aria-labelledby="acknowledgement-title">
@@ -99,7 +49,10 @@ HTML snippet:
 </section>
 ```
 
-CSS snippet:
+### 2. Style the page
+
+Save this as the page's CSS snippet. It spaces the checkbox and label and keeps keyboard focus visible.
+These styles apply to your custom content inside the survey.
 
 ```css
 .acknowledgement {
@@ -115,7 +68,14 @@ input:focus-visible {
 }
 ```
 
-JavaScript snippet:
+### 3. Add behavior with `context`
+
+Save this function as the page's JavaScript snippet. The survey calls it after adding your HTML to the page.
+This setup function is called the **initializer**.
+
+Here we use three context members: `root` to find the checkbox, `state` to remember its value, and
+`setNextEnabled()` to control Continue. The returned `validate()` function checks the page before moving
+forward; `destroy()` removes our event listener when the visitor leaves.
 
 ```javascript
 function (context) {
@@ -144,9 +104,90 @@ function (context) {
 }
 ```
 
-Readiness disables Next while the box is unchecked. Validation is an additional final check; it does not run
-while advancing is disabled. If users should be able to press Next and receive a validation message, keep
-Next enabled and perform the requirement check in `validate()` instead.
+The survey supplies the Continue button in its footer, so you do not need to add one to your HTML.
+The configuration below gives the standard Next button its "Continue" label.
+
+Try entering the page, checking the box, continuing, and coming back. `context.state` lets the new page
+instance restore the checkbox. Going back past this page or starting over clears that saved value.
+
+In this example, an unchecked box disables Continue. If you would prefer to let visitors press Continue
+and then show a message, remove the `context.setNextEnabled(checkbox.checked)` call and keep the check in
+`validate()`. Validation only runs when advancing is enabled.
+
+## Connect your page to the survey
+
+If your survey setup already provides HTML, CSS, and JavaScript snippet fields for a custom page, put the
+three pieces there. If you are building the survey configuration directly, add a node with `type: "custom"`
+and connect it to the preceding and following steps.
+
+Here is the node configuration for our example. Replace the snippet IDs with the IDs registered for your
+content. `data.html` is required; `data.css` and `data.js` are optional.
+
+```javascript
+const customNode = {
+    id: "acknowledgement",
+    type: "custom",
+    data: {
+        html: { snippetId: "acknowledgement-html" },
+        css: { snippetId: "acknowledgement-css" },
+        js: { snippetId: "acknowledgement-js" },
+        settings: {
+            isTerminal: false,
+            showBackButton: true,
+            showNextButton: true,
+            nextButtonLabel: "Continue"
+        }
+    }
+};
+```
+
+Add this node to an existing survey and give it exactly one outgoing connection, with no answer handle,
+to the next step. For a final page, set `isTerminal: true`, omit `showNextButton` or set it to `false`, and
+leave out the outgoing connection. Final pages cannot advance. Back and Start over still follow the
+survey's settings and navigation history.
+
+Each content source uses either `{ snippetId: "registered-id" }` to reference a snippet or `{ snippet: ... }`
+to provide its content directly. Choose one per source; there is no `snippetType` field. Direct HTML and CSS
+snippets are strings. Direct browser JavaScript snippets must be executable functions.
+
+### How the survey calls your JavaScript
+
+The JavaScript snippet is a **function expression**. This is the reusable shape, with optional validation
+and cleanup functions:
+
+```javascript
+function (context) {
+    // initialize the mounted page here
+    return {
+        validate: function () {
+            return true;
+        },
+        destroy: function () {
+            // clean up resources owned by this mount here
+        }
+    };
+}
+```
+
+Script Creator accepts the function expression as a string and compiles it into an executable snippet.
+Direct browser configurations must supply an actual function as `js.snippet`, or a registered function
+reference through `js.snippetId`. The browser does not evaluate JavaScript strings. Referenced snippets
+must be available before mount; missing references fail immediately without a background retry.
+Put behavior in the initializer: `<script>` elements in custom HTML are removed.
+
+Each time the survey creates and displays a fresh instance of your page, it **mounts** the page. It inserts
+your HTML, applies CSS, fills answer summaries, and then calls the initializer once. Updating a field or
+changing the Next button's availability does not call the initializer again.
+
+The initializer can return nothing (`undefined`), an object containing your optional `validate` and `destroy`
+functions (the **controller**), or a Promise resolving to either. Omit any hooks you do not need.
+Returning `null`, a boolean, or a controller
+with non-function hook values is invalid. No particular `this` binding is part of this API; capture `context`
+in the initializer's closure.
+
+Next is unavailable until initialization succeeds. It then defaults to enabled unless the initializer called
+`context.setNextEnabled(false)`. Omitting JavaScript uses the normal defaults. Initialization failures show
+a page error and keep Next unavailable; Back, close, and restart remain available under their normal rules.
 
 ## Context reference
 
@@ -464,7 +505,9 @@ Exception details are logged to the console rather than shown to visitors. Reent
 initialization. Validation errors clear before the next accepted validation attempt or when leaving the page.
 The context has no general `showError()` method; render non-validation status/error messages in your own HTML.
 
-## Checklist for authors and AI assistants
+## Before you publish
+
+Use this checklist to review your page, whether you wrote it yourself or used an AI assistant.
 
 - Deliver matching HTML, optional CSS, and a `function (context) { ... }` initializer; specify any required node settings.
 - Use only the context members documented here. There is no `goTo`, `submit`, `close`, `restart`, `setState`,

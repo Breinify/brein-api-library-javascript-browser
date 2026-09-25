@@ -184,8 +184,8 @@ function (context) {
 }
 ```
 
-The full [configuration and snippet-author contract](https://github.com/Breinify/brein-external/blob/master/brein-external-script-creator/docs/survey-custom-pages.md)
-includes all context types, failure messages, state rules, metadata, and a newsletter example.
+The [custom-page context API reference](ui-survey-custom-pages-api.md) includes all context members,
+failure messages, state rules, and complete authoring examples.
 
 ### Popup Lifecycle
 
