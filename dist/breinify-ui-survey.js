@@ -1040,7 +1040,7 @@
             }
 
             return runtime.settings.survey.nodes.filter(function (n) {
-                return $.isPlainObject(n) && n.type === "question";
+                return $.isPlainObject(n) && (n.type === "question" || n.type === "multi-select-question");
             });
         },
 
@@ -1230,7 +1230,10 @@
             const resolvedAnswerId = Breinify.UTL.isNonEmptyString(answerId);
             const node = resolvedNodeId !== null && runtime._nodesById ? runtime._nodesById[resolvedNodeId] : null;
             const answer = this._getAnswerFromNode(node, resolvedAnswerId);
-            const edge = resolvedNodeId !== null && resolvedAnswerId !== null
+            const multi = node && node.type === "multi-select-question";
+            const edge = multi
+                ? runtime._edges.find(edge => edge.source === resolvedNodeId && edge.sourceHandle == null)
+                : resolvedNodeId !== null && resolvedAnswerId !== null
                 ? this._getEdgeFromAnswer(runtime, resolvedNodeId, resolvedAnswerId)
                 : null;
             const edgeId = $.isPlainObject(edge) ? Breinify.UTL.isNonEmptyString(edge.id) : null;
@@ -1245,7 +1248,9 @@
                     answerId: resolvedAnswerId,
                     answer: answer || null,
                     answerLabel: answerLabel,
-                    questionLabel: questionLabel
+                    questionLabel: questionLabel,
+                    ...(multi ? {selectedAnswerIds: this._selectedAnswerIds(runtime, resolvedNodeId).slice(),
+                        selected: this._selectedAnswerIds(runtime, resolvedNodeId).includes(resolvedAnswerId)} : {})
                 }
             }));
         },
@@ -1309,6 +1314,25 @@
             }
         },
 
+        _selectedAnswerIds: function (runtime, nodeId) {
+            const selected = (runtime._selectedAnswers || {})[nodeId];
+            return Array.isArray(selected) ? selected : (typeof selected === "string" ? [selected] : []);
+        },
+
+        _isMissingAnswerValue: function (value) {
+            return value == null || value === "" || (Array.isArray(value) && value.length === 0) ||
+                ($.isPlainObject(value) && Object.keys(value).length === 0);
+        },
+
+        _multiSelectLimits: function (node) {
+            const data = node.data || {};
+            const settings = data.settings || {};
+            return {
+                min: settings.minSelections == null ? 1 : settings.minSelections,
+                max: settings.maxSelections == null ? (data.answers || []).length : settings.maxSelections
+            };
+        },
+
         _resolveSelectedAnswers: function (runtime) {
             const nodes = (((runtime.settings || {}).survey || {}).nodes) || [];
             const nodeById = Object.create(null);
@@ -1323,46 +1347,55 @@
             const missingQuestions = [];
             const missingAnswers = [];
 
-            for (const [questionId, answerId] of Object.entries(runtime._selectedAnswers || {})) {
+            // path order also keeps later-page precedence correct for numeric-looking node IDs
+            const questionIds = [...new Set([...(runtime._history || []), runtime._currentNodeId])]
+                .filter(id => id != null && Object.prototype.hasOwnProperty.call(runtime._selectedAnswers || {}, id));
+            for (const questionId of questionIds) {
                 const node = nodeById[questionId] || null;
-
                 if (!node) {
                     missingQuestions.push(questionId);
-                    byQuestionId[questionId] = {
-                        questionId: questionId,
-                        question: null,
-                        answerId: answerId,
-                        title: null,
-                        values: null,
-                        answer: null,
-                        node: null
-                    };
                     continue;
                 }
-
-                const question = node && node.data ? node.data.question : null;
-                const answers = Array.isArray(node && node.data ? node.data.answers : null) ? node.data.answers : [];
-                const answer = answers.find(function (a) {
-                    return a && a._id === answerId;
-                }) || null;
-
-                if (!answer) {
-                    missingAnswers.push({questionId: questionId, answerId: answerId});
+                const question = node.data ? node.data.question : null;
+                const answers = Array.isArray(node.data && node.data.answers) ? node.data.answers : [];
+                const selections = [];
+                for (const answerId of this._selectedAnswerIds(runtime, questionId)) {
+                    const answer = answers.find(a => a && a._id === answerId) || null;
+                    if (!answer) {
+                        missingAnswers.push({questionId: questionId, answerId: answerId});
+                        continue;
+                    }
+                    selections.push({
+                        questionId: questionId, question: question, answerId: answerId,
+                        title: answer.title || null, values: answer.values || [], answer: answer, node: node
+                    });
                 }
-
-                byQuestionId[questionId] = {
-                    questionId: questionId,
-                    question: question,
-                    answerId: answerId,
-                    title: answer && answer.title ? answer.title : null,
-                    values: answer && answer.values ? answer.values : null,
-                    answer: answer,
-                    node: node
-                };
+                if (node.type === "multi-select-question") {
+                    const attributes = Object.create(null);
+                    const keys = (node.data.settings || {}).answerKeys || [];
+                    for (const selected of selections) {
+                        for (const entry of selected.values) {
+                            if (!entry || !keys.includes(entry.key) || this._isMissingAnswerValue(entry.value)) {
+                                continue;
+                            }
+                            if (!Object.prototype.hasOwnProperty.call(attributes, entry.key)) {
+                                attributes[entry.key] = [];
+                            }
+                            attributes[entry.key].push(entry.value);
+                        }
+                    }
+                    byQuestionId[questionId] = {
+                        questionId: questionId, question: question, node: node, selections: selections,
+                        values: Object.keys(attributes).map(key => ({key: key, value: attributes[key]}))
+                    };
+                } else if (selections.length) {
+                    byQuestionId[questionId] = Object.assign({}, selections[0], {selections: selections});
+                }
             }
 
             return {
                 byQuestionId: byQuestionId,
+                questionIds: questionIds,
                 missingQuestions: missingQuestions,
                 missingAnswers: missingAnswers
             };
@@ -1372,7 +1405,11 @@
             const resolved = this._resolveSelectedAnswers(runtime);
             const attributes = Object.create(null);
 
-            for (const r of Object.values(resolved.byQuestionId)) {
+            for (const questionId of resolved.questionIds) {
+                const r = resolved.byQuestionId[questionId];
+                if (!r) {
+                    continue;
+                }
                 const vals = Array.isArray(r.values) ? r.values : [];
                 for (const kv of vals) {
                     if (!kv || typeof kv.key !== "string") {
@@ -1465,35 +1502,37 @@
             history.forEach((questionId) => {
                 const selected = resolved.byQuestionId[questionId];
                 if (seen.has(questionId) || questionId === node.id || !selected ||
-                    !selected.node || selected.node.type !== "question" || !selected.answer) {
+                    !selected.node || !selected.selections) {
                     return;
                 }
                 seen.add(questionId);
 
-                const question = Breinify.UTL.isNonEmptyString(selected.question);
-                const answer = Breinify.UTL.isNonEmptyString(selected.title);
-                if (answer === null) {
-                    return;
-                }
+                selected.selections.forEach(selected => {
+                    const question = Breinify.UTL.isNonEmptyString(selected.question);
+                    const answer = Breinify.UTL.isNonEmptyString(selected.title);
+                    if (answer === null) {
+                        return;
+                    }
 
-                const item = document.createElement("li");
-                item.className = "br-survey-selected-answer";
-                item.setAttribute("data-br-survey-question-id", questionId);
-                item.setAttribute("data-br-survey-answer-id", selected.answerId);
-                item.setAttribute("data-br-survey-question", question || "");
-                item.setAttribute("data-br-survey-answer", answer);
+                    const item = document.createElement("li");
+                    item.className = "br-survey-selected-answer";
+                    item.setAttribute("data-br-survey-question-id", questionId);
+                    item.setAttribute("data-br-survey-answer-id", selected.answerId);
+                    item.setAttribute("data-br-survey-question", question || "");
+                    item.setAttribute("data-br-survey-answer", answer);
 
-                if (question !== null) {
-                    const label = document.createElement("span");
-                    label.className = "br-survey-selected-answer__question";
-                    label.textContent = question;
-                    item.appendChild(label);
-                }
-                const value = document.createElement("span");
-                value.className = "br-survey-selected-answer__answer";
-                value.textContent = answer;
-                item.appendChild(value);
-                list.appendChild(item);
+                    if (question !== null) {
+                        const label = document.createElement("span");
+                        label.className = "br-survey-selected-answer__question";
+                        label.textContent = question;
+                        item.appendChild(label);
+                    }
+                    const value = document.createElement("span");
+                    value.className = "br-survey-selected-answer__answer";
+                    value.textContent = answer;
+                    item.appendChild(value);
+                    list.appendChild(item);
+                });
             });
 
             if (list.childNodes.length === 0) {
@@ -1516,12 +1555,14 @@
             const answers = Array.isArray(data.answers) ? data.answers : [];
 
             const nodeId = Breinify.UTL.isNonEmptyString(node.id);
-            const selectedAnswerId = nodeId !== null && runtime._selectedAnswers
-                ? runtime._selectedAnswers[nodeId]
-                : null;
+            const selectedIds = this._selectedAnswerIds(runtime, nodeId);
+            const multi = node.type === "multi-select-question";
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--question";
+            if (multi) {
+                container.classList.add("br-survey-page--multi-select-question");
+            }
 
             const titleEl = document.createElement("h2");
             titleEl.classList.add("br-survey-page-title");
@@ -1566,7 +1607,11 @@
                         itemEl.classList.add("br-survey-answer--has-description");
                     }
 
-                    if (answerId !== null && selectedAnswerId !== null && answerId === selectedAnswerId) {
+                    itemEl.setAttribute("data-br-survey-answer-id", answerId || "");
+                    if (multi) {
+                        itemEl.setAttribute("aria-pressed", String(selectedIds.includes(answerId)));
+                    }
+                    if (answerId !== null && selectedIds.includes(answerId)) {
                         itemEl.classList.add("br-survey-answer--selected");
                     }
 
@@ -1601,13 +1646,26 @@
 
                     itemEl.appendChild(contentEl);
 
-                    itemEl.addEventListener("click", () => {
-                        this._handleAnswerClick(runtime, nodeId, answerId, container, itemEl);
+                    itemEl.addEventListener("click", evt => {
+                        if (multi) {
+                            // the second click belongs to dblclick; it must not toggle the answer again
+                            if (evt.detail !== 2) {
+                                this._handleMultiSelectClick(runtime, nodeId, answerId, container, false);
+                            }
+                        } else {
+                            this._handleAnswerClick(runtime, nodeId, answerId, container, itemEl);
+                        }
                     });
 
                     itemEl.addEventListener("dblclick", (evt) => {
                         evt.preventDefault();
-                        this._handleAnswerDoubleClick(runtime, nodeId, answerId);
+                        if (multi) {
+                            if (this._handleMultiSelectClick(runtime, nodeId, answerId, container, true)) {
+                                this._goForward(runtime, nodeId, null);
+                            }
+                        } else {
+                            this._handleAnswerDoubleClick(runtime, nodeId, answerId);
+                        }
                     });
 
                     listEl.appendChild(itemEl);
@@ -1803,8 +1861,9 @@
             hintEl.appendChild(titleEl);
             hintEl.appendChild(list);
 
-            if (nodeType === "question") {
-                li1.textContent = "single tap to select";
+            if (nodeType === "question" || nodeType === "multi-select-question") {
+                li1.textContent = nodeType === "multi-select-question"
+                    ? "single tap to select or deselect" : "single tap to select";
                 li2.textContent = "double tap to select & answer";
                 wrapper.classList.add("br-survey-footer-controls--with-hint");
                 wrapper.appendChild(hintEl);
@@ -1836,7 +1895,7 @@
                 primaryButton = btnRestart;
             }
 
-            if (settings.showNextButton && (nodeType === "question" || nodeType === "custom")) {
+            if (settings.showNextButton && (nodeType === "question" || nodeType === "multi-select-question" || nodeType === "custom")) {
                 const btnNext = document.createElement("button");
                 btnNext.type = "button";
                 btnNext.className = "br-survey-btn br-survey-btn--next";
@@ -1866,6 +1925,19 @@
                     getNextNodeId: () => {
                         const answer = runtime._selectedAnswers[node.id];
                         return answer ? this._getNextNodeIdFromAnswer(runtime, node.id, answer) : null;
+                    }
+                };
+            } else if (node.type === "multi-select-question") {
+                return {
+                    render: () => this._createQuestionPage(runtime, node),
+                    getNextNodeId: () => {
+                        const count = this._selectedAnswerIds(runtime, node.id).length;
+                        const limits = this._multiSelectLimits(node);
+                        if (count < limits.min || count > limits.max) {
+                            return null;
+                        }
+                        const edges = runtime._edges.filter(edge => edge.source === node.id);
+                        return edges.length === 1 && edges[0].sourceHandle == null ? edges[0].target : null;
                     }
                 };
             } else if (node.type === "recommendation") {
@@ -2058,15 +2130,15 @@
 
         _answerSnapshot: function (runtime, node) {
             const resolved = this._resolveSelectedAnswers(runtime).byQuestionId;
-            const answers = (runtime._history || []).filter(id => {
+            const answers = [...new Set(runtime._history || [])].flatMap(id => {
                 const selected = resolved[id];
-                return id !== node.id && selected && selected.answer && selected.node.type === "question";
-            }).map(id => {
-                const answer = resolved[id];
-                return {
+                if (id === node.id || !selected || !selected.selections) {
+                    return [];
+                }
+                return selected.selections.map(answer => ({
                     questionId: id, questionLabel: answer.question || "", answerId: answer.answerId,
                     answerLabel: answer.title || "", values: answer.answer.values || []
-                };
+                }));
             });
             const snapshot = JSON.parse(JSON.stringify(answers));
             const freeze = value => {
@@ -2218,6 +2290,38 @@
             this._updatePageControls(runtime);
         },
 
+        _handleMultiSelectClick: function (runtime, nodeId, answerId, container, selectOnly) {
+            const page = runtime._activePage;
+            if (!page || page.node.id !== nodeId || runtime._currentNodeId !== nodeId ||
+                !this._isActivePage(runtime, page) || page.pending || runtime._backRequest || runtime._historyReturn ||
+                !this._getAnswerFromNode(page.node, answerId)) {
+                return false;
+            }
+            const selected = this._selectedAnswerIds(runtime, nodeId).slice();
+            const index = selected.indexOf(answerId);
+            const limits = this._multiSelectLimits(page.node);
+            if (index < 0 && selected.length >= limits.max) {
+                return false;
+            } else if (index < 0) {
+                selected.push(answerId);
+            } else if (!selectOnly) {
+                selected.splice(index, 1);
+            }
+            runtime._selectedAnswers[nodeId] = selected;
+            if (index < 0 || !selectOnly) {
+                this._fireAnswerClickedEvent(runtime, nodeId, answerId);
+            }
+            if (container) {
+                container.querySelectorAll(".br-survey-answer").forEach(button => {
+                    const pressed = selected.includes(button.getAttribute("data-br-survey-answer-id"));
+                    button.classList.toggle("br-survey-answer--selected", pressed);
+                    button.setAttribute("aria-pressed", String(pressed));
+                });
+            }
+            this._updatePageControls(runtime);
+            return true;
+        },
+
         _handleAnswerClick: function (runtime, nodeId, answerId, container, clickedButton) {
             if (nodeId === null || answerId === null || runtime._currentNodeId !== nodeId) {
                 return;
@@ -2309,8 +2413,11 @@
                 if (!nextNodeId || !runtime._nodesById[nextNodeId]) {
                     return false;
                 }
-                if (page.node.type === "question" && fromHistory !== true) {
-                    this._fireAnswerSelectedEvent(runtime, nodeId, runtime._selectedAnswers[nodeId]);
+                if ((page.node.type === "question" || page.node.type === "multi-select-question") &&
+                    fromHistory !== true) {
+                    for (const selectedId of this._selectedAnswerIds(runtime, nodeId)) {
+                        this._fireAnswerSelectedEvent(runtime, nodeId, selectedId);
+                    }
                 }
                 const fromStepNumber = this._getStepNumber(runtime);
                 runtime._history.push(nodeId);
