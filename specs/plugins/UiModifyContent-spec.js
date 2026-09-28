@@ -12,8 +12,12 @@ describe('UiModifyContent', function () {
         var activitySpy;
         var runtime;
         var page;
+        var sequence = 0;
+        var savedSuppression;
 
         beforeEach(function () {
+            id = 'recommendation-bubble-spec-' + (++sequence);
+            savedSuppression = window.localStorage.getItem('br::wemc::suppression');
             callbacks = [];
             requests = [];
             page = window.location.href;
@@ -28,6 +32,8 @@ describe('UiModifyContent', function () {
         });
 
         afterEach(function () {
+            if (savedSuppression === null) window.localStorage.removeItem('br::wemc::suppression');
+            else window.localStorage.setItem('br::wemc::suppression', savedSuppression);
             Breinify.plugins.recommendations = recommendations;
             uiModifyContent.register({}, id, version, {actions: {}});
             Breinify.plugins.recommendations._retrieveRecommendations = retrieve;
@@ -35,9 +41,10 @@ describe('UiModifyContent', function () {
             window.history.replaceState({}, '', page);
         });
 
-        function setup(settings, enabled) {
+        function setup(settings, enabled, defaults) {
             runtime = uiModifyContent.register({}, id, version, {
                 conditionsGroups: [],
+                actionDefaults: defaults,
                 actions: {_default: [{type: 'showRecommendationBubble', enabled: enabled !== false,
                     settings: $.extend(true, {
                         recommender: {preconfiguredRecommendation: 'Bubble spec'},
@@ -61,6 +68,176 @@ describe('UiModifyContent', function () {
         function outcomes() {
             return activitySpy.renderedElements.filter(function (activity) { return activity.type === 'renderedElement'; });
         }
+
+        it('inherits presentation by field while preserving local false and zero without mutating config', function () {
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date());
+            try {
+                var defaults = {showRecommendationBubble: {
+                    appearance: {backgroundColor: '#1B3687', maxWidthInPx: 620},
+                    placement: {anchor: 'TOP_RIGHT', offsetInPx: {horizontal: 24, vertical: 30}},
+                    display: {delayInMs: 500, dismissible: true}
+                }};
+                var before = JSON.stringify(defaults);
+                setup({display: {delayInMs: 0, dismissible: false},
+                    placement: {offsetInPx: {horizontal: 0}}}, true, defaults);
+                var actionsBefore = JSON.stringify(runtime.config.actions);
+                jasmine.clock().tick(1);
+                expect(requests.length).toBe(1);
+                respond([recipe()]);
+                var host = document.querySelector('.br-recommendation-bubble');
+                expect(host.style.backgroundColor).toBe('rgb(27, 54, 135)');
+                expect(host.style.maxWidth).toBe('620px');
+                expect(host.style.top).toBe('30px');
+                expect(host.style.right).toBe('0px');
+                expect(host.querySelector('.br-bubble-close')).toBe(null);
+                expect(JSON.stringify(defaults)).toBe(before);
+                expect(JSON.stringify(runtime.config.actions)).toBe(actionsBefore);
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
+
+        it('reserves general suppression before delay, survives navigation and expires without renewal', function () {
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date());
+            try {
+                var defaults = {_suppression: {durationInSec: 60}};
+                setup({display: {delayInMs: 500}}, true, defaults);
+                var stored = JSON.parse(window.localStorage.getItem('br::wemc::suppression'));
+                var key = JSON.stringify([Breinify.config().apiKey || '', id]);
+                var expiry = stored.entries[key];
+                expect(expiry).toBeGreaterThan(Date.now());
+                jasmine.clock().tick(500);
+                respond([recipe()]);
+                expectRenderedElement(outcomes()[0], true, 200, '_default', version);
+                // re-registration models a new document/runtime; the reservation is experience-, not version-scoped
+                setup({}, true, defaults);
+                jasmine.clock().tick(1);
+                expect(requests.length).toBe(1);
+                expect(document.querySelector('.br-recommendation-bubble')).toBe(null);
+                stored = JSON.parse(window.localStorage.getItem('br::wemc::suppression'));
+                expect(stored.entries[key]).toBe(expiry);
+                jasmine.clock().tick(60000);
+                setup({}, true, defaults);
+                jasmine.clock().tick(1);
+                expect(requests.length).toBe(2);
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
+
+        it('closing extends the whole experience cooldown and local empty policy disables inherited close duration',
+            function () {
+                jasmine.clock().install();
+                jasmine.clock().mockDate(new Date());
+                try {
+                    var defaults = {_suppression: {durationInSec: 10},
+                        showRecommendationBubble: {suppression: {onCloseDurationInSec: 60}}};
+                    setup({}, true, defaults);
+                    jasmine.clock().tick(1);
+                    respond([recipe()]);
+                    var key = JSON.stringify([Breinify.config().apiKey || '', id]);
+                    var before = JSON.parse(window.localStorage.getItem('br::wemc::suppression')).entries[key];
+                    document.querySelector('.br-bubble-close').click();
+                    var after = JSON.parse(window.localStorage.getItem('br::wemc::suppression')).entries[key];
+                    expect(after).toBeGreaterThan(before);
+                    setup({}, true, defaults);
+                    jasmine.clock().tick(10001);
+                    expect(requests.length).toBe(1);
+                    jasmine.clock().tick(60000);
+                    setup({suppression: {}}, true, defaults);
+                    jasmine.clock().tick(1);
+                    respond([recipe()], null, 1);
+                    before = JSON.parse(window.localStorage.getItem('br::wemc::suppression')).entries[key];
+                    document.querySelector('.br-bubble-close').click();
+                    after = JSON.parse(window.localStorage.getItem('br::wemc::suppression')).entries[key];
+                    expect(after).toBe(before);
+                } finally {
+                    jasmine.clock().uninstall();
+                }
+            });
+
+        it('does not shorten a longer general cooldown when closed', function () {
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date());
+            try {
+                setup({}, true, {_suppression: {durationInSec: 3600},
+                    showRecommendationBubble: {suppression: {onCloseDurationInSec: 60}}});
+                jasmine.clock().tick(1);
+                respond([recipe()]);
+                var before = window.localStorage.getItem('br::wemc::suppression');
+                document.querySelector('.br-bubble-close').click();
+                expect(window.localStorage.getItem('br::wemc::suppression')).toBe(before);
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
+
+        it('does not reserve suppression for empty or disabled action groups', function () {
+            var defaults = {_suppression: {durationInSec: 60}};
+            var before = window.localStorage.getItem('br::wemc::suppression');
+            setup({}, false, defaults);
+            expect(window.localStorage.getItem('br::wemc::suppression')).toBe(before);
+            uiModifyContent.register({}, id, version, {
+                actionDefaults: defaults, conditionsGroups: [], actions: {_default: []}
+            });
+            uiModifyContent.handle(id, version, {});
+            expect(window.localStorage.getItem('br::wemc::suppression')).toBe(before);
+        });
+
+        it('allows the initiating action chain to finish but blocks a different branch', function () {
+            spyOn(console, 'log');
+            var config = {
+                actionDefaults: {_suppression: {durationInSec: 60}},
+                conditionsGroups: [],
+                actions: {_default: [
+                    {type: 'writeToConsole', settings: {message: 'first'}},
+                    {type: 'writeToConsole', settings: {message: 'second'}}
+                ]}
+            };
+            uiModifyContent.register({}, id, version, config);
+            uiModifyContent.handle(id, version, {});
+            expect(console.log.calls.count()).toBe(2);
+            config.conditionsGroups = [{actionGroup: 'another', conditions: [{
+                type: 'random', settings: {refId: 'suppression-other-branch', probability: 1}
+            }]}];
+            config.actions.another = [{type: 'writeToConsole', settings: {message: 'suppressed branch'}}];
+            // a fresh runtime cannot bypass the experience-level cooldown by selecting another action group
+            uiModifyContent.register({}, id, version, config);
+            uiModifyContent.handle(id, version, {});
+            expect(console.log.calls.count()).toBe(2);
+        });
+
+        it('applies general suppression to non-bubble actions and skips Discovery while suppressed', function () {
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date());
+            spyOn(console, 'log');
+            spyOn(Breinify, 'service');
+            try {
+                var config = {
+                    actionDefaults: {_suppression: {durationInSec: 60}},
+                    conditionsGroups: [],
+                    actions: {_default: [{type: 'writeToConsole', settings: {message: 'general suppression'}}]}
+                };
+                runtime = uiModifyContent.register({}, id, version, config);
+                uiModifyContent.handle(id, version, {});
+                expect(console.log.calls.count()).toBe(1);
+                config.decision = {required: true, configurationId: id, pageEvaluation: true, conditions: []};
+                runtime = uiModifyContent.register({}, id, version, config);
+                uiModifyContent.handle(id, version, {});
+                jasmine.clock().tick(100);
+                expect(Breinify.service).not.toHaveBeenCalled();
+                expect(console.log.calls.count()).toBe(1);
+                jasmine.clock().tick(60000);
+                delete config.decision;
+                runtime = uiModifyContent.register({}, id, version, config);
+                uiModifyContent.handle(id, version, {});
+                expect(console.log.calls.count()).toBe(2);
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
 
         it('uses real recommendation bindings and tracks only after a bubble is attached', function (done) {
             setup();

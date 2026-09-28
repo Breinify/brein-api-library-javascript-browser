@@ -15,6 +15,7 @@
     const DECISION_STORAGE_VERSION = 2;
     const RANDOM_STORAGE_KEY = "br::wemc::random";
     const RANDOM_STORAGE_VERSION = 1;
+    const SUPPRESSION_STORAGE_KEY = "br::wemc::suppression";
     const DECISION_CACHE_SCOPE_PAGE = "PAGE";
     const DECISION_CACHE_SCOPE_SESSION = "SESSION";
     const DECISION_CACHE_SCOPE_PERSISTENT = "PERSISTENT";
@@ -130,7 +131,11 @@
                                     return;
                                 }
                                 try {
-                                    const host = this._createHost(result.recommendations[0], settings);
+                                    const host = this._createHost(result.recommendations[0], settings, function () {
+                                        const seconds = settings.suppression?.onCloseDurationInSec;
+                                        _private.extendExperienceSuppression(runtime, seconds);
+                                        runtime.suppressionExecution = null;
+                                    });
                                     entry.host = host;
                                     document.body.appendChild(host);
                                     done($(host), {
@@ -219,7 +224,7 @@
              * Uses the recommendation renderer's %%name%% notation, with one explicitly supported linked token.
              * DOM construction keeps both configured text and recommendation values out of HTML interpretation.
              */
-            _createHost: function (rec, settings) {
+            _createHost: function (rec, settings, onClose) {
                 const content = settings.content || {};
                 const appearance = $.extend({
                     backgroundColor: '#FFFFFF', textColor: '#253746', linkColor: '#0077AA',
@@ -306,7 +311,10 @@
                         border: '0', color: appearance.textColor, cursor: 'pointer', fontSize: '24px',
                         minWidth: '32px', minHeight: '32px'
                     });
-                    close.addEventListener('click', function () { $(host).remove(); });
+                    close.addEventListener('click', function () {
+                        if (typeof onClose === 'function') onClose();
+                        $(host).remove();
+                    });
                     host.appendChild(close);
                 }
                 return host;
@@ -1788,6 +1796,77 @@
     };
 
     const _private = {
+        // fallback when persistent browser storage is unavailable
+        suppressionExpirations: new Map(),
+
+        getSuppressionKey: function (runtime) {
+            const config = Breinify.config();
+            return JSON.stringify([config.apiKey || '', runtime.webExId]);
+        },
+
+        getSuppressionExecutionKey: function (runtime) {
+            return this.getDecisionPageKey() + '|' + this.getActionStateIndex(runtime, 0);
+        },
+
+        readSuppression: function (runtime) {
+            const key = this.getSuppressionKey(runtime);
+            const now = Date.now();
+            const entries = {};
+            const storage = this.getBrowserStorage(DECISION_CACHE_SCOPE_PERSISTENT);
+            if (storage) {
+                try {
+                    const stored = JSON.parse(storage.getItem(SUPPRESSION_STORAGE_KEY));
+                    if ($.isPlainObject(stored) && stored.version === 1 && $.isPlainObject(stored.entries)) {
+                        Object.keys(stored.entries).forEach(function (id) {
+                            const expiry = stored.entries[id];
+                            if (Number.isFinite(expiry) && expiry > now) entries[id] = expiry;
+                        });
+                    }
+                } catch (e) {
+                    // corrupted or blocked storage must not prevent action execution
+                }
+            }
+            this.suppressionExpirations.forEach(function (expiry, id) {
+                if (expiry <= now) this.suppressionExpirations.delete(id);
+                else entries[id] = Math.max(entries[id] || 0, expiry);
+            }, this);
+            const expiresAt = entries[key] || 0;
+            return {key: key, expiresAt: expiresAt, entries: entries, storage: storage};
+        },
+
+        extendExperienceSuppression: function (runtime, seconds) {
+            if (!Number.isInteger(seconds) || seconds <= 0 || seconds > 2147483647) return;
+            const state = this.readSuppression(runtime);
+            const expiresAt = Math.max(state.expiresAt, Date.now() + seconds * 1000);
+            this.suppressionExpirations.set(state.key, expiresAt);
+            state.entries[state.key] = expiresAt;
+            if (state.storage) {
+                try {
+                    state.storage.setItem(SUPPRESSION_STORAGE_KEY,
+                        JSON.stringify({version: 1, entries: state.entries}));
+                } catch (e) {
+                    // keep the in-memory cooldown when storage is disabled or full
+                }
+            }
+        },
+
+        isExperienceSuppressed: function (runtime) {
+            const state = this.readSuppression(runtime);
+            if (state.expiresAt === 0) return false;
+            // the initiating branch may finish its existing async actions, but not start another execution
+            return runtime.suppressionExecutionActive !== true ||
+                runtime.suppressionExecution !== this.getSuppressionExecutionKey(runtime);
+        },
+
+        beginExperienceExecution: function (runtime) {
+            const executionKey = this.getSuppressionExecutionKey(runtime);
+            if (runtime.suppressionExecution === executionKey && runtime.suppressionExecutionActive === true) return;
+            const seconds = runtime.config?.actionDefaults?._suppression?.durationInSec;
+            this.extendExperienceSuppression(runtime, seconds);
+            runtime.suppressionExecution = executionKey;
+            runtime.suppressionExecutionActive = true;
+        },
+
         runtimes: {},
         decisionPageHref: null,
         decisionPageVisit: 0,
@@ -2753,6 +2832,7 @@
         },
 
         requestDecision: function (runtime) {
+            if (this.isExperienceSuppressed(runtime)) return false;
             if (!this.isDecisionRequired(runtime)) {
                 return false;
             }
@@ -2986,6 +3066,21 @@
                 effectiveAction[actionKeys[i]] = action[actionKeys[i]];
             }
             effectiveAction.enabled = action.enabled !== false;
+            // only explicitly supported sections inherit; content, requests and shared hooks remain action-specific
+            const defaults = runtime.config?.actionDefaults?.showRecommendationBubble;
+            if (action.type === 'showRecommendationBubble' && $.isPlainObject(defaults)) {
+                const settings = $.isPlainObject(action.settings) ? action.settings : {};
+                effectiveAction.settings = $.extend({}, settings);
+                ['display', 'appearance', 'placement'].forEach(function (name) {
+                    if (!$.isPlainObject(defaults[name])) return;
+                    if (Object.prototype.hasOwnProperty.call(settings, name) && !$.isPlainObject(settings[name])) return;
+                    effectiveAction.settings[name] = $.extend(true, {}, defaults[name], settings[name]);
+                });
+                if (!Object.prototype.hasOwnProperty.call(settings, 'suppression') &&
+                    $.isPlainObject(defaults.suppression)) {
+                    effectiveAction.settings.suppression = $.extend({}, defaults.suppression);
+                }
+            }
             return effectiveAction;
         },
 
@@ -3480,6 +3575,9 @@
                 return !this.hasReportedRenderedElementActivity(runtime);
             }
 
+            if (this.isExperienceSuppressed(runtime)) {
+                return !this.hasReportedRenderedElementActivity(runtime);
+            }
             if (conditions.feature._preparePage(runtime) !== true) return false;
             if (this.isDecisionRequired(runtime)) {
                 this.requestDecision(runtime);
@@ -3657,6 +3755,9 @@
 
         executeActions: function (runtime) {
             actions.showRecommendationBubble._cancel(runtime, runtime.selectedGroupId);
+            if (this.isExperienceSuppressed(runtime)) {
+                return {executed: false, failed: false, pending: false};
+            }
             const configuredActions = this.getConfiguredActions(runtime);
             const modifications = [];
             const execution = {
@@ -3679,6 +3780,16 @@
                     (this.isDomAction(action) === true ||
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] !== true)) {
                     try {
+                        const seconds = runtime.config?.actionDefaults?._suppression?.durationInSec;
+                        const started = runtime.suppressionExecutionActive === true &&
+                            runtime.suppressionExecution === this.getSuppressionExecutionKey(runtime);
+                        // reserve only when a new, eligible execution has a configured cooldown
+                        if (!started && Number.isInteger(seconds) && seconds > 0) {
+                            const ready = typeof implementation.findRequirements !== 'function' ||
+                                implementation.findRequirements.call(implementation, runtime, action, i, document,
+                                    {type: 'full-scan'}) === true;
+                            if (ready) this.beginExperienceExecution(runtime);
+                        }
                         const actionModifications = handler.call(implementation, action, runtime, i);
                         if (this.isDomAction(action) === true && Array.isArray(actionModifications)) {
                             for (let j = 0; j < actionModifications.length; j++) {
@@ -3863,6 +3974,10 @@
                         renderedElementStatusCodes.INVALID_CONFIGURATION, null);
                     return false;
                 }
+                if (_private.isExperienceSuppressed(runtime)) {
+                    _private.sendRenderedElementActivity(runtime, false, renderedElementStatusCodes.NOT_RENDERED, null);
+                    return true;
+                }
                 if (conditions.feature._preparePage(runtime) !== true) return false;
                 runtime.conditionsPending = false;
                 _private.scheduleConditionEvaluation(runtime);
@@ -3888,8 +4003,10 @@
                 if (runtime.conditionsPending === true) return true;
                 const execution = _private.executeActions(runtime);
                 _private.reportRenderedElementOutcome(runtime, execution);
+                if (execution.pending !== true) runtime.suppressionExecutionActive = false;
                 return true;
             } catch (e) {
+                runtime.suppressionExecutionActive = false;
                 _private.sendRenderedElementActivity(runtime, false,
                     renderedElementStatusCodes.RENDERING_FAILED, _private.getActivityActionGroup(runtime));
                 return false;
