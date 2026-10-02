@@ -565,12 +565,25 @@
         }
 
         render() {
+            const wasConnected = this.isConnected;
 
             // if this is not connected we utilize the position information and attach it
             if (this._ensureConnected() === false) {
                 this._stopRefreshLoop();
                 this._hideCountdown(false, renderedElementStatusCodes.CONTAINER_UNAVAILABLE, false);
                 return;
+            }
+
+            /*
+             * Capture after placement, before reporting the rendering result. Keep that snapshot for
+             * later clicks and timer updates; only a new attachment or parent starts a new context.
+             */
+            if (!wasConnected || this._activityParent !== this.parentElement || !this._activityContext) {
+                const consumer = this._activityConsumer || Breinify.plugins.uiCountdown;
+                this._activityContext = Breinify.plugins.webExperiences.captureActivityContext(consumer, {
+                    element: this
+                });
+                this._activityParent = this.parentElement;
             }
 
             /*
@@ -1093,10 +1106,12 @@
                 tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
             }
 
+            // the countdown's own assignment wins; inheritance affects activity tags only
+            const activityTags = Breinify.plugins.webExperiences.applyActivityContext(tags, this._activityContext);
             if (scheduleActivity === true) {
-                Breinify.plugins.activities.scheduleDelayedActivity({}, type, tags, 60000);
+                Breinify.plugins.activities.scheduleDelayedActivity({}, type, activityTags, 60000);
             } else {
-                Breinify.plugins.activities.generic(type, {}, tags);
+                Breinify.plugins.activities.generic(type, {}, activityTags);
             }
         }
 
@@ -1138,6 +1153,13 @@
     // bind the module
     Breinify.plugins._add('uiCountdown', {
 
+        /**
+         * Inherits placement attribution for activities, never for countdown visibility decisions.
+         */
+        activityContextSettings: function () {
+            return {inheritSplitTest: true};
+        },
+
         render: function (module, config) {
 
             if (!window.customElements.get(elementName)) {
@@ -1145,6 +1167,7 @@
             }
 
             const countdownId = 'br-ui-countdown-' + module.webExVersionId;
+            const activityConsumer = $.isFunction(module.activityContextSettings) ? module : this;
 
             /*
              * First check the in-memory registry. This catches the race where the
@@ -1152,6 +1175,7 @@
              */
             let entry = countdownsById[countdownId];
             if ($.isPlainObject(entry) && entry.countdown instanceof UiCountdown) {
+                entry.countdown._activityConsumer = activityConsumer;
                 if (entry.configured === true) {
                     entry.countdown.render();
                 } else {
@@ -1167,6 +1191,7 @@
             const $existingCountdown = $('br-ui-countdown#' + countdownId);
             if ($existingCountdown.length > 0) {
                 const countdown = $existingCountdown.get(0);
+                countdown._activityConsumer = activityConsumer;
 
                 countdownsById[countdownId] = {
                     countdown: countdown,
@@ -1184,6 +1209,7 @@
              */
             const $countdown = $('<br-ui-countdown id="' + countdownId + '"></br-ui-countdown>');
             const countdown = $countdown.get(0);
+            countdown._activityConsumer = activityConsumer;
 
             entry = {
                 countdown: countdown,

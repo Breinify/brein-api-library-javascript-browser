@@ -824,6 +824,9 @@
                 settings: $.isPlainObject(settings) ? settings : {},
                 webExVersionId: webExVersionId,
                 triggers: [],
+                _triggerActivityContexts: new WeakMap(),
+                _activityTrigger: null,
+                _activityContext: null,
                 _activePage: null,
                 _pageStates: Object.create(null),
                 _browserIndex: 0,
@@ -1764,6 +1767,8 @@
             const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "";
 
             Breinify.plugins.recommendations.render({
+                // the popup is outside the placement; carry the opening trigger's snapshot explicitly
+                activityContext: runtime._activityContext,
                 position: {
                     append: function () {
                         return active() ? $container : $();
@@ -2493,11 +2498,23 @@
             this._fireNavigatedEvent(runtime, previousNodeId, runtime._currentNodeId, "restart", fromStepNumber, 1);
         },
 
-        openSurvey: function (webExVersionId) {
+        openSurvey: function (webExVersionId, trigger) {
             const runtime = this.runtimeByWebExVersionId[webExVersionId];
             if (!$.isPlainObject(runtime)) {
                 return;
             }
+
+            this.cleanupTriggers(runtime);
+            const selectedTrigger = runtime.triggers.indexOf(trigger) !== -1 ? trigger :
+                runtime.triggers.length === 1 ? runtime.triggers[0] : null;
+            /*
+             * Popup events are broadcast to every trigger for external listeners, but activities
+             * belong to one opening only. A programmatic opening with several possible placements
+             * has no unambiguous parent, so it must not borrow an arbitrary trigger's attribution.
+             */
+            runtime._activityTrigger = selectedTrigger || runtime.triggers[0] || null;
+            runtime._activityContext = selectedTrigger === null ? null :
+                runtime._triggerActivityContexts.get(selectedTrigger);
 
             const popup = this.getPopup(runtime);
 
@@ -2529,9 +2546,17 @@
         ensureTriggers: function (runtime) {
             this.cleanupTriggers(runtime);
 
-            const supplier = () => {
+            const supplier = placement => {
                 const $trigger = this.createTriggerElement(runtime);
                 const trigger = $trigger.get(0);
+                const experiences = Breinify.plugins.webExperiences;
+                const consumer = $.isFunction(runtime.module.activityContextSettings) ?
+                    runtime.module : Breinify.plugins.uiSurvey;
+                // sibling insertion inherits from the parent, not from the adjacent anchor itself
+                const parent = placement.operation === 'append' || placement.operation === 'prepend' ?
+                    placement.anchor : placement.anchor.parentElement;
+                const activityContext = experiences.captureActivityContext(consumer, {element: parent});
+                runtime._triggerActivityContexts.set(trigger, activityContext);
 
                 this.registerTrigger(runtime, trigger);
 
@@ -2539,17 +2564,21 @@
                     trigger,
                     runtime.webExVersionId,
                     (eventName, detail) => {
+                        if (eventName !== 'rendered' && runtime._activityTrigger !== trigger) {
+                            return;
+                        }
                         const metadata = {
                             version: runtime.module.version,
                             created: runtime.module.created,
                             campaignName: Breinify.UTL.isNonEmptyString(runtime.module.campaignName)
                         };
-                        eventHandler.sendActivity(metadata, eventName, detail);
+                        const context = eventName === 'rendered' ? activityContext : runtime._activityContext;
+                        eventHandler.sendActivity(metadata, eventName, detail, context);
                     }
                 );
 
                 trigger.render(runtime.webExVersionId, runtime.settings, () => {
-                    this.openSurvey(runtime.webExVersionId);
+                    this.openSurvey(runtime.webExVersionId, trigger);
                 });
 
                 return $trigger;
@@ -2613,7 +2642,7 @@
             }
         },
 
-        sendActivity: function (metadata, eventName, detail) {
+        sendActivity: function (metadata, eventName, detail, context) {
             if (Breinify.UTL.isNonEmptyString(eventName) === null ||
                 Breinify.UTL.isNonEmptyString(detail && detail.webExVersionId) === null) {
                 return;
@@ -2631,11 +2660,19 @@
                 widgetType: "survey"
             }, this._determineTags(eventName, metadata, detail));
 
-            Breinify.plugins.activities.generic(type, user, tags);
+            const activityTags = Breinify.plugins.webExperiences.applyActivityContext(tags, context);
+            Breinify.plugins.activities.generic(type, user, activityTags);
         }
     };
 
     Breinify.plugins._add("uiSurvey", {
+        /**
+         * Inherits tracking attribution from the opening placement without assigning a survey test group.
+         */
+        activityContextSettings: function () {
+            return {inheritSplitTest: true};
+        },
+
         attachEventListeners: function (surveyEl, webExVersionId, callback, selection) {
             if (!surveyEl) {
                 return;
@@ -2734,8 +2771,13 @@
             _private.ensureTriggers(runtime);
         },
 
-        open: function (webExVersionId) {
-            _private.openSurvey(webExVersionId);
+        /**
+         * Opens a survey, optionally identifying the trigger element responsible for the opening.
+         * Without a trigger, a sole connected placement supplies attribution. Multiple placements
+         * are ambiguous and therefore do not supply inherited split-test tags.
+         */
+        open: function (webExVersionId, trigger) {
+            _private.openSurvey(webExVersionId, trigger);
         }
     });
 })();

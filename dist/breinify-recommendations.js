@@ -898,6 +898,36 @@
 
     const Recommendations = {
         marker: $.extend(true, {}, Renderer.marker),
+        _activityContexts: new WeakMap(),
+
+        /**
+         * Recommendation activities accept parent attribution only when the recommendation has no own assignment.
+         * This never changes splitTestData, control handling, user assignments or rendering decisions.
+         */
+        activityContextSettings: function () {
+            return {inheritSplitTest: true};
+        },
+
+        /**
+         * Captures once for this rendering, using the same tag formatter as ordinary recommendation activities.
+         * The Web Experiences plugin is optional for standalone recommendation integrations.
+         * option.activityContext supplies an explicit parent snapshot (for example, an embedded bubble).
+         * Omission resolves the nearest container context; an empty snapshot blocks that fallback.
+         * option.activityContextSettings() can explicitly disable inheritance for an individual rendering.
+         */
+        _captureActivityContext: function (option, data, $container) {
+            const experiences = Breinify.plugins.webExperiences;
+            if (!experiences) return null;
+            const settings = {
+                element: $container,
+                ownContext: {tags: this._createDefaultTags(data, {})}
+            };
+            if (Object.prototype.hasOwnProperty.call(option, 'activityContext')) {
+                settings.parentContext = option.activityContext;
+            }
+            const consumer = $.isFunction(option.activityContextSettings) ? option : this;
+            return experiences.captureActivityContext(consumer, settings);
+        },
 
         refresh: function (options) {
             Renderer._refresh(options);
@@ -1913,6 +1943,17 @@
                 activityUser: {}
             }, settings);
 
+            const experiences = Breinify.plugins.webExperiences;
+            if (experiences) {
+                const $container = settings.$recContainer || settings.$controlContainer;
+                const element = $container?.length === 1 ? $container.get(0) : null;
+                // clicks use the rendering snapshot, never a fresh lookup of the current parent or user
+                const context = element !== null && this._activityContexts.has(element)
+                    ? this._activityContexts.get(element)
+                    : this._captureActivityContext(option, settings.recommendationData, null);
+                settings.activityTags = experiences.applyActivityContext(settings.activityTags, context);
+            }
+
             Renderer._process(option?.process?.createActivity, event, settings);
 
             if (settings.additionalEventData.sendActivities === false) {
@@ -2146,6 +2187,9 @@
                 $container.addClass(Renderer.marker.container);
             }
 
+            const context = this._captureActivityContext(option, data, $container);
+            this._activityContexts.set($container.get(0), context);
+
             return $container
                 .attr("data-" + Renderer.marker.container, "true")
                 .data(Renderer.marker.data, {
@@ -2175,6 +2219,10 @@
                     cb(null, settings);
                     return;
                 }
+
+                // impressions reference the outer container; item clicks reference the inner one
+                const context = _self._activityContexts.get($itemContainer.get(0));
+                _self._activityContexts.set($container.get(0), context);
 
                 if (settings?.attachedContainer === true) {
                     Renderer._process(option?.process?.attachedContainer, $container, $itemContainer, data, option);

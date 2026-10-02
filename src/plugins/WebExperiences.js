@@ -8,9 +8,44 @@
     }
 
     const $ = Breinify.UTL._jquery();
+    const ACTIVITY_CONTEXT_DATA_KEY = 'br.webexp.activityContext';
 
     const _private = {
         idPrefix: "web-experience-",
+
+        activityContextElement: function (value) {
+            if (value && value.jquery && value.length !== 1) return null;
+            const element = value && value.jquery && value.length === 1 ? value.get(0) : value;
+            return Breinify.UTL.dom.isNodeType(element, 1) ? element : null;
+        },
+
+        hasSplitTestActivityTags: function (tags) {
+            return $.isPlainObject(tags) && (tags.groupType === 'control' || tags.groupType === 'test');
+        },
+
+        /**
+         * Copies only tracking attribution, never parent identity, status or execution settings.
+         * The immutable snapshot belongs to one rendering and may safely outlive its container.
+         */
+        snapshotActivityContext: function (context) {
+            const input = $.isPlainObject(context) ? context.tags : null;
+            const tags = {};
+            if (this.hasSplitTestActivityTags(input)) {
+                tags.groupType = input.groupType;
+                tags.splitTest = Breinify.UTL.isNonEmptyString(input.splitTest);
+                tags.group = Breinify.UTL.isNonEmptyString(input.group);
+            }
+            return Object.freeze({tags: Object.freeze(tags)});
+        },
+
+        findActivityContext: function (element) {
+            for (let current = element; current !== null; current = current.parentElement) {
+                const context = $.data(current, ACTIVITY_CONTEXT_DATA_KEY);
+                // an explicitly empty context is a boundary, not permission to inherit a more distant assignment
+                if ($.isPlainObject(context)) return context;
+            }
+            return null;
+        },
 
         setup: function (configuration, module) {
 
@@ -486,6 +521,76 @@
     };
 
     const WebExperiences = {
+
+        /**
+         * Optional module contract: activityContextSettings() returns {inheritSplitTest: true} to accept parent
+         * attribution. Omission or false disables inheritance. This capability alone does not send activities,
+         * assign split-test groups, or change activation/rendering decisions.
+         */
+        acceptsActivityContext: function (module) {
+            if (!module || !$.isFunction(module.activityContextSettings)) return false;
+            const settings = module.activityContextSettings();
+            return $.isPlainObject(settings) && settings.inheritSplitTest === true;
+        },
+
+        /**
+         * Publishes context on one DOM/jQuery container before insertion or child rendering.
+         * Shape: {tags: {groupType: 'test'|'control', splitTest: 'Name (instance)', group: 'Group'}}.
+         * Use existing activity-tag builders for formatting; unrelated fields are deliberately discarded.
+         * An empty object creates an inheritance boundary. Null removes the context. Returns false for invalid input.
+         * Storage is jQuery data only, never serialized data-* attributes or a global user/module assignment.
+         */
+        setActivityContext: function (target, context) {
+            const element = _private.activityContextElement(target);
+            if (element === null) return false;
+            if (context === null) return this.clearActivityContext(element);
+            if (!$.isPlainObject(context) ||
+                (typeof context.tags !== 'undefined' && !$.isPlainObject(context.tags))) return false;
+            $.data(element, ACTIVITY_CONTEXT_DATA_KEY, _private.snapshotActivityContext(context));
+            return true;
+        },
+
+        /**
+         * Removes a container's context before it is reused, allowing ancestor lookup again.
+         * Already captured rendering snapshots remain unchanged. Callers own placement/SPA lifecycle cleanup.
+         */
+        clearActivityContext: function (target) {
+            const element = _private.activityContextElement(target);
+            if (element === null) return false;
+            $.removeData(element, ACTIVITY_CONTEXT_DATA_KEY);
+            return true;
+        },
+
+        /**
+         * Captures attribution once per rendering; retain the returned snapshot for impressions and later clicks.
+         * Options: {element: Element|jQuery, ownContext: {tags: {...}}, parentContext: {tags: {...}}}.
+         * The child's own control/test assignment wins as a unit. Otherwise an opted-in consumer uses an explicit
+         * parentContext, or the nearest context on element/ancestors if parentContext was omitted. Explicit empty
+         * parentContext blocks DOM fallback. No assignment yields {tags: {}} and preserves normal no-test behavior.
+         * Do not store this snapshot on a shared module: different placements can have different parents.
+         */
+        captureActivityContext: function (module, options) {
+            const settings = $.isPlainObject(options) ? options : {};
+            const own = _private.snapshotActivityContext(settings.ownContext);
+            if (_private.hasSplitTestActivityTags(own.tags) || !this.acceptsActivityContext(module)) return own;
+            const element = _private.activityContextElement(settings.element);
+            const parent = Object.prototype.hasOwnProperty.call(settings, 'parentContext')
+                ? settings.parentContext : _private.findActivityContext(element);
+            return _private.snapshotActivityContext(parent);
+        },
+
+        /**
+         * Returns a copy of activity tags with the captured split-test fallback applied as one unit.
+         * Existing control/test attribution always wins, including unnamed assignments. Identity and action tags
+         * remain the child's. Pass the saved rendering snapshot, not a fresh DOM/user lookup at interaction time.
+         * Only activity producers opting into this interface should call it; nothing is applied globally.
+         */
+        applyActivityContext: function (tags, context) {
+            const result = $.extend({}, $.isPlainObject(tags) ? tags : {});
+            if (_private.hasSplitTestActivityTags(result)) return result;
+            const snapshot = _private.snapshotActivityContext(context);
+            return $.extend(result, snapshot.tags);
+        },
 
         /**
          * Recognizes a named trigger for one experience on the current page visit.

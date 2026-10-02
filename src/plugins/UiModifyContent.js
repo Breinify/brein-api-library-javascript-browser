@@ -78,6 +78,7 @@
                     entry = {
                         page: _private.getDecisionPageKey(), group: runtime.selectedGroupId, key: key,
                         pending: true, executed: false, failed: false, disposed: false,
+                        activityContext: _private.createActivityContext(runtime),
                         host: null, timer: null, timeout: null, processId: null
                     };
                     runtime.bubbles.entries[key] = entry;
@@ -115,6 +116,7 @@
                     const name = Breinify.UTL.isNonEmptyString(settings.recommender?.preconfiguredRecommendation);
                     if (name === null) throw new Error('The bubble requires a preconfigured recommendation.');
                     const option = {
+                        activityContext: entry.activityContext,
                         meta: {renderIdentity: {webExId: runtime.webExId, recommenderName: name}},
                         recommender: {payload: {recommendationQueryName: name, namedRecommendations: [name]}},
                         data: {
@@ -1172,6 +1174,8 @@
                 }
                 this._applyClasses(container, settings && settings.classes);
                 this._applyAttributes(container, settings && settings.attributes);
+                // publish before insertion so a synchronously activated child sees the parent's attribution
+                Breinify.plugins.webExperiences.setActivityContext(container, _private.createActivityContext(runtime));
                 return container;
             },
 
@@ -2023,6 +2027,12 @@
                     : testName + (selectedInstance === null ? "" : " (" + selectedInstance + ")"),
                 group: Breinify.UTL.isNonEmptyString(splitTestData.groupDecision)
             };
+        },
+
+        createActivityContext: function (runtime) {
+            return Breinify.plugins.webExperiences.captureActivityContext(runtime.module, {
+                ownContext: {tags: this.getSplitTestActivityTags(runtime)}
+            });
         },
 
         createRenderedElementTags: function (runtime, rendered, status, actionGroup) {

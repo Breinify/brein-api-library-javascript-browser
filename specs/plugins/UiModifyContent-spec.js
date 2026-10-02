@@ -41,7 +41,7 @@ describe('UiModifyContent', function () {
             window.history.replaceState({}, '', page);
         });
 
-        function setup(settings, enabled, defaults) {
+        function setup(settings, enabled, defaults, splitTestData) {
             runtime = uiModifyContent.register({}, id, version, {
                 conditionsGroups: [],
                 actionDefaults: defaults,
@@ -51,6 +51,7 @@ describe('UiModifyContent', function () {
                         content: {message: 'Try %%name%% today', ctaText: 'View recipe'}
                     }, settings)}]}
             });
+            if (splitTestData) runtime.decision.splitTestData = splitTestData;
             uiModifyContent.handle(id, version, {});
         }
 
@@ -321,6 +322,40 @@ describe('UiModifyContent', function () {
                 expect(requests.length).toBe(1);
                 done();
             }, 15);
+        });
+
+        [false, true].forEach(function (hasOwnAssignment) {
+            it('tracks bubble impressions and clicks with ' + (hasOwnAssignment ? 'its own' : 'parent') +
+                ' split-test attribution', function (done) {
+                var parent = {testName: 'Parent test', selectedInstance: 'parent-instance',
+                    groupDecision: 'Parent group', isControlGroup: false};
+                setup({display: {delayInMs: 1}}, true, null, parent);
+                // the action captured attribution before its delay; later parent changes must not affect clicks
+                parent.testName = 'Changed parent';
+                setTimeout(function () {
+                    var splitTestData = hasOwnAssignment ? {active: true, isControl: false,
+                        testName: 'Child test', selectedInstance: 'child-instance', groupDecision: 'Child group'} :
+                        {active: false};
+                    respond([recipe()], {splitTestData: splitTestData});
+                    var link = document.querySelector('.br-bubble-message a');
+                    link.addEventListener('click', function (event) { event.preventDefault(); });
+                    link.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, ctrlKey: true}));
+                    var tracked = activitySpy.renderedElements.filter(function (activity) {
+                        return activity.type === 'renderedRecommendation' || activity.type === 'clickedRecommendation';
+                    });
+                    expect(tracked.length).toBe(2);
+                    tracked.forEach(function (activity) {
+                        expect(activity.tags.splitTest).toBe(hasOwnAssignment ?
+                            'Child test (child-instance)' : 'Parent test (parent-instance)');
+                        expect(activity.tags.group).toBe(hasOwnAssignment ? 'Child group' : 'Parent group');
+                        expect(activity.tags.groupType).toBe('test');
+                        expect(activity.tags.campaignWebExId).toBe(version);
+                        expect(activity.tags.action).toBe('_default');
+                    });
+                    expect(splitTestData.active).toBe(hasOwnAssignment);
+                    done();
+                }, 15);
+            });
         });
 
         it('respects recommender control assignments rather than rendering their items', function (done) {
@@ -2075,6 +2110,31 @@ describe('UiModifyContent', function () {
 
         activitySpy.restore();
         $fixture.remove();
+    });
+
+    it('publishes placement attribution before the child renders without inheriting parent identifiers', function () {
+        var $fixture = $('<div class="modify-content-context-target"></div>').appendTo('body');
+        var activitySpy = createActivitySpy();
+        var id = 'placement-activity-context';
+        try {
+            var runtime = uiModifyContent.register({}, id, 'parent-version', {
+                actions: {_default: [createPlacementAction('.modify-content-context-target', null)]}
+            });
+            runtime.decision.splitTestData = {testName: 'Placement test', selectedInstance: 'instance',
+                isControlGroup: false, groupDecision: 'Treatment'};
+            uiModifyContent.handle(id, 'parent-version', {});
+            var $container = $fixture.children('[data-br-webexpid="target-web-experience"]');
+            var experiences = Breinify.plugins.webExperiences;
+            var context = experiences.captureActivityContext(Breinify.plugins.recommendations, {element: $container});
+            expect(context.tags).toEqual({splitTest: 'Placement test (instance)', groupType: 'test', group: 'Treatment'});
+            expect(context.tags.campaignWebExId).toBeUndefined();
+            expect(context.tags.action).toBeUndefined();
+            expect($container.attr('data-br-webexpid')).toBe('target-web-experience');
+        } finally {
+            uiModifyContent.register({}, id, 'parent-version', {actions: {}});
+            activitySpy.restore();
+            $fixture.remove();
+        }
     });
 
     it('keeps a random condition result stable for the current browser session', function () {
