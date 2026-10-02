@@ -1680,7 +1680,7 @@
         _createRecommendationPage: function (runtime, node) {
             const data = $.isPlainObject(node.data) ? node.data : {};
             const titleText = Breinify.UTL.isNonEmptyString(data.searchTitle) || "Unlocking your personalized picks…";
-            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle) || "We are analyzing your vibes… Almost there!";
+            const subtitleText = Breinify.UTL.isNonEmptyString(data.searchSubtitle) || "";
 
             const container = document.createElement("div");
             container.className = "br-survey-page br-survey-page--recommendation";
@@ -1761,7 +1761,7 @@
             }
 
             const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) || "Your Recommendations";
-            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "Vibes that gets you";
+            const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "";
 
             Breinify.plugins.recommendations.render({
                 position: {
