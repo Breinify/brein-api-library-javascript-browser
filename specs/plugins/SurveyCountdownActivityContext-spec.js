@@ -60,6 +60,60 @@ describe('Survey and countdown activity context', function () {
         return module;
     }
 
+    it('activates and renders banners in element placeholders without a selector or operation', function () {
+        var webExId = 'survey-element-' + Breinify.UTL.uuid();
+        var module = {webExId: webExId, webExVersionId: webExId + '-version'};
+        var config = {
+            activationLogic: {paths: [{type: 'ATTRIBUTE'}]},
+            position: {renderingBehavior: 'onChange'},
+            trigger: {bannerUrl: '/survey-banner.png'},
+            survey: {
+                nodes: [{id: 'start', type: 'start'}, {id: 'question', type: 'question',
+                    data: {question: 'Choose an answer', answers: []}}],
+                edges: [{source: 'start', target: 'question'}]
+            }
+        };
+        module.onChange = function () { Breinify.plugins.uiSurvey.render(module, config); };
+        var $anchor = $('<div>').attr('data-br-webexpid', webExId).appendTo($root);
+        var $other = $('<div>').attr('data-br-webexpid', module.webExVersionId).appendTo($root);
+        var $span = $('<span>').attr('data-br-webexpid', webExId).appendTo($root);
+        experiences.setActivityContext($anchor, context('Element parent'));
+
+        spyOn(Breinify.plugins.api, 'isModule').and.returnValue(false);
+        spyOn(Breinify.plugins.api, 'addModule');
+        spyOn(Breinify.plugins.trigger, 'init');
+        experiences.bootstrap(webExId, config, module);
+        expect(module.findRequirements($root, {type: 'full-scan'})).toBe(true);
+        module.onChange();
+        module.onChange();
+
+        expect($anchor.children('br-ui-survey').length).toBe(1);
+        expect($other.children().length).toBe(0);
+        expect($span.children().length).toBe(0);
+        var trigger = $anchor.children('br-ui-survey').get(0);
+        expect(trigger.shadowRoot.querySelector('img').getAttribute('src')).toBe('/survey-banner.png');
+        trigger.shadowRoot.querySelector('[role="button"]').click();
+        expect(document.querySelector('br-ui-survey-popup').shadowRoot.querySelector('.br-survey-question-title')
+            .textContent).toBe('Choose an answer');
+        expect(activities[0].tags.splitTest).toBe('Element parent');
+        expect(config.position.selector).toBeUndefined();
+        expect(config.position.operation).toBeUndefined();
+
+        var $late = $('<div>').attr('data-br-webexpid', webExId).appendTo($root);
+        expect(module.findRequirements($late, {type: 'added-element'})).toBe(true);
+        module.onChange();
+        expect($late.children('br-ui-survey').length).toBe(1);
+        expect($anchor.children('br-ui-survey').length).toBe(1);
+
+        var $changed = $('<div>').appendTo($root);
+        expect(module.findRequirements($changed, {type: 'added-element'})).toBe(false);
+        $changed.attr('data-br-webexpid', webExId);
+        expect(module.findRequirements($changed, {type: 'attribute-change', attribute: 'data-br-webexpid'}))
+            .toBe(true);
+        module.onChange();
+        expect($changed.children('br-ui-survey').length).toBe(1);
+    });
+
     it('attributes popup events once to the clicked trigger and passes its snapshot to recommendations', function () {
         experiences.setActivityContext($root.children().eq(0), context('First'));
         experiences.setActivityContext($root.children().eq(1), context('Second', 'control'));

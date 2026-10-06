@@ -2586,7 +2586,8 @@
 
             Breinify.plugins.webExperiences.attach(runtime.settings, supplier, {
                 cardinality: "multi",
-                key: runtime.webExVersionId
+                key: runtime.webExVersionId,
+                webExId: runtime.module.webExId
             });
         }
     };

@@ -151,7 +151,7 @@
              * POSITION TARGET RESOLUTION
              * ------------------------------------------
              */
-            if (this.hasDynamicPosition(configuration) === true) {
+            if (result.attributeTarget === null && this.hasDynamicPosition(configuration) === true) {
                 result.positionTargets = this.resolvePositionTargets(configuration, root, type);
                 if (result.positionTargets === null || result.positionTargets.length === 0) {
                     return null;
@@ -695,6 +695,9 @@
          * - `operation`: one of `append`, `prepend`, `before`, or `after`
          * - either `selector` or `snippet`
          *
+         * Attribute-based activation instead appends to matching `div[data-br-webexpid]` elements.
+         * Supply the experience ID as `placement.webExId` (or `webExpSettings.webExId`).
+         *
          * Supported values for `elOrSupplier`:
          * - a jQuery-wrapped element or DOM element, used for `single` attachment
          * - a supplier function returning a new element instance, used for `multi` attachment
@@ -725,6 +728,9 @@
          * @param {String} [placement.key]
          * stable identifier used in `multi` mode to deduplicate per-anchor instances for the same experience
          *
+         * @param {String} [placement.webExId]
+         * experience ID used to resolve placeholders for attribute-based activation
+         *
          * @return {boolean}
          * returns `true` if attachment succeeded, or if the required attachment state was already satisfied;
          * otherwise returns `false`
@@ -743,7 +749,8 @@
                 return false;
             }
 
-            const operation = Breinify.UTL.isNonEmptyString(position.operation);
+            const attributeActivation = _private.hasAttributeActivation(webExpSettings) === true;
+            const operation = attributeActivation ? 'append' : Breinify.UTL.isNonEmptyString(position.operation);
             if (operation === null) {
                 return false;
             }
@@ -752,7 +759,17 @@
             const selector = Breinify.UTL.isNonEmptyString(position.selector);
             const snippet = Breinify.UTL.isNonEmptyString(position.snippet);
 
-            if (selector === null && snippet === null) {
+            if (attributeActivation) {
+                const webExId = Breinify.UTL.isNonEmptyString(placement.webExId) ||
+                    Breinify.UTL.isNonEmptyString(webExpSettings.webExId);
+                if (webExId === null) {
+                    return false;
+                }
+                $anchor = $('div[data-br-webexpid]').filter(function () {
+                    const foundId = Breinify.UTL.isNonEmptyString(this.getAttribute('data-br-webexpid'));
+                    return foundId === webExId;
+                });
+            } else if (selector === null && snippet === null) {
                 return false;
             } else if (selector !== null) {
                 $anchor = $(selector);

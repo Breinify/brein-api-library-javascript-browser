@@ -4,6 +4,17 @@
 
 The UI Survey component provides an interactive, multi-step survey experience rendered inside a popup. Surveys are defined as a directed graph of nodes and edges and are navigated by user answers. The component emits a set of semantic events that allow integrators to track rendering, navigation, and user interaction without coupling to UI details.
 
+### Element-based placement
+
+For `activationLogic.paths` with type `ATTRIBUTE`, add a
+`<div data-br-webexpid="WEB_EXPERIENCE_ID"></div>` placeholder. The ID must match `module.webExId`,
+not `module.webExVersionId`. A survey trigger is appended inside each matching div, including placeholders
+added after initialization. Repeated rendering does not duplicate triggers at an existing placeholder.
+This mode does not require a position selector or operation; retain the configuration's `position` object.
+
+Set `trigger.bannerUrl` and optionally `trigger.mobileBannerUrl` for the banner images.
+`trigger.snippet` is not executed by the survey renderer.
+
 ### Survey Structure
 
 A survey consists of:
