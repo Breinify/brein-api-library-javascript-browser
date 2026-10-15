@@ -1120,6 +1120,38 @@
                 activityTags.retrievedNrOfRecs > 0 &&
                 (activityTags.containerAvailable === null || activityTags.containerAvailable === true);
 
+            let recommendations = [];
+            if (result?.splitTestData?.isControl === true) {
+                // control items must come from existing page data, never from the response
+                if ($container?.jquery && $container.length > 0) {
+                    const itemSelector = "." + Renderer.marker.item;
+                    $container.find(itemSelector).addBack(itemSelector).each(function () {
+                        const recommendation = $(this).data(Renderer.marker.data);
+                        if ($.isPlainObject(recommendation)) {
+                            recommendations.push(recommendation);
+                        }
+                    });
+                }
+            } else if (activityTags.rendered === true) {
+                recommendations = result.recommendations;
+            }
+
+            const ids = [];
+            $.each(recommendations, function (idx, recommendation) {
+                const id = Breinify.UTL.isNonEmptyString(recommendation?.id);
+                if (id !== null) {
+                    ids.push(id);
+                }
+            });
+
+            if (ids.length > 0) {
+                if (activityTags.recType === "com.brein.common.dto.CustomerAssetsDto") {
+                    activityTags.assetIds = ids;
+                } else {
+                    activityTags.productIds = ids;
+                }
+            }
+
             return activityTags;
         },
 

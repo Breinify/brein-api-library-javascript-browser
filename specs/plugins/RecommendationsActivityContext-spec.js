@@ -71,6 +71,98 @@ describe('Recommendations activity context integration', function () {
         // inheriting control attribution must not make the recommendation a control rendering
         expect(first.result.splitTestData).toEqual({active: false});
         expect(activities[0].tags.rendered).toBe(true);
+        expect(activities[0].tags.productIds).toEqual(['product']);
+    });
+
+    [
+        {type: 'com.brein.common.dto.CustomerAssetsDto', tag: 'assetIds', otherTag: 'productIds'},
+        {type: 'com.brein.common.dto.CustomerProductDto', tag: 'productIds', otherTag: 'assetIds'}
+    ].forEach(function (mapping) {
+        it('includes all valid rendered ' + mapping.tag + ' in order', function () {
+            var rendering = setup(0);
+            rendering.result.meta = {type: mapping.type};
+            rendering.result.recommendations = [{id: 'first'}, null, {}, {id: ''}, {id: ' '}, {id: 'second'}];
+
+            recommendations._handleRender(rendering.result, rendering.option, rendering.$container);
+
+            expect(activities.length).toBe(1);
+            expect(activities[0].tags.recType).toBe(mapping.type);
+            expect(activities[0].tags[mapping.tag]).toEqual(['first', 'second']);
+            expect(activities[0].tags[mapping.otherTag]).toBeUndefined();
+        });
+
+        it('reads control ' + mapping.tag + ' only from existing item data', function () {
+            var rendering = setup(0, {active: true, isControl: true});
+            rendering.result.status.code = 7120;
+            rendering.result.meta = {type: mapping.type};
+            rendering.result.recommendations = [{id: 'response-only'}];
+            ['existing-first', '', 'existing-second'].forEach(function (id, index) {
+                var $item = $('<a>Item</a>').appendTo(rendering.$container);
+                recommendations.setRecommendationData($item, index, {id: id});
+            });
+            $('<a data-product-id="unmapped">Unmapped item</a>').appendTo(rendering.$container);
+
+            recommendations._handleRender(rendering.result, rendering.option, rendering.$container);
+
+            expect(activities.length).toBe(1);
+            expect(activities[0].tags[mapping.tag]).toEqual(['existing-first', 'existing-second']);
+            expect(activities[0].tags[mapping.otherTag]).toBeUndefined();
+            expect(activities[0].tags.groupType).toBe('control');
+            expect(activities[0].tags.rendered).toBe(false);
+        });
+    });
+
+    it('omits control IDs without mapped page items, even when the response contains IDs', function () {
+        var rendering = setup(0, {active: true, isControl: true});
+        rendering.result.status.code = 7120;
+        rendering.result.recommendations = [{id: 'response-only'}];
+        $('<a>Missing data</a>').addClass(recommendations.marker.item).appendTo(rendering.$container);
+
+        [rendering.$container, $(), null].forEach(function ($container) {
+            recommendations._handleRender(rendering.result, rendering.option, $container);
+        });
+
+        expect(activities.length).toBe(3);
+        activities.forEach(function (activity) {
+            expect(activity.tags.assetIds).toBeUndefined();
+            expect(activity.tags.productIds).toBeUndefined();
+        });
+    });
+
+    it('reads existing control item IDs when the response has no recommendations', function () {
+        var rendering = setup(0, {active: true, isControl: true});
+        rendering.result.status.code = 7120;
+        var $item = $('<a>Existing item</a>').appendTo(rendering.$container);
+        recommendations.setRecommendationData($item, 0, {id: 'existing'});
+
+        [[], undefined].forEach(function (items) {
+            rendering.result.recommendations = items;
+            recommendations._handleRender(rendering.result, rendering.option, rendering.$container);
+        });
+
+        expect(activities.length).toBe(2);
+        activities.forEach(function (activity) {
+            expect(activity.tags.productIds).toEqual(['existing']);
+            expect(activity.tags.retrievedNrOfRecs).toBe(0);
+        });
+    });
+
+    it('omits IDs for empty results and unsuccessful render events', function () {
+        var rendering = setup(0);
+        [[], undefined, [null, {}, {id: ''}]].forEach(function (items) {
+            rendering.result.recommendations = items;
+            recommendations._handleRender(rendering.result, rendering.option, rendering.$container);
+        });
+        rendering.result.recommendations = [{id: 'not-rendered'}];
+        recommendations._handleRender(rendering.result, rendering.option, $());
+        rendering.result.status.code = 500;
+        recommendations._handleRender(rendering.result, rendering.option, rendering.$container);
+
+        expect(activities.length).toBe(5);
+        activities.forEach(function (activity) {
+            expect(activity.tags.assetIds).toBeUndefined();
+            expect(activity.tags.productIds).toBeUndefined();
+        });
     });
 
     it('preserves own assignments and supports opting out of inheritance', function () {
