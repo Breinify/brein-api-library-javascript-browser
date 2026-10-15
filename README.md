@@ -16,7 +16,7 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 
 ## Getting Started
 
-For feature-based experiences, see [Feature resolution and UI configuration](documentation/plugins/feature-resolution.md)
+For feature-based experiences, see [Feature resolution and UI configuration](../../brein-external/brein-external-script-creator/docs/feature-definitions.md#waiting-for-freshness-when-using-a-feature)
 for waiting on current-page observations while retaining persisted values.
 
 ### Retrieving an API-Key

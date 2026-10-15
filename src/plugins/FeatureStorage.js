@@ -2457,7 +2457,7 @@
          * ready() waits until all entries settle; navigation/disposal cancels existing waits.
          * subscribe(listener) observes subsequent snapshots and returns a listener disposer.
          * Navigation starts a new wait window; dispose() releases timers, listeners and pending waits.
-         * See documentation/plugins/feature-resolution.md for the consumer and UI contracts.
+         * See Script Creator's docs/feature-definitions.md for the consumer and UI contracts.
          */
         createResolver: function (requests) {
             return _private.createResolver(requests);
