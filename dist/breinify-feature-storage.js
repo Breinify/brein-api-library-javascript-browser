@@ -35,6 +35,7 @@
         pendingObservations: {},
         pageHref: null,
         pageId: 0,
+        resolvers: new Set(),
 
         featureDefinitions: {},
 
@@ -147,6 +148,7 @@
                 Breinify.plugins.trigger.addUrlChangeObserver('featureStorage-location-watchers', function () {
                     self.getPageId();
                     self.reconcileLocationWatchers(false);
+                    self.notifyResolvers();
                 });
 
                 this.locationWatcherInitialized = true;
@@ -1028,6 +1030,7 @@
                 }
 
                 this.notifyFeatureObservations(observedNames, observationListeners);
+                this.notifyResolvers();
             } finally {
                 this.flushingFeatureChanges = false;
             }
@@ -1094,6 +1097,189 @@
             } else {
                 return false;
             }
+        },
+
+        notifyResolvers: function () {
+            Array.from(this.resolvers).forEach(function (resolver) {
+                try {
+                    resolver.snapshot();
+                } catch (e) {
+                    _private.debugError('feature resolution failed', e);
+                }
+            });
+        },
+
+        normalizeResolutionRequests: function (requests) {
+            if (!Array.isArray(requests)) {
+                throw new TypeError('feature resolution requests must be an array');
+            }
+
+            const keys = new Set();
+            return requests.map(function (request) {
+                const feature = _private.normalizeName(request && request.feature);
+                const key = _private.normalizeName(request && request.key) || feature;
+                const resolution = request && request.resolution;
+                if (feature === '' || keys.has(key) ||
+                    key === '__proto__' || key === 'constructor' || key === 'prototype' ||
+                    (resolution !== undefined && !$.isPlainObject(resolution))) {
+                    throw new TypeError('feature resolution requires a feature, unique key and resolution object');
+                }
+
+                const config = resolution || {};
+                const source = config.source === undefined ? 'CURRENT' : config.source;
+                const timeout = config.waitTimeoutInMs === undefined ? 3000 : config.waitTimeoutInMs;
+                const onTimeout = config.onTimeout === undefined ? 'UNAVAILABLE' : config.onTimeout;
+                if ((source !== 'CURRENT' && source !== 'PAGE') ||
+                    typeof timeout !== 'number' || !isFinite(timeout) || Math.floor(timeout) !== timeout ||
+                    timeout < 0 || timeout > 2147483647 ||
+                    (onTimeout !== 'USE_STORED' && onTimeout !== 'UNAVAILABLE')) {
+                    throw new TypeError('invalid feature resolution source, waitTimeoutInMs or onTimeout');
+                }
+
+                keys.add(key);
+                return {key: key, feature: feature, source: source, timeout: timeout, onTimeout: onTimeout};
+            });
+        },
+
+        createResolver: function (requests) {
+            const normalized = this.normalizeResolutionRequests(requests);
+            let pageId = this.getPageId();
+            let startedAt = Date.now();
+            let timer = null;
+            let disposed = false;
+            let updating = false;
+            let current = null;
+            let waiters = [];
+            const listeners = new Set();
+            const copy = function (snapshot) {
+                return $.extend(true, {}, snapshot);
+            };
+            const cancelWaiters = function () {
+                const pending = waiters;
+                waiters = [];
+                pending.forEach(function (resolve) {
+                    resolve({pageId: pageId, status: 'CANCELLED', values: {}, entries: {}});
+                });
+            };
+            const clearTimer = function () {
+                if (timer !== null) {
+                    window.clearTimeout(timer);
+                    timer = null;
+                }
+            };
+
+            const resolver = {
+                snapshot: function () {
+                    if (disposed) {
+                        return {pageId: pageId, status: 'CANCELLED', values: {}, entries: {}};
+                    } else if (updating) {
+                        return copy(current);
+                    }
+
+                    updating = true;
+                    try {
+                        const nextPageId = _private.getPageId();
+                        if (nextPageId !== pageId) {
+                            cancelWaiters();
+                            pageId = nextPageId;
+                            startedAt = Date.now();
+                        }
+
+                        clearTimer();
+                        const snapshot = {pageId: pageId, status: 'READY', values: {}, entries: {}};
+                        let nextWait = Infinity;
+                        normalized.forEach(function (request) {
+                            const name = request.feature;
+                            const definition = _private.featureDefinitions[name];
+                            const stored = _private.normalizeFeatureValue(
+                                _private.currentFeatures[name], definition && definition.valueType);
+                            const observation = _private.observations[name];
+                            const observed = observation && observation.pageId === pageId;
+                            const entry = {feature: name, value: null, status: 'UNAVAILABLE', source: null};
+                            const remaining = startedAt + request.timeout - Date.now();
+
+                            if (observed || request.source === 'CURRENT') {
+                                entry.value = stored;
+                                entry.source = observed ? 'PAGE' : 'STORED';
+                                entry.status = stored === null ? 'UNAVAILABLE' : 'READY';
+                            } else if (remaining > 0) {
+                                entry.status = 'PENDING';
+                                nextWait = Math.min(nextWait, remaining);
+                            } else if (request.onTimeout === 'USE_STORED') {
+                                entry.value = stored;
+                                entry.source = 'STORED';
+                                entry.status = stored === null ? 'UNAVAILABLE' : 'READY';
+                            }
+
+                            snapshot.entries[request.key] = entry;
+                            snapshot.values[request.key] = entry.value;
+                            if (entry.status === 'PENDING') {
+                                snapshot.status = 'PENDING';
+                            } else if (entry.status === 'UNAVAILABLE' && snapshot.status !== 'PENDING') {
+                                snapshot.status = 'UNAVAILABLE';
+                            }
+                        });
+
+                        if (nextWait !== Infinity) {
+                            timer = window.setTimeout(function () {
+                                timer = null;
+                                resolver.snapshot();
+                            }, nextWait);
+                        }
+
+                        const changed = !_private.isEqual(current, snapshot);
+                        current = snapshot;
+                        if (snapshot.status !== 'PENDING') {
+                            const pending = waiters;
+                            waiters = [];
+                            pending.forEach(function (resolve) { resolve(copy(snapshot)); });
+                        }
+                        if (changed) {
+                            Array.from(listeners).forEach(function (listener) {
+                                if (disposed) return;
+                                try {
+                                    listener(copy(snapshot));
+                                } catch (e) {
+                                    _private.debugError('feature resolution listener failed', e);
+                                }
+                            });
+                        }
+                        return copy(snapshot);
+                    } finally {
+                        updating = false;
+                    }
+                },
+
+                ready: function () {
+                    const snapshot = this.snapshot();
+                    if (snapshot.status !== 'PENDING') {
+                        return Promise.resolve(snapshot);
+                    }
+                    return new Promise(function (resolve) { waiters.push(resolve); });
+                },
+
+                subscribe: function (listener) {
+                    if (!$.isFunction(listener)) {
+                        throw new TypeError('feature resolution listener must be a function');
+                    } else if (!disposed) {
+                        listeners.add(listener);
+                    }
+                    return function () { listeners.delete(listener); };
+                },
+
+                dispose: function () {
+                    disposed = true;
+                    clearTimer();
+                    cancelWaiters();
+                    listeners.clear();
+                    _private.resolvers.delete(resolver);
+                }
+            };
+
+            this.resolvers.add(resolver);
+            this.ensureLocationWatcherSupport();
+            resolver.snapshot();
+            return resolver;
         },
 
         /** Tracks visits, not just URLs, so returning to a previous SPA URL is a new page context. */
@@ -2258,6 +2444,23 @@
         observation: function (name) {
             const observation = _private.observations[name];
             return observation ? $.extend({}, observation) : null;
+        },
+
+        /**
+         * Creates a consumer-owned resolver without modifying stored values or persistence.
+         * Requests are {key?, feature, resolution?: {source, waitTimeoutInMs, onTimeout}}.
+         * source is CURRENT (default) or PAGE; timeout defaults to 3000 milliseconds.
+         * onTimeout is UNAVAILABLE (default) or USE_STORED. Explicit page observations of null
+         * settle as unavailable and never fall back to a previous value.
+         *
+         * snapshot() returns {pageId, status, values, entries}, keyed by the request key or feature name.
+         * ready() waits until all entries settle; navigation/disposal cancels existing waits.
+         * subscribe(listener) observes subsequent snapshots and returns a listener disposer.
+         * Navigation starts a new wait window; dispose() releases timers, listeners and pending waits.
+         * See documentation/plugins/feature-resolution.md for the consumer and UI contracts.
+         */
+        createResolver: function (requests) {
+            return _private.createResolver(requests);
         },
 
         /** Returns the current SPA visit identifier; it is not persisted across full page loads. */

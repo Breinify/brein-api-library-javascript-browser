@@ -312,6 +312,7 @@
 
             return !(
                 (requestedWebExId !== null && requestedWebExId !== renderedWebExId) ||
+                (normalizedRequestedIdentity.exactPosition === true && requestedPositionId !== renderedPositionId) ||
                 (requestedPositionId !== null && requestedPositionId !== renderedPositionId) ||
                 (requestedRecommenderName !== null && requestedRecommenderName !== renderedRecommenderName)
             );

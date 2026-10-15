@@ -16,6 +16,9 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 
 ## Getting Started
 
+For feature-based experiences, see [Feature resolution and UI configuration](documentation/plugins/feature-resolution.md)
+for waiting on current-page observations while retaining persisted values.
+
 ### Retrieving an API-Key
 
 First of all, you need a valid API-key, which you can get for free at [https://www.breinify.com](https://www.breinify.com). In the examples, we assume you have the following api-key:

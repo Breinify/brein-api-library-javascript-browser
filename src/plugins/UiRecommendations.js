@@ -91,6 +91,7 @@
                 onLoadHandling: false,
                 featureObserverRegistered: false,
                 featureObserver: null,
+                featureResolutions: {},
                 lastFeatureRefreshConfig: null,
                 recommendationBatchLocks: {},
                 /*
@@ -442,7 +443,16 @@
             const payloadByPositionId = {};
             for (let i = 0; i < relevance.affectedWebExpPos.length; i++) {
                 const pos = relevance.affectedWebExpPos[i];
+                const bindings = this._getPositionFeatureBindings(webExId, pos);
+                if (bindings.mappings.some(mapping => typeof mapping?.resolution !== "undefined")) {
+                    // the shared resolver batches observations and owns freshness for opted-in positions
+                    continue;
+                }
                 payloadByPositionId[pos] = this._buildPayloadUpdateForWebExpPos(webExId, pos, payload);
+            }
+
+            if (Object.keys(payloadByPositionId).length === 0) {
+                return;
             }
 
             const refreshConfig = {
@@ -459,7 +469,29 @@
             }
 
             runtime.lastFeatureRefreshConfig = $.extend(true, {}, refreshConfig);
-            Breinify.plugins.recommendations.refresh(refreshConfig);
+            const positions = this._getFeatureBindings()?.[webExId]?.webExpPos || {};
+            const hasResolution = Object.values(positions).some(position =>
+                (position.mappings || []).some(mapping => typeof mapping?.resolution !== "undefined"));
+            if (!hasResolution) {
+                Breinify.plugins.recommendations.refresh(refreshConfig);
+                return;
+            }
+
+            // mixed experiences must not refresh a waiting position through another position's legacy listener
+            const identities = new Set();
+            document.querySelectorAll('[data-br-rec-webexpid="' + webExId + '"]').forEach(container => {
+                const pos = container.getAttribute('data-br-rec-positionid');
+                const bindings = this._getPositionFeatureBindings(webExId, pos);
+                if (!Object.prototype.hasOwnProperty.call(payloadByPositionId, bindings.key)) return;
+                const identity = {webExId: webExId, positionId: pos, exactPosition: true,
+                    recommenderName: container.getAttribute('data-br-rec-name')};
+                const key = JSON.stringify(identity);
+                if (identities.has(key)) return;
+                identities.add(key);
+                Breinify.plugins.recommendations.refresh({
+                    payload: payloadByPositionId[bindings.key], renderIdentity: identity
+                });
+            });
         },
 
         _rememberInitialFeatureRefreshConfig: function (webExId, webExVersionId, recommendations) {
@@ -652,6 +684,11 @@
         },
 
         _buildPayloadUpdateForWebExpPos: function (webExId, webExpPos, payload) {
+            const bindings = this._getPositionFeatureBindings(webExId, webExpPos);
+            return this._buildPayloadUpdateForMappings(bindings.mappings, payload);
+        },
+
+        _getPositionFeatureBindings: function (webExId, webExpPos) {
             const bindings = this._getFeatureBindings();
             const webExBindings = $.isPlainObject(bindings?.[webExId]) ? bindings[webExId] : {};
             const webExpPosBindings = $.isPlainObject(webExBindings?.webExpPos) ? webExBindings.webExpPos : {};
@@ -659,8 +696,10 @@
             const normalizedPos = Breinify.UTL.isNonEmptyString(webExpPos);
 
             let posConfig;
+            let key = this._defaultPos;
             if (normalizedPos !== null && $.isPlainObject(webExpPosBindings[normalizedPos])) {
                 posConfig = webExpPosBindings[normalizedPos];
+                key = normalizedPos;
             } else if ($.isPlainObject(webExpPosBindings[this._defaultPos])) {
                 posConfig = webExpPosBindings[this._defaultPos];
             } else {
@@ -668,7 +707,86 @@
             }
 
             const mappings = $.isArray(posConfig.mappings) ? posConfig.mappings : [];
-            return this._buildPayloadUpdateForMappings(mappings, payload);
+            return {key: key, mappings: mappings};
+        },
+
+        _getFeatureResolution: function (webExId, webExpPos, runtime) {
+            const bindings = this._getPositionFeatureBindings(webExId, webExpPos);
+            const key = Breinify.UTL.isNonEmptyString(webExpPos) || this._defaultPos;
+            if (!bindings.mappings.some(mapping => typeof mapping?.resolution !== "undefined")) {
+                return null;
+            } else if (runtime.featureResolutions[key]) {
+                return runtime.featureResolutions[key];
+            }
+
+            const storage = Breinify.plugins.featureStorage;
+            if (!$.isFunction(storage?.createResolver)) {
+                throw new Error('recommendation feature resolution requires FeatureStorage.createResolver');
+            }
+
+            const requests = [];
+            bindings.mappings.forEach((mapping, index) => {
+                this._getMappingDependencies(mapping).forEach(function (feature) {
+                    requests.push({key: index + ':' + feature, feature: feature, resolution: mapping.resolution});
+                });
+            });
+            const state = {
+                key: key,
+                mappings: bindings.mappings,
+                resolver: storage.createResolver(requests),
+                inFlight: 0,
+                lastPayload: null,
+                rendered: false,
+                renderIdentities: {},
+                pendingProcesses: new Map(),
+                disposed: false
+            };
+            runtime.featureResolutions[key] = state;
+            state.resolver.subscribe(snapshot => {
+                state.pendingProcesses.forEach((pending, processId) => {
+                    if (pending.pageId !== snapshot.pageId) {
+                        Breinify.plugins.recommendations.cancel(processId);
+                        pending.release();
+                    }
+                });
+                this._refreshResolvedFeatures(webExId, state);
+            });
+            return state;
+        },
+
+        _createResolvedFeatureContext: function (state, snapshot) {
+            const storage = Breinify.plugins.featureStorage;
+            return {
+                features: storage.all(),
+                featureMeta: storage.allMeta(),
+                changed: {},
+                resolvedEntries: snapshot.entries
+            };
+        },
+
+        _refreshResolvedFeatures: function (webExId, state) {
+            if (state.disposed || state.inFlight > 0 || state.rendered !== true) {
+                return;
+            }
+
+            const snapshot = state.resolver.snapshot();
+            if (snapshot.status === 'PENDING' || snapshot.status === 'CANCELLED') {
+                return;
+            }
+            const context = this._createResolvedFeatureContext(state, snapshot);
+            const payload = this._buildPayloadUpdateForMappings(state.mappings, context);
+            if (Breinify.UTL.equals(state.lastPayload, payload) === true) {
+                return;
+            }
+
+            if (document.querySelector('[data-br-rec-webexpid="' + webExId + '"]') === null) {
+                return;
+            }
+
+            state.lastPayload = $.extend(true, {}, payload);
+            Object.values(state.renderIdentities).forEach(function (identity) {
+                Breinify.plugins.recommendations.refresh({payload: payload, renderIdentity: identity});
+            });
         },
 
         _applyMappingToPayloadUpdate: function (payloadUpdate, mapping, payload) {
@@ -681,7 +799,7 @@
             const type = Breinify.UTL.isNonEmptyString(mapping.type);
             const resolvedValue = this._resolveMappingValue(mapping, payload);
 
-            if (type === null || resolvedValue === null) {
+            if (type === null || (resolvedValue === null && payload?.clearUnavailable !== true)) {
                 return payloadUpdate;
             } else if (type === "forItems") {
                 payloadUpdate.recommendationForItems = resolvedValue;
@@ -720,7 +838,17 @@
             let payloadUpdate = {};
 
             for (let i = 0; i < normalizedMappings.length; i++) {
-                payloadUpdate = this._applyMappingToPayloadUpdate(payloadUpdate, normalizedMappings[i], payload);
+                const mapping = normalizedMappings[i];
+                let context = payload;
+                if ($.isPlainObject(payload?.resolvedEntries)) {
+                    const features = $.extend({}, payload.features);
+                    this._getMappingDependencies(mapping).forEach(function (name) {
+                        const entry = payload.resolvedEntries[i + ':' + name];
+                        features[name] = entry && entry.status === 'READY' ? entry.value : null;
+                    });
+                    context = $.extend({}, payload, {features: features, clearUnavailable: true});
+                }
+                payloadUpdate = this._applyMappingToPayloadUpdate(payloadUpdate, mapping, context);
             }
 
             return payloadUpdate;
@@ -887,8 +1015,38 @@
             let recommendationBatchLockKey = null;
             let acquiredRecommendationBatchLock = false;
             let nextAnchorState = null;
+            let ownsOnLoadHandling = false;
+            const resolutions = normalizedRecommendations.map(recommendation =>
+                this._getFeatureResolution(webExId, recommendation?.position?.positionId, runtime));
+            const states = Array.from(new Set(resolutions.filter(state => state !== null)));
+            const storage = Breinify.plugins.featureStorage;
+            const pageId = states.length > 0 ? storage.getPageId() : null;
+            const contexts = new Map();
+            let releaseResolutions = true;
+            let released = false;
+            let processId = null;
+            const release = () => {
+                if (released) return;
+                released = true;
+                states.forEach(state => {
+                    state.inFlight--;
+                    state.pendingProcesses.delete(processId);
+                    Promise.resolve().then(() => this._refreshResolvedFeatures(webExId, state));
+                });
+            };
+            states.forEach(state => { state.inFlight++; });
 
             try {
+                if (states.length > 0) {
+                    const snapshots = await Promise.all(states.map(state => state.resolver.ready()));
+                    if (storage.getPageId() !== pageId || snapshots.some(snapshot => snapshot.status === 'CANCELLED')) {
+                        return;
+                    }
+                    states.forEach(state => {
+                        const snapshot = state.resolver.snapshot();
+                        contexts.set(state, this._createResolvedFeatureContext(state, snapshot));
+                    });
+                }
                 /*
                  * If we have a handlingType of `onLoad` we only expect the actual element to be rendered once.
                  * This protects against repeated trigger executions caused by DOM changes or history handling.
@@ -900,6 +1058,7 @@
                     }
 
                     runtime.onLoadHandling = true;
+                    ownsOnLoadHandling = true;
                 }
                 /*
                  * If onChange is used we may be on an attribute activation path, we need to ensure that we are
@@ -931,9 +1090,10 @@
                 }
 
                 const results = await Promise.all(
-                    normalizedRecommendations.map((recommendation) =>
+                    normalizedRecommendations.map((recommendation, index) =>
                         Promise.resolve()
-                            .then(() => this._handle(webExId, webExVersionId, recommendation, config, runtime))
+                            .then(() => this._handle(webExId, webExVersionId, recommendation, config, runtime,
+                                contexts.get(resolutions[index])))
                             .catch(function (err) {
                                 console.error(err);
                                 return null;
@@ -946,6 +1106,12 @@
                 });
 
                 if (filteredResults.length === 0) {
+                    return;
+                } else if (states.length > 0 &&
+                    (storage.getPageId() !== pageId || states.some(state => state.disposed))) {
+                    return;
+                } else if (hasAttributeActivation && states.length > 0 &&
+                    Object.values(nextAnchorState || {}).some(state => state.anchorElement?.isConnected !== true)) {
                     return;
                 }
 
@@ -970,8 +1136,47 @@
                 }
 
                 try {
-                    Breinify.plugins.recommendations.render(filteredResults);
+                    if (states.length > 0) {
+                        states.forEach(state => {
+                            const context = contexts.get(state);
+                            state.lastPayload = this._buildPayloadUpdateForMappings(state.mappings, context);
+                        });
+                        let remaining = filteredResults.length;
+                        results.forEach((option, index) => {
+                            if (!$.isPlainObject(option)) return;
+                            const state = resolutions[index];
+                            if (state) {
+                                const identity = $.extend({}, option.meta.renderIdentity, {exactPosition: true});
+                                state.renderIdentities[JSON.stringify(identity)] = identity;
+                            }
+                            let completed = false;
+                            const finalize = option.process?.finalize;
+                            this.ensureObject(option, 'process');
+                            option.process.finalize = function () {
+                                try {
+                                    if ($.isFunction(finalize)) finalize.apply(this, arguments);
+                                } finally {
+                                    if (!completed) {
+                                        completed = true;
+                                        remaining--;
+                                        if (state && storage.getPageId() === pageId) state.rendered = true;
+                                        if (remaining === 0) release();
+                                    }
+                                }
+                            };
+                        });
+                        releaseResolutions = false;
+                    }
+                    processId = Breinify.plugins.recommendations.render(filteredResults);
+                    if (!released && processId != null) {
+                        states.forEach(state => {
+                            state.pendingProcesses.set(processId, {pageId: pageId, release: release});
+                        });
+                    }
                 } catch (e) {
+                    if (!releaseResolutions && states.some(state => state.inFlight > 0)) {
+                        release();
+                    }
                     if (acquiredRecommendationBatchLock !== true) {
                         this._releaseRecommendationBatchLock(runtime, recommendationBatchLockKey);
                     }
@@ -979,7 +1184,10 @@
                     throw e;
                 }
             } finally {
-                if (handlingType === "onLoad") {
+                if (releaseResolutions) {
+                    release();
+                }
+                if (ownsOnLoadHandling) {
                     runtime.onLoadHandling = false;
                 }
 
@@ -1113,7 +1321,7 @@
             runtime.anchorState = {};
         },
 
-        _handle: async function (webExId, webExVersionId, singleConfig, configuration, runtime) {
+        _handle: async function (webExId, webExVersionId, singleConfig, configuration, runtime, featureContext) {
             if (!$.isPlainObject(singleConfig)) {
                 return null;
             }
@@ -1121,7 +1329,7 @@
             const extensionModule = this._getExtensionModule();
 
             const frameworkConfig = {};
-            frameworkConfig.recommender = await this._createFeatureEnrichedPayload(webExId, singleConfig);
+            frameworkConfig.recommender = await this._createFeatureEnrichedPayload(webExId, singleConfig, featureContext);
             frameworkConfig.activity = this._createActivitySettings(singleConfig);
             frameworkConfig.splitTests = this._createSplitTestsSettings(webExId, configuration, singleConfig);
             frameworkConfig.position = this._createPosition(webExId, configuration, singleConfig, runtime);
@@ -1560,7 +1768,7 @@
             };
         },
 
-        _createFeatureEnrichedPayload: async function (webExId, singleConfig) {
+        _createFeatureEnrichedPayload: async function (webExId, singleConfig, featureContext) {
             let recommenderConfig = await this._createPayload(singleConfig?.recommender);
             if (!$.isPlainObject(recommenderConfig)) {
                 recommenderConfig = {};
@@ -1571,7 +1779,7 @@
             const features = $.isFunction(featureStorage?.all) ? featureStorage.all() : {};
             const featureMeta = $.isFunction(featureStorage?.allMeta) ? featureStorage.allMeta() : {};
 
-            const payloadContext = {
+            const payloadContext = featureContext || {
                 features: features,
                 featureMeta: featureMeta,
                 changed: {}
@@ -1745,6 +1953,30 @@
     };
 
     Breinify.plugins._add("uiRecommendations", {
+        /**
+         * Releases feature subscriptions, pending resolutions and renders when an experience is removed.
+         */
+        unregister: function (webExId) {
+            const runtime = _private._runtimeByWebExId[webExId];
+            if (!runtime) return;
+            const storage = Breinify.plugins.featureStorage;
+            if (runtime.featureObserver && $.isFunction(storage?.offChange)) {
+                storage.offChange(runtime.featureObserver);
+            }
+            Object.values(runtime.featureResolutions).forEach(function (state) {
+                state.disposed = true;
+                state.resolver.dispose();
+                state.pendingProcesses.forEach(function (pending, processId) {
+                    Breinify.plugins.recommendations.cancel(processId);
+                    pending.release();
+                });
+            });
+            Object.keys(runtime.recommendationBatchLocks).forEach(function (key) {
+                _private._releaseRecommendationBatchLock(runtime, key);
+            });
+            delete _private._runtimeByWebExId[webExId];
+        },
+
         buildPayloadUpdateForWebExpPos: function (webExId, webExpPos, payload) {
             return _private._buildPayloadUpdateForWebExpPos(webExId, webExpPos, payload);
         },
