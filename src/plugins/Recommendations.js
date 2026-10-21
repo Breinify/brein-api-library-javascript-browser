@@ -196,6 +196,9 @@
             const requestedRenderIdentity = $.isPlainObject(normalizedRefreshOptions.renderIdentity)
                 ? normalizedRefreshOptions.renderIdentity
                 : {};
+            const requestedRenderIdentities = $.isArray(normalizedRefreshOptions.renderIdentities)
+                ? normalizedRefreshOptions.renderIdentities.filter(identity => $.isPlainObject(identity))
+                : null;
 
             const $parents = $("." + this.marker.parentContainer);
             if ($parents.length === 0) {
@@ -231,6 +234,9 @@
                     : {};
 
                 if (_self._matchesRenderIdentity(renderedRenderIdentity, requestedRenderIdentity) !== true) {
+                    return;
+                } else if (requestedRenderIdentities !== null && !requestedRenderIdentities.some(identity =>
+                    _self._matchesRenderIdentity(renderedRenderIdentity, identity))) {
                     return;
                 }
 

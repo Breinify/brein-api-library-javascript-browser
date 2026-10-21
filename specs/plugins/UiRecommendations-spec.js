@@ -92,6 +92,12 @@ describe('UiRecommendations feature resolution', function () {
                 'data-br-rec-positionid': identity.positionId,
                 'data-br-rec-name': identity.recommenderName
             }).appendTo(root);
+            // mirror the group and container data retained by the recommendation renderer
+            option.recommender.payload.recommendationGroup = webExId + '-initial-group';
+            container.addClass('brrc-pcont brrc-cont').data('recommendation', {
+                option: option,
+                data: {status: {code: 200}}
+            });
             option.process.finalize(option, {status: {code: 200}}, container);
         });
     }
@@ -142,6 +148,71 @@ describe('UiRecommendations feature resolution', function () {
         expect(Breinify.plugins.recommendations.refresh.calls.count()).toBe(1);
     });
 
+    ['pdp', 'second-position'].forEach(function (position) {
+        it('keeps two recommenders batched after a SKU change at ' + position, async function () {
+            config.recommendations.push({
+                recommender: {preconfiguredRecommendation: 'Related'},
+                position: {positionId: position, operation: 'append', selector: 'body'}
+            });
+            Breinify.plugins.recommendations.refresh.and.callThrough();
+            storage.set(sku, 'A');
+            storage.set(category, 'category');
+            ui.handle(webExId, 'version', config);
+            await drain();
+            expect(options.length).toBe(1);
+            expect(options[0].length).toBe(2);
+            finish();
+            await drain();
+
+            storage.set(sku, 'B');
+            storage.flush();
+            expect(Breinify.plugins.recommendations.refresh.calls.count()).toBe(1);
+            expect(options.length).toBe(2);
+            expect(options[1].length).toBe(2);
+            options[1].forEach(function (option) {
+                expect(option.recommender.payload.recommendationForItems).toEqual(['B']);
+                expect(option.recommender.payload.recommendationAdditionalParameters
+                    .additionalOtherParameters.productCategory).toBe('category');
+            });
+
+            storage.set(sku, 'B');
+            storage.flush();
+            expect(options.length).toBe(2);
+        });
+    });
+
+    it('preserves distinct position payloads and excludes unchanged placements in the same group', async function () {
+        bindings[webExId].webExpPos.second = {mappings: [
+            {type: 'forItems', feature: category, resolution: {source: 'PAGE'}}
+        ]};
+        bindings[webExId].webExpPos.unchanged = {mappings: []};
+        ['second', 'unchanged'].forEach(function (position) {
+            config.recommendations.push({
+                recommender: {preconfiguredRecommendation: position},
+                position: {positionId: position, operation: 'append', selector: 'body'}
+            });
+        });
+        Breinify.plugins.recommendations.refresh.and.callThrough();
+        storage.set(sku, 'A');
+        storage.set(category, 'old category');
+        ui.handle(webExId, 'version', config);
+        await drain();
+        expect(options[0].length).toBe(3);
+        finish();
+        await drain();
+
+        storage.set(sku, 'B');
+        storage.set(category, 'new category');
+        storage.flush();
+        expect(Breinify.plugins.recommendations.refresh.calls.count()).toBe(1);
+        expect(options.length).toBe(2);
+        expect(options[1].length).toBe(2);
+        expect(options[1][0].recommender.payload.recommendationForItems).toEqual(['B']);
+        expect(options[1][1].recommender.payload.recommendationForItems).toEqual(['new category']);
+        expect(options[1][0].meta.renderIdentity.positionId).toBe('pdp');
+        expect(options[1][1].meta.renderIdentity.positionId).toBe('second');
+    });
+
     it('rechecks a changed feature after the initial response finishes rendering', async function () {
         storage.set(sku, 'A');
         storage.set(category, 'category');
@@ -156,6 +227,40 @@ describe('UiRecommendations feature resolution', function () {
         expect(Breinify.plugins.recommendations.refresh.calls.count()).toBe(1);
         expect(Breinify.plugins.recommendations.refresh.calls.mostRecent().args[0].payload.recommendationForItems)
             .toEqual(['B']);
+    });
+
+    it('does not pull a position still waiting for page features into a ready position refresh', async function () {
+        mappings.splice(1, 1);
+        bindings[webExId].webExpPos.second = {mappings: [
+            {type: 'forItems', feature: category,
+                resolution: {source: 'PAGE', waitTimeoutInMs: 3000, onTimeout: 'USE_STORED'}}
+        ]};
+        config.recommendations.push({
+            recommender: {preconfiguredRecommendation: 'Related'},
+            position: {positionId: 'second', operation: 'append', selector: 'body'}
+        });
+        Breinify.plugins.recommendations.refresh.and.callThrough();
+        storage.set(sku, 'A');
+        storage.set(category, 'old category');
+        ui.handle(webExId, 'version', config);
+        await drain();
+        finish();
+        await drain();
+
+        window.history.replaceState({}, '', '#ui-resolution-partial-' + sequence);
+        storage.set(sku, 'B');
+        storage.flush();
+        expect(options.length).toBe(2);
+        expect(options[1].length).toBe(1);
+        expect(options[1][0].meta.renderIdentity.positionId).toBe('pdp');
+        expect(options[1][0].recommender.payload.recommendationForItems).toEqual(['B']);
+
+        storage.set(category, 'new category');
+        storage.flush();
+        expect(options.length).toBe(3);
+        expect(options[2].length).toBe(1);
+        expect(options[2][0].meta.renderIdentity.positionId).toBe('second');
+        expect(options[2][0].recommender.payload.recommendationForItems).toEqual(['new category']);
     });
 
     it('coalesces overlapping initial handlers waiting for the same features', async function () {

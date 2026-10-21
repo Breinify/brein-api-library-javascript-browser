@@ -92,6 +92,7 @@
                 featureObserverRegistered: false,
                 featureObserver: null,
                 featureResolutions: {},
+                refreshingResolvedFeatures: false,
                 lastFeatureRefreshConfig: null,
                 recommendationBatchLocks: {},
                 /*
@@ -749,7 +750,7 @@
                         pending.release();
                     }
                 });
-                this._refreshResolvedFeatures(webExId, state);
+                this._refreshResolvedFeatures(webExId, runtime);
             });
             return state;
         },
@@ -764,29 +765,60 @@
             };
         },
 
-        _refreshResolvedFeatures: function (webExId, state) {
-            if (state.disposed || state.inFlight > 0 || state.rendered !== true) {
+        _refreshResolvedFeatures: function (webExId, runtime) {
+            if (runtime.refreshingResolvedFeatures || this._runtimeByWebExId[webExId] !== runtime) {
+                return;
+            } else if (document.querySelector('[data-br-rec-webexpid="' + webExId + '"]') === null) {
                 return;
             }
 
-            const snapshot = state.resolver.snapshot();
-            if (snapshot.status === 'PENDING' || snapshot.status === 'CANCELLED') {
-                return;
-            }
-            const context = this._createResolvedFeatureContext(state, snapshot);
-            const payload = this._buildPayloadUpdateForMappings(state.mappings, context);
-            if (Breinify.UTL.equals(state.lastPayload, payload) === true) {
-                return;
-            }
+            /*
+             * Read every position from the same feature update before refreshing. Reading a resolver can notify
+             * its subscribers synchronously, so guard reentry while collecting the affected render identities.
+             */
+            runtime.refreshingResolvedFeatures = true;
+            try {
+                const renderIdentities = [];
+                const payloadByPositionId = {};
+                Object.values(runtime.featureResolutions).forEach(state => {
+                    if (state.disposed || state.inFlight > 0 || state.rendered !== true) {
+                        return;
+                    }
 
-            if (document.querySelector('[data-br-rec-webexpid="' + webExId + '"]') === null) {
-                return;
-            }
+                    const snapshot = state.resolver.snapshot();
+                    if (snapshot.status === 'PENDING' || snapshot.status === 'CANCELLED') {
+                        return;
+                    }
+                    const context = this._createResolvedFeatureContext(state, snapshot);
+                    const payload = this._buildPayloadUpdateForMappings(state.mappings, context);
+                    if (Breinify.UTL.equals(state.lastPayload, payload) === true) {
+                        return;
+                    }
 
-            state.lastPayload = $.extend(true, {}, payload);
-            Object.values(state.renderIdentities).forEach(function (identity) {
-                Breinify.plugins.recommendations.refresh({payload: payload, renderIdentity: identity});
-            });
+                    state.lastPayload = $.extend(true, {}, payload);
+                    Object.values(state.renderIdentities).forEach(identity => {
+                        const pos = Breinify.UTL.isNonEmptyString(identity.positionId) || this._defaultPos;
+                        payloadByPositionId[pos] = payload;
+                        renderIdentities.push(identity);
+                    });
+                });
+
+                if (renderIdentities.length === 1) {
+                    const identity = renderIdentities[0];
+                    const pos = Breinify.UTL.isNonEmptyString(identity.positionId) || this._defaultPos;
+                    Breinify.plugins.recommendations.refresh({
+                        payload: payloadByPositionId[pos], renderIdentity: identity
+                    });
+                } else if (renderIdentities.length > 1) {
+                    Breinify.plugins.recommendations.refresh({
+                        payloadByPositionId: payloadByPositionId,
+                        renderIdentity: {webExId: webExId},
+                        renderIdentities: renderIdentities
+                    });
+                }
+            } finally {
+                runtime.refreshingResolvedFeatures = false;
+            }
         },
 
         _applyMappingToPayloadUpdate: function (payloadUpdate, mapping, payload) {
@@ -1031,7 +1063,7 @@
                 states.forEach(state => {
                     state.inFlight--;
                     state.pendingProcesses.delete(processId);
-                    Promise.resolve().then(() => this._refreshResolvedFeatures(webExId, state));
+                    Promise.resolve().then(() => this._refreshResolvedFeatures(webExId, runtime));
                 });
             };
             states.forEach(state => { state.inFlight++; });
