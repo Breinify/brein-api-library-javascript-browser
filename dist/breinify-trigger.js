@@ -199,7 +199,11 @@
                     return;
                 }
 
-                _self.executeOnChange(module, $el, normalizedDetails);
+                try {
+                    _self.executeOnChange(module, $el, normalizedDetails);
+                } catch (e) {
+                    console.error('failed to handle DOM change for module: ' + name, e);
+                }
             });
         },
 
