@@ -171,10 +171,8 @@
                 let cookieName = Breinify.UTL.cookies.delayedActivities;
 
                 // store the activity in a cookie that will be evaluated each run
-                let activitiesData = {};
-                if (Breinify.UTL.cookie.check(cookieName)) {
-                    activitiesData = Breinify.UTL.cookie.getJson(cookieName);
-                }
+                const storedData = this.getAll();
+                const activitiesData = $.isPlainObject(storedData) ? storedData : {};
 
                 // add the new activityData to the list
                 let activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
@@ -184,12 +182,21 @@
                 let domain = Breinify.UTL.cookie.domain();
                 Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
 
-                return activityDataId;
+                // cookie writes can fail silently when cookies are blocked or full
+                const storedActivity = this.get(activityDataId);
+                const storedJson = JSON.stringify(storedActivity);
+                const activityJson = JSON.stringify(activityData);
+                // match the unicode escaping applied by the cookie helper
+                const cookieJson = activityJson.replace(/[\u00A0-\u2666]/g, function (c) {
+                    return '&#' + c.charCodeAt(0) + ';';
+                });
+                return storedJson === cookieJson ? activityDataId : null;
             },
 
             getAll: function () {
                 let cookieName = Breinify.UTL.cookies.delayedActivities;
-                return Breinify.UTL.cookie.getJson(cookieName);
+                const activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+                return $.isPlainObject(activitiesData) ? activitiesData : null;
             },
 
             get: function (id) {
@@ -209,6 +216,9 @@
                 let cookieName = Breinify.UTL.cookies.delayedActivities;
 
                 let activitiesData = Breinify.UTL.cookie.getJson(cookieName);
+                if (!$.isPlainObject(activitiesData) || !Object.prototype.hasOwnProperty.call(activitiesData, id)) {
+                    return;
+                }
                 delete activitiesData[id];
 
                 Breinify.UTL.cookie.setJson(cookieName, activitiesData, null, true, domain);
@@ -218,7 +228,10 @@
             prefix: 'breinify-sa-data-',
 
             store: function (id, activityData) {
-                window.localStorage.setItem(this.prefix + id, JSON.stringify(activityData))
+                const activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
+                const json = JSON.stringify(activityData);
+                window.localStorage.setItem(this.prefix + activityDataId, json);
+                return activityDataId;
             },
 
             getAll: function () {
@@ -226,7 +239,7 @@
 
                 for (var i = 0, len = window.localStorage.length; i < len; ++i) {
                     let key = window.localStorage.key(i);
-                    if (key.indexOf(this.prefix) !== 0) {
+                    if (typeof key !== 'string' || key.indexOf(this.prefix) !== 0) {
                         continue;
                     }
 
@@ -245,8 +258,13 @@
             },
 
             get: function (id) {
-                let json = window.localStorage.getItem(this.prefix + id);
-                return typeof json === 'string' ? JSON.parse(json) : null;
+                try {
+                    const json = window.localStorage.getItem(this.prefix + id);
+                    const entry = typeof json === 'string' ? JSON.parse(json) : null;
+                    return $.isPlainObject(entry) ? entry : null;
+                } catch (e) {
+                    return null;
+                }
             },
 
             remove: function (id) {
@@ -255,15 +273,48 @@
         }
     };
 
-    let usedDelayedActivitiesStorage;
-    try {
-        window.localStorage.setItem('br-local-storage-test', 'true');
-        window.localStorage.removeItem('br-local-storage-test');
+    const usedDelayedActivitiesStorage = {
+        _call: function (storage, method, args) {
+            try {
+                return storage[method].apply(storage, args);
+            } catch (e) {
+                return null;
+            }
+        },
 
-        usedDelayedActivitiesStorage = delayedActivitiesStorage.localStorage;
-    } catch (e) {
-        usedDelayedActivitiesStorage = delayedActivitiesStorage.cookieStorage;
-    }
+        store: function (id, activityData) {
+            const activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
+            const local = delayedActivitiesStorage.localStorage;
+            const cookie = delayedActivitiesStorage.cookieStorage;
+            const storedId = this._call(local, 'store', [activityDataId, activityData]);
+
+            if (storedId !== null) {
+                this._call(cookie, 'remove', [activityDataId]);
+                return storedId;
+            }
+
+            // remove a previous version before falling back to the cookie store
+            this._call(local, 'remove', [activityDataId]);
+            return this._call(cookie, 'store', [activityDataId, activityData]);
+        },
+
+        getAll: function () {
+            // always read both stores, including cookies written before navigation
+            const cookieData = this._call(delayedActivitiesStorage.cookieStorage, 'getAll', []);
+            const localData = this._call(delayedActivitiesStorage.localStorage, 'getAll', []);
+            return $.extend({}, cookieData, localData);
+        },
+
+        get: function (id) {
+            const localData = this._call(delayedActivitiesStorage.localStorage, 'get', [id]);
+            return localData === null ? this._call(delayedActivitiesStorage.cookieStorage, 'get', [id]) : localData;
+        },
+
+        remove: function (id) {
+            this._call(delayedActivitiesStorage.localStorage, 'remove', [id]);
+            this._call(delayedActivitiesStorage.cookieStorage, 'remove', [id]);
+        }
+    };
 
     const defaultAdditionalMutationObserverSettings = {
         settings: {
@@ -1244,7 +1295,7 @@
          * @param maxAgeInMs {number} the max age of the activity to be sent
          * @param filter {string=null} the filter that is executed when the delayed activity is found and in time
          * @param id {string=} the identifier (optional), should be set to override an existing scheduled activity
-         * @returns {string} the id assigned to the activity
+         * @returns {string|null} the id assigned to the activity, or null if it could not be stored
          */
         scheduleDelayedActivity: function (user, type, tags, maxAgeInMs, filter, id) {
 
