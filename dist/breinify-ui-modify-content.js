@@ -782,6 +782,26 @@
         changeContent: {
             isDomAction: true,
 
+            findRequirements: function (runtime, action, actionIndex, root, data) {
+                if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
+                    return false;
+                }
+
+                const targets = _private.getTargets(action, root);
+                const changeType = data && data.type ? data.type : "full-scan";
+                if (changeType === "full-scan") {
+                    return targets.length > 0;
+                }
+
+                for (let i = 0; i < targets.length; i++) {
+                    if (!_private.hasAppliedTarget(runtime, actionIndex, targets[i])) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+
             execute: function (action, runtime, actionIndex) {
                 if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) {
                     return;
