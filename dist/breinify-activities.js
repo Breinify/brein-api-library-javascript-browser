@@ -597,7 +597,7 @@
         },
 
         handleAdditionalMutationObserverChanges: function (selector, target, addedNodes, removedNodes) {
-            if (target !== null) {
+            if (Breinify.UTL.dom.isNodeType(target, 1)) {
                 const $el = $(target);
 
                 if ($el.is(selector)) {
@@ -606,12 +606,22 @@
             }
 
             for (let k = 0; k < addedNodes.length; k++) {
-                const $el = $(addedNodes[k]);
+                const addedNode = addedNodes[k];
+                if (!Breinify.UTL.dom.isNodeType(addedNode, 1)) {
+                    continue;
+                }
+
+                const $el = $(addedNode);
                 this.applyAdditionalMutationObserverChanges($el, selector, this.actions.added);
             }
 
             for (let k = 0; k < removedNodes.length; k++) {
-                const $el = $(removedNodes[k]);
+                const removedNode = removedNodes[k];
+                if (!Breinify.UTL.dom.isNodeType(removedNode, 1)) {
+                    continue;
+                }
+
+                const $el = $(removedNode);
                 this.applyAdditionalMutationObserverChanges($el, selector, this.actions.removed);
             }
         },
