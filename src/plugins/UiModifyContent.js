@@ -1585,11 +1585,17 @@
                 const featureConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
                     return _private.getConditionType(condition) === 'feature';
                 });
-                if (featureConditions.length === 0) return;
                 const names = featureConditions.map(function (condition) {
                     return '__br_feature.' + condition.settings.featureId;
                 });
+                const decisionConditions = _private.getDecisionSettings(runtime).conditions || [];
+                decisionConditions.forEach(function (condition) {
+                    const input = condition && condition.settings && condition.settings.input;
+                    if (input && input.source === 'FEATURE') names.push('__br_feature.' + input.featureId);
+                });
+                if (names.length === 0 || !Breinify.plugins.featureStorage) return;
                 runtime.disposeFeatureListener = Breinify.plugins.featureStorage.onFeatureObservation(names, function () {
+                    _private.refreshDecisionInputs(runtime);
                     conditions.feature._notify(runtime);
                 });
             },
@@ -2162,12 +2168,65 @@
                     : this.getDecisionConditionReferences(runtime)
             };
             const previews = Breinify.plugins.webExperiences?._previews;
+            const inputs = {};
+            payload.conditionRefs.forEach(function (refId) {
+                const descriptor = this.getDecisionInputDescriptor(runtime, refId);
+                if (descriptor && descriptor.source !== 'STATIC') {
+                    const value = this.getDecisionEntityInput(runtime, descriptor);
+                    if (value !== null) inputs[refId] = value;
+                }
+            }, this);
+            if (Object.keys(inputs).length > 0) payload.conditionInputs = inputs;
             const preview = $.isPlainObject(previews) ? previews[runtime.webExId] : null;
             const previewId = $.isPlainObject(preview) ? Breinify.UTL.isNonEmptyString(preview.previewId) : null;
             if (previewId !== null) {
                 payload.previewId = previewId;
             }
             return payload;
+        },
+
+        /** Input descriptors contain no collection, metric, threshold, or hierarchy settings. */
+        getDecisionInputDescriptor: function (runtime, refId) {
+            const stubs = this.getDecisionSettings(runtime).conditions || [];
+            const stub = stubs.find(function (condition) {
+                return condition && condition.settings && condition.settings.refId === refId;
+            });
+            return stub && $.isPlainObject(stub.settings.input) ? stub.settings.input : null;
+        },
+
+        getDecisionEntityInput: function (runtime, descriptor) {
+            let value = null;
+            if (descriptor.source === 'FEATURE') {
+                const storage = Breinify.plugins.featureStorage;
+                value = storage ? storage.get('__br_feature.' + descriptor.featureId) : null;
+            } else if (descriptor.source === 'ACTIVATION_GROUP') {
+                value = Breinify.plugins.webExperiences.getActivationGroup(runtime.module, descriptor.group);
+            } else if (descriptor.source === 'STATIC') {
+                // the actual static ID stays in the authoritative configuration
+                return 'STATIC';
+            }
+            if (typeof value === 'number' && Number.isSafeInteger(value)) value = String(value);
+            if (typeof value !== 'string') return null;
+            const id = Breinify.UTL.isNonEmptyString(value);
+            return id !== null && id.length <= 1024 ? id : null;
+        },
+
+        /** Observe A -> B -> A transitions too, so an earlier outstanding request cannot win after a change. */
+        refreshDecisionInputs: function (runtime) {
+            const snapshot = {};
+            const stubs = this.getDecisionSettings(runtime).conditions || [];
+            stubs.forEach(function (condition) {
+                const settings = condition && condition.settings;
+                if (settings && $.isPlainObject(settings.input)) {
+                    snapshot[settings.refId] = this.getDecisionEntityInput(runtime, settings.input);
+                }
+            }, this);
+            const key = JSON.stringify(snapshot);
+            if (runtime.decision.inputSnapshot !== key) {
+                runtime.decision.inputSnapshot = key;
+                runtime.decision.inputRevision = (runtime.decision.inputRevision || 0) + 1;
+                runtime.decision.failurePageKey = null;
+            }
         },
 
         getDecisionConfigurationId: function (runtime) {
@@ -2292,6 +2351,8 @@
             for (let i = 0; i < requests.length; i++) {
                 const request = requests[i];
                 const payload = this.getDecisionPayload(request.runtime, request.conditionReferences);
+                this.refreshDecisionInputs(request.runtime);
+                request.inputRevision = request.runtime.decision.inputRevision;
                 // retain the sent preview state even if the preview closes before the response arrives
                 request.preview = Breinify.UTL.isNonEmptyString(payload.previewId) !== null;
                 webExperiences.push(payload);
@@ -2335,7 +2396,9 @@
             const runtime = request.runtime;
             if (this.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
                 runtime.decision.status !== DECISION_STATUS_PENDING) return false;
-            if (request.requestPageKey === this.getDecisionPageKey()) return true;
+            this.refreshDecisionInputs(runtime);
+            if (request.requestPageKey === this.getDecisionPageKey() &&
+                request.inputRevision === runtime.decision.inputRevision) return true;
 
             runtime.decision.inFlight = false;
             runtime.decision.resolved = false;
@@ -2719,6 +2782,13 @@
             const conditionCache = runtime.decision.conditionCache || {};
             const cache = conditionCache[refId];
             const currentPageKey = this.getDecisionPageKey();
+            const input = this.getDecisionInputDescriptor(runtime, refId);
+            if (input !== null) {
+                const entityId = this.getDecisionEntityInput(runtime, input);
+                // absence is false, not a zero aggregate, and must never cause a broad lookup
+                if (entityId === null) return false;
+                if (!cache || cache.entityInput !== entityId || cache.pageKey !== currentPageKey) return null;
+            }
             let isFresh = false;
             if (cache && cache.scope === DECISION_CACHE_SCOPE_SESSION) {
                 isFresh = cache.expiresAt === 0 || cache.expiresAt > Date.now();
@@ -2778,6 +2848,10 @@
                     pageKey: scope === DECISION_CACHE_SCOPE_SESSION ? null : requestPageKey,
                     expiresAt: expiresAt
                 };
+                const input = this.getDecisionInputDescriptor(runtime, refId);
+                if (input !== null) {
+                    conditionCache[refId].entityInput = this.getDecisionEntityInput(runtime, input);
+                }
                 storageEntries.push({
                     refId: refId,
                     scope: scope,
@@ -2868,6 +2942,7 @@
             }
 
             const decisionState = runtime.decision;
+            this.refreshDecisionInputs(runtime);
             if (decisionState.inFlight === true) {
                 return true;
             }
