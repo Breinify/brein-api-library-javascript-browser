@@ -231,7 +231,6 @@
                 </div>
             `;
 
-            Breinify.plugins.webExperiences.style(settings, $(this.shadowRoot), "#" + popupBaseStyleId);
             this._bindBaseEvents();
         }
 
@@ -679,6 +678,9 @@
         webExVersionId = null;
         openHandler = null;
         isRendered = false;
+        context = null;
+        triggerInitialized = false;
+        triggerCleanups = [];
 
         constructor() {
             super();
@@ -687,6 +689,90 @@
             this.settings = {};
             this.webExVersionId = null;
             this.openHandler = null;
+        }
+
+        connectedCallback() {
+            this._initializeTrigger();
+        }
+
+        disconnectedCallback() {
+            this._disposeTrigger();
+            this.$shadowRoot.children(".br-survey-root").remove();
+            this.triggerInitialized = false;
+        }
+
+        _disposeTrigger() {
+            const cleanups = this.triggerCleanups.splice(0);
+            cleanups.reverse().forEach(cleanup => {
+                try {
+                    cleanup();
+                } catch (error) {
+                    console.warn("Unable to clean up survey trigger:", error);
+                }
+            });
+        }
+
+        _runTriggerSnippet() {
+            const snippetId = Breinify.UTL.isNonEmptyString(this.settings.trigger?.snippet);
+            if (snippetId === null) {
+                return false;
+            }
+
+            const $container = $('<div class="br-survey-root br-survey-custom-trigger"></div>');
+            this.$shadowRoot.append($container);
+
+            try {
+                const manager = Breinify.plugins.snippetManager;
+                const snippet = manager && manager.getSnippet(snippetId);
+                if (!$.isFunction(snippet)) {
+                    throw new Error("The survey trigger snippet must resolve to a function: " + snippetId);
+                }
+
+                const context = Object.assign({}, this.context, {
+                    $container: $container,
+                    $host: $(this),
+                    $shadowRoot: this.$shadowRoot,
+                    open: () => {
+                        if (this.isConnected && $.isFunction(this.openHandler)) {
+                            this.openHandler(this);
+                        }
+                    },
+                    onCleanup: cleanup => {
+                        if ($.isFunction(cleanup)) {
+                            this.triggerCleanups.push(cleanup);
+                        }
+                    }
+                });
+                const cleanup = snippet(context);
+                if ($.isFunction(cleanup)) {
+                    this.triggerCleanups.push(cleanup);
+                }
+                return true;
+            } catch (error) {
+                this._disposeTrigger();
+                $container.remove();
+                console.warn("Unable to initialize survey trigger; using the default banner:", error);
+                return false;
+            }
+        }
+
+        _initializeTrigger() {
+            if (!this.isRendered || !this.isConnected || this.triggerInitialized) {
+                return;
+            }
+
+            this.triggerInitialized = true;
+            if (!this._runTriggerSnippet()) {
+                this._createTrigger();
+            }
+
+            this.dispatchEvent(new CustomEvent("br-ui-survey:rendered", {
+                bubbles: true,
+                cancelable: false,
+                detail: {
+                    webExVersionId: this.webExVersionId
+                }
+            }));
         }
 
         _ensureBaseStyle() {
@@ -778,7 +864,7 @@
             this.$shadowRoot.append($root);
         }
 
-        render(webExVersionId, settings, openHandler) {
+        render(webExVersionId, settings, openHandler, context) {
             this.webExVersionId = webExVersionId;
             this.settings = $.isPlainObject(settings) ? settings : {};
             this.openHandler = $.isFunction(openHandler) ? openHandler : null;
@@ -787,18 +873,10 @@
                 return;
             }
 
+            this.context = context;
             this._ensureBaseStyle();
-            Breinify.plugins.webExperiences.style(this.settings, this.$shadowRoot);
-            this._createTrigger();
             this.isRendered = true;
-
-            this.dispatchEvent(new CustomEvent("br-ui-survey:rendered", {
-                bubbles: true,
-                cancelable: false,
-                detail: {
-                    webExVersionId: this.webExVersionId
-                }
-            }));
+            this._initializeTrigger();
         }
     }
 
@@ -824,6 +902,7 @@
                 settings: $.isPlainObject(settings) ? settings : {},
                 webExVersionId: webExVersionId,
                 triggers: [],
+                _triggerStyles: Object.create(null),
                 _triggerActivityContexts: new WeakMap(),
                 _activityTrigger: null,
                 _activityContext: null,
@@ -882,6 +961,54 @@
             });
         },
 
+        readStyleSnippet: function (snippetId) {
+            const manager = Breinify.plugins.snippetManager;
+            const source = manager && manager.getSnippet(snippetId);
+            if (typeof source !== "string") {
+                return null;
+            }
+
+            // CSS snippets are registered as style elements, not executable HTML
+            const template = document.createElement("template");
+            template.innerHTML = source;
+            const styles = Array.from(template.content.querySelectorAll("style"));
+            return styles.length ? styles.map(style => style.textContent).join("\n") : null;
+        },
+
+        applySurveyStyles: function (runtime, root) {
+            root.querySelectorAll("style[data-br-survey-custom-style]").forEach(style => style.remove());
+            const styles = Object.entries(runtime._triggerStyles);
+            const themeId = Breinify.UTL.isNonEmptyString(runtime.settings.style?.snippet);
+            const theme = themeId === null ? null : this.readStyleSnippet(themeId);
+            if (theme !== null) {
+                styles.push([themeId, theme]);
+            }
+
+            // defaults first, shared styles second, experience-specific theme last
+            styles.forEach(([id, css]) => {
+                const style = document.createElement("style");
+                style.setAttribute("data-br-survey-custom-style", id);
+                style.textContent = css;
+                root.appendChild(style);
+            });
+        },
+
+        injectSurveyStyle: function (runtime, snippetId) {
+            const css = this.readStyleSnippet(snippetId);
+            if (css === null) {
+                throw new Error("The survey style snippet must resolve to CSS: " + snippetId);
+            } else if (runtime._triggerStyles[snippetId] === css) {
+                return;
+            }
+
+            runtime._triggerStyles[snippetId] = css;
+            runtime.triggers.forEach(trigger => this.applySurveyStyles(runtime, trigger.shadowRoot));
+            const popup = document.querySelector(popupElementName);
+            if (popup && popup.styleWebExVersionId === runtime.webExVersionId) {
+                this.applySurveyStyles(runtime, popup.shadowRoot);
+            }
+        },
+
         getPopup: function (runtime) {
             let popup = document.querySelector(popupElementName);
             if (!popup) {
@@ -890,6 +1017,8 @@
                 popup.render(runtime.settings);
             }
 
+            this.applySurveyStyles(runtime, popup.shadowRoot);
+            popup.styleWebExVersionId = runtime.webExVersionId;
             popup.closeOnBackgroundClick = this._getCloseOnBackgroundClickSetting(runtime);
             runtime._resetOnClose = this._getResetOnCloseSetting(runtime);
 
@@ -2578,8 +2707,21 @@
                 );
 
                 trigger.render(runtime.webExVersionId, runtime.settings, () => {
+                    // a reconnected trigger may have been removed from the active placement list
+                    this.registerTrigger(runtime, trigger);
                     this.openSurvey(runtime.webExVersionId, trigger);
+                }, {
+                    webExId: runtime.module.webExId,
+                    webExVersionId: runtime.webExVersionId,
+                    settings: runtime.settings,
+                    trigger: runtime.settings.trigger || {},
+                    position: {
+                        $anchor: placement.$anchor,
+                        operation: placement.operation
+                    },
+                    injectStyle: snippetId => this.injectSurveyStyle(runtime, snippetId)
                 });
+                this.applySurveyStyles(runtime, trigger.shadowRoot);
 
                 return $trigger;
             };

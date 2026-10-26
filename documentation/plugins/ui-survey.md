@@ -13,7 +13,56 @@ added after initialization. Repeated rendering does not duplicate triggers at an
 This mode does not require a position selector or operation; retain the configuration's `position` object.
 
 Set `trigger.bannerUrl` and optionally `trigger.mobileBannerUrl` for the banner images.
-`trigger.snippet` is not executed by the survey renderer.
+`trigger.snippet` optionally references a registered JavaScript function that initializes a custom trigger.
+
+### Trigger JavaScript
+
+The snippet's JavaScript expression must evaluate to a function. The renderer calls that function with one
+context object after the placement host and its empty container have been inserted. The hook owns its markup
+and event bindings; the renderer does not attach an additional click handler to custom content.
+
+```javascript
+(function () {
+    return function (context) {
+        const $ = Breinify.UTL._jquery();
+        const $button = $('<button type="button">Start quiz</button>');
+        $button.on('click.survey', context.open);
+        context.$container.append($button);
+
+        return function () {
+            $button.off('.survey');
+            $button.remove();
+        };
+    };
+})()
+```
+
+| Context member | Meaning |
+| --- | --- |
+| `webExId`, `webExVersionId` | Experience ID and version ID from the experience module. |
+| `settings`, `trigger` | Full survey configuration and its trigger configuration, including banner URLs. Treat as read-only. |
+| `$container` | Empty jQuery-wrapped div inside this placement's shadow root. Append custom trigger content here. |
+| `$host`, `$shadowRoot` | jQuery-wrapped `br-ui-survey` placement and its shadow root. |
+| `position.$anchor` | jQuery-wrapped element resolved by the position selector/snippet or attribute activation. |
+| `position.operation` | Actual insertion operation, such as `after` or `append`. |
+| `open()` | Existing survey-opening path, with the normal `opened` event, `clickedElement` activity, and this placement's attribution. Does nothing while the host is disconnected. |
+| `injectStyle(snippetId)` | Applies a registered CSS snippet to this experience's banner roots and popup, including a popup created later. Repeated calls do not duplicate it. |
+| `onCleanup(fn)` | Registers cleanup for external bindings/resources, including cleanup if initialization throws. |
+
+Hooks initialize synchronously once per connected placement. They may return a cleanup function; it runs on
+disconnection. Reconnection creates a fresh container and calls the hook again. The `rendered` event fires
+after initialization. A hook may deliberately render nothing or bind an existing site element instead.
+Register external-binding cleanup before acquiring resources that could fail.
+
+Without a configured hook, the built-in banner and its click/keyboard behavior remain available. Missing,
+non-function, or throwing hooks log a warning and fall back to the built-in banner after cleaning up the
+partial container. Register the trigger and its CSS dependencies before initializing the experience.
+
+`injectStyle` accepts the normal CSS snippet representation (`<style>...</style>`), and throws for missing or
+incompatible snippets. It injects styles into shadow roots, never globally into the page. The order is default
+styles, injected shared styles, then `configuration.style.snippet`. Use `:host` in the configured CSS snippet
+to set theme variables. The shared popup's custom styles are replaced when opening a different survey, so
+themes do not carry over. Nested custom-page shadow roots still require their own CSS; custom properties inherit.
 
 ### Survey Structure
 
