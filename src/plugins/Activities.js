@@ -570,11 +570,16 @@
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
          * elements, when changes are observed will also trigger the data-brob-active attribute change.
          *
+         * Attribute filtering is opt-in through <code>settings.filterAttributes === true</code>.
+         * Without that setting, all attribute changes retain their existing behavior. With filtering enabled,
+         * an omitted or null list allows all attributes, while an empty list allows no attribute changes.
+         * Filtering never suppresses initial setup or processing of added and removed elements.
+         *
          * @param selectors a single or an array of selectors which select elements affected
          * @param observerType the type to handle, ex. 'click'
          * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
          * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
-         * @param attributes an optional list (array) of attribute changes to observe
+         * @param attributes an optional attribute-name array, used only when settings.filterAttributes is true
          */
         registerAdditionalMutationObserver: function (selectors, observerType, settings, data, attributes) {
             const _self = this;
@@ -605,7 +610,10 @@
                     selector: definedSelector,
                     observerType: observerType,
                     settings: settings,
-                    data: data
+                    data: data,
+                    attributes: $.isPlainObject(settings) && settings.filterAttributes === true && $.isArray(attributes)
+                        ? attributes.slice()
+                        : null
                 };
 
                 // last keep the identifier within the lists
@@ -621,6 +629,7 @@
                     _self.handleAdditionalMutations(mutations);
                 });
 
+                // observe all changes globally and apply attribute filters separately for each registration
                 this.additionalMutationObservers.observe(document, {
                     subtree: true,
                     childList: true,
@@ -634,7 +643,8 @@
 
             for (let i = 0; i < mutations.length; i++) {
                 const mutation = mutations[i];
-                const target = typeof mutation.attributeName === 'string' ? mutation.target : null;
+                const attributeName = mutation.attributeName;
+                const target = typeof attributeName === 'string' ? mutation.target : null;
                 const addedNodes = mutations[i].addedNodes;
                 const removedNodes = mutations[i].removedNodes;
 
@@ -642,17 +652,17 @@
                 const selectors = Object.keys(this.additionalSelectors);
                 for (let j = 0; j < selectors.length; j++) {
                     const selector = selectors[j];
-                    _self.handleAdditionalMutationObserverChanges(selector, target, addedNodes, removedNodes);
+                    _self.handleAdditionalMutationObserverChanges(selector, target, addedNodes, removedNodes, attributeName);
                 }
             }
         },
 
-        handleAdditionalMutationObserverChanges: function (selector, target, addedNodes, removedNodes) {
+        handleAdditionalMutationObserverChanges: function (selector, target, addedNodes, removedNodes, attributeName) {
             if (Breinify.UTL.dom.isNodeType(target, 1)) {
                 const $el = $(target);
 
                 if ($el.is(selector)) {
-                    this.applyAdditionalMutationObserverChanges($el, selector, this.actions.changed);
+                    this.applyAdditionalMutationObserverChanges($el, selector, this.actions.changed, attributeName);
                 }
             }
 
@@ -677,7 +687,7 @@
             }
         },
 
-        applyAdditionalMutationObserverChanges: function ($el, selector, type) {
+        applyAdditionalMutationObserverChanges: function ($el, selector, type, attributeName) {
 
             // retrieve all affected selectorIds that are affected by this selector
             let selectorIds = this.additionalSelectors[selector];
@@ -688,6 +698,9 @@
                 const id = selectorIds[k];
                 const settings = this.additionalObservers[id];
                 if (!$.isPlainObject(settings)) {
+                    continue;
+                } else if (type === this.actions.changed && $.isArray(settings.attributes) &&
+                    settings.attributes.indexOf(attributeName) === -1) {
                     continue;
                 }
 
@@ -1009,11 +1022,16 @@
          * Registers an additional observer which triggers activities when observed. The "trick" is that these
          * elements, when changes are observed will also trigger the data-brob-active attribute change.
          *
+         * Set <code>settings.filterAttributes</code> to true to filter attribute changes per registration.
+         * The attribute list is copied at registration. Omitted, null, or non-array values allow all attributes;
+         * an empty array suppresses attribute-change processing. Initial setup and added or removed elements
+         * are always processed. Without the opt-in, the list is ignored for backward compatibility.
+         *
          * @param selector the selector which selects elements to observe
          * @param observerType the type to handle, ex. 'click'
          * @param settings settings, depends on <code>observerType</code>, see <code>defaultClickObserverOption</code>
          * @param data data instance, ex. <code>{ user: {}, tags: {} }</code>
-         * @param attributes an optional list (array) of attribute changes to observe
+         * @param attributes an optional attribute-name array, used only when settings.filterAttributes is true
          */
         registerAdditionalMutationObserver: function (selector, observerType, settings, data, attributes) {
             activityDomObserver.registerAdditionalMutationObserver(selector, observerType, settings, data, attributes);
