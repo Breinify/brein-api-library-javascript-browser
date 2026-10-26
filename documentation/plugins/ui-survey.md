@@ -48,6 +48,7 @@ and event bindings; the renderer does not attach an additional click handler to 
 | `open()` | Existing survey-opening path, with the normal `opened` event, `clickedElement` activity, and this placement's attribution. Does nothing while the host is disconnected. |
 | `injectStyle(snippetId)` | Applies a registered CSS snippet to this experience's banner roots and popup, including a popup created later. Repeated calls do not duplicate it. |
 | `onCleanup(fn)` | Registers cleanup for external bindings/resources, including cleanup if initialization throws. |
+| `setSkeletonCardCount(count)` | Sets the number of loading cards for this experience. Defaults to 3; accepts positive integers. Call before `open()`; changes apply to subsequently created recommendation pages. |
 
 Hooks initialize synchronously once per connected placement. They may return a cleanup function; it runs on
 disconnection. Reconnection creates a fresh container and calls the hook again. The `rendered` event fires

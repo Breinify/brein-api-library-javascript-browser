@@ -903,6 +903,7 @@
                 webExVersionId: webExVersionId,
                 triggers: [],
                 _triggerStyles: Object.create(null),
+                _skeletonCardCount: 3,
                 _triggerActivityContexts: new WeakMap(),
                 _activityTrigger: null,
                 _activityContext: null,
@@ -1832,10 +1833,11 @@
             const grid = document.createElement("div");
             grid.className = "br-survey-reco-grid";
 
-            const skeletonCardCount = 3;
+            const skeletonCardCount = runtime._skeletonCardCount;
             for (let i = 0; i < skeletonCardCount; i++) {
                 const card = document.createElement("div");
                 card.className = "br-survey-skeleton-card";
+                card.setAttribute("aria-hidden", "true");
 
                 const thumb = document.createElement("div");
                 thumb.className = "br-survey-skeleton-thumb";
@@ -2719,7 +2721,13 @@
                         $anchor: placement.$anchor,
                         operation: placement.operation
                     },
-                    injectStyle: snippetId => this.injectSurveyStyle(runtime, snippetId)
+                    injectStyle: snippetId => this.injectSurveyStyle(runtime, snippetId),
+                    setSkeletonCardCount: count => {
+                        if (!Number.isInteger(count) || count < 1) {
+                            throw new RangeError("The survey skeleton card count must be a positive integer.");
+                        }
+                        runtime._skeletonCardCount = count;
+                    }
                 });
                 this.applySurveyStyles(runtime, trigger.shadowRoot);
 

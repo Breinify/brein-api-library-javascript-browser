@@ -25,14 +25,14 @@ describe('Survey trigger snippets', function () {
         Breinify.plugins.activities = originalActivities;
     });
 
-    function render(trigger, style) {
+    function render(trigger, style, survey) {
         var id = Breinify.UTL.uuid();
         var module = {webExId: id, webExVersionId: id + '-version', campaignName: 'Survey hook'};
         var config = {
             position: {selector: '.survey-hook-anchor', operation: 'append'},
             trigger: trigger || {snippet: 'hook'},
             style: style || {},
-            survey: {
+            survey: survey || {
                 nodes: [
                     {id: 'start', type: 'start'},
                     {id: 'question', type: 'question', data: {question: 'Choose a wine', answers: []}}
@@ -48,6 +48,45 @@ describe('Survey trigger snippets', function () {
         contexts.push(context);
         $('<button type="button">Find my wine</button>').on('click', context.open).appendTo(context.$container);
     }
+
+    it('defaults to three skeletons and isolates a trigger override to its experience', function () {
+        var originalRecommendations = Breinify.plugins.recommendations;
+        Breinify.plugins.recommendations = {render: function () {}};
+        var survey = {
+            nodes: [
+                {id: 'start', type: 'start'},
+                {id: 'results', type: 'recommendation', data: {preconfiguredRecommendation: 'Wine'}}
+            ],
+            edges: [{source: 'start', target: 'results'}]
+        };
+        try {
+            snippets.hook = function (context) {
+                context.setSkeletonCardCount(10);
+                hook(context);
+            };
+            render(null, null, survey);
+            contexts[0].open();
+            var popup = document.querySelector('br-ui-survey-popup');
+            expect(popup.shadowRoot.querySelectorAll('.br-survey-skeleton-card').length).toBe(10);
+
+            [0, -1, 1.5, '10', NaN, Infinity].forEach(function (count) {
+                var rejected = false;
+                try {
+                    contexts[0].setSkeletonCardCount(count);
+                } catch (error) {
+                    rejected = error instanceof RangeError;
+                }
+                expect(rejected).toBe(true);
+            });
+
+            snippets.hook = hook;
+            render(null, null, survey);
+            contexts[1].open();
+            expect(popup.shadowRoot.querySelectorAll('.br-survey-skeleton-card').length).toBe(3);
+        } finally {
+            Breinify.plugins.recommendations = originalRecommendations;
+        }
+    });
 
     it('runs after insertion, passes context, and keeps opening and activity attribution intact', function () {
         snippets.hook = hook;
