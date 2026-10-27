@@ -398,6 +398,16 @@
                     overflow: hidden;
                 }
 
+                .br-survey-reco-status {
+                    grid-column: 1 / -1;
+                    padding: 1.5em 0;
+                    text-align: center;
+                }
+
+                .br-survey-reco-status p {
+                    margin: 0 0 1em;
+                }
+
                 .br-survey-skeleton-thumb {
                     width: 100%;
                     aspect-ratio: 1 / 1;
@@ -904,6 +914,7 @@
                 triggers: [],
                 _triggerStyles: Object.create(null),
                 _skeletonCardCount: 3,
+                _emptyResultsRenderer: null,
                 _triggerActivityContexts: new WeakMap(),
                 _activityTrigger: null,
                 _activityContext: null,
@@ -1832,6 +1843,7 @@
 
             const grid = document.createElement("div");
             grid.className = "br-survey-reco-grid";
+            grid.setAttribute("aria-busy", "true");
 
             const skeletonCardCount = runtime._skeletonCardCount;
             for (let i = 0; i < skeletonCardCount; i++) {
@@ -1856,6 +1868,57 @@
 
             container.appendChild(grid);
             return container;
+        },
+
+        _showRecommendationStatus: function (runtime, node, $container, kind, result, active) {
+            if (!active()) {
+                return;
+            }
+
+            const empty = kind === "empty";
+            const title = empty ? "No matching products found" : "We couldn't load your recommendations";
+            const message = empty ? "Try changing your answers or start over to find something different." :
+                "Please try again in a moment.";
+            const $grid = $container.find(".br-survey-reco-grid");
+            const $title = $container.find(".br-survey-reco-title");
+            const $subtitle = $container.find(".br-survey-reco-subtitle");
+            const $status = $('<div role="status" class="br-survey-reco-status"></div>');
+            $status.addClass(empty ? "br-survey-reco-empty" : "br-survey-reco-error");
+            const restart = () => {
+                if (active()) {
+                    this._restartSurvey(runtime);
+                }
+            };
+            const renderDefault = () => {
+                $title.text(title);
+                $subtitle.empty().hide();
+                $status.empty().append($("<p></p>").text(message));
+                $('<button type="button" class="br-survey-btn br-survey-btn--primary">Start over</button>')
+                    .on("click", restart).appendTo($status);
+            };
+
+            $grid.empty().attr("aria-busy", "false").append($status);
+            renderDefault();
+            if (empty && $.isFunction(runtime._emptyResultsRenderer)) {
+                try {
+                    runtime._emptyResultsRenderer(Object.freeze({
+                        webExId: runtime.module.webExId,
+                        webExVersionId: runtime.webExVersionId,
+                        node: node,
+                        result: result,
+                        $container: $status,
+                        $title: $title,
+                        $subtitle: $subtitle,
+                        restart: restart
+                    }));
+                    if (!$status.get(0).hasChildNodes()) {
+                        renderDefault();
+                    }
+                } catch (error) {
+                    renderDefault();
+                    console.warn("Unable to render the survey empty state; using the default:", error);
+                }
+            }
         },
 
         _requestRecommendations: function (runtime, popup, container, node, page) {
@@ -1896,6 +1959,13 @@
 
             const defaultResultTitle = Breinify.UTL.isNonEmptyString(data.title) || "Your Recommendations";
             const defaultResultSubtitle = Breinify.UTL.isNonEmptyString(data.subtitle) || "";
+            let completed = false;
+            const showStatus = (kind, result) => {
+                if (!completed && active()) {
+                    completed = true;
+                    this._showRecommendationStatus(runtime, node, $container, kind, result, active);
+                }
+            };
 
             Breinify.plugins.recommendations.render({
                 // the popup is outside the placement; carry the opening trigger's snapshot explicitly
@@ -1920,7 +1990,7 @@
                         if (!active()) {
                             return;
                         }
-                        $grid.find(".br-survey-skeleton-card").remove();
+                        $grid.children(".br-survey-skeleton-card").remove();
                     },
 
                     attached: function ($attachedContainer, $itemContainer, recData, option) {
@@ -1946,14 +2016,32 @@
                             }
                         }
 
-                        $grid.find(".br-survey-skeleton-card").remove();
+                        $grid.children(".br-survey-skeleton-card").remove();
                     },
 
                     error: function (error) {
-                        if (!active()) {
+                        showStatus("error", error);
+                    },
+
+                    canceled: function (option, result) {
+                        showStatus("error", result);
+                    },
+
+                    finalize: function (option, result, $attachedContainer) {
+                        if (completed || !active()) {
                             return;
+                        } else if (result?.status?.error === true) {
+                            showStatus("error", result);
+                        } else if (result?.status?.code === 7120 ||
+                            (Array.isArray(result?.recommendations) && result.recommendations.length === 0)) {
+                            showStatus("empty", result);
+                        } else if (!$attachedContainer || $attachedContainer.length === 0) {
+                            showStatus("error", result);
+                        } else {
+                            completed = true;
+                            $grid.attr("aria-busy", "false");
+                            $grid.children(".br-survey-skeleton-card").remove();
                         }
-                        $grid.find(".br-survey-skeleton-card").remove();
                     },
 
                     createActivity: function (event, settings) {
@@ -2727,6 +2815,12 @@
                             throw new RangeError("The survey skeleton card count must be a positive integer.");
                         }
                         runtime._skeletonCardCount = count;
+                    },
+                    setEmptyResultsRenderer: renderer => {
+                        if (renderer !== null && !$.isFunction(renderer)) {
+                            throw new TypeError("The survey empty-results renderer must be a function or null.");
+                        }
+                        runtime._emptyResultsRenderer = renderer;
                     }
                 });
                 this.applySurveyStyles(runtime, trigger.shadowRoot);

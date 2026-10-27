@@ -49,6 +49,7 @@ and event bindings; the renderer does not attach an additional click handler to 
 | `injectStyle(snippetId)` | Applies a registered CSS snippet to this experience's banner roots and popup, including a popup created later. Repeated calls do not duplicate it. |
 | `onCleanup(fn)` | Registers cleanup for external bindings/resources, including cleanup if initialization throws. |
 | `setSkeletonCardCount(count)` | Sets the number of loading cards for this experience. Defaults to 3; accepts positive integers. Call before `open()`; changes apply to subsequently created recommendation pages. |
+| `setEmptyResultsRenderer(renderer)` | Sets a synchronous empty-results renderer for this experience; pass `null` to restore the default. Call before `open()`. |
 
 Hooks initialize synchronously once per connected placement. They may return a cleanup function; it runs on
 disconnection. Reconnection creates a fresh container and calls the hook again. The `rendered` event fires
@@ -64,6 +65,32 @@ incompatible snippets. It injects styles into shadow roots, never globally into 
 styles, injected shared styles, then `configuration.style.snippet`. Use `:host` in the configured CSS snippet
 to set theme variables. The shared popup's custom styles are replaced when opening a different survey, so
 themes do not carry over. Nested custom-page shadow roots still require their own CSS; custom properties inherit.
+
+### Empty Recommendation Results
+
+When recommendations finish without results, the survey replaces its skeletons and loading heading with
+“No matching products found”, guidance to change answers, and a **Start over** button. This also handles
+the recommendation renderer's non-rendered `7120` response. Request/render failures show a separate error
+message rather than claiming that no products matched. Late responses from an obsolete page are ignored.
+
+A trigger can customize the empty state for its own experience:
+
+```javascript
+context.setEmptyResultsRenderer(function (empty) {
+    const $ = Breinify.UTL._jquery();
+    empty.$title.text('No wines matched your choices');
+    empty.$container.empty().append($('<p></p>').text('Try a different wine style or price range.'));
+    $('<button type="button" class="br-survey-btn br-survey-btn--primary">Start over</button>')
+        .on('click', empty.restart).appendTo(empty.$container);
+});
+```
+
+The callback receives `webExId`, `webExVersionId`, `node`, the normalized recommendation `result`, `$container`
+(the connected status-content element), `$title`, `$subtitle`, and `restart()`. Default content is already present,
+so the callback can adjust it or replace it. Rendering is synchronous; bind events inside the supplied content.
+`restart()` uses the normal survey restart flow and does nothing once that page is obsolete. Throwing or leaving
+the content element empty restores the default state. The hook is not invoked for request errors or successful
+product results, and is not shared with other survey experiences.
 
 ### Survey Structure
 

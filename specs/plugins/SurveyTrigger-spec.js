@@ -1,7 +1,7 @@
 "use strict";
 
 describe('Survey trigger snippets', function () {
-    var $, $root, snippets, activities, contexts, originalSnippets, originalActivities;
+    var $, $root, snippets, activities, contexts, originalSnippets, originalActivities, originalRecommendations;
 
     beforeEach(function () {
         $ = Breinify.UTL._jquery();
@@ -11,6 +11,7 @@ describe('Survey trigger snippets', function () {
         contexts = [];
         originalSnippets = Breinify.plugins.snippetManager;
         originalActivities = Breinify.plugins.activities;
+        originalRecommendations = Breinify.plugins.recommendations;
         Breinify.plugins.snippetManager = {getSnippet: function (id) { return snippets[id] || null; }};
         Breinify.plugins.activities = {
             generic: function (type, user, tags) { activities.push({type: type, tags: tags}); }
@@ -23,6 +24,7 @@ describe('Survey trigger snippets', function () {
         document.body.classList.remove('br-survey-scroll-lock');
         Breinify.plugins.snippetManager = originalSnippets;
         Breinify.plugins.activities = originalActivities;
+        Breinify.plugins.recommendations = originalRecommendations;
     });
 
     function render(trigger, style, survey) {
@@ -48,6 +50,92 @@ describe('Survey trigger snippets', function () {
         contexts.push(context);
         $('<button type="button">Find my wine</button>').on('click', context.open).appendTo(context.$container);
     }
+
+    function openResults(renderer) {
+        snippets.hook = function (context) {
+            if (renderer) {
+                context.setEmptyResultsRenderer(renderer);
+            }
+            hook(context);
+        };
+        render(null, null, {
+            nodes: [
+                {id: 'start', type: 'start'},
+                {id: 'results', type: 'recommendation', data: {preconfiguredRecommendation: 'Wine'}}
+            ],
+            edges: [{source: 'start', target: 'results'}]
+        });
+        contexts[contexts.length - 1].open();
+        return document.querySelector('br-ui-survey-popup');
+    }
+
+    it('replaces loading with a default empty state even when no container was attached', function () {
+        var requests = [];
+        Breinify.plugins.recommendations = {render: function (option) { requests.push(option); }};
+        [200, 7120].forEach(function (code) {
+            var popup = openResults();
+            var option = requests[requests.length - 1];
+            option.process.finalize(option, {status: {code: code, error: false}, recommendations: []}, null);
+            expect(popup.shadowRoot.querySelectorAll('.br-survey-skeleton-card').length).toBe(0);
+            expect(popup.shadowRoot.querySelector('.br-survey-reco-title').textContent)
+                .toBe('No matching products found');
+            expect(popup.shadowRoot.querySelector('.br-survey-reco-grid').getAttribute('aria-busy')).toBe('false');
+            var requestCount = requests.length;
+            popup.shadowRoot.querySelector('.br-survey-reco-empty button').click();
+            expect(requests.length).toBe(requestCount + 1);
+        });
+    });
+
+    it('supports an isolated empty renderer and falls back if custom rendering fails', function () {
+        var option;
+        var calls = 0;
+        Breinify.plugins.recommendations = {render: function (value) { option = value; }};
+        var result = {status: {code: 200, error: false}, recommendations: []};
+        var popup = openResults(function (context) {
+            calls++;
+            expect(context.node.id).toBe('results');
+            expect(context.result).toBe(result);
+            context.$title.text('No wines matched');
+            context.$container.empty().append('<p>Try another style.</p>');
+        });
+        option.process.finalize(option, result, null);
+        option.process.finalize(option, result, null);
+        expect(calls).toBe(1);
+        expect(popup.shadowRoot.querySelector('.br-survey-reco-title').textContent).toBe('No wines matched');
+
+        openResults();
+        option.process.finalize(option, result, null);
+        expect(popup.shadowRoot.querySelector('.br-survey-reco-title').textContent)
+            .toBe('No matching products found');
+
+        openResults(function (context) {
+            context.$container.empty();
+            throw new Error('custom empty state failed');
+        });
+        option.process.finalize(option, result, null);
+        expect(popup.shadowRoot.querySelectorAll('.br-survey-reco-empty button').length).toBe(1);
+    });
+
+    it('distinguishes request errors and ignores completion from an obsolete survey page', function () {
+        var option;
+        var calls = 0;
+        Breinify.plugins.recommendations = {render: function (value) { option = value; }};
+        var popup = openResults(function () { calls++; });
+        var stale = option;
+        option.process.error(new Error('network failed'));
+        option.process.finalize(option, {status: {code: 500, error: true}}, null);
+        expect(calls).toBe(0);
+        expect(popup.shadowRoot.querySelectorAll('.br-survey-skeleton-card').length).toBe(0);
+        expect(popup.shadowRoot.querySelector('.br-survey-reco-title').textContent)
+            .toBe("We couldn't load your recommendations");
+
+        openResults();
+        stale = option;
+        openResults();
+        stale.process.finalize(stale, {status: {code: 200, error: false}, recommendations: []}, null);
+        expect(popup.shadowRoot.querySelectorAll('.br-survey-skeleton-card').length).toBe(3);
+        expect(popup.shadowRoot.querySelectorAll('.br-survey-reco-status').length).toBe(0);
+    });
 
     it('defaults to three skeletons and isolates a trigger override to its experience', function () {
         var originalRecommendations = Breinify.plugins.recommendations;
