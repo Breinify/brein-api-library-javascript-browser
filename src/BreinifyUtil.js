@@ -19,6 +19,101 @@
     };
 
     const _private = {
+        /**
+         * Validates only the options owned by a formatter; never mutates the caller's options.
+         */
+        validateFormatOptions: function (formatter, options) {
+            let allowed;
+            if (formatter === 'number' || formatter === 'percent') {
+                allowed = ['locale', 'decimalPlaces'];
+            } else if (formatter === 'currency') {
+                allowed = ['locale', 'decimalPlaces', 'currency'];
+            } else if (formatter === 'upper' || formatter === 'lower') {
+                allowed = ['locale'];
+            } else if (formatter === 'join') {
+                allowed = ['separator'];
+            } else {
+                throw new RangeError('Unknown value formatter: ' + formatter);
+            }
+
+            if (!$.isPlainObject(options)) {
+                throw new TypeError('Formatting options must be a plain object.');
+            }
+            Object.keys(options).forEach(function (key) {
+                if (allowed.indexOf(key) === -1) {
+                    throw new RangeError('Unsupported option for ' + formatter + ': ' + key);
+                }
+            });
+
+            if (typeof options.locale !== 'undefined') {
+                const locale = BreinifyUtil.isNonEmptyString(options.locale);
+                if (locale === null || locale !== options.locale) {
+                    throw new TypeError('Formatting locale must be a nonempty language tag without surrounding spaces.');
+                }
+                // validate locale syntax even for missing values and string formatters
+                new Intl.NumberFormat(locale);
+            }
+
+            if (typeof options.decimalPlaces !== 'undefined') {
+                const places = options.decimalPlaces;
+                if (typeof places !== 'number' || !Number.isInteger(places) || places < 0 || places > 20) {
+                    throw new RangeError('decimalPlaces must be an integer between 0 and 20.');
+                }
+            }
+            if (formatter === 'currency' &&
+                (typeof options.currency !== 'string' || !/^[A-Za-z]{3}$/.test(options.currency))) {
+                throw new TypeError('Currency formatting requires an explicit three-letter currency code.');
+            } else if (formatter === 'join' && typeof options.separator !== 'string') {
+                throw new TypeError('Joining values requires an explicit string separator.');
+            }
+        },
+
+        /**
+         * Formats finite numeric values without coercing strings, booleans, or absent values into numbers.
+         */
+        formatNumericValue: function (value, formatter, options) {
+            if (typeof value !== 'number' || !Number.isFinite(value)) {
+                throw new TypeError('Numeric formatting requires a finite number.');
+            }
+
+            const settings = {style: formatter === 'number' ? 'decimal' : formatter};
+            if (formatter === 'currency') {
+                settings.currency = options.currency.toUpperCase();
+            }
+            if (typeof options.decimalPlaces !== 'undefined') {
+                settings.minimumFractionDigits = options.decimalPlaces;
+                settings.maximumFractionDigits = options.decimalPlaces;
+            } else if (formatter === 'number') {
+                settings.minimumFractionDigits = 0;
+                settings.maximumFractionDigits = 3;
+            } else if (formatter === 'percent') {
+                settings.minimumFractionDigits = 0;
+                settings.maximumFractionDigits = 0;
+            }
+
+            // omitted currency precision uses the currency's Intl minor-unit defaults
+            const numberFormat = new Intl.NumberFormat(options.locale, settings);
+            return numberFormat.format(value);
+        },
+
+        /**
+         * Joins only scalar values; objects, missing entries, and nested arrays are not silently stringified.
+         */
+        formatJoinedValue: function (value, separator) {
+            if (!Array.isArray(value)) {
+                throw new TypeError('Joining values requires an array.');
+            }
+            for (let i = 0; i < value.length; i++) {
+                const entry = value[i];
+                const scalar = typeof entry === 'string' || typeof entry === 'boolean' ||
+                    typeof entry === 'number' && Number.isFinite(entry);
+                if (!Object.prototype.hasOwnProperty.call(value, i) || !scalar) {
+                    throw new TypeError('Joined arrays must contain only strings, booleans, or finite numbers.');
+                }
+            }
+            return value.join(separator);
+        },
+
         parseNumber: function (value) {
             if (/^[-+]?(?:\d+(?:\.\d+)?|Infinity)$/.test(value)) {
                 return Number(value);
@@ -2131,6 +2226,139 @@
         toPrice: function (price) {
             const nrPrice = this.toNumber(price);
             return typeof nrPrice !== 'number' || isNaN(nrPrice) ? null : +(nrPrice.toFixed(2));
+        },
+
+        /**
+         * Formats a typed value as plain text, independently of any placeholder or rendering plugin.
+         * Supports number, percent, currency, upper, lower, and join. Options are formatter-specific:
+         * locale, decimalPlaces (0-20), currency (explicit three-letter code), or separator (explicit string).
+         * Valid options with a null/undefined value return null. Invalid inputs/options throw TypeError or
+         * RangeError. No coercion, HTML escaping, token parsing, or mutation of the input is performed.
+         *
+         * @param {*} value The original typed value.
+         * @param {string} formatter The formatter name.
+         * @param {Object} [options] Formatting options; omitted locale uses the browser's default locale.
+         * @returns {string|null} Plain text, or null for an absent value.
+         */
+        formatValue: function (value, formatter, options) {
+            if (typeof formatter !== 'string') {
+                throw new TypeError('The value formatter must be a string.');
+            }
+            const settings = typeof options === 'undefined' ? {} : options;
+            _private.validateFormatOptions(formatter, settings);
+
+            if (value === null || typeof value === 'undefined') {
+                return null;
+            } else if (formatter === 'number' || formatter === 'percent' || formatter === 'currency') {
+                return _private.formatNumericValue(value, formatter, settings);
+            } else if (formatter === 'join') {
+                return _private.formatJoinedValue(value, settings.separator);
+            } else if (typeof value !== 'string') {
+                throw new TypeError('Case formatting requires a string.');
+            } else if (formatter === 'upper') {
+                return value.toLocaleUpperCase(settings.locale);
+            } else {
+                return value.toLocaleLowerCase(settings.locale);
+            }
+        },
+
+        /**
+         * Safe, own-property-only placeholder resolution. Rendering is plain text and never evaluates code.
+         * Unqualified tokens such as the recommendation renderer's %%name%% are deliberately left untouched.
+         */
+        placeholders: {
+            /**
+             * Copies and freezes JSON-shaped data so later observations cannot change an execution's values.
+             */
+            snapshot: function (value, depth) {
+                depth = depth || 0;
+                if (depth > 16) throw new Error('Placeholder data exceeds the supported nesting depth.');
+                if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+                    typeof value === 'number' && Number.isFinite(value)) return value;
+                const array = Array.isArray(value);
+                if (!array && !$.isPlainObject(value)) throw new Error('Placeholder data must be JSON-shaped.');
+                const copy = array ? [] : Object.create(null);
+                Object.keys(value).forEach(function (key) {
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                        throw new Error('Forbidden placeholder property.');
+                    }
+                    copy[key] = this.snapshot(value[key], depth + 1);
+                }, this);
+                return Object.freeze(copy);
+            },
+
+            has: function (text) {
+                return typeof text === 'string' && /%%\s*[A-Za-z_$][\w$]*\./.test(text);
+            },
+
+            read: function (context, path) {
+                if (!/^[A-Za-z_$][\w$]*(?:\.[A-Za-z0-9_$]+)+$/.test(path)) {
+                    throw new Error('Invalid placeholder path: ' + path);
+                }
+                const parts = path.split('.');
+                let value = context;
+                for (let i = 0; i < parts.length; i++) {
+                    const key = parts[i];
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                        throw new Error('Forbidden placeholder path: ' + path);
+                    } else if (value === null || typeof value !== 'object' ||
+                        !Object.prototype.hasOwnProperty.call(value, key)) {
+                        return undefined;
+                    }
+                    value = value[key];
+                }
+                return value;
+            },
+
+            /**
+             * Parses a single formatter without expression evaluation or implicit coercion of its arguments.
+             */
+            format: function (value, expression) {
+                const match = /^(number|percent)(?::([0-9]+))?$/.exec(expression);
+                if (match) {
+                    const options = match[2] === undefined ? {} : {decimalPlaces: Number(match[2])};
+                    return BreinifyUtil.formatValue(value, match[1], options);
+                }
+                const currency = /^currency:([A-Za-z]{3})(?::([0-9]+))?$/.exec(expression);
+                if (currency) {
+                    const options = {currency: currency[1]};
+                    if (currency[2] !== undefined) options.decimalPlaces = Number(currency[2]);
+                    return BreinifyUtil.formatValue(value, 'currency', options);
+                } else if (expression === 'upper' || expression === 'lower') {
+                    return BreinifyUtil.formatValue(value, expression);
+                } else if (expression.indexOf('join:') === 0) {
+                    const separator = JSON.parse(expression.substring(5));
+                    return BreinifyUtil.formatValue(value, 'join', {separator: separator});
+                }
+                throw new Error('Invalid placeholder formatter: ' + expression);
+            },
+
+            render: function (text, context) {
+                if (!this.has(text)) return text;
+                const rendered = text.replace(/%%([\s\S]*?)%%/g, function (token, expression) {
+                    if (!/^\s*[A-Za-z_$][\w$]*\./.test(expression)) return token;
+                    const separator = expression.indexOf('|');
+                    const path = (separator === -1 ? expression : expression.substring(0, separator)).trim();
+                    const value = this.read(context, path);
+                    if (value === null || value === undefined) {
+                        const error = new Error('Unavailable placeholder: ' + path);
+                        error.placeholderPath = path;
+                        throw error;
+                    }
+                    if (separator !== -1) {
+                        return this.format(value, expression.substring(separator + 1).trim());
+                    } else if (typeof value === 'string' || typeof value === 'boolean' ||
+                        typeof value === 'number' && Number.isFinite(value)) {
+                        return String(value);
+                    }
+                    throw new Error('Placeholder requires an explicit formatter: ' + path);
+                }.bind(this));
+                // do not inspect replacement values: they may themselves legitimately contain token-like text
+                if (/%%\s*[A-Za-z_$][\w$]*\.[^%]*$/.test(text)) {
+                    throw new Error('Unterminated placeholder.');
+                }
+                return rendered;
+            }
         },
 
         formatPrice: function (price, settings) {

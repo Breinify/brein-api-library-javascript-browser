@@ -2,6 +2,160 @@
 
 describe('BreinifyUtil', function () {
 
+    describe('placeholders', function () {
+        it('resolves own dotted paths and formats values without recursively interpreting their text', function () {
+            const context = {condition: {feature: {value: '%%condition.missing.value%%'},
+                dataFeedMetric: {metricValue: 23}, weather: {subConditions: ['A', 'B']}}};
+            const placeholders = Breinify.UTL.placeholders;
+            expect(placeholders.render('Hot: %%condition.dataFeedMetric.metricValue | number:0%%', context))
+                .toBe('Hot: ' + Breinify.UTL.formatValue(23, 'number', {decimalPlaces: 0}));
+            expect(placeholders.render('%%condition.weather.subConditions | join:", | "%%', context)).toBe('A, | B');
+            expect(placeholders.render('%%condition.feature.value%%', context)).toBe('%%condition.missing.value%%');
+            expect(placeholders.render('Try %%name%%', context)).toBe('Try %%name%%');
+        });
+
+        it('distinguishes missing data from zero, false and empty strings', function () {
+            const placeholders = Breinify.UTL.placeholders;
+            const context = {condition: {feature: {value: false}, elementExists: {count: 0}}, activation: {groups: {1: ''}}};
+            expect(placeholders.render('%%condition.feature.value%%', context)).toBe('false');
+            expect(placeholders.render('%%condition.elementExists.count%%', context)).toBe('0');
+            expect(placeholders.render('%%activation.groups.1%%', context)).toBe('');
+            expect(function () { placeholders.render('%%condition.missing.value%%', context); }).toThrowError();
+        });
+
+        it('rejects inherited properties, executable expressions, missing delimiters and implicit array conversion', function () {
+            const placeholders = Breinify.UTL.placeholders;
+            const context = {condition: Object.create({feature: {value: 'inherited'}})};
+            expect(function () { placeholders.render('%%condition.feature.value%%', context); }).toThrowError();
+            expect(function () { placeholders.render('%%condition.constructor.name%%', context); }).toThrowError();
+            expect(function () { placeholders.render('%%condition.feature.value', context); }).toThrowError();
+            expect(function () { placeholders.render('%%condition.feature.value | alert(1)%%', {
+                condition: {feature: {value: 1}}
+            }); }).toThrowError();
+            expect(function () { placeholders.render('%%condition.feature.value%%', {
+                condition: {feature: {value: ['A']}}
+            }); }).toThrowError();
+        });
+
+        it('creates immutable snapshots without modifying source data', function () {
+            const source = {condition: {feature: {value: ['A']}}};
+            const snapshot = Breinify.UTL.placeholders.snapshot(source);
+            source.condition.feature.value.push('B');
+            expect(snapshot.condition.feature.value).toEqual(['A']);
+            expect(Object.isFrozen(snapshot.condition.feature.value)).toBe(true);
+            expect(Object.isFrozen(source)).toBe(false);
+        });
+    });
+
+    describe('formatValue', function () {
+        it('formats numbers with locale grouping and explicit or default precision', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(format(1234.567, 'number', {locale: 'en-US'})).toBe('1,234.567');
+            expect(format(1234.5678, 'number', {locale: 'en-US'})).toBe('1,234.568');
+            expect(format(1234.567, 'number', {locale: 'en-US', decimalPlaces: 0})).toBe('1,235');
+            expect(format(1234.5, 'number', {locale: 'en-US', decimalPlaces: 2})).toBe('1,234.50');
+            expect(format(-1234.5, 'number', {locale: 'de-DE', decimalPlaces: 2})).toBe('-1.234,50');
+            expect(format(0, 'number', {locale: 'en-US'})).toBe('0');
+            expect(format(1, 'number', {locale: 'en-US', decimalPlaces: 20})).toBe('1.00000000000000000000');
+        });
+
+        it('uses the browser locale when none is specified', function () {
+            const expected = new Intl.NumberFormat(undefined, {
+                style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 3
+            }).format(1234.567);
+            expect(Breinify.UTL.formatValue(1234.567, 'number')).toBe(expected);
+        });
+
+        it('formats fractions as percentages without modifying the source value', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(format(0.3, 'percent', {locale: 'en-US'})).toBe('30%');
+            expect(format(0.12345, 'percent', {locale: 'en-US', decimalPlaces: 2})).toBe('12.35%');
+            expect(format(30, 'percent', {locale: 'en-US'})).toBe('3,000%');
+        });
+
+        it('requires currency explicitly and supports currency-specific or explicit precision', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(format(1234.5, 'currency', {locale: 'en-US', currency: 'usd'})).toBe('$1,234.50');
+            expect(format(1234.5, 'currency', {
+                locale: 'en-US', currency: 'USD', decimalPlaces: 0
+            })).toBe('$1,235');
+            const expected = new Intl.NumberFormat('en-US', {style: 'currency', currency: 'JPY'}).format(1234.5);
+            expect(format(1234.5, 'currency', {locale: 'en-US', currency: 'JPY'})).toBe(expected);
+            [undefined, null, '', 'US', '$', ' USD '].forEach(function (currency) {
+                expect(function () { format(1, 'currency', {currency: currency}); }).toThrowError(TypeError);
+            });
+        });
+
+        it('uses locale-aware case conversion and preserves empty strings', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(format('social', 'upper', {locale: 'en-US'})).toBe('SOCIAL');
+            expect(format('SOCIAL', 'lower', {locale: 'en-US'})).toBe('social');
+            expect(format('i', 'upper', {locale: 'tr'})).toBe('\u0130');
+            expect(format('I', 'lower', {locale: 'tr'})).toBe('\u0131');
+            expect(format('', 'upper')).toBe('');
+            expect(function () { format(123, 'lower'); }).toThrowError(TypeError);
+        });
+
+        it('joins scalar arrays with an explicit separator without mutating them', function () {
+            const values = Object.freeze(['A', 0, false]);
+            const options = Object.freeze({separator: ', '});
+            expect(Breinify.UTL.formatValue(values, 'join', options)).toBe('A, 0, false');
+            expect(values).toEqual(['A', 0, false]);
+            expect(Breinify.UTL.formatValue(['A', 'B'], 'join', {separator: ''})).toBe('AB');
+            expect(Breinify.UTL.formatValue([], 'join', options)).toBe('');
+            expect(function () { Breinify.UTL.formatValue(values, 'join'); }).toThrowError(TypeError);
+        });
+
+        it('rejects sparse or nonscalar arrays rather than silently producing misleading text', function () {
+            [[null], [undefined], [{}], [['A']], [Infinity], [NaN], new Array(1), 'A'].forEach(function (value) {
+                expect(function () {
+                    Breinify.UTL.formatValue(value, 'join', {separator: ', '});
+                }).toThrowError(TypeError);
+            });
+        });
+
+        it('returns null for missing values but never converts numeric strings or booleans to numbers', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(format(null, 'number')).toBeNull();
+            expect(format(undefined, 'upper')).toBeNull();
+            expect(format(null, 'currency', {currency: 'USD'})).toBeNull();
+            ['12', '', false, true, {}, [], NaN, Infinity, -Infinity].forEach(function (value) {
+                expect(function () { format(value, 'number'); }).toThrowError(TypeError);
+            });
+        });
+
+        it('rejects unknown formatters and options, including when the value is missing', function () {
+            const format = Breinify.UTL.formatValue;
+            expect(function () { format(1, 'unknown'); }).toThrowError(RangeError);
+            expect(function () { format(null, 'unknown'); }).toThrowError(RangeError);
+            expect(function () { format(1, function () {}); }).toThrowError(TypeError);
+            expect(function () { format(1, 'number', null); }).toThrowError(TypeError);
+            expect(function () { format(1, 'number', []); }).toThrowError(TypeError);
+            expect(function () { format(1, 'number', {currency: 'USD'}); }).toThrowError(RangeError);
+            expect(function () { format('a', 'upper', {decimalPlaces: 2}); }).toThrowError(RangeError);
+        });
+
+        it('rejects invalid precision and locale instead of silently falling back', function () {
+            const format = Breinify.UTL.formatValue;
+            [-1, 21, 1.5, '2', null, NaN, Infinity].forEach(function (places) {
+                expect(function () { format(1, 'number', {decimalPlaces: places}); }).toThrowError(RangeError);
+            });
+            ['', ' en-US ', null, ['en-US'], 123].forEach(function (locale) {
+                expect(function () { format(1, 'number', {locale: locale}); }).toThrowError(TypeError);
+            });
+            expect(function () { format(1, 'number', {locale: 'en_US'}); }).toThrowError(RangeError);
+            expect(function () { format(null, 'upper', {locale: 'en_US'}); }).toThrowError(RangeError);
+        });
+
+        it('does not mutate options, parse tokens, or escape text for a rendering destination', function () {
+            const options = Object.freeze({locale: 'en-US', currency: 'usd', decimalPlaces: 2});
+            expect(Breinify.UTL.formatValue(12, 'currency', options)).toBe('$12.00');
+            expect(options.currency).toBe('usd');
+            expect(Breinify.UTL.formatValue(['<b>', '%%name%%'], 'join', {separator: ''}))
+                .toBe('<b>%%name%%');
+        });
+    });
+
     describe('split-test assignment expiry', function () {
         var user;
         var originalData;

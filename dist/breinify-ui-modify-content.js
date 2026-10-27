@@ -9,6 +9,18 @@
 
     const $ = Breinify.UTL._jquery();
 
+    // plugins can roll out independently; an older core must still execute actions that do not use new tokens
+    const PLACEHOLDER_TOOLS = Breinify.UTL.placeholders || {
+        snapshot: function () { return Object.freeze({}); },
+        has: function (text) {
+            return typeof text === 'string' && /%%\s*[A-Za-z_$][\w$]*\./.test(text);
+        },
+        render: function (text) {
+            if (this.has(text)) throw new Error('Modify Content placeholders require an updated Breinify core SDK.');
+            return text;
+        }
+    };
+
     const WEB_EXPERIENCE_SNIPPET_PREFIX = "web-experience:";
     const DEFAULT_DECISION_SERVICE = "webExperienceDecision";
     const DECISION_STORAGE_KEY = "br::wemc::decision";
@@ -78,6 +90,7 @@
                     entry = {
                         page: _private.getDecisionPageKey(), group: runtime.selectedGroupId, key: key,
                         pending: true, executed: false, failed: false, disposed: false,
+                        placeholderContext: action._placeholderContext,
                         activityContext: _private.createActivityContext(runtime),
                         host: null, timer: null, timeout: null, processId: null
                     };
@@ -133,11 +146,23 @@
                                     return;
                                 }
                                 try {
-                                    const host = this._createHost(result.recommendations[0], settings, function () {
+                                    const rec = result.recommendations[0];
+                                    const recommendation = {name: rec.name, url: rec.url};
+                                    if (typeof rec.image === 'string') recommendation.image = rec.image;
+                                    const outputs = {recommendation: recommendation};
+                                    const context = $.extend({}, entry.placeholderContext);
+                                    context.action = $.extend({}, context.action);
+                                    if (!Object.prototype.hasOwnProperty.call(context.action, 'showRecommendationBubble')) {
+                                        context.action.showRecommendationBubble = outputs;
+                                    }
+                                    const snapshot = PLACEHOLDER_TOOLS.snapshot(context);
+                                    const host = this._createHost(rec, settings, function () {
                                         const seconds = settings.suppression?.onCloseDurationInSec;
                                         _private.extendExperienceSuppression(runtime, seconds);
                                         runtime.suppressionExecution = null;
-                                    });
+                                    }, snapshot);
+                                    entry.placeholderOutputs = PLACEHOLDER_TOOLS.snapshot(outputs);
+                                    entry.outputContext = snapshot;
                                     entry.host = host;
                                     document.body.appendChild(host);
                                     done($(host), {
@@ -226,8 +251,11 @@
              * Uses the recommendation renderer's %%name%% notation, with one explicitly supported linked token.
              * DOM construction keeps both configured text and recommendation values out of HTML interpretation.
              */
-            _createHost: function (rec, settings, onClose) {
-                const content = settings.content || {};
+            _createHost: function (rec, settings, onClose, context) {
+                const content = $.extend({}, settings.content);
+                ['ctaText', 'ariaLabel', 'closeLabel'].forEach(function (name) {
+                    content[name] = PLACEHOLDER_TOOLS.render(content[name], context || {});
+                });
                 const appearance = $.extend({
                     backgroundColor: '#FFFFFF', textColor: '#253746', linkColor: '#0077AA',
                     borderColor: '#E2E8ED', borderRadiusInPx: 24, maxWidthInPx: 560,
@@ -279,7 +307,8 @@
                 const message = this._element('div', 'br-bubble-message');
                 String(content.message || '').split('%%name%%').forEach(function (text, index) {
                     if (index > 0) message.appendChild(this._link(rec.name, rec.url, appearance.linkColor));
-                    message.appendChild(document.createTextNode(text));
+                    const resolvedText = PLACEHOLDER_TOOLS.render(text, context || {});
+                    message.appendChild(document.createTextNode(resolvedText));
                 }, this);
                 body.appendChild(message);
                 if (content.ctaText) {
@@ -335,6 +364,7 @@
                 if (error) _private.logActionError(action, error);
                 if (entry.executed) {
                     try {
+                        action._placeholderContext = entry.outputContext || action._placeholderContext;
                         _private.applyActionSnippets(runtime, action, index);
                     } catch (snippetError) {
                         entry.failed = true;
@@ -1249,7 +1279,7 @@
 
         /** Counts DOM matches without involving feature definitions, FeatureStorage, or Discovery. */
         elementexists: {
-            evaluate: function (condition, runtime) {
+            evaluate: function (condition, runtime, visiting) {
                 const lifecycle = runtime.elementLifecycle;
                 const settings = condition.settings;
                 let state = lifecycle.states.get(condition);
@@ -1257,15 +1287,20 @@
                     state = {stopped: false, matched: false, timer: null, revision: -1};
                     lifecycle.states.set(condition, state);
                 }
-                if (state.matched) return true;
+                if (state.matched) {
+                    _private.publishConditionBindings(visiting, 'elementExists', {count: state.count});
+                    return true;
+                }
                 if (state.stopped) return false;
                 if (state.revision !== lifecycle.revision) {
                     const count = document.querySelectorAll(settings.selector).length;
+                    state.count = count;
                     state.matched = this._matches(count, settings.match || {});
                     state.revision = lifecycle.revision;
                 }
                 if (state.matched) {
                     _private.clearConditionWait(lifecycle, state);
+                    _private.publishConditionBindings(visiting, 'elementExists', {count: state.count});
                     return true;
                 }
                 return _private.waitForCondition(runtime, lifecycle, state, settings, function () {
@@ -1494,7 +1529,7 @@
          * null means pending, not false: ordered branches must not select a fallback prematurely.
          */
         feature: {
-            evaluate: function (condition, runtime) {
+            evaluate: function (condition, runtime, visiting) {
                 const settings = _private.getConditionSettings(condition) || {};
                 const storage = Breinify.plugins.featureStorage;
                 const lifecycle = runtime.featureLifecycle;
@@ -1516,7 +1551,9 @@
                 if (value !== null && typeof value !== 'undefined' && relevant) {
                     _private.clearConditionWait(lifecycle, state);
                     const definition = storage.getFeatureDefinition(key);
-                    return this._compare(value, definition && definition.valueType, settings);
+                    const matched = this._compare(value, definition && definition.valueType, settings);
+                    if (matched) _private.publishConditionBindings(visiting, 'feature', {value: value});
+                    return matched;
                 }
                 return _private.waitForCondition(runtime, lifecycle, state, settings, function () {
                     if (runtime.featureLifecycle === lifecycle) conditions.feature._notify(runtime);
@@ -1624,12 +1661,21 @@
         /**
          * Resolves an opaque backend decision result returned for this
          * web-experience. The browser receives only the reference and the
-         * boolean result, never the backend condition settings.
+         * boolean result and backend-provided output bindings, never the backend condition settings.
          */
         decision: {
-            evaluate: function (condition, runtime) {
+            evaluate: function (condition, runtime, visiting) {
                 const refId = _private.getDecisionReferenceId(condition);
-                return _private.getDecisionConditionResult(runtime, refId) === true;
+                const matched = _private.getDecisionConditionResult(runtime, refId) === true;
+                if (matched) {
+                    const bindings = runtime.decision.conditionCache[refId]?.bindings;
+                    if ($.isPlainObject(bindings)) {
+                        Object.keys(bindings).forEach(function (name) {
+                            _private.publishConditionBindings(visiting, name, bindings[name]);
+                        });
+                    }
+                }
+                return matched;
             }
         },
 
@@ -2699,6 +2745,8 @@
                         typeof stored.matched !== "boolean") {
                         continue;
                     }
+                    // old boolean-only entries cannot supply newly configured condition placeholders
+                    if (runtime.requiresConditionBindings && !$.isPlainObject(stored.bindings)) continue;
 
                     const expiresAt = typeof stored.expiresAt === "number" && isFinite(stored.expiresAt)
                         ? stored.expiresAt
@@ -2722,7 +2770,8 @@
                             scope: scope,
                             maxAgeSeconds: maxAgeSeconds,
                             pageKey: null,
-                            expiresAt: expiresAt
+                            expiresAt: expiresAt,
+                            bindings: stored.matched ? this.readConditionBindings(stored.bindings) : {}
                         };
                     }
                 }
@@ -2746,7 +2795,8 @@
                     scope: entry.scope,
                     matched: entry.matched,
                     maxAgeSeconds: entry.maxAgeSeconds,
-                    expiresAt: entry.expiresAt
+                    expiresAt: entry.expiresAt,
+                    bindings: entry.bindings
                 };
 
                 if (entry.scope === DECISION_CACHE_SCOPE_SESSION && storageData.session !== null) {
@@ -2841,12 +2891,14 @@
                 const maxAgeSeconds = this.getDecisionConditionCache(condition);
                 const scope = this.getDecisionConditionScope(condition);
                 const expiresAt = maxAgeSeconds > 0 ? resolvedAt + maxAgeSeconds * 1000 : 0;
+                const bindings = matched ? this.readConditionBindings(condition.bindings) : {};
                 conditionResults[refId] = matched;
                 conditionCache[refId] = {
                     scope: scope,
                     maxAgeSeconds: maxAgeSeconds,
                     pageKey: scope === DECISION_CACHE_SCOPE_SESSION ? null : requestPageKey,
-                    expiresAt: expiresAt
+                    expiresAt: expiresAt,
+                    bindings: bindings
                 };
                 const input = this.getDecisionInputDescriptor(runtime, refId);
                 if (input !== null) {
@@ -2857,7 +2909,8 @@
                     scope: scope,
                     matched: matched,
                     maxAgeSeconds: maxAgeSeconds,
-                    expiresAt: expiresAt
+                    expiresAt: expiresAt,
+                    bindings: bindings
                 });
             }
 
@@ -3126,6 +3179,118 @@
             return null;
         },
 
+        /**
+         * Discovery owns the output fields. Validate and snapshot each namespace without duplicating its catalog.
+         */
+        readConditionBindings: function (bindings) {
+            // leave the field absent so a later upgraded core can refresh a boolean-only stored result
+            if (!Breinify.UTL.placeholders) return undefined;
+            const result = Object.create(null);
+            if (!$.isPlainObject(bindings)) return result;
+            Object.keys(bindings).forEach(function (name) {
+                if (!$.isPlainObject(bindings[name])) return;
+                try {
+                    // validate the namespace key too, including prototype-related property names
+                    const namespace = Object.create(null);
+                    namespace[name] = bindings[name];
+                    const snapshot = PLACEHOLDER_TOOLS.snapshot(namespace);
+                    result[name] = snapshot[name];
+                } catch (error) {
+                    // invalid optional output must not change an otherwise valid condition match
+                }
+            });
+            return PLACEHOLDER_TOOLS.snapshot(result);
+        },
+
+        publishConditionBindings: function (visiting, name, fields) {
+            if (!visiting || !visiting.bindings || visiting.bindings.has(name)) return;
+            visiting.bindings.set(name, PLACEHOLDER_TOOLS.snapshot(fields));
+        },
+
+        /**
+         * Activation and assignment belong to the experience; condition outputs belong only to its selected branch.
+         */
+        createPlaceholderContext: function (runtime) {
+            const context = {};
+            const activation = runtime.module && runtime.module._webExperienceActivation;
+            if (activation && activation.url === window.location.href && Array.isArray(activation.captures)) {
+                const groups = {};
+                activation.captures.forEach(function (value, index) {
+                    if (typeof value === 'string') groups[index + 1] = value;
+                });
+                context.activation = {groups: groups};
+            }
+            const assignment = runtime.decision && runtime.decision.splitTestData;
+            if ($.isPlainObject(assignment)) {
+                const splitTest = {};
+                if (typeof assignment.groupDecision === 'string') splitTest.group = assignment.groupDecision;
+                if (typeof assignment.testName === 'string') splitTest.testName = assignment.testName;
+                if (typeof assignment.isControlGroup === 'boolean') splitTest.isControlGroup = assignment.isControlGroup;
+                context.splitTest = splitTest;
+            }
+            if (runtime.placeholderGroup === runtime.selectedGroupId &&
+                runtime.placeholderPage === this.getDecisionPageKey() &&
+                runtime.decision?.status !== DECISION_STATUS_FAILED) {
+                context.condition = runtime.placeholderConditions || {};
+            }
+            return PLACEHOLDER_TOOLS.snapshot(context);
+        },
+
+        /**
+         * HTML substitutions are text-only. Attributes, scripts, styles, comments, and URLs are not templates.
+         */
+        renderPlaceholderHtml: function (html, context) {
+            const placeholders = PLACEHOLDER_TOOLS;
+            if (!placeholders.has(html)) return html;
+            const template = document.createElement('template');
+            template.innerHTML = html;
+            const visit = function (node, forbidden) {
+                if (node.nodeType === 1) {
+                    forbidden = forbidden || /^(script|style|iframe|object|embed|svg|math|template)$/i.test(node.tagName);
+                    if (forbidden && placeholders.has(node.innerHTML)) {
+                        throw new Error('Placeholders in executable or embedded HTML are not supported.');
+                    }
+                    Array.from(node.attributes).forEach(function (attribute) {
+                        if (placeholders.has(attribute.value)) {
+                            throw new Error('Placeholders in HTML attributes are not supported.');
+                        }
+                    });
+                } else if (placeholders.has(node.nodeValue)) {
+                    if (forbidden || node.nodeType !== 3) {
+                        throw new Error('Placeholders are supported only in HTML text nodes.');
+                    }
+                    node.nodeValue = placeholders.render(node.nodeValue, context);
+                }
+                Array.from(node.childNodes).forEach(function (child) { visit(child, forbidden); });
+            };
+            visit(template.content, false);
+            return template.innerHTML;
+        },
+
+        /**
+         * Resolve only explicitly supported display fields; never substitute selectors, CSS, code, or request data.
+         */
+        prepareActionPlaceholders: function (action, context) {
+            const prepared = $.extend({}, action, {_placeholderContext: context});
+            const settings = $.extend({}, action.settings);
+            const placeholders = PLACEHOLDER_TOOLS;
+            prepared.settings = settings;
+            if (action.type === 'writeToConsole') {
+                settings.message = placeholders.render(settings.message, context);
+            } else if (action.type === 'changeContent') {
+                settings.content = settings.allowHtml === true
+                    ? this.renderPlaceholderHtml(settings.content, context)
+                    : placeholders.render(settings.content, context);
+            } else if (action.type === 'changeImage' && $.isPlainObject(settings.render?.image)) {
+                settings.render = $.extend({}, settings.render);
+                settings.render.image = $.extend({}, settings.render.image);
+                if (typeof settings.render.image.alt === 'string') {
+                    settings.render.image.alt = placeholders.render(settings.render.image.alt, context);
+                }
+            }
+            return prepared;
+        },
+
         createSnippetContext: function (runtime, action, actionIndex) {
             return {
                 action: action,
@@ -3134,7 +3299,8 @@
                 groupId: runtime.selectedGroupId,
                 module: runtime.module,
                 webExId: runtime.webExId,
-                webExVersionId: runtime.webExVersionId
+                webExVersionId: runtime.webExVersionId,
+                placeholders: action._placeholderContext || this.createPlaceholderContext(runtime)
             };
         },
 
@@ -3801,6 +3967,7 @@
             }
 
             const previousTriggers = visiting && visiting.triggers ? new Map(visiting.triggers) : null;
+            const previousBindings = visiting && visiting.bindings ? new Map(visiting.bindings) : null;
             const implementation = this.getConditionImplementation(condition);
             let result = false;
             if (implementation && typeof implementation.evaluate === "function") {
@@ -3810,10 +3977,14 @@
             }
 
             if (result !== true && previousTriggers !== null) visiting.triggers = previousTriggers;
+            if (result !== true && previousBindings !== null) visiting.bindings = previousBindings;
             return result === null ? null : result === true;
         },
 
         selectGroup: function (runtime) {
+            runtime.placeholderConditions = {};
+            runtime.placeholderGroup = null;
+            runtime.placeholderPage = this.getDecisionPageKey();
             conditions.trigger._preparePage(runtime);
             conditions.elementexists._preparePage(runtime);
             runtime.conditionsPending = false;
@@ -3833,7 +4004,7 @@
 
                 let matches = true;
                 let pending = false;
-                const visiting = {triggers: new Map()};
+                const visiting = {triggers: new Map(), bindings: new Map()};
                 for (let j = 0; j < group.conditions.length; j++) {
                     const result = this.evaluateCondition(runtime, group.conditions[j], visiting);
                     if (result === false) {
@@ -3848,6 +4019,10 @@
                         return null;
                     }
                     this.recognizeGroupTriggers(runtime, group.actionGroup, visiting.triggers);
+                    const bindings = Object.create(null);
+                    visiting.bindings.forEach(function (value, name) { bindings[name] = value; });
+                    runtime.placeholderConditions = PLACEHOLDER_TOOLS.snapshot(bindings);
+                    runtime.placeholderGroup = group.actionGroup;
                     return group.actionGroup;
                 }
             }
@@ -3864,6 +4039,8 @@
                 return {executed: false, failed: false, pending: false};
             }
             const configuredActions = this.getConfiguredActions(runtime);
+            const context = this.createPlaceholderContext(runtime);
+            const actionOutputs = Object.create(null);
             const modifications = [];
             const execution = {
                 executed: false,
@@ -3872,9 +4049,19 @@
             };
 
             for (let i = 0; i < configuredActions.length; i++) {
-                const action = this.getEffectiveAction(runtime, configuredActions[i]);
+                let action = this.getEffectiveAction(runtime, configuredActions[i]);
                 if (!action || action.enabled === false) {
                     continue;
+                }
+                const entry = runtime.bubbles?.entries[this.getActionStateIndex(runtime, i)];
+                if (action.type === 'showRecommendationBubble' && entry?.executed && entry.placeholderOutputs &&
+                    entry.page === this.getDecisionPageKey() && entry.group === runtime.selectedGroupId &&
+                    !Object.prototype.hasOwnProperty.call(actionOutputs, 'showRecommendationBubble')) {
+                    const previous = $.extend({}, entry.placeholderContext);
+                    delete previous.action;
+                    if (JSON.stringify(previous) === JSON.stringify(context)) {
+                        actionOutputs.showRecommendationBubble = entry.placeholderOutputs;
+                    }
                 }
                 const implementation = this.getActionImplementation(action);
                 const handler = implementation && typeof implementation.execute === "function"
@@ -3885,6 +4072,11 @@
                     (this.isDomAction(action) === true ||
                         runtime.executedActions[this.getActionStateIndex(runtime, i)] !== true)) {
                     try {
+                        // do not let network completion order choose between repeated action producers
+                        if (execution.pending && /%%\s*action\./.test(JSON.stringify(action.settings || {}))) break;
+                        const actionContext = $.extend({}, context, {action: actionOutputs});
+                        const snapshot = PLACEHOLDER_TOOLS.snapshot(actionContext);
+                        action = this.prepareActionPlaceholders(action, snapshot);
                         const seconds = runtime.config?.actionDefaults?._suppression?.durationInSec;
                         const started = runtime.suppressionExecutionActive === true &&
                             runtime.suppressionExecution === this.getSuppressionExecutionKey(runtime);
@@ -3917,6 +4109,9 @@
                             execution.executed = actionModifications !== false || execution.executed;
                         }
                     } catch (e) {
+                        // only consumers of a preceding asynchronous action wait; unrelated actions retain their order
+                        if (execution.pending && typeof e.placeholderPath === 'string' &&
+                            e.placeholderPath.indexOf('action.') === 0) break;
                         execution.failed = true;
                         this.logActionError(action, e);
                         break;
@@ -3992,6 +4187,7 @@
             const runtime = {
                 module: module,
                 config: config,
+                requiresConditionBindings: /%%\s*condition\./.test(JSON.stringify(config?.actions || {})),
                 webExId: webExId,
                 webExVersionId: webExVersionId,
                 appliedTargets: [],

@@ -2,6 +2,142 @@
 
 describe('UiModifyContent', function () {
 
+    describe('execution placeholders', function () {
+        var runtime;
+        var activitySpy;
+        var target;
+        var sequence = 0;
+        var id;
+
+        beforeEach(function () {
+            id = 'placeholder-spec-' + (++sequence);
+            activitySpy = createActivitySpy();
+            target = document.createElement('div');
+            target.id = id;
+            document.body.appendChild(target);
+            spyOn(console, 'log');
+            spyOn(console, 'error');
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, id, 'version', {actions: {}});
+            target.remove();
+            activitySpy.restore();
+        });
+
+        function decision(ref) { return {type: 'decision', settings: {refId: ref}}; }
+
+        function setup(expression, action) {
+            runtime = uiModifyContent.register({}, id, 'version', {
+                conditionsGroups: [{actionGroup: 'matched', conditions: expression}],
+                actions: {matched: [action], _default: []}
+            });
+        }
+
+        function result(ref, matched, bindings) {
+            runtime.decision.conditionResults[ref] = matched;
+            runtime.decision.conditionCache[ref] = {
+                scope: 'SESSION', expiresAt: 0, bindings: bindings
+            };
+        }
+
+        function evaluate() { uiModifyContent.handle(id, 'version', {type: 'full-scan'}); }
+
+        it('publishes only C in A || B || C and never fills missing fields from B', function () {
+            setup([{type: 'any', settings: {conditions: [decision('A'), decision('B'), decision('C')]}}],
+                {type: 'writeToConsole', settings: {message: '%%condition.location.city%%'}});
+            result('A', false, {weather: {condition: 'RAIN'}});
+            result('B', false, {location: {city: 'Los Angeles', zipCode: '90001'}});
+            result('C', true, {location: {city: 'New York'}});
+            evaluate();
+            expect(console.log).toHaveBeenCalledWith('New York');
+            expect(runtime.placeholderConditions.weather).toBeUndefined();
+            expect(runtime.placeholderConditions.location.zipCode).toBeUndefined();
+        });
+
+        it('rolls back successful leaves in failed alternatives and preserves the first successful producer', function () {
+            setup([{type: 'any', settings: {conditions: [
+                {type: 'all', settings: {conditions: [decision('A'), decision('B')]}},
+                {type: 'all', settings: {conditions: [decision('C'), decision('D')]}}
+            ]}}], {type: 'writeToConsole', settings: {message: '%%condition.dataFeedMetric.metricValue%%'}});
+            result('A', true, {dataFeedMetric: {metricValue: 99, resolvedEntityId: 'rejected'}});
+            result('B', false, {});
+            result('C', true, {dataFeedMetric: {metricValue: 23}});
+            result('D', true, {dataFeedMetric: {metricValue: 45, resolvedEntityId: 'later'}});
+            evaluate();
+            expect(console.log).toHaveBeenCalledWith('23');
+            expect(runtime.placeholderConditions.dataFeedMetric.resolvedEntityId).toBeUndefined();
+        });
+
+        it('does not publish speculative true results after a successful any alternative', function () {
+            setup([{type: 'any', settings: {conditions: [decision('A'), decision('B')]}}],
+                {type: 'writeToConsole', settings: {message: '%%condition.weather.condition%%'}});
+            result('A', true, {weather: {condition: 'CLEAR'}});
+            result('B', true, {location: {city: 'New York'}});
+            evaluate();
+            expect(console.log).toHaveBeenCalledWith('CLEAR');
+            expect(runtime.placeholderConditions.location).toBeUndefined();
+        });
+
+        it('inserts HTML placeholder values as text, preserving configured markup and the original configuration', function () {
+            const action = {type: 'changeContent', settings: {selector: '#' + id, operation: 'replaceContent',
+                allowHtml: true, content: '<strong>%%condition.location.city%%</strong>'}};
+            const original = JSON.stringify(action);
+            setup([decision('A')], action);
+            result('A', true, {location: {city: '<img src=x onerror=alert(1)>'}});
+            evaluate();
+            expect(target.querySelector('strong').textContent).toBe('<img src=x onerror=alert(1)>');
+            expect(target.querySelector('img')).toBeNull();
+            expect(JSON.stringify(action)).toBe(original);
+        });
+
+        it('rejects missing values without executing or leaking rejected group bindings into default', function () {
+            setup([decision('A'), decision('B')], {type: 'writeToConsole', settings: {message: 'unreachable'}});
+            runtime.config.actions._default = [{type: 'writeToConsole',
+                settings: {message: '%%condition.location.city%%'}}];
+            result('A', true, {location: {city: 'rejected'}});
+            result('B', false, {});
+            evaluate();
+            expect(console.log).not.toHaveBeenCalled();
+            expect(console.error).toHaveBeenCalled();
+            expect(runtime.placeholderGroup).toBeNull();
+        });
+
+        it('rejects tokens in HTML attributes before changing the target', function () {
+            target.textContent = 'unchanged';
+            setup([decision('A')], {type: 'changeContent', settings: {selector: '#' + id,
+                operation: 'replaceContent', allowHtml: true, content: '<a href="%%condition.location.city%%">Link</a>'}});
+            result('A', true, {location: {city: 'javascript:alert(1)'}});
+            evaluate();
+            expect(target.textContent).toBe('unchanged');
+            expect(console.error).toHaveBeenCalled();
+        });
+
+        it('retains the element count from the successful page-latched evaluation', function () {
+            const selector = '#' + id + ' span';
+            target.innerHTML = '<span></span><span></span>';
+            setup([{type: 'elementExists', settings: {selector: selector,
+                match: {operator: 'AT_LEAST', count: 1}}}],
+                {type: 'writeToConsole', settings: {message: '%%condition.elementExists.count%%'}});
+            evaluate();
+            target.innerHTML = '';
+            evaluate();
+            expect(runtime.placeholderConditions.elementExists.count).toBe(2);
+            expect(console.log).toHaveBeenCalledWith('2');
+        });
+
+        it('resolves activation captures and the experience assignment without needing a condition', function () {
+            setup([], {type: 'writeToConsole', settings: {message: 'unused'}});
+            runtime.module._webExperienceActivation = {url: window.location.href, captures: ['1234']};
+            runtime.decision.splitTestData = {testName: 'Assigned test', groupDecision: 'Breinify', isControlGroup: false};
+            runtime.config.actions._default = [{type: 'writeToConsole', settings: {
+                message: '%%activation.groups.1%%: %%splitTest.group%%'
+            }}];
+            evaluate();
+            expect(console.log).toHaveBeenCalledWith('1234: Breinify');
+        });
+    });
+
     describe('showRecommendationBubble', function () {
         var id = 'recommendation-bubble-spec';
         var version = 'recommendation-bubble-version';
@@ -69,6 +205,26 @@ describe('UiModifyContent', function () {
         function outcomes() {
             return activitySpy.renderedElements.filter(function (activity) { return activity.type === 'renderedElement'; });
         }
+
+        it('makes the actual recommendation available to a later action only after the bubble completes', function () {
+            jasmine.clock().install();
+            spyOn(console, 'log');
+            try {
+                setup({content: {message: 'Try %%name%%: %%action.showRecommendationBubble.recommendation.name%%'}});
+                runtime.config.actions._default.push({type: 'writeToConsole', settings: {
+                    message: '%%action.showRecommendationBubble.recommendation.name%%'
+                }});
+                uiModifyContent.handle(id, version, {});
+                expect(console.log).not.toHaveBeenCalled();
+                jasmine.clock().tick(1);
+                respond([recipe('Actual recipe')]);
+                expect(console.log).toHaveBeenCalledWith('Actual recipe');
+                const host = document.querySelector('.br-recommendation-bubble');
+                expect(host.querySelector('.br-bubble-message').textContent).toBe('Try Actual recipe: Actual recipe');
+            } finally {
+                jasmine.clock().uninstall();
+            }
+        });
 
         it('inherits presentation by field while preserving local false and zero without mutating config', function () {
             jasmine.clock().install();
@@ -931,9 +1087,13 @@ describe('UiModifyContent', function () {
         }
 
         function complete(index) {
+            const bindings = {dataFeedMetric: {metricValue: 23 + index, additionalValue: 7},
+                futureCondition: {details: {values: [0, false, 'value', null]}}};
             callbacks[index](null, null, {decisions: [{configurationId: id, matched: true,
-                conditions: [{refId: ref, matched: true,
+                conditions: [{refId: ref, matched: true, bindings: bindings,
                     cache: {scope: scope, maxAgeSeconds: scope === 'MEMORY' ? 10 : 0}}]}]});
+            bindings.dataFeedMetric.metricValue = 999;
+            bindings.futureCondition.details.values[0] = 999;
         }
 
         // expiration makes data stale but does not schedule a request until an evaluation is requested
@@ -943,6 +1103,11 @@ describe('UiModifyContent', function () {
                 complete(0);
                 evaluate();
                 expect(calls).toBe(1);
+                expect(runtime.decision.conditionCache[ref].bindings.dataFeedMetric.metricValue).toBe(23);
+                const bindings = runtime.decision.conditionCache[ref].bindings;
+                expect(bindings.dataFeedMetric.additionalValue).toBe(7);
+                expect(bindings.futureCondition.details.values).toEqual([0, false, 'value', null]);
+                expect(Object.isFrozen(bindings.futureCondition.details.values)).toBe(true);
                 var session = window.sessionStorage.getItem('br::wemc::decision') || '';
                 var persistent = window.localStorage.getItem('br::wemc::decision') || '';
                 expect(session.indexOf(ref)).toBe(-1);
@@ -954,9 +1119,30 @@ describe('UiModifyContent', function () {
                     setTimeout(function () {
                         expect(calls).toBe(2);
                         complete(1);
+                        expect(runtime.decision.conditionCache[ref].bindings.dataFeedMetric.metricValue).toBe(24);
                         done();
                     }, 10);
                 }, 10);
+            }, 10);
+        });
+
+        // backend namespaces are extensible, but malformed data and unsafe keys must never enter the context
+        it('rejects unsafe binding namespaces without changing the match or discarding valid namespaces', function (done) {
+            evaluate();
+            setTimeout(function () {
+                const bindings = JSON.parse('{"__proto__":{"polluted":true},"constructor":{"value":1},' +
+                    '"unsafe":{"nested":{"prototype":true}},"futureCondition":{"value":42}}');
+                bindings.nonJson = {value: Infinity};
+                bindings.wrongShape = ['value'];
+                callbacks[0](null, null, {decisions: [{configurationId: id, matched: true,
+                    conditions: [{refId: ref, matched: true, bindings: bindings,
+                        cache: {scope: 'MEMORY', maxAgeSeconds: 10}}]}]});
+                const stored = runtime.decision.conditionCache[ref].bindings;
+                expect(runtime.decision.conditionResults[ref]).toBe(true);
+                expect(Object.keys(stored)).toEqual(['futureCondition']);
+                expect(stored.futureCondition.value).toBe(42);
+                expect(Object.getPrototypeOf(stored)).toBe(null);
+                done();
             }, 10);
         });
 
@@ -1723,6 +1909,7 @@ describe('UiModifyContent', function () {
             storage.set(featureKey, '1234');
             storage.flush();
             expect(runtime.selectedGroupId).toBe('matched');
+            expect(runtime.placeholderConditions.feature.value).toBe('1234');
             expect(runtime.conditionsPending).toBe(false);
             expect(activitySpy.renderedElements.length).toBe(1);
         });

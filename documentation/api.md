@@ -38,6 +38,8 @@ This documentation is organized as following:
     * Breinify.UTL.isNonEmptyString() [since version 1.0.24]
     * Breinify.UTL.toPrice() [since version 1.0.24]
     * Breinify.UTL.formatPrice() [since version 1.0.24]
+    * [Breinify.UTL.formatValue(value, formatter, options)](#typed-value-formatting)
+    * [Breinify.UTL.placeholders](#placeholder-utilities)
     * Breinify.UTL.toInteger() [since version 1.0.24]
     * Breinify.UTL.equals() [since version 1.0.24]
   * [Breinify.UTL.events](#breinifyutlevents)
@@ -313,6 +315,90 @@ The utility library provides general functionality, which makes it easy to retri
 
 * {string} **Breinify.UTL.uuid()**:<br/>
   Creates a uuid.
+
+###### Typed value formatting
+
+`Breinify.UTL.formatValue(value, formatter, options)` formats a typed value as plain text without modifying the value
+or options. It is independent of Modify Content, Recommendations, and placeholder parsing. Existing `formatPrice`
+behavior is unchanged.
+
+```javascript
+Breinify.UTL.formatValue(1234.567, 'number', {locale: 'en-US', decimalPlaces: 0}); // '1,235'
+Breinify.UTL.formatValue(0.3, 'percent', {locale: 'en-US', decimalPlaces: 0}); // '30%'
+Breinify.UTL.formatValue(1234.5, 'currency', {locale: 'en-US', currency: 'USD'}); // '$1,234.50'
+Breinify.UTL.formatValue('social', 'upper', {locale: 'en-US'}); // 'SOCIAL'
+Breinify.UTL.formatValue(['A', 'B'], 'join', {separator: ', '}); // 'A, B'
+```
+
+| Formatter | Accepted value | Options | Default precision / behavior |
+| --- | --- | --- | --- |
+| `number` | Finite number | `locale`, `decimalPlaces` | Grouping enabled, zero to three decimal places. |
+| `percent` | Finite number representing a fraction | `locale`, `decimalPlaces` | Zero decimal places; `0.3` means 30%, not `30`. |
+| `currency` | Finite number | `locale`, `decimalPlaces`, required `currency` | Uses the currency's `Intl.NumberFormat` minor-unit defaults when precision is omitted. |
+| `upper` | String | `locale` | Locale-aware uppercase conversion. |
+| `lower` | String | `locale` | Locale-aware lowercase conversion. |
+| `join` | Array of strings, booleans, and/or finite numbers | Required `separator` | Joins scalar values without locale formatting; an empty array produces `''`. |
+
+`options` may be omitted but must otherwise be a plain object. Only the listed options are accepted for each formatter.
+Optional values set to `undefined` behave as omitted. `null` is not a valid option value.
+
+* `locale`: a nonempty BCP 47 language-tag string without surrounding whitespace. Omission uses the browser's default
+  locale. Well-formed but unavailable locales follow the browser's normal `Intl` fallback. Locale arrays are not supported.
+* `decimalPlaces`: an integer from 0 through 20, inclusive. When supplied, sets both minimum and maximum fraction
+  digits, including trailing zeros. Rounding affects display only.
+* `currency`: an explicit three-letter currency code, case-insensitive. It is never inferred from locale or location.
+  Codes are syntax-validated; recognition and display follow `Intl.NumberFormat`, not a separate currency catalog.
+* `separator`: an explicit string, including `''` if desired. Sparse arrays, nested arrays, objects, missing array
+  entries, and nonfinite numbers are rejected rather than silently stringified.
+
+The return value is a string, or `null` when the input value is `null`/`undefined`. Formatter/options validation runs
+even for missing values. Missing values never become zero; valid `0`, `false` array entries, and empty strings are not
+treated as absent. Numeric strings and booleans are not coerced to numbers.
+
+Invalid value types, option-object types, currency syntax, separators, and locale types throw `TypeError`. Unknown
+formatters, unsupported option names, out-of-range/noninteger precision, and malformed language tags throw `RangeError`.
+Consumers must handle errors and missing values explicitly; the utility does not decide rendering fallbacks.
+Numeric formatting and explicit locale validation require browser `Intl.NumberFormat` support; no polyfill is bundled.
+
+This method does not resolve `%%...%%` tokens, evaluate expressions, fetch data, or escape output. The caller is
+responsible for destination-specific escaping and URL validation. A formatted string is not trusted HTML, CSS, or
+JavaScript. Date/time formatting and formatter chaining are not supported. Recommendation and Modify Content
+integration is consumer-specific; Modify Content uses it for its supported display fields, while other recommendation
+renderers retain their existing behavior.
+
+###### Placeholder utilities
+
+`Breinify.UTL.placeholders` separates value resolution from execution-path selection. The caller must supply an
+eligible context; these utilities do not decide which conditions matched or which action group was selected.
+
+Modify Content reads backend condition `bindings` generically: Discovery owns the public namespace and field catalog.
+New backend fields do not require a frontend catalog update. Each namespace must be a plain object containing safe
+JSON-shaped values; invalid namespaces are discarded without changing the condition's match result. Valid bindings
+are snapshotted and cached with that result, and only successful contributors to the selected path become available.
+
+* `snapshot(value)` creates a deeply frozen copy of JSON-shaped data (maximum nesting depth 16). It rejects functions,
+  nonfinite numbers, non-plain objects, and prototype-related keys. It does not mutate the input.
+* `read(context, path)` reads a dotted path using own properties only. Missing values return `undefined`; malformed
+  paths and `__proto__`, `constructor`, or `prototype` segments throw. Numeric segments support activation captures.
+* `has(text)` detects a namespaced token opening. It is not a validation function.
+* `render(text, context)` substitutes namespaced `%%path%%` tokens once, returning plain text. Unqualified tokens such
+  as `%%name%%` remain unchanged for existing recommendation consumers. Missing values and invalid tokens/formatters
+  throw; an unavailable value error carries `placeholderPath`. Arrays require an explicit `join` formatter.
+
+```javascript
+const context = Breinify.UTL.placeholders.snapshot({condition: {dataFeedMetric: {metricValue: 23}}});
+const text = Breinify.UTL.placeholders.render(
+    'Currently hot: %%condition.dataFeedMetric.metricValue | number:0%% purchases.', context);
+```
+
+Supported suffixes are `number[:decimalPlaces]`, `percent[:decimalPlaces]`, `currency:USD[:decimalPlaces]`, `upper`,
+`lower`, and `join:", "`. Join separators use JSON string quoting/escaping; the token delimiter `%%` cannot occur in
+an argument. Whitespace around the path and pipe is allowed. Tokens use the browser locale. Locale overrides are
+available only through direct `formatValue` calls. Chaining and JavaScript expressions are not supported.
+
+Values containing token-like text are never recursively evaluated. Output is not HTML-escaped: use text nodes or
+appropriate destination validation. Modify Content additionally limits substitution to supported display fields and
+uses text-node insertion inside configured HTML, rejecting tokens in attributes or executable/embedded markup.
 
 ##### Breinify.UTL.events
 
