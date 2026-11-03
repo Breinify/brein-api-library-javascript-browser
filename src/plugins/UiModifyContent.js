@@ -46,6 +46,9 @@
     const DECISION_STATUS_RESOLVED = "resolved";
     const DECISION_STATUS_FAILED = "failed";
 
+    // mirrors Script Creator's ModifyContentIterationValidator.MAX_ITEMS metadata
+    const MAX_ITERATION_ITEMS = 100;
+
     // keeps these values aligned with RenderedElementStatusCodes in brein-common
     const renderedElementStatusCodes = Object.freeze({
         RENDERED: 200,
@@ -107,7 +110,7 @@
 
             _current: function (entry, runtime) {
                 return !entry.disposed && entry.page === _private.getDecisionPageKey() &&
-                    _private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime &&
+                    _private.isCurrentRuntime(runtime) &&
                     entry.group === runtime.selectedGroupId && _private.isRuntimeActive(runtime);
             },
 
@@ -411,6 +414,7 @@
                 });
                 if (!configured) return;
                 runtime.bubbles = {page: _private.getDecisionPageKey(), entries: {}};
+                if (runtime.iterationParent) return;
                 const id = 'uiModifyContent-bubble-' + _private.key(runtime.webExId, runtime.webExVersionId);
                 Breinify.plugins.trigger.addUrlChangeObserver(id, function () {
                     const page = _private.getDecisionPageKey();
@@ -437,7 +441,7 @@
 
             findRequirements: function (runtime, action, actionIndex, root) {
                 if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) return false;
-                return this._targets(action, root).some(function (target) {
+                return this._targets(action, root, runtime).some(function (target) {
                     return !_private.hasAppliedTarget(runtime, actionIndex, target);
                 });
             },
@@ -450,7 +454,7 @@
                 const settings = _private.getActionSettings(action);
                 const playback = $.isPlainObject(settings.playback) ? settings.playback : {};
                 const targets = _private.hasReachedApplicationLimit(runtime, actionIndex, action)
-                    ? [] : this._targets(action, null);
+                    ? [] : this._targets(action, null, runtime);
                 for (const target of targets) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) break;
                     if (_private.hasAppliedTarget(runtime, actionIndex, target)) continue;
@@ -476,9 +480,9 @@
                 };
             },
 
-            _targets: function (action, root) {
+            _targets: function (action, root, runtime) {
                 return _private.getActionSelector(action) === null
-                    ? (document.body ? [document.body] : []) : _private.getTargets(action, root);
+                    ? (document.body ? [document.body] : []) : _private.getTargets(action, root, runtime);
             },
 
             /** All executable code comes from the existing snippet registry, never from configuration strings. */
@@ -574,7 +578,7 @@
                 this._cleanup(entry);
                 if (entry.failed) _private.logActionError(action, result && result.error);
                 if (entry.page === _private.getDecisionPageKey() &&
-                    _private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime) {
+                    _private.isCurrentRuntime(runtime)) {
                     runtime.module.onChange({type: 'animation'});
                 }
             },
@@ -612,6 +616,7 @@
                 if (!configured) return;
                 runtime.animations = {page: _private.getDecisionPageKey(), entries: {}};
                 const observerId = 'uiModifyContent-animation-' + _private.key(runtime.webExId, runtime.webExVersionId);
+                if (runtime.iterationParent) return;
                 Breinify.plugins.trigger.addUrlChangeObserver(observerId, function () {
                     this._preparePage(runtime);
                     runtime.module.onChange({type: 'urlChange'});
@@ -647,7 +652,7 @@
                 if ($.isPlainObject(settings.elementStyle)) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) return false;
                     const elementAction = this._elementAction(action);
-                    return _private.getTargets(elementAction, root).some(function (target) {
+                    return _private.getTargets(elementAction, root, runtime).some(function (target) {
                         return !_private.hasAppliedTarget(runtime, actionIndex, target);
                     });
                 }
@@ -705,7 +710,7 @@
                     runtime.observedSnippets[pendingKey] = true;
                     let synchronous = true;
                     const onInjected = function () {
-                        if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                        if (!_private.isCurrentRuntime(runtime) ||
                             page !== _private.getDecisionPageKey()) return;
                         delete runtime.observedSnippets[pendingKey];
                         if (!synchronous && state === _private.getActionStateIndex(runtime, actionIndex) &&
@@ -748,7 +753,7 @@
                 runtime.observedSnippets[key] = true;
                 Breinify.plugins.snippetManager.onSnippetRegistered(snippetId, function () {
                     // a delayed registration must not execute an old page, group, or replaced runtime
-                    if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                    if (!_private.isCurrentRuntime(runtime) ||
                         page !== _private.getDecisionPageKey()) return;
                     delete runtime.observedSnippets[key];
                     if (state === _private.getActionStateIndex(runtime, actionIndex) &&
@@ -785,7 +790,7 @@
                 });
                 const elementAction = this._elementAction(action);
                 const modifications = [];
-                for (const target of _private.getTargets(elementAction, null)) {
+                for (const target of _private.getTargets(elementAction, null, runtime)) {
                     if (_private.hasReachedApplicationLimit(runtime, actionIndex, action)) break;
                     if (_private.hasAppliedTarget(runtime, actionIndex, target) || !target.style) continue;
                     declarations.forEach(function (declaration) {
@@ -817,7 +822,7 @@
                     return false;
                 }
 
-                const targets = _private.getTargets(action, root);
+                const targets = _private.getTargets(action, root, runtime);
                 const changeType = data && data.type ? data.type : "full-scan";
                 if (changeType === "full-scan") {
                     return targets.length > 0;
@@ -840,7 +845,7 @@
                 const settings = _private.getActionSettings(action);
                 const content = settings && typeof settings.content === "string" ? settings.content : null;
                 const allowHtml = settings && settings.allowHtml === true;
-                const targets = _private.getTargets(action, null);
+                const targets = _private.getTargets(action, null, runtime);
                 let applied = false;
                 const modifications = [];
 
@@ -870,7 +875,7 @@
                  * eligible.
                 */
                 if (applied) {
-                    const currentTargets = _private.getTargets(action, null);
+                    const currentTargets = _private.getTargets(action, null, runtime);
                     _private.markAppliedTargets(runtime, actionIndex, currentTargets);
                 }
 
@@ -892,7 +897,7 @@
                     return false;
                 }
 
-                const candidates = _private.getTargets(action, root);
+                const candidates = _private.getTargets(action, root, runtime);
                 const operation = action && action.settings && typeof action.settings.operation === "string"
                     ? action.settings.operation.toLowerCase()
                     : null;
@@ -902,7 +907,7 @@
                 }
 
                 const targets = operation === "replace"
-                    ? this._resolveReplacementTargets(candidates, action.settings)
+                    ? this._resolveReplacementTargets(candidates, action.settings, runtime)
                     : candidates;
                 for (let i = 0; i < targets.length; i++) {
                     if (!_private.hasAppliedTarget(runtime, actionIndex, targets[i])) {
@@ -922,9 +927,9 @@
                 const operation = settings && typeof settings.operation === "string"
                     ? settings.operation.toLowerCase()
                     : null;
-                const candidates = _private.getTargets(action, null);
+                const candidates = _private.getTargets(action, null, runtime);
                 const targets = operation === "replace"
-                    ? this._resolveReplacementTargets(candidates, settings)
+                    ? this._resolveReplacementTargets(candidates, settings, runtime)
                     : candidates;
                 let applied = false;
                 const modifications = [];
@@ -950,9 +955,9 @@
                 }
 
                 if (applied) {
-                    const currentCandidates = _private.getTargets(action, null);
+                    const currentCandidates = _private.getTargets(action, null, runtime);
                     const currentTargets = operation === "replace"
-                        ? this._resolveReplacementTargets(currentCandidates, settings)
+                        ? this._resolveReplacementTargets(currentCandidates, settings, runtime)
                         : currentCandidates;
                     _private.markAppliedTargets(runtime, actionIndex, currentTargets);
                 }
@@ -960,11 +965,14 @@
                 return modifications;
             },
 
-            _resolveReplacementTargets: function (candidates, settings) {
+            _resolveReplacementTargets: function (candidates, settings, runtime) {
                 const render = settings && settings.render;
                 const renderType = render && typeof render.type === "string" ? render.type.toLowerCase() : null;
+                const scope = runtime && runtime.iterationElement;
                 const targets = [];
                 const addTarget = function (target) {
+                    // promoting an img to its picture must not replace an ancestor outside the current row
+                    if (scope && target !== scope && !scope.contains(target)) return;
                     if (target && targets.indexOf(target) === -1) {
                         targets.push(target);
                     }
@@ -1162,7 +1170,7 @@
                     return false;
                 }
 
-                const targets = _private.getTargets(action, root);
+                const targets = _private.getTargets(action, root, runtime);
                 for (let i = 0; i < targets.length; i++) {
                     if (_private.hasAppliedTarget(runtime, actionIndex, targets[i]) !== true) {
                         return true;
@@ -1178,7 +1186,7 @@
                 }
 
                 const settings = _private.getActionSettings(action);
-                const targets = _private.getTargets(action, null);
+                const targets = _private.getTargets(action, null, runtime);
                 let applied = false;
                 const modifications = [];
 
@@ -1203,7 +1211,7 @@
                 }
 
                 if (applied) {
-                    _private.markAppliedTargets(runtime, actionIndex, _private.getTargets(action, null));
+                    _private.markAppliedTargets(runtime, actionIndex, _private.getTargets(action, null, runtime));
                 }
 
                 return modifications;
@@ -1293,7 +1301,9 @@
                 }
                 if (state.stopped) return false;
                 if (state.revision !== lifecycle.revision) {
-                    const count = document.querySelectorAll(settings.selector).length;
+                    const count = runtime.iterationElement
+                        ? _private.getTargets({settings: {selector: settings.selector}}, null, runtime).length
+                        : document.querySelectorAll(settings.selector).length;
                     state.count = count;
                     state.matched = this._matches(count, settings.match || {});
                     state.revision = lifecycle.revision;
@@ -1364,7 +1374,7 @@
             },
 
             _notify: function (runtime, lifecycle) {
-                if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+                if (!_private.isCurrentRuntime(runtime) ||
                     lifecycle.page !== _private.getDecisionPageKey() || !_private.isRuntimeActive(runtime)) return;
                 runtime.module.onChange({type: 'elementCondition'});
             },
@@ -1611,7 +1621,7 @@
             },
 
             _notify: function (runtime) {
-                if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime) return;
+                if (!_private.isCurrentRuntime(runtime)) return;
                 if (!runtime.module.isValidPage || runtime.module.isValidPage() === true) {
                     runtime.module.onChange({type: 'feature'});
                 }
@@ -1625,6 +1635,9 @@
                 const names = featureConditions.map(function (condition) {
                     return '__br_feature.' + condition.settings.featureId;
                 });
+                if (runtime.config?.iteration?.type === 'FEATURE') {
+                    names.push('__br_feature.' + runtime.config.iteration.featureId);
+                }
                 const decisionConditions = _private.getDecisionSettings(runtime).conditions || [];
                 decisionConditions.forEach(function (condition) {
                     const input = condition && condition.settings && condition.settings.input;
@@ -1929,6 +1942,7 @@
         isExperienceSuppressed: function (runtime) {
             const state = this.readSuppression(runtime);
             if (state.expiresAt === 0) return false;
+            if (runtime.iterationParent && runtime.iterationCompleted !== true) return false;
             // the initiating branch may finish its existing async actions, but not start another execution
             return runtime.suppressionExecutionActive !== true ||
                 runtime.suppressionExecution !== this.getSuppressionExecutionKey(runtime);
@@ -1943,7 +1957,246 @@
             runtime.suppressionExecutionActive = true;
         },
 
+        createRuntime: function (module, webExId, webExVersionId, config) {
+            return {
+                module: module,
+                config: config,
+                requiresConditionBindings: /%%\s*condition\./.test(JSON.stringify(config?.actions || {})),
+                webExId: webExId,
+                webExVersionId: webExVersionId,
+                appliedTargets: [],
+                applicationCounts: [],
+                executedActions: [],
+                appliedSnippets: {},
+                observedSnippets: {},
+                conditionResults: {},
+                randomConditionResults: {},
+                selectedGroupId: DEFAULT_ACTION_GROUP,
+                decision: {
+                    inFlight: false,
+                    resolved: false,
+                    status: DECISION_STATUS_IDLE,
+                    matched: null,
+                    pageDecisionPageKey: null,
+                    failurePageKey: null,
+                    conditionResults: {},
+                    conditionCache: {},
+                    splitTestData: null
+                },
+                activity: {
+                    reportedPageKey: null
+                },
+                conditionEvaluationTimer: null
+            };
+
+        },
+
         runtimes: {},
+        iterationSequence: 0,
+
+        /**
+         * Child runtimes reuse the ordinary evaluator with independent actions, waits, and decision results.
+         * DOM references remain browser-local and never enter serialized placeholders.
+         */
+        isCurrentRuntime: function (runtime) {
+            if (!runtime || runtime.disposed) return false;
+            const parent = runtime.iterationParent;
+            if (!parent) return this.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime;
+            return this.isCurrentRuntime(parent) && parent.iterationState?.children.get(runtime.iterationKey) === runtime &&
+                runtime.iterationPage === this.getDecisionPageKey() &&
+                (!runtime.iterationElement || runtime.iterationElement.isConnected);
+        },
+
+        disposeRuntime: function (runtime) {
+            runtime.disposed = true;
+            if (runtime.iterationRequestId) {
+                const batch = this.decisionBatches[this.getDecisionService(runtime)];
+                if (batch) delete batch.requests[runtime.iterationRequestId];
+            }
+            if (runtime.iterationState) {
+                runtime.iterationState.children.forEach(this.disposeRuntime.bind(this));
+                runtime.iterationState.children.clear();
+            }
+            window.clearTimeout(runtime.iterationTimer);
+            actions.showRecommendationBubble._cancel(runtime);
+            if (runtime.disposeBubbleListener) runtime.disposeBubbleListener();
+            actions.showAnimation._cancel(runtime);
+            if (runtime.disposeAnimationListener) runtime.disposeAnimationListener();
+            conditions.elementexists._dispose(runtime);
+            conditions.feature._clearTimers(runtime);
+            if (runtime.disposeFeatureListener) runtime.disposeFeatureListener();
+            window.clearTimeout(runtime.conditionEvaluationTimer);
+        },
+
+        scheduleIteration: function (runtime) {
+            if (!this.isCurrentRuntime(runtime) || runtime.iterationTimer != null) return;
+            runtime.iterationTimer = window.setTimeout(function () {
+                runtime.iterationTimer = null;
+                if (_private.isCurrentRuntime(runtime)) UiModifyContent.handle(runtime.webExId, runtime.webExVersionId,
+                    {type: 'iteration'});
+            }, 50);
+        },
+
+        /** Missing values skip an item; zero and false remain available to typed consumers. */
+        hasIterationValue: function (value) {
+            return value !== null && value !== undefined &&
+                (typeof value !== 'string' || value.trim().length > 0);
+        },
+
+        readIterationEntries: function (runtime) {
+            if (!Breinify.UTL.placeholders) throw new Error('Iteration requires an updated Breinify core SDK.');
+            const config = runtime.config.iteration;
+            let entries;
+            if (config.type === 'SELECTOR') {
+                entries = Array.from(document.querySelectorAll(config.selector));
+            } else if (config.type === 'FEATURE') {
+                const storage = Breinify.plugins.featureStorage;
+                const value = storage && storage.get('__br_feature.' + config.featureId);
+                if (value == null) return [];
+                if (!Array.isArray(value)) throw new Error('Iteration feature must contain an array.');
+                entries = value;
+            } else {
+                throw new Error('Unsupported iteration type.');
+            }
+            if (entries.length > MAX_ITERATION_ITEMS) {
+                throw new Error('Iteration supports at most ' + MAX_ITERATION_ITEMS + ' items per page.');
+            }
+            const extract = config.extract;
+            let extractor = null;
+            if (extract?.type === 'JAVASCRIPT') {
+                const resolved = this.resolveSnippet(runtime, extract.snippetId);
+                if (!resolved) {
+                    // wait for registration rather than evaluating a source string
+                    if (!runtime.observedSnippets.iteration && Breinify.plugins.snippetManager) {
+                        runtime.observedSnippets.iteration = true;
+                        Breinify.plugins.snippetManager.onSnippetRegistered(extract.snippetId, function () {
+                            runtime.observedSnippets.iteration = false;
+                            _private.scheduleIteration(runtime);
+                        });
+                    }
+                    return [];
+                }
+                if (typeof resolved.value !== 'function') throw new Error('Iteration extractor must be a function.');
+                extractor = resolved.value;
+            }
+            const occurrences = new Map();
+            const result = [];
+            entries.forEach(function (original) {
+                try {
+                    const element = config.type === 'SELECTOR' ? original : null;
+                    if (!element && !this.hasIterationValue(original)) return;
+                    // freeze the input before extraction so originalValue cannot be changed by the extractor
+                    const originalValue = element ? undefined : PLACEHOLDER_TOOLS.snapshot(original);
+                    const context = element ? {$el: $(element)} : {
+                        originalValue: originalValue, featureId: config.featureId
+                    };
+                    let value = originalValue;
+                    if (extract) {
+                        if (extract.type === 'ATTRIBUTE' && element) value = element.getAttribute(extract.attribute);
+                        else if (extractor) value = extractor.call(runtime.module, element ? context.$el : originalValue,
+                            {iteration: context});
+                        else throw new Error('Unsupported iteration extraction.');
+                        if (!this.hasIterationValue(value)) return;
+                    }
+                    // snapshots reject promises, functions, DOM nodes, cycles, and unsafe object keys
+                    const values = {};
+                    if (value !== undefined) values.value = value;
+                    if (!element) {
+                        values.originalValue = originalValue;
+                        values.featureId = config.featureId;
+                    }
+                    const snapshot = PLACEHOLDER_TOOLS.snapshot(values);
+                    const fingerprint = JSON.stringify(snapshot);
+                    let key = element;
+                    if (!element) {
+                        const identity = JSON.stringify(snapshot.originalValue);
+                        const occurrence = occurrences.get(identity) || 0;
+                        occurrences.set(identity, occurrence + 1);
+                        key = identity + ':' + occurrence;
+                    }
+                    result.push({key: key, element: element, values: snapshot, fingerprint: fingerprint});
+                } catch (error) {
+                    this.logActionError({type: 'iteration.extract'}, error);
+                }
+            }, this);
+            return result;
+        },
+
+        reconcileIteration: function (runtime) {
+            const page = this.getDecisionPageKey();
+            let state = runtime.iterationState;
+            if (!state || state.page !== page) {
+                if (state) state.children.forEach(this.disposeRuntime.bind(this));
+                state = {page: page, children: new Map()};
+                runtime.iterationState = state;
+            }
+            const entries = this.readIterationEntries(runtime);
+            const retained = new Set();
+            // admit siblings together before any action starts the experience-wide cooldown
+            const admitted = !this.isExperienceSuppressed(runtime);
+            entries.forEach(function (entry) {
+                let child = state.children.get(entry.key);
+                if (child && child.iterationFingerprint !== entry.fingerprint) {
+                    this.disposeRuntime(child);
+                    state.children.delete(entry.key);
+                    child = null;
+                }
+                if (!child && admitted) {
+                    const module = Object.create(runtime.module);
+                    child = this.createRuntime(module, runtime.webExId, runtime.webExVersionId, runtime.config);
+                    child.iterationParent = runtime;
+                    child.iterationKey = entry.key;
+                    child.iterationPage = page;
+                    child.iterationElement = entry.element;
+                    child.iterationFingerprint = entry.fingerprint;
+                    child.iterationValues = entry.values;
+                    child.iteration = $.extend({}, entry.values);
+                    if (entry.element) child.iteration.$el = $(entry.element);
+                    child.iterationRequestId = this.key(runtime.webExId, runtime.webExVersionId) + ':' +
+                        (++this.iterationSequence);
+                    child.elementConditions = runtime.elementConditions;
+                    child.triggerConditions = runtime.triggerConditions;
+                    module.onChange = function () { _private.scheduleIteration(runtime); };
+                    // only the parent owns the feature subscription; it wakes all current children
+                    if (runtime.disposeFeatureListener) child.disposeFeatureListener = function () {};
+                    state.children.set(entry.key, child);
+                    this.loadDecisionCache(child);
+                    actions.showAnimation._initialize(child);
+                    actions.showRecommendationBubble._initialize(child);
+                }
+                if (child) retained.add(entry.key);
+            }, this);
+            state.children.forEach(function (child, key) {
+                if (!retained.has(key)) {
+                    this.disposeRuntime(child);
+                    state.children.delete(key);
+                }
+            }, this);
+            return state;
+        },
+
+        handleIteration: function (runtime, data) {
+            try {
+                if (!this.isRuntimeActive(runtime)) {
+                    if (runtime.iterationState) {
+                        runtime.iterationState.children.forEach(this.disposeRuntime.bind(this));
+                        runtime.iterationState.children.clear();
+                    }
+                    return false;
+                }
+                const state = this.reconcileIteration(runtime);
+                state.children.forEach(function (child) { UiModifyContent.handleRuntime(child, data); });
+                return true;
+            } catch (error) {
+                if (runtime.iterationState) {
+                    runtime.iterationState.children.forEach(this.disposeRuntime.bind(this));
+                    runtime.iterationState.children.clear();
+                }
+                this.logActionError({type: 'iteration'}, error);
+                this.sendRenderedElementActivity(runtime, false, renderedElementStatusCodes.INVALID_CONFIGURATION, null);
+                return false;
+            }
+        },
         decisionPageHref: null,
         decisionPageVisit: 0,
         decisionPageObserverAdded: false,
@@ -2030,7 +2283,7 @@
                 state.timer = window.setTimeout(function () {
                     lifecycle.timers.delete(state.timer);
                     state.timer = null;
-                    if (_private.getRuntime(runtime.webExId, runtime.webExVersionId) === runtime) notify();
+                    if (_private.isCurrentRuntime(runtime)) notify();
                 }, remaining);
                 lifecycle.timers.add(state.timer);
             }
@@ -2247,6 +2500,8 @@
                 value = storage ? storage.get('__br_feature.' + descriptor.featureId) : null;
             } else if (descriptor.source === 'ACTIVATION_GROUP') {
                 value = Breinify.plugins.webExperiences.getActivationGroup(runtime.module, descriptor.group);
+            } else if (descriptor.source === 'ITERATION') {
+                value = runtime.iterationValues && runtime.iterationValues.value;
             } else if (descriptor.source === 'STATIC') {
                 // the actual static ID stays in the authoritative configuration
                 return 'STATIC';
@@ -2329,6 +2584,7 @@
                 return false;
             }
 
+            if (runtime.iterationRequestId && response.requestId !== runtime.iterationRequestId) return false;
             const expectedConfigurationId = this.getDecisionConfigurationId(runtime);
             const configurationId = Breinify.UTL.isNonEmptyString(response.configurationId);
             return expectedConfigurationId === null || configurationId === expectedConfigurationId;
@@ -2353,7 +2609,7 @@
         },
 
         getDecisionBatchRequestKey: function (runtime) {
-            return this.key(runtime.webExId, runtime.webExVersionId);
+            return runtime.iterationRequestId || this.key(runtime.webExId, runtime.webExVersionId);
         },
 
         queueDecisionRequest: function (runtime, conditionReferences, requestPageKey) {
@@ -2385,7 +2641,8 @@
             const requestKeys = Object.keys(batch.requests);
             for (let i = 0; i < requestKeys.length; i++) {
                 const requestKey = requestKeys[i];
-                requests.push(batch.requests[requestKey]);
+                const request = batch.requests[requestKey];
+                if (!request.runtime.iterationParent || this.isCurrentRuntime(request.runtime)) requests.push(request);
                 delete batch.requests[requestKey];
             }
 
@@ -2397,6 +2654,7 @@
             for (let i = 0; i < requests.length; i++) {
                 const request = requests[i];
                 const payload = this.getDecisionPayload(request.runtime, request.conditionReferences);
+                if (request.runtime.iterationRequestId) payload.requestId = request.runtime.iterationRequestId;
                 this.refreshDecisionInputs(request.runtime);
                 request.inputRevision = request.runtime.decision.inputRevision;
                 // retain the sent preview state even if the preview closes before the response arrives
@@ -2440,7 +2698,7 @@
         /** A response from a previous visit must not run actions or mark the new visit as failed. */
         isCurrentDecisionRequest: function (request) {
             const runtime = request.runtime;
-            if (this.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime ||
+            if (!this.isCurrentRuntime(runtime) ||
                 runtime.decision.status !== DECISION_STATUS_PENDING) return false;
             this.refreshDecisionInputs(runtime);
             if (request.requestPageKey === this.getDecisionPageKey() &&
@@ -2476,6 +2734,25 @@
                         }
 
                         const hasError = error !== null && typeof error !== "undefined";
+                        // refresh each item set once before consuming replies, including changes while in flight
+                        const parents = new Set(requests.map(function (request) {
+                            return request.runtime.iterationParent;
+                        }).filter(Boolean));
+                        parents.forEach(function (parent) {
+                            if (!this.isCurrentRuntime(parent)) return;
+                            try {
+                                if (this.isRuntimeActive(parent)) this.reconcileIteration(parent);
+                                else if (parent.iterationState) {
+                                    parent.iterationState.children.forEach(this.disposeRuntime.bind(this));
+                                    parent.iterationState.children.clear();
+                                }
+                                this.scheduleIteration(parent);
+                            } catch (iterationError) {
+                                parent.iterationState?.children.forEach(this.disposeRuntime.bind(this));
+                                parent.iterationState?.children.clear();
+                                this.logActionError({type: 'iteration'}, iterationError);
+                            }
+                        }, this);
                         if (hasError || !this.isDecisionBatchResponse(response)) {
                             this.failDecisionBatch(requests);
                         } else {
@@ -2544,6 +2821,10 @@
         notifyTriggerPageChange: function () {
             const page = this.getDecisionPageKey();
             Object.values(this.runtimes).forEach(function (runtime) {
+                if (runtime.config?.iteration != null) {
+                    runtime.module.onChange({type: 'urlChange'});
+                    return;
+                }
                 if (runtime.elementConditions.length > 0 && runtime.elementLifecycle &&
                     runtime.elementLifecycle.page !== page) {
                     conditions.elementexists._dispose(runtime);
@@ -2589,12 +2870,14 @@
         },
 
         getDecisionStorageEntryKey: function (runtime, refId) {
-            return [
+            const parts = [
                 String(runtime && runtime.webExId || ""),
                 String(runtime && runtime.webExVersionId || ""),
                 String(this.getDecisionConfigurationId(runtime) || ""),
                 String(refId || "")
-            ].join("|");
+            ];
+            if (runtime?.iterationParent) parts.push(JSON.stringify(runtime.iterationValues));
+            return parts.join("|");
         },
 
         readDecisionStorage: function (scope) {
@@ -3051,6 +3334,7 @@
         },
 
         applyActionSnippet: function (runtime, action, actionIndex, setting, expectedType, expectedStateIndex) {
+            if (runtime.iterationParent && !this.isCurrentRuntime(runtime)) return;
             const settings = this.getActionSettings(action);
             const snippetSettings = settings && settings[setting];
             if (!snippetSettings || typeof snippetSettings !== "object") {
@@ -3212,6 +3496,7 @@
          */
         createPlaceholderContext: function (runtime) {
             const context = {};
+            if (runtime.iterationValues) context.iteration = runtime.iterationValues;
             const activation = runtime.module && runtime.module._webExperienceActivation;
             if (activation && activation.url === window.location.href && Array.isArray(activation.captures)) {
                 const groups = {};
@@ -3300,6 +3585,7 @@
                 module: runtime.module,
                 webExId: runtime.webExId,
                 webExVersionId: runtime.webExVersionId,
+                iteration: runtime.iteration,
                 placeholders: action._placeholderContext || this.createPlaceholderContext(runtime)
             };
         },
@@ -3770,12 +4056,17 @@
             });
         },
 
-        getTargets: function (action, root) {
+        getTargets: function (action, root, runtime) {
             const selector = this.getActionSelector(action);
             if (selector === null) {
                 return [];
             }
 
+            const scope = runtime && runtime.iterationElement;
+            if (scope) {
+                if (!this.isCurrentRuntime(runtime)) return [];
+                root = scope;
+            }
             const targets = [];
             const addTarget = function (target) {
                 if (target && targets.indexOf(target) === -1) {
@@ -3788,7 +4079,7 @@
                     addTarget(root);
                 }
 
-                let parent = root && root.parentElement;
+                let parent = !scope && root && root.parentElement;
                 while (parent) {
                     if (this.matchesSelector(parent, selector)) {
                         addTarget(parent);
@@ -3811,6 +4102,7 @@
         },
 
         isRuntimeActive: function (runtime) {
+            if (runtime.iterationParent && !this.isCurrentRuntime(runtime)) return false;
             conditions.trigger._preparePage(runtime);
             actions.showAnimation._preparePage(runtime);
             actions.showRecommendationBubble._preparePage(runtime);
@@ -3833,7 +4125,11 @@
         },
 
         findRequirements: function (runtime, $el, data) {
-            if (this.getRuntime(runtime.webExId, runtime.webExVersionId) !== runtime) return false;
+            if (!this.isCurrentRuntime(runtime)) return false;
+            if (runtime.config?.iteration != null && !runtime.iterationParent) {
+                this.scheduleIteration(runtime);
+                return false;
+            }
             if (!this.isRuntimeActive(runtime)) return false;
             const changeType = data && data.type ? data.type : "full-scan";
             if (runtime.elementConditions.length > 0 && changeType !== 'full-scan') {
@@ -3884,7 +4180,7 @@
                     return true;
                 } else if (this.isDomAction(action) === true &&
                     this.hasReachedApplicationLimit(runtime, i, action) !== true &&
-                    this.getTargets(action, root).length > 0) {
+                    this.getTargets(action, root, runtime).length > 0) {
                     return true;
                 }
             }
@@ -4174,46 +4470,8 @@
 
             const key = _private.key(webExId, webExVersionId);
             const previousRuntime = _private.runtimes[key];
-            if (previousRuntime) {
-                actions.showRecommendationBubble._cancel(previousRuntime);
-                if (previousRuntime.disposeBubbleListener) previousRuntime.disposeBubbleListener();
-                conditions.elementexists._dispose(previousRuntime);
-                actions.showAnimation._cancel(previousRuntime);
-                if (previousRuntime.disposeAnimationListener) previousRuntime.disposeAnimationListener();
-                conditions.feature._clearTimers(previousRuntime);
-                if (previousRuntime.disposeFeatureListener) previousRuntime.disposeFeatureListener();
-                window.clearTimeout(previousRuntime.conditionEvaluationTimer);
-            }
-            const runtime = {
-                module: module,
-                config: config,
-                requiresConditionBindings: /%%\s*condition\./.test(JSON.stringify(config?.actions || {})),
-                webExId: webExId,
-                webExVersionId: webExVersionId,
-                appliedTargets: [],
-                applicationCounts: [],
-                executedActions: [],
-                appliedSnippets: {},
-                observedSnippets: {},
-                conditionResults: {},
-                randomConditionResults: {},
-                selectedGroupId: DEFAULT_ACTION_GROUP,
-                decision: {
-                    inFlight: false,
-                    resolved: false,
-                    status: DECISION_STATUS_IDLE,
-                    matched: null,
-                    pageDecisionPageKey: null,
-                    failurePageKey: null,
-                    conditionResults: {},
-                    conditionCache: {},
-                    splitTestData: null
-                },
-                activity: {
-                    reportedPageKey: null
-                },
-                conditionEvaluationTimer: null
-            };
+            if (previousRuntime) _private.disposeRuntime(previousRuntime);
+            const runtime = _private.createRuntime(module, webExId, webExVersionId, config);
 
             _private.loadDecisionCache(runtime);
 
@@ -4224,7 +4482,7 @@
             runtime.triggerConditions = _private.getConfiguredConditions(runtime).filter(function (condition) {
                 return _private.getConditionType(condition) === 'trigger';
             });
-            if (runtime.triggerConditions.length > 0 || runtime.elementConditions.length > 0) {
+            if (runtime.triggerConditions.length > 0 || runtime.elementConditions.length > 0 || config?.iteration != null) {
                 _private.initializeTriggerPageObserver();
             }
             conditions.trigger._preparePage(runtime);
@@ -4237,9 +4495,9 @@
                 return _private.findRequirements(runtime, $el, data);
             };
 
-            // opt in only when a standalone DOM condition needs selector changes caused by text mutations
+            // opt in only for DOM conditions or selector iteration; other modules retain their existing events
             module.triggerSettings = function () {
-                return {observeTextChanges: runtime.elementConditions.length > 0};
+                return {observeTextChanges: runtime.elementConditions.length > 0 || config?.iteration?.type === 'SELECTOR'};
             };
 
             conditions.feature._initialize(runtime);
@@ -4250,6 +4508,13 @@
 
         handle: function (webExId, webExVersionId, data) {
             const runtime = _private.getRuntime(webExId, webExVersionId);
+            if (runtime && runtime.config?.iteration != null) {
+                return _private.handleIteration(runtime, data);
+            }
+            return this.handleRuntime(runtime, data);
+        },
+
+        handleRuntime: function (runtime, data) {
             if (runtime === null) {
                 return false;
             }
@@ -4257,9 +4522,9 @@
             if (runtime.handling === true) {
                 const page = _private.getDecisionPageKey();
                 window.setTimeout(function () {
-                    if (_private.getRuntime(webExId, webExVersionId) === runtime &&
+                    if (_private.isCurrentRuntime(runtime) &&
                         _private.getDecisionPageKey() === page) {
-                        UiModifyContent.handle(webExId, webExVersionId, data);
+                        UiModifyContent.handleRuntime(runtime, data);
                     }
                 }, 0);
                 return true;
@@ -4304,6 +4569,9 @@
                 if (runtime.conditionsPending === true) return true;
                 const execution = _private.executeActions(runtime);
                 _private.reportRenderedElementOutcome(runtime, execution);
+                if (runtime.iterationParent && execution.executed && execution.pending !== true) {
+                    runtime.iterationCompleted = true;
+                }
                 if (execution.pending !== true) runtime.suppressionExecutionActive = false;
                 return true;
             } catch (e) {
