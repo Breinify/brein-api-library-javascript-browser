@@ -1278,10 +1278,10 @@
     };
 
     /*
-     * Reports an explicitly caught execution error through the existing window-error mapper.
-     * This helper installs no listener and does not intercept exceptions or console.error calls on the page.
-     * Callers must distinguish execution failures from expected service failures and deduplicate before calling.
-     * Modify Content does this in reportExecutionError, before this stack scan or any activity request.
+     * Maps a caught error's first eligible stack frame to source coordinates and submits it to handleError.
+     * Use when the caller already classifies execution failures and owns its reporting budget.
+     * Returns false when no eligible source exists, the configured mapper declines, or reporting fails.
+     * Use reportExecutionError when page-wide deduplication and operational-error filtering are needed.
      */
     Breinify.handleCaughtError = function (error, context) {
         // without a stack we cannot supply genuine source coordinates to the existing error mapper
@@ -1322,6 +1322,47 @@
 
         // no attributable source was found; the caller may retain its normal console fallback
         return false;
+    };
+
+    const executionReports = {page: null, errors: new WeakSet(), keys: new Set()};
+
+    /*
+     * Reports unexpected errors caught while executing application code, callbacks, or snippets.
+     * Filters operational failures, retains supported context fields, and limits reporting to 20 distinct
+     * attempts per page URL. Repeated catches of the same error object share one attempt.
+     * Returns false when an error is filtered, already reported, over budget, or cannot be submitted.
+     * Callers must still distinguish execution defects from expected service or validation failures.
+     */
+    Breinify.reportExecutionError = function (error, context) {
+        try {
+            // accept real JS errors (including another realm), not rejected response objects or DOMExceptions
+            if (Object.prototype.toString.call(error) !== '[object Error]') {
+                return false;
+            }
+
+            // these explicit operational signals remain diagnostics, not script defects
+            if (['AbortError', 'TimeoutError', 'NetworkError', 'SecurityError', 'QuotaExceededError'].includes(error.name) ||
+                error.isNetworkError === true || typeof error.httpStatus === 'number' ||
+                typeof error.textStatus === 'string' || error.breinifyErrorCategory === 'configuration') {
+                return false;
+            }
+
+            const tags = {};
+            ['plugin', 'phase', 'webExperienceId', 'campaignWebExId', 'module', 'snippetId'].forEach(function (key) {
+                if (typeof context?.[key] === 'string') tags[key] = context[key];
+            });
+
+            const contextKey = JSON.stringify(tags);
+            const reserved = BreinifyUtil.internal.errors.reserveReport(
+                executionReports, window.location.href, error, contextKey);
+            if (!reserved) return false;
+
+            // consume the attempt even when source attribution or the configured mapper declines reporting
+            return Breinify.handleCaughtError(error, tags);
+        } catch (reportingError) {
+            // telemetry must not change fallback behavior, subscriber delivery, or promise settlement
+            return false;
+        }
     };
 
     Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings, context) {

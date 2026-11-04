@@ -4484,23 +4484,13 @@
             if (!runtime) return false;
             const page = this.getDecisionPageKey();
             runtime.executionErrorPageKey = page;
-            if (typeof Breinify.handleCaughtError !== 'function') return false;
-            if (runtime.executionErrors?.page !== page) {
-                runtime.executionErrors = {page: page, keys: new Set()};
+            if (typeof Breinify.handleCaughtError !== 'function' || !Breinify.UTL.internal.errors) return false;
+            if (!runtime.executionErrors) {
+                runtime.executionErrors = {page: null, keys: new Set()};
             }
-            const keys = runtime.executionErrors.keys;
+            const reserved = Breinify.UTL.internal.errors.reserveReport(runtime.executionErrors, page, error, phase);
+            if (!reserved) return true;
 
-            // after 20 distinct errors, skip even the stack-prefix extraction for this runtime and visit
-            if (keys.size >= 20) return true;
-
-            // use the error heading and first frame; changing callers must not create duplicate reports
-            const origin = typeof error?.stack === 'string'
-                ? error.stack.split('\n', 2).join('\n') : String(error);
-            const key = phase + ':' + origin;
-            if (keys.has(key)) return true;
-
-            // count attempts even if the mapper declines or sending fails, so repeated failures do not retry telemetry
-            keys.add(key);
             return Breinify.handleCaughtError(error, {
                 plugin: 'uiModifyContent', phase: phase,
                 webExperienceId: runtime.webExId, campaignWebExId: runtime.webExVersionId

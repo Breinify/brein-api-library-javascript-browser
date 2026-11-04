@@ -12,6 +12,13 @@
     const DEFAULT_POS = "_fallback";
 
     const _private = {
+        reportExecutionError: function (error, phase, webExId, webExVersionId) {
+            Breinify.UTL.internal.errors?.reportExecutionError(error, {
+                plugin: 'uiRecommendations', phase: phase,
+                webExperienceId: webExId, campaignWebExId: webExVersionId
+            });
+        },
+
         _defaultPos: DEFAULT_POS,
         _runtimeByWebExId: {},
         _recommendationBatchLockTimeoutInMs: 6 * 1000,
@@ -665,6 +672,7 @@
                         normalizeValue: (value) => this._normalizeMappingValue(mappingType, value)
                     });
                 } catch (e) {
+                    this.reportExecutionError(e, 'selectionLogic');
                     console.error(e);
                     return null;
                 }
@@ -896,6 +904,7 @@
                 const bindings = extensionModule.getFeatureBindings();
                 return $.isPlainObject(bindings) ? bindings : {};
             } catch (e) {
+                this.reportExecutionError(e, 'featureBindings');
                 console.error(e);
                 return {};
             }
@@ -1127,6 +1136,7 @@
                             .then(() => this._handle(webExId, webExVersionId, recommendation, config, runtime,
                                 contexts.get(resolutions[index])))
                             .catch(function (err) {
+                                _private.reportExecutionError(err, 'prepareRecommendation', webExId, webExVersionId);
                                 console.error(err);
                                 return null;
                             })
@@ -1430,6 +1440,7 @@
                 const result = extensionMethod(context, config);
                 return $.isPlainObject(result) ? result : config;
             } catch (e) {
+                this.reportExecutionError(e, 'extension.' + normalizedMethodName, context.webExId, context.webExVersionId);
                 console.error(e);
                 return config;
             }
@@ -1469,6 +1480,7 @@
                     document.head.appendChild(styleEl);
                 }
             } catch (e) {
+                this.reportExecutionError(e, 'extension.style', context.webExId, context.webExVersionId);
                 console.error(e);
             }
         },
@@ -2112,8 +2124,9 @@
                 .then(function () {
                     return _private.handle(webExId, webExVersionId, recommendations, config);
                 })
-                .catch(function () {
-                    // intentionally swallowed to preserve existing behavior
+                .catch(function (error) {
+                    _private.reportExecutionError(error, 'render', webExId, webExVersionId);
+                    // remain handled: reporting must not create an unhandled rejection or block other experiences
                 });
         }
     });

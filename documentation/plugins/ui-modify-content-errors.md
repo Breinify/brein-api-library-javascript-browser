@@ -63,8 +63,9 @@ optional; ordinary legacy responses continue to work. Missing or uncorrelated re
 ## Caught-exception reporting cost and scope
 
 This is an explicit helper, not a global exception hook. It registers no page listener, intercepts no
-`console.error` calls, and performs no polling or DOM scanning. Only the Modify Content execution
-catches call it; unrelated customer-page exceptions do not invoke this helper. The existing separate
+`console.error` calls, and performs no polling or DOM scanning. Modify Content execution catches call it directly. Activation snippets, trigger callbacks, and UI
+recommendation execution boundaries use the opt-in reporter described below; unrelated customer-page
+exceptions do not invoke either helper. The existing separate
 window-error integration is unchanged.
 
 Explicit execution catches report `scriptError` using `Breinify.handleCaughtError(error, context)`.
@@ -88,3 +89,35 @@ code responsible for the original bug. Unsupported/self-hosted sources retain th
 Caught snippet failures also mark rendering failed. One later failed-rendering
 activity may correct an earlier successful/ignored outcome for the same visit; repeated failures
 remain suppressed. Campaigns resolves the latest rendering outcome for its session metrics.
+
+
+## Opt-in reporting at shared execution boundaries
+
+`Breinify.reportExecutionError(error, context)` is used by activation snippets, trigger module checks,
+DOM-change callbacks, trigger-settings hooks, and UI recommendation preparation/rendering and extension hooks.
+These are execution boundaries where an unexpected exception indicates a broken SDK or snippet path.
+Normal false/no-match results and missing optional snippets do not enter the reporter.
+
+This is not an automatic classifier for arbitrary exceptions. Do not call it from storage recovery,
+configuration validation, or ordinary service error callbacks. It additionally rejects non-Error values,
+DOMExceptions (including invalid selectors), named cancellation/transport/environment errors, and Errors
+carrying `isNetworkError`, numeric `httpStatus`, or string `textStatus` signals. Code explicitly identifying
+configuration validation can mark an Error with `breinifyErrorCategory: 'configuration'` to exclude it.
+An untagged Error from an arbitrary network callback cannot reliably be classified from its stack alone.
+
+The shared reporter deduplicates the same Error object across nested catches, and repeated errors by
+context plus their heading/first frame. It permits at most 20 distinct reporting attempts across these
+new boundaries per observed page URL. The budget is separate from Modify Content's existing per-runtime
+budget. After exhaustion, it skips stack access. Only the next reporting call that sees a different URL
+resets this budget; it does not add navigation listeners. Mapper rejection or a telemetry failure still
+consumes the attempt to avoid retry storms.
+
+Context is limited to string identifiers: plugin, phase, experience/version, module, and snippet ID.
+The existing adapter still requires an eligible HTTPS Breinify stack frame and an accepting error mapper.
+Missing reporters on older cores and failures of overridden reporters preserve the original fallback.
+
+These additions report `scriptError`; they do not introduce new rendering activity semantics. For example,
+an extension failure followed by successful fallback rendering stays a successful rendering. Activation
+still returns false on failure, subscribers continue independently, and caught recommendation promises
+remain handled. Survey callbacks, feature listeners, snippet observers, and placement actions remain
+separate follow-up work; they are not claimed as covered by this change.

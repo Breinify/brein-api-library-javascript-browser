@@ -2,6 +2,51 @@
 
 describe('BreinifyUtil', function () {
 
+    describe('error reporting utilities', function () {
+        const errors = Breinify.UTL.internal.errors;
+
+        it('keeps independent budgets and resets only the state whose page changes', function () {
+            const first = {page: null, keys: new Set()};
+            const second = {page: null, keys: new Set()};
+            const error = {stack: 'Error: broken\n    at hook:1:2'};
+            expect(errors.reserveReport(first, 'page-one', error, 'hook')).toBe(true);
+            expect(errors.reserveReport(first, 'page-one', error, 'hook')).toBe(false);
+            expect(errors.reserveReport(second, 'page-one', error, 'hook')).toBe(true);
+            expect(errors.reserveReport(first, 'page-two', error, 'hook')).toBe(true);
+            expect(errors.reserveReport(second, 'page-one', error, 'hook')).toBe(false);
+        });
+
+        it('skips stack inspection after exhausting the reporting budget', function () {
+            const state = {page: null, keys: new Set()};
+            for (let i = 0; i < 20; i++) {
+                errors.reserveReport(state, 'page', {stack: 'Error: failure ' + i}, 'hook');
+            }
+            const error = Object.defineProperty({}, 'stack', {
+                get: function () { throw new Error('Stack must not be read after the budget is exhausted.'); }
+            });
+            expect(errors.reserveReport(state, 'page', error, 'hook')).toBe(false);
+        });
+
+        it('deduplicates error objects across boundaries only when the state requests it', function () {
+            const shared = {page: null, keys: new Set(), errors: new WeakSet()};
+            const scoped = {page: null, keys: new Set()};
+            const error = {stack: 'Error: broken\n    at hook:1:2'};
+            expect(errors.reserveReport(shared, 'page', error, 'inner')).toBe(true);
+            expect(errors.reserveReport(shared, 'page', error, 'outer')).toBe(false);
+            expect(errors.reserveReport(shared, 'next-page', error, 'outer')).toBe(true);
+            expect(errors.reserveReport(scoped, 'page', error, 'inner')).toBe(true);
+            expect(errors.reserveReport(scoped, 'page', error, 'outer')).toBe(true);
+        });
+
+        it('preserves recovery when the execution reporter is missing or throws', function () {
+            const reporter = spyOn(Breinify, 'reportExecutionError').and.throwError('Reporting failed.');
+            expect(errors.reportExecutionError(new Error('Original failure.'), {})).toBe(false);
+            expect(reporter.calls.count()).toBe(1);
+            Breinify.reportExecutionError = undefined;
+            expect(errors.reportExecutionError(new Error('Original failure.'), {})).toBe(false);
+        });
+    });
+
     describe('placeholders', function () {
         it('resolves own dotted paths and formats values without recursively interpreting their text', function () {
             const context = {condition: {feature: {value: '%%condition.missing.value%%'},

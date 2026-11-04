@@ -11,6 +11,13 @@
 
     const $ = Breinify.UTL._jquery();
 
+    function reportExecutionError(error, phase, module, name) {
+        Breinify.UTL.internal.errors?.reportExecutionError(error, {
+            plugin: 'trigger', phase: phase, module: name,
+            webExperienceId: module?.webExId, campaignWebExId: module?.webExVersionId
+        });
+    }
+
     const changeObserver = {
         domTreeObserver: null,
         domTreeDependModules: null,
@@ -122,6 +129,7 @@
                 try {
                     _self.checkModule(name, module);
                 } catch (e) {
+                    reportExecutionError(e, 'checkModule', module, name);
                     console.error('failed to check module: ' + name, e);
                 }
             });
@@ -167,10 +175,12 @@
                     try {
                         _self.checkModule(name, module);
                     } catch (e) {
+                        reportExecutionError(e, 'checkModule', module, name);
                         console.error('failed to check module: ' + name, e);
                     }
                 });
             } catch (e) {
+                reportExecutionError(e, 'pageChange');
                 console.error('failed to trigger ready', e);
             }
 
@@ -202,6 +212,7 @@
                 try {
                     _self.executeOnChange(module, $el, normalizedDetails);
                 } catch (e) {
+                    reportExecutionError(e, 'domChange', module, name);
                     console.error('failed to handle DOM change for module: ' + name, e);
                 }
             });
@@ -216,6 +227,7 @@
                 const settings = module.triggerSettings();
                 return $.isPlainObject(settings) && settings.observeTextChanges === true;
             } catch (error) {
+                reportExecutionError(error, 'triggerSettings', module);
                 // an optional settings hook must not interrupt delivery to other subscribers
                 return false;
             }

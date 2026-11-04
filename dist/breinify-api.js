@@ -14139,6 +14139,49 @@ dependencyScope.jQuery = $;
         },
 
         internal: {
+            errors: {
+                /*
+                 * Reserves one of at most 20 reporting attempts for the supplied state and page key.
+                 * Repeated errors are identified by context, message, and first stack frame. A state with an
+                 * errors WeakSet also deduplicates the same error object across different execution boundaries.
+                 * Use separate states for independent budgets. A changed page key resets the supplied state.
+                 * Reserve before mapping or sending so declined and failed reports also consume an attempt.
+                 * Returns false for a duplicate or exhausted budget; it does not suppress execution itself.
+                 */
+                reserveReport: function (state, page, error, contextKey) {
+                    if (state.page !== page) {
+                        state.page = page;
+                        state.keys.clear();
+                        if (state.errors) state.errors = new WeakSet();
+                    }
+                    if (state.keys.size >= 20 || state.errors?.has(error)) return false;
+
+                    const stack = error?.stack;
+                    const origin = typeof stack === 'string'
+                        ? stack.split('\n', 2).join('\n') : String(error);
+                    const key = contextKey + ':' + origin;
+                    // remember duplicates too, so an outer catch cannot report them under a different context
+                    if (state.errors) state.errors.add(error);
+                    if (state.keys.has(key)) return false;
+
+                    state.keys.add(key);
+                    return true;
+                },
+
+                /*
+                 * Calls the execution-error reporter from a catch handler while preserving normal recovery.
+                 * Use only for unexpected execution failures; expected service and validation failures belong
+                 * to the caller's normal error handling. Returns false if reporting is unavailable or throws.
+                 */
+                reportExecutionError: function (error, context) {
+                    try {
+                        if (typeof scope.Breinify?.reportExecutionError !== 'function') return false;
+                        return scope.Breinify.reportExecutionError(error, context);
+                    } catch (reportingError) {
+                        return false;
+                    }
+                }
+            },
             isDevMode: function () {
 
                 // we just assume that there is a variable set in the sessionStorage in Dev-Mode
@@ -17849,10 +17892,10 @@ dependencyScope.jQuery = $;
     };
 
     /*
-     * Reports an explicitly caught execution error through the existing window-error mapper.
-     * This helper installs no listener and does not intercept exceptions or console.error calls on the page.
-     * Callers must distinguish execution failures from expected service failures and deduplicate before calling.
-     * Modify Content does this in reportExecutionError, before this stack scan or any activity request.
+     * Maps a caught error's first eligible stack frame to source coordinates and submits it to handleError.
+     * Use when the caller already classifies execution failures and owns its reporting budget.
+     * Returns false when no eligible source exists, the configured mapper declines, or reporting fails.
+     * Use reportExecutionError when page-wide deduplication and operational-error filtering are needed.
      */
     Breinify.handleCaughtError = function (error, context) {
         // without a stack we cannot supply genuine source coordinates to the existing error mapper
@@ -17893,6 +17936,47 @@ dependencyScope.jQuery = $;
 
         // no attributable source was found; the caller may retain its normal console fallback
         return false;
+    };
+
+    const executionReports = {page: null, errors: new WeakSet(), keys: new Set()};
+
+    /*
+     * Reports unexpected errors caught while executing application code, callbacks, or snippets.
+     * Filters operational failures, retains supported context fields, and limits reporting to 20 distinct
+     * attempts per page URL. Repeated catches of the same error object share one attempt.
+     * Returns false when an error is filtered, already reported, over budget, or cannot be submitted.
+     * Callers must still distinguish execution defects from expected service or validation failures.
+     */
+    Breinify.reportExecutionError = function (error, context) {
+        try {
+            // accept real JS errors (including another realm), not rejected response objects or DOMExceptions
+            if (Object.prototype.toString.call(error) !== '[object Error]') {
+                return false;
+            }
+
+            // these explicit operational signals remain diagnostics, not script defects
+            if (['AbortError', 'TimeoutError', 'NetworkError', 'SecurityError', 'QuotaExceededError'].includes(error.name) ||
+                error.isNetworkError === true || typeof error.httpStatus === 'number' ||
+                typeof error.textStatus === 'string' || error.breinifyErrorCategory === 'configuration') {
+                return false;
+            }
+
+            const tags = {};
+            ['plugin', 'phase', 'webExperienceId', 'campaignWebExId', 'module', 'snippetId'].forEach(function (key) {
+                if (typeof context?.[key] === 'string') tags[key] = context[key];
+            });
+
+            const contextKey = JSON.stringify(tags);
+            const reserved = BreinifyUtil.internal.errors.reserveReport(
+                executionReports, window.location.href, error, contextKey);
+            if (!reserved) return false;
+
+            // consume the attempt even when source attribution or the configured mapper declines reporting
+            return Breinify.handleCaughtError(error, tags);
+        } catch (reportingError) {
+            // telemetry must not change fallback behavior, subscriber delivery, or promise settlement
+            return false;
+        }
     };
 
     Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings, context) {

@@ -17,6 +17,7 @@ describe('Trigger DOM subscriber error isolation', function () {
         fixture.innerHTML = '<span data-target="one"></span><span data-target="two"></span>';
         document.body.appendChild(fixture);
         spyOn(console, 'error');
+        spyOn(Breinify, 'handleCaughtError').and.returnValue(true);
         Breinify.plugins.trigger.init();
     });
 
@@ -77,6 +78,8 @@ describe('Trigger DOM subscriber error isolation', function () {
             await mutateBothTargets();
 
             expectOrderedDelivery();
+            expect(Breinify.handleCaughtError.calls.count()).toBe(1);
+            expect(Breinify.handleCaughtError.calls.first().args[1].plugin).toBe('trigger');
             expect(console.error.calls.count()).toBe(2);
             expect(console.error).toHaveBeenCalledWith(
                 'failed to handle DOM change for module: ' + prefix + 'middle', error
@@ -93,5 +96,24 @@ describe('Trigger DOM subscriber error isolation', function () {
 
         expectOrderedDelivery();
         expect(console.error).not.toHaveBeenCalled();
+        expect(Breinify.handleCaughtError).not.toHaveBeenCalled();
     });
+    it('keeps delivering subscribers when the reporter throws', async function () {
+        spyOn(Breinify, 'reportExecutionError').and.throwError('reporter failed');
+        subscribe('first');
+        subscribe('middle', 'callback', new TypeError('callback failed'));
+        subscribe('last');
+        await mutateBothTargets();
+        expectOrderedDelivery();
+    });
+
+    it('does not report expected cancellation as a script defect', async function () {
+        subscribe('first');
+        subscribe('middle', 'callback', new DOMException('cancelled', 'AbortError'));
+        subscribe('last');
+        await mutateBothTargets();
+        expectOrderedDelivery();
+        expect(Breinify.handleCaughtError).not.toHaveBeenCalled();
+    });
+
 });

@@ -362,4 +362,55 @@ describe('UiRecommendations feature resolution', function () {
         await drain();
         expect(options.length).toBe(1);
     });
+    it('reports unexpected renderer exceptions without leaving an unhandled promise', async function () {
+        bindings = {};
+        var error = new TypeError('renderer broke');
+        spyOn(Breinify, 'handleCaughtError').and.returnValue(true);
+        Breinify.plugins.recommendations.render.and.callFake(function () { throw error; });
+        expect(ui.handle(webExId, 'version', config)).toBeUndefined();
+        await drain();
+        expect(Breinify.handleCaughtError.calls.count()).toBe(1);
+        expect(Breinify.handleCaughtError.calls.first().args[1]).toEqual({
+            plugin: 'uiRecommendations', phase: 'render', webExperienceId: webExId, campaignWebExId: 'version'
+        });
+    });
+
+    it('does not report renderer cancellation or a tagged transport failure', async function () {
+        bindings = {};
+        spyOn(Breinify, 'handleCaughtError');
+        Breinify.plugins.recommendations.render.and.callFake(function () {
+            throw Object.assign(new Error('service unavailable'), {httpStatus: 503});
+        });
+        ui.handle(webExId, 'version', config);
+        await drain();
+        expect(Breinify.handleCaughtError).not.toHaveBeenCalled();
+    });
+
+    it('reports a broken extension hook but still renders its fallback configuration', async function () {
+        bindings = {};
+        var error = new ReferenceError('extension broke');
+        spyOn(console, 'error');
+        spyOn(Breinify, 'handleCaughtError').and.returnValue(true);
+        Breinify.plugins.api.getModule = function () {
+            return {create: function () { throw error; }};
+        };
+        ui.handle(webExId, 'version', config);
+        await drain();
+        expect(options.length).toBe(1);
+        expect(Breinify.handleCaughtError.calls.count()).toBe(1);
+        expect(Breinify.handleCaughtError.calls.first().args[1].phase).toBe('extension.create');
+    });
+
+    it('keeps successful rendering when an extension and overridden reporter both throw', async function () {
+        bindings = {};
+        spyOn(console, 'error');
+        spyOn(Breinify, 'reportExecutionError').and.throwError('telemetry broke');
+        Breinify.plugins.api.getModule = function () {
+            return {create: function () { throw new Error('extension broke'); }};
+        };
+        ui.handle(webExId, 'version', config);
+        await drain();
+        expect(options.length).toBe(1);
+    });
+
 });

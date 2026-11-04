@@ -328,7 +328,7 @@
                 isValidPage = true;
             }
 
-            const active = isValidPage === true ? this._checkActivationSnippet(logic.snippet) : false;
+            const active = isValidPage === true ? this._checkActivationSnippet(logic.snippet, module) : false;
             if (active === true && module && captures !== null && window.location.href === url) {
                 module._webExperienceActivation = {url: url, captures: captures.slice(1)};
             }
@@ -432,7 +432,7 @@
             return values.some(matcher);
         },
 
-        _checkActivationSnippet: function (logicSnippet) {
+        _checkActivationSnippet: function (logicSnippet, module) {
             const snippetId = Breinify.UTL.isNonEmptyString(logicSnippet);
             if (snippetId === null) {
                 return true;
@@ -450,6 +450,10 @@
             try {
                 return activationSnippet() === true;
             } catch (e) {
+                Breinify.UTL.internal.errors?.reportExecutionError(e, {
+                    plugin: 'webExperiences', phase: 'activationSnippet', snippetId: snippetId,
+                    webExperienceId: module?.webExId, campaignWebExId: module?.webExVersionId
+                });
                 console.error("[breinify] error occurred while executing activationSnippet: ", e);
                 return false;
             }

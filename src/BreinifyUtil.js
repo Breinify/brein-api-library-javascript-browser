@@ -1009,6 +1009,49 @@
         },
 
         internal: {
+            errors: {
+                /*
+                 * Reserves one of at most 20 reporting attempts for the supplied state and page key.
+                 * Repeated errors are identified by context, message, and first stack frame. A state with an
+                 * errors WeakSet also deduplicates the same error object across different execution boundaries.
+                 * Use separate states for independent budgets. A changed page key resets the supplied state.
+                 * Reserve before mapping or sending so declined and failed reports also consume an attempt.
+                 * Returns false for a duplicate or exhausted budget; it does not suppress execution itself.
+                 */
+                reserveReport: function (state, page, error, contextKey) {
+                    if (state.page !== page) {
+                        state.page = page;
+                        state.keys.clear();
+                        if (state.errors) state.errors = new WeakSet();
+                    }
+                    if (state.keys.size >= 20 || state.errors?.has(error)) return false;
+
+                    const stack = error?.stack;
+                    const origin = typeof stack === 'string'
+                        ? stack.split('\n', 2).join('\n') : String(error);
+                    const key = contextKey + ':' + origin;
+                    // remember duplicates too, so an outer catch cannot report them under a different context
+                    if (state.errors) state.errors.add(error);
+                    if (state.keys.has(key)) return false;
+
+                    state.keys.add(key);
+                    return true;
+                },
+
+                /*
+                 * Calls the execution-error reporter from a catch handler while preserving normal recovery.
+                 * Use only for unexpected execution failures; expected service and validation failures belong
+                 * to the caller's normal error handling. Returns false if reporting is unavailable or throws.
+                 */
+                reportExecutionError: function (error, context) {
+                    try {
+                        if (typeof scope.Breinify?.reportExecutionError !== 'function') return false;
+                        return scope.Breinify.reportExecutionError(error, context);
+                    } catch (reportingError) {
+                        return false;
+                    }
+                }
+            },
             isDevMode: function () {
 
                 // we just assume that there is a variable set in the sessionStorage in Dev-Mode

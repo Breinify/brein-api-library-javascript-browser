@@ -112,7 +112,6 @@ module.exports = function (grunt) {
              * In the case of distribution, we have to remove the distributed stuff.
              */
             dist: [
-                'target/combined',
                 'dist'
             ],
             setup: [
@@ -424,7 +423,7 @@ module.exports = function (grunt) {
     grunt.registerTask('dist', 'Distributes the file for deployment', function () {
 
         //noinspection JSUnresolvedVariable
-        grunt.task.run('clean:combine', 'clean:dist', 'combine:true', 'copy:dist', 'uglify:plugins', 'copy:plugins');
+        grunt.task.run('test', 'clean:dist', 'uglify:combine', 'copy:dist', 'uglify:plugins', 'copy:plugins');
     });
 
     //noinspection JSUnresolvedFunction
@@ -447,9 +446,9 @@ module.exports = function (grunt) {
         console.log(' - grunt server<port> : to start a web server on the defined port (default: ' + defaultPort + '); auto refresh is enabled');
         console.log(' - grunt setup        : updates the current version of the web server');
         console.log(' - grunt dep:<bool>   : to resolve dependencies; true to clean up dependencies, otherwise false (default)');
-        console.log(' - grunt dist:<bool>  : distributes the files of the project; true to uglify the files, otherwise false (default)');
-        console.log(' - grunt test         : build dist, prepare Chromium, and run Jasmine specs (optional --spec=<filename>)');
-        console.log(' - grunt test-run     : run specs against existing dist without rebuilding or browser setup');
+        console.log(' - grunt dist         : run tests, then minify and distribute the tested files');
+        console.log(' - grunt test         : prepare Chromium and a core test bundle, then run Jasmine specs (optional --spec=<filename>)');
+        console.log(' - grunt test-run     : run specs against the existing core test bundle and source plugins without setup');
         console.log(' - grunt test-setup   : install the test browser once, or after upgrading Playwright');
     });
 

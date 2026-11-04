@@ -480,17 +480,30 @@
                     const removedNodes = mutations[i].removedNodes;
 
                     if (typeof attribute === 'string' && attribute === observerAttribute) {
-                        _self.determineChangedElement($(mutation.target), _self.actions.changed);
+                        const target = mutation.target;
+                        if (Breinify.UTL.dom.isNodeType(target, 1)) {
+                            _self.determineChangedElement($(target), _self.actions.changed);
+                        }
                     }
 
                     for (let k = 0; k < addedNodes.length; k++) {
                         const addedNode = addedNodes[k];
-                        _self.determineChangedElement($(addedNode), _self.actions.added);
+                        if (!Breinify.UTL.dom.isNodeType(addedNode, 1)) {
+                            continue;
+                        }
+
+                        const $el = $(addedNode);
+                        _self.determineChangedElement($el, _self.actions.added);
                     }
 
                     for (let k = 0; k < removedNodes.length; k++) {
                         const removedNode = removedNodes[k];
-                        _self.determineChangedElement($(removedNode), _self.actions.removed);
+                        if (!Breinify.UTL.dom.isNodeType(removedNode, 1)) {
+                            continue;
+                        }
+
+                        const $el = $(removedNode);
+                        _self.determineChangedElement($el, _self.actions.removed);
                     }
                 }
             });

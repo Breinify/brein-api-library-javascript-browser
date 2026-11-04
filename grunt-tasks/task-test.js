@@ -6,8 +6,8 @@ const {chromium} = require('playwright');
 
 // Keep dependency order explicit; plugins are loaded only for plugin specs.
 const plugins = [
-    'feature-storage', 'trigger', 'activities', 'snippet-manager', 'web-experiences',
-    'recommendations', 'ui-recommendations', 'ui-modify-content', 'ui-survey', 'ui-countdown', 'alertme', 'sms'
+    'FeatureStorage', 'Trigger', 'Activities', 'SnippetManager', 'WebExperiences',
+    'Recommendations', 'UiRecommendations', 'UiModifyContent', 'UiSurvey', 'UiCountdown', 'AlertMe', 'Sms'
 ];
 
 function taskCommand(task) {
@@ -17,13 +17,13 @@ function taskCommand(task) {
     return args.map(arg => "'" + arg.replace(/'/g, "'\\''") + "'").join(' ');
 }
 
-function distributionBundle(grunt) {
-    const bundle = path.resolve(grunt.config.get('pkg.main'));
-    const files = [bundle, ...plugins.map(plugin => path.resolve('dist', 'breinify-' + plugin + '.js'))];
+function testBundle(grunt) {
+    const bundle = path.resolve('target/combined', grunt.config.get('pkg.name') + '.js');
+    const files = [bundle, ...plugins.map(plugin => path.resolve('src/plugins', plugin + '.js'))];
     const missing = files.filter(file => !fs.existsSync(file));
     if (missing.length) {
-        throw new Error('Missing distribution files:\n  ' + missing.join('\n  ') + '\n' +
-            'Run the test task to build dist and prepare the browser before running specs.\n' +
+        throw new Error('Missing test input files:\n  ' + missing.join('\n  ') + '\n' +
+            'Run the test task to prepare the core bundle and browser before running specs.\n' +
             'Grunt file: ' + path.resolve('gruntfile.js') + '\n' + taskCommand('test'));
     }
     return bundle;
@@ -46,11 +46,11 @@ async function runFile(browser, file, bundle, timeout) {
         await page.goto('http://breinify.test/');
         await page.addScriptTag({path: bundle});
         if (!await page.evaluate(() => window.Breinify && Breinify.version !== 'FALLBACK')) {
-            throw new Error('The distribution bundle did not initialize. ' + errors.join('\n'));
+            throw new Error('The core test bundle did not initialize. ' + errors.join('\n'));
         }
         if (file.startsWith('specs/plugins/')) {
             for (const plugin of plugins) {
-                await page.addScriptTag({path: path.resolve('dist', 'breinify-' + plugin + '.js')});
+                await page.addScriptTag({path: path.resolve('src/plugins', plugin + '.js')});
             }
         }
 
@@ -95,8 +95,8 @@ async function runFile(browser, file, bundle, timeout) {
 }
 
 module.exports = function (grunt) {
-    grunt.registerTask('test', 'Build dist, prepare Chromium, and run Jasmine specs.',
-        ['dist', 'test-setup', 'test-run']);
+    grunt.registerTask('test', 'Prepare Chromium and the core bundle, then run Jasmine specs against source plugins.',
+        ['test-setup', 'clean:combine', 'combine:false', 'test-run']);
 
     grunt.registerTask('test-setup', 'Install the headless Chromium browser used by grunt test.', function () {
         const done = this.async();
@@ -119,7 +119,7 @@ module.exports = function (grunt) {
         });
     });
 
-    grunt.registerTask('test-run', 'Run Jasmine against existing dist files without rebuilding or browser setup.', function () {
+    grunt.registerTask('test-run', 'Run Jasmine using the prepared core bundle and source plugins.', function () {
         const done = this.async();
         (async () => {
             const filter = grunt.option('spec');
@@ -128,7 +128,7 @@ module.exports = function (grunt) {
             const files = grunt.file.expand('specs/**/*-spec.js').sort()
                 .filter(file => !filter || file.includes(String(filter)));
             if (!files.length) throw new Error('No spec files matched' + (filter ? ': ' + filter : '.'));
-            const bundle = distributionBundle(grunt);
+            const bundle = testBundle(grunt);
             let browser;
             const results = [];
             try {

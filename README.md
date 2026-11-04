@@ -16,8 +16,12 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 
 ## Running tests
 
-The `test` task runs `dist` → `test-setup` → `test-run`. Specs test the generated distribution
-in headless Chromium. Use Node.js 20 or newer.
+The `test` task runs `test-setup` → `clean:combine` → `combine:false` → `test-run`. Specs load
+the freshly combined core bundle from `target/combined` and plugins directly from `src/plugins`
+in headless Chromium. Tests do not read or write `dist`. Use Node.js 20 or newer.
+
+The `dist` task runs `test` first. Only after tests pass does it clean `dist`, minify the tested core
+bundle, and copy/minify the plugins for distribution.
 The project directory is the checkout containing **this README, `package.json`, and `gruntfile.js`**.
 The test task prints the full path to its `gruntfile.js` whenever setup is missing.
 
@@ -29,13 +33,14 @@ No `npx` or globally installed Grunt is required.
    `test` or `test-run` is not yet visible.
 2. For a fresh checkout, install the dependencies in `package.json` using IntelliJ's configured
    Node interpreter and package manager.
-3. Run **`test`**. It resolves browser library dependencies through `dist`, builds the distribution,
-   ensures the matching Chromium browser is installed, and runs the specs. The first browser download
+3. Run **`test`**. It ensures the matching Chromium browser is installed, resolves browser library
+   dependencies through `combine:false`, prepares the core test bundle, and runs the specs. The first browser download
    needs internet access and can take several minutes; later runs reuse it.
 
 You can still run **`test-setup`** separately to prepare the browser. For a quick repeat against an
-already built distribution, use **`test-run`**. It skips rebuilding and setup, so source edits require
-another `test` run before they are covered. Use the same Node interpreter and environment throughout.
+already prepared core bundle, use **`test-run`**. It skips rebuilding and setup, so core source edits
+require another `test` run before they are covered; plugin source edits are loaded directly.
+Use the same Node interpreter and environment throughout.
 
 To run fewer tests, add `--spec=UiModifyContent` or `--spec=specs/Breinify-spec.js` to the Grunt run
 configuration's arguments. This is a case-sensitive substring filter on spec file paths.
@@ -62,8 +67,8 @@ node node_modules/grunt/bin/grunt test --spec=UiModifyContent
 - **Test browser is not installed / Executable doesn't exist:** run `test-setup` in IntelliJ,
   wait for `Browser ready`, then rerun `test`. Alternatively, paste the complete terminal command
   printed in the error. No specs have run when this error appears.
-- **Missing distribution files:** run `test` instead of `test-run` to rebuild and prepare everything.
-- **A build or dependency step fails:** fix the reported `dist`/`dep` error, then rerun `test`; the specs have not started.
+- **Missing test input files:** run `test` instead of `test-run` to rebuild and prepare everything.
+- **A build or dependency step fails:** fix the reported `combine`/`dep` error, then rerun `test`; the specs have not started.
 - **A spec fails:** the output lists the failing spec and assertion. Detailed results, including
   stack traces, are in `target/test-results.json`. Fix the failure and rerun that file using `--spec`.
 - **A file times out:** the default limit is 60 seconds. Add `--test-timeout=120000` to the Grunt
@@ -80,9 +85,9 @@ Plugin specs receive the SDK's jQuery as a local `$` variable; it is not exposed
 Non-fixture browser requests are blocked, so tests must mock calls to live services.
 
 The task exits nonzero for failed specs, browser errors, timeouts, or an empty file selection.
-Pending specs are counted separately. The `test` task regenerates `dist` through the existing build tasks;
-`test-run` reads those generated files without changing them. Both the core bundle and plugins are
-loaded from the unminified distribution files.
+Pending specs are counted separately. The `test` task regenerates the unminified core bundle under
+`target/combined` through the existing build tasks; `test-run` reads it and the plugin source files
+without changing them. Distribution minification and copying happen only after `dist` passes its test step.
 
 ## Getting Started
 
