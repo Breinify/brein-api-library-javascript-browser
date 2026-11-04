@@ -27,9 +27,9 @@ describe('BreinifyUser', function () {
             var all = user.all();
 
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(all.additional.userAgent).toMatch('.*HeadlessChrome/112.0.5614.0 Safari/537.36$');
+            expect(all.additional.userAgent).toBe(navigator.userAgent);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(all.additional.url).toMatch('.*/_SpecRunner.html');
+            expect(all.additional.url).toBe(window.location.href);
 
             done();
         });
@@ -111,7 +111,7 @@ describe('BreinifyUser', function () {
 
             user.add('userAgent', navigator.userAgent);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all().additional.userAgent).toMatch('.*HeadlessChrome/112.0.5614.0 Safari/537.36$');;
+            expect(user.all().additional.userAgent).toBe(navigator.userAgent);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.location).toBeUndefined();
 
@@ -121,7 +121,7 @@ describe('BreinifyUser', function () {
             };
             user.add('location', loc);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            expect(user.all().additional.userAgent).toMatch('.*HeadlessChrome/112.0.5614.0 Safari/537.36$');;
+            expect(user.all().additional.userAgent).toBe(navigator.userAgent);
             //noinspection JSUnresolvedFunction,JSUnresolvedVariable
             expect(user.all().additional.location).toEqual(loc);
 

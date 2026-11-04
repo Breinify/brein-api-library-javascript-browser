@@ -31,7 +31,11 @@
     </target>
 
     <target name="06-run-test-suite" depends="01-resolve-dependencies">
-        <!-- disabled since pupeteer does not run on Debian 10 -->
-        <!-- <exec-grunt module="test" nodeVersion="${node}" gruntVersion="${grunt}" /> -->
+        <!-- Use the exit code to fail the build; test includes dist and browser setup. -->
+        <exec executable="${breinify.tools.node}/${node}/bin/node" dir="${basedir}" failonerror="true">
+            <env key="PATH" path="${breinify.tools.node}/${node}/bin:${util-ant-env.PATH}"/>
+            <arg file="${basedir}/node_modules/grunt/bin/grunt"/>
+            <arg value="test"/>
+        </exec>
     </target>
 </project>

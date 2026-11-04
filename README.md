@@ -14,6 +14,76 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 
 **TemporalData Endpoint**: The endpoint offers features to resolve temporal information like a timestamp, a location (latitude and longitude or free-text), or an IP-address, to temporal information (e.g., timezone, epoch, formatted dates, day-name),  holidays at the specified time and location, city, zip-code, neighborhood, country, or county of the location, events at the specified time and location (e.g., description, size, type), weather at the specified time and location (e.g., description, temperature).
 
+## Running tests
+
+The `test` task runs `dist` → `test-setup` → `test-run`. Specs test the generated distribution
+in headless Chromium. Use Node.js 20 or newer.
+The project directory is the checkout containing **this README, `package.json`, and `gruntfile.js`**.
+The test task prints the full path to its `gruntfile.js` whenever setup is missing.
+
+### IntelliJ: setup and everyday use
+
+No `npx` or globally installed Grunt is required.
+
+1. Open this project's `gruntfile.js` in IntelliJ's Grunt tool window. Refresh its task list if
+   `test` or `test-run` is not yet visible.
+2. For a fresh checkout, install the dependencies in `package.json` using IntelliJ's configured
+   Node interpreter and package manager.
+3. Run **`test`**. It resolves browser library dependencies through `dist`, builds the distribution,
+   ensures the matching Chromium browser is installed, and runs the specs. The first browser download
+   needs internet access and can take several minutes; later runs reuse it.
+
+You can still run **`test-setup`** separately to prepare the browser. For a quick repeat against an
+already built distribution, use **`test-run`**. It skips rebuilding and setup, so source edits require
+another `test` run before they are covered. Use the same Node interpreter and environment throughout.
+
+To run fewer tests, add `--spec=UiModifyContent` or `--spec=specs/Breinify-spec.js` to the Grunt run
+configuration's arguments. This is a case-sensitive substring filter on spec file paths.
+
+### Terminal use without npx
+
+A missing-browser error prints a complete command with the **actual Node executable, local Grunt
+CLI, and absolute gruntfile path**. Paste that command into a terminal: it works from any directory
+and requires neither `node` nor `npx` on PATH. After setup succeeds, the output prints the equivalent
+command to run the tests.
+
+If Node is already on PATH, the shorter equivalents below work from the project directory:
+
+```sh
+node node_modules/grunt/bin/grunt test
+node node_modules/grunt/bin/grunt test --spec=UiModifyContent
+```
+
+`npm test` is also available when npm is on PATH. These commands assume the dependencies in
+`package.json` have been installed as described above.
+
+### If the task fails
+
+- **Test browser is not installed / Executable doesn't exist:** run `test-setup` in IntelliJ,
+  wait for `Browser ready`, then rerun `test`. Alternatively, paste the complete terminal command
+  printed in the error. No specs have run when this error appears.
+- **Missing distribution files:** run `test` instead of `test-run` to rebuild and prepare everything.
+- **A build or dependency step fails:** fix the reported `dist`/`dep` error, then rerun `test`; the specs have not started.
+- **A spec fails:** the output lists the failing spec and assertion. Detailed results, including
+  stack traces, are in `target/test-results.json`. Fix the failure and rerun that file using `--spec`.
+- **A file times out:** the default limit is 60 seconds. Add `--test-timeout=120000` to the Grunt
+  arguments to allow 120 seconds per file for a deliberately longer suite.
+
+Do not use `--force` to bypass failures; it does not fix setup or failing tests.
+On Linux CI, install the browser's system dependencies by running the local Playwright CLI with
+`install --with-deps --only-shell chromium` before running the tests.
+
+### Test isolation and results
+
+Each spec file gets a fresh browser context with isolated storage, cookies, and SDK instances.
+Plugin specs receive the SDK's jQuery as a local `$` variable; it is not exposed on the page globally.
+Non-fixture browser requests are blocked, so tests must mock calls to live services.
+
+The task exits nonzero for failed specs, browser errors, timeouts, or an empty file selection.
+Pending specs are counted separately. The `test` task regenerates `dist` through the existing build tasks;
+`test-run` reads those generated files without changing them. Both the core bundle and plugins are
+loaded from the unminified distribution files.
+
 ## Getting Started
 
 For feature-based experiences, see [Feature resolution and UI configuration](../../brein-external/brein-external-script-creator/docs/feature-definitions.md#waiting-for-freshness-when-using-a-feature)

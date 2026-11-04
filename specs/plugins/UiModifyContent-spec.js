@@ -128,7 +128,11 @@ describe('UiModifyContent', function () {
 
         it('resolves activation captures and the experience assignment without needing a condition', function () {
             setup([], {type: 'writeToConsole', settings: {message: 'unused'}});
-            runtime.module._webExperienceActivation = {url: window.location.href, captures: ['1234']};
+            // simulate the activation callback installed by the customer script
+            runtime.module.isValidPage = function () {
+                this._webExperienceActivation = {url: window.location.href, captures: ['1234']};
+                return true;
+            };
             runtime.decision.splitTestData = {testName: 'Assigned test', groupDecision: 'Breinify', isControlGroup: false};
             runtime.config.actions._default = [{type: 'writeToConsole', settings: {
                 message: '%%activation.groups.1%%: %%splitTest.group%%'
@@ -835,7 +839,7 @@ describe('UiModifyContent', function () {
         it('reports invalid CSS selectors as configuration errors, not a false condition or fallback', function () {
             setup({selector: '['});
             expect(evaluate()).toBe(false);
-            expectRenderedElement(activitySpy.renderedElements[0], false, 13200, null);
+            expectRenderedElement(activitySpy.renderedElements[0], false, 13200, undefined);
         });
 
         it('does not enable text events for configurations without a DOM condition', function () {

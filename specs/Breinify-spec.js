@@ -202,7 +202,7 @@ describe('Breinify', function () {
                     "campaignId": "bevmoFridayEmail|2019-04-12",
                     "campaignType": "bevmoFridayEmail"
                 },
-                "sign": null
+                "sign": undefined
             },
             "2": {
                 "user": {
@@ -222,7 +222,7 @@ describe('Breinify', function () {
                     "campaignId": "bevmoFridayEmail|2019-04-12",
                     "campaignType": "bevmoFridayEmail"
                 },
-                "sign": null
+                "sign": undefined
             },
             "3": {
                 "user": {
@@ -236,7 +236,7 @@ describe('Breinify', function () {
                 "tags": {
                     "productIds": ["54123"]
                 },
-                "sign": null
+                "sign": undefined
             }
         });
     });

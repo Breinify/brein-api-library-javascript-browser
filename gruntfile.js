@@ -59,6 +59,8 @@ module.exports = function (grunt) {
     //noinspection JSUnresolvedFunction
     //grunt.loadNpmTasks('grunt-sync-json');
 
+    grunt.loadTasks('grunt-tasks');
+
     var uglifySaveLicense = require('uglify-save-license');
 
     //noinspection JSUnresolvedFunction
@@ -446,7 +448,9 @@ module.exports = function (grunt) {
         console.log(' - grunt setup        : updates the current version of the web server');
         console.log(' - grunt dep:<bool>   : to resolve dependencies; true to clean up dependencies, otherwise false (default)');
         console.log(' - grunt dist:<bool>  : distributes the files of the project; true to uglify the files, otherwise false (default)');
-        console.log(' - grunt test         : to run the defined tests');
+        console.log(' - grunt test         : build dist, prepare Chromium, and run Jasmine specs (optional --spec=<filename>)');
+        console.log(' - grunt test-run     : run specs against existing dist without rebuilding or browser setup');
+        console.log(' - grunt test-setup   : install the test browser once, or after upgrading Playwright');
     });
 
     /*

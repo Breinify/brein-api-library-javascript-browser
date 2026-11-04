@@ -172,7 +172,7 @@
                                         itemSelection: function () { return $(host).find('.br-bubble-item'); }
                                     });
                                 } catch (error) {
-                                    this._finish(entry, action, runtime, index, error);
+                                    this._finish(entry, action, runtime, index, error, true);
                                     done(null, {error: true});
                                 }
                             }.bind(this)
@@ -202,7 +202,7 @@
                     }.bind(this), 30000);
                     entry.processId = recommendations.render([option]);
                 } catch (error) {
-                    this._finish(entry, action, runtime, index, error);
+                    this._finish(entry, action, runtime, index, error, true);
                 }
             },
 
@@ -354,7 +354,7 @@
                 return host;
             },
 
-            _finish: function (entry, action, runtime, index, error) {
+            _finish: function (entry, action, runtime, index, error, executionError) {
                 if (!entry.pending) return;
                 if (!this._current(entry, runtime)) {
                     this._dispose(entry);
@@ -364,14 +364,14 @@
                 entry.pending = false;
                 entry.executed = !!entry.host?.isConnected;
                 entry.failed = !!error;
-                if (error) _private.logActionError(action, error);
+                if (error) _private.logActionError(action, error, executionError === true ? runtime : null);
                 if (entry.executed) {
                     try {
                         action._placeholderContext = entry.outputContext || action._placeholderContext;
                         _private.applyActionSnippets(runtime, action, index);
                     } catch (snippetError) {
                         entry.failed = true;
-                        _private.logActionError(action, snippetError);
+                        _private.logActionError(action, snippetError, runtime);
                     }
                 }
                 runtime.module.onChange({type: 'recommendationBubble'});
@@ -514,11 +514,11 @@
                     handle.finished.then(function (result) {
                         this._finish(entry, runtime, action, result);
                     }.bind(this), function (error) {
-                        this._finish(entry, runtime, action, {status: 'failed', error: error});
+                        this._finish(entry, runtime, action, {status: 'failed', error: error}, true);
                     }.bind(this));
                 } catch (error) {
                     if (entry.handle) entry.handle.cancel();
-                    this._finish(entry, runtime, action, {status: 'failed', error: error});
+                    this._finish(entry, runtime, action, {status: 'failed', error: error}, true);
                 }
             },
 
@@ -570,13 +570,14 @@
                 entry.handle = null;
             },
 
-            _finish: function (entry, runtime, action, result) {
+            _finish: function (entry, runtime, action, result, executionError) {
                 if (entry.disposed) return;
                 entry.pending = false;
                 entry.disposed = true;
                 entry.failed = !result || result.status === 'failed';
                 this._cleanup(entry);
-                if (entry.failed) _private.logActionError(action, result && result.error);
+                if (entry.failed) _private.logActionError(action, result && result.error,
+                    executionError === true ? runtime : null);
                 if (entry.page === _private.getDecisionPageKey() &&
                     _private.isCurrentRuntime(runtime)) {
                     runtime.module.onChange({type: 'animation'});
@@ -778,8 +779,8 @@
                     if (value === null || !/^(?:--[A-Za-z0-9_-]+|-?[a-z][a-z0-9-]*)$/.test(name)) {
                         throw new Error('applyCss requires named CSS properties with non-empty string values.');
                     }
-                    const important = /\\s*!important\\s*$/i.test(value);
-                    const content = important ? value.replace(/\\s*!important\\s*$/i, '').trim() : value;
+                    const important = /\s*!important\s*$/i.test(value);
+                    const content = important ? value.replace(/\s*!important\s*$/i, '').trim() : value;
                     const priority = important ? 'important' : '';
                     const probe = document.createElement('div').style;
                     probe.setProperty(name, content, priority);
@@ -2116,7 +2117,9 @@
                     }
                     result.push({key: key, element: element, values: snapshot, fingerprint: fingerprint});
                 } catch (error) {
-                    this.logActionError({type: 'iteration.extract'}, error);
+                    this.logActionError({type: 'iteration.extract'}, error, runtime);
+                    this.sendRenderedElementActivity(runtime, false,
+                        renderedElementStatusCodes.RENDERING_FAILED, this.getActivityActionGroup(runtime));
                 }
             }, this);
             return result;
@@ -2192,7 +2195,7 @@
                     runtime.iterationState.children.forEach(this.disposeRuntime.bind(this));
                     runtime.iterationState.children.clear();
                 }
-                this.logActionError({type: 'iteration'}, error);
+                this.logActionError({type: 'iteration'}, error, runtime);
                 this.sendRenderedElementActivity(runtime, false, renderedElementStatusCodes.INVALID_CONFIGURATION, null);
                 return false;
             }
@@ -2377,6 +2380,9 @@
                 tags.action = actionGroup;
             }
 
+            if (runtime.decision.status === DECISION_STATUS_FAILED && runtime.decision.failure) {
+                tags.lookupFailure = $.extend({}, runtime.decision.failure);
+            }
             return tags;
         },
 
@@ -2384,7 +2390,10 @@
             const activity = this.getActivityState(runtime);
             const pageKey = this.getDecisionPageKey();
             const activities = Breinify.plugins && Breinify.plugins.activities;
-            if (activity.reportedPageKey === pageKey || !activities ||
+            const failed = status === renderedElementStatusCodes.RENDERING_FAILED ||
+                status === renderedElementStatusCodes.INVALID_CONFIGURATION;
+            const alreadyReported = activity.reportedPageKey === pageKey;
+            if ((alreadyReported && (!failed || activity.failed === true)) || !activities ||
                 typeof activities.generic !== "function") {
                 return false;
             }
@@ -2393,6 +2402,7 @@
                 activities.generic(RENDERED_ELEMENT_ACTIVITY_TYPE, {},
                     this.createRenderedElementTags(runtime, rendered, status, actionGroup));
                 activity.reportedPageKey = pageKey;
+                activity.failed = failed;
                 return true;
             } catch (e) {
                 return false;
@@ -2403,7 +2413,7 @@
             const actionGroup = this.getActivityActionGroup(runtime);
             const rendered = execution.executed === true;
             let status;
-            if (execution.failed === true) {
+            if (execution.failed === true || runtime.executionErrorPageKey === this.getDecisionPageKey()) {
                 status = renderedElementStatusCodes.RENDERING_FAILED;
             } else if (rendered) {
                 status = renderedElementStatusCodes.RENDERED;
@@ -2662,7 +2672,7 @@
                 webExperiences.push(payload);
             }
 
-            return {webExperiences: webExperiences};
+            return {includeErrors: true, webExperiences: webExperiences};
         },
 
         getDecisionFromBatchResponse: function (runtime, response) {
@@ -2677,6 +2687,15 @@
             return null;
         },
 
+        getFailureFromBatchResponse: function (runtime, response) {
+            if (!Array.isArray(response.errors)) return null;
+            for (let i = 0; i < response.errors.length; i++) {
+                const failure = response.errors[i];
+                if (this.isDecisionResponseForRuntime(runtime, failure)) return failure;
+            }
+            return null;
+        },
+
         completeDecisionBatch: function (service, batch) {
             batch.inFlight = false;
             if (Object.keys(batch.requests).length === 0) {
@@ -2686,11 +2705,11 @@
             }
         },
 
-        failDecisionBatch: function (requests) {
+        failDecisionBatch: function (requests, failure) {
             for (let i = 0; i < requests.length; i++) {
                 const runtime = requests[i].runtime;
                 if (this.isCurrentDecisionRequest(requests[i])) {
-                    this.failDecision(runtime);
+                    this.failDecision(runtime, failure);
                 }
             }
         },
@@ -2750,11 +2769,15 @@
                             } catch (iterationError) {
                                 parent.iterationState?.children.forEach(this.disposeRuntime.bind(this));
                                 parent.iterationState?.children.clear();
-                                this.logActionError({type: 'iteration'}, iterationError);
+                                this.logActionError({type: 'iteration'}, iterationError, parent);
+                                this.sendRenderedElementActivity(parent, false,
+                                    renderedElementStatusCodes.RENDERING_FAILED, this.getActivityActionGroup(parent));
                             }
                         }, this);
                         if (hasError || !this.isDecisionBatchResponse(response)) {
-                            this.failDecisionBatch(requests);
+                            const failure = this.createLookupFailure(
+                                hasError ? 'SERVICE_ERROR' : 'INVALID_RESPONSE', error, requests.length);
+                            this.failDecisionBatch(requests, failure);
                         } else {
                             for (let i = 0; i < requests.length; i++) {
                                 const request = requests[i];
@@ -2764,8 +2787,15 @@
                                 }
 
                                 const decision = this.getDecisionFromBatchResponse(runtime, response);
-                                if (decision === null) {
-                                    this.failDecision(runtime);
+                                const failure = this.getFailureFromBatchResponse(runtime, response);
+                                if (failure !== null) {
+                                    const details = this.createLookupFailure('EXPERIENCE_ERROR', failure, requests.length);
+                                    details.configurationId = this.getDecisionConfigurationId(runtime);
+                                    if (runtime.iterationRequestId) details.requestId = runtime.iterationRequestId;
+                                    this.failDecision(runtime, details);
+                                } else if (decision === null) {
+                                    this.failDecision(runtime,
+                                        this.createLookupFailure('MISSING_DECISION', null, requests.length));
                                 } else {
                                     this.completeDecision(runtime, decision, request.requestPageKey, request.preview);
                                 }
@@ -2775,7 +2805,12 @@
                         this.completeDecisionBatch(service, batch);
                     }.bind(this));
             } catch (e) {
-                this.failDecisionBatch(requests);
+                requests.forEach(function (request) {
+                    if (this.isCurrentDecisionRequest(request)) {
+                        this.logActionError({type: 'decision'}, e, request.runtime);
+                    }
+                }, this);
+                this.failDecisionBatch(requests, this.createLookupFailure('CLIENT_EXCEPTION', e, requests.length));
                 this.completeDecisionBatch(service, batch);
             }
         },
@@ -3153,6 +3188,7 @@
         },
 
         completeDecision: function (runtime, response, requestPageKey, preview) {
+            runtime.decision.failure = null;
             const conditionResults = runtime.decision.conditionResults || {};
             const conditionCache = runtime.decision.conditionCache || {};
             const conditions = response && Array.isArray(response.conditions) ? response.conditions : [];
@@ -3254,7 +3290,23 @@
             }
         },
 
-        failDecision: function (runtime) {
+        createLookupFailure: function (category, error, batchSize) {
+            const failure = {category: category, batchSize: batchSize};
+            if ((category === 'SERVICE_ERROR' || category === 'EXPERIENCE_ERROR') && error) {
+                if (category === 'SERVICE_ERROR' && error.textStatus === 'timeout') failure.category = 'TIMEOUT';
+                else if (category === 'SERVICE_ERROR' && (error.isNetworkError === true || error.httpStatus === 0)) failure.category = 'NETWORK_ERROR';
+                else if (category === 'SERVICE_ERROR' && typeof error.httpStatus === 'number' && error.httpStatus >= 400) {
+                    failure.category = 'HTTP_ERROR';
+                }
+                ['httpStatus', 'responseCode', 'errorCode'].forEach(function (field) {
+                    if (typeof error[field] === 'number' && Number.isFinite(error[field])) failure[field] = error[field];
+                });
+            }
+            return failure;
+        },
+
+        failDecision: function (runtime, failure) {
+            runtime.decision.failure = failure || this.createLookupFailure('SERVICE_ERROR', null, 1);
             runtime.decision.inFlight = false;
             runtime.decision.resolved = false;
             runtime.decision.status = DECISION_STATUS_FAILED;
@@ -3305,7 +3357,7 @@
             }
 
             if (typeof Breinify !== "object" || typeof Breinify.service !== "function") {
-                this.failDecision(runtime);
+                this.failDecision(runtime, this.createLookupFailure('SERVICE_UNAVAILABLE', null, 1));
                 return true;
             }
 
@@ -3380,7 +3432,9 @@
                         resolvedSnippet.value.call(runtime.module, this.createSnippetContext(runtime, action, actionIndex));
                         applied = true;
                     } catch (e) {
-                        this.logSnippetError("JavaScript snippet execution failed", snippetId, e);
+                        this.logSnippetError("JavaScript snippet execution failed", snippetId, e, runtime);
+                        this.sendRenderedElementActivity(runtime, false,
+                            renderedElementStatusCodes.RENDERING_FAILED, this.getActivityActionGroup(runtime));
                         applied = true;
                     }
                 } else {
@@ -3606,7 +3660,8 @@
             }
         },
 
-        logSnippetError: function (message, snippetId, error) {
+        logSnippetError: function (message, snippetId, error, runtime) {
+            if (this.reportExecutionError(runtime, 'snippet:' + snippetId, error)) return;
             if (typeof console === "object" && typeof console.error === "function") {
                 console.error("uiModifyContent: " + message, snippetId, error);
             }
@@ -4409,7 +4464,7 @@
                         if (execution.pending && typeof e.placeholderPath === 'string' &&
                             e.placeholderPath.indexOf('action.') === 0) break;
                         execution.failed = true;
-                        this.logActionError(action, e);
+                        this.logActionError(action, e, runtime);
                         break;
                     }
                 }
@@ -4419,7 +4474,41 @@
             return execution;
         },
 
-        logActionError: function (action, error) {
+        /*
+         * Called only for caught execution failures with a runtime, not for ordinary lookup/network failures.
+         * Repeated action attempts can still reach this guard; deduplication suppresses telemetry, not execution.
+         * The budget belongs to each runtime (including each iterated item) and resets on a new page visit.
+         * It is not a global page-wide request limit.
+         */
+        reportExecutionError: function (runtime, phase, error) {
+            if (!runtime) return false;
+            const page = this.getDecisionPageKey();
+            runtime.executionErrorPageKey = page;
+            if (typeof Breinify.handleCaughtError !== 'function') return false;
+            if (runtime.executionErrors?.page !== page) {
+                runtime.executionErrors = {page: page, keys: new Set()};
+            }
+            const keys = runtime.executionErrors.keys;
+
+            // after 20 distinct errors, skip even the stack-prefix extraction for this runtime and visit
+            if (keys.size >= 20) return true;
+
+            // use the error heading and first frame; changing callers must not create duplicate reports
+            const origin = typeof error?.stack === 'string'
+                ? error.stack.split('\n', 2).join('\n') : String(error);
+            const key = phase + ':' + origin;
+            if (keys.has(key)) return true;
+
+            // count attempts even if the mapper declines or sending fails, so repeated failures do not retry telemetry
+            keys.add(key);
+            return Breinify.handleCaughtError(error, {
+                plugin: 'uiModifyContent', phase: phase,
+                webExperienceId: runtime.webExId, campaignWebExId: runtime.webExVersionId
+            });
+        },
+
+        logActionError: function (action, error, runtime) {
+            if (this.reportExecutionError(runtime, action?.type || 'action', error)) return;
             if (typeof console === "object" && typeof console.error === "function") {
                 console.error("uiModifyContent: action execution failed", action, error);
             }
@@ -4581,6 +4670,7 @@
                 if (execution.pending !== true) runtime.suppressionExecutionActive = false;
                 return true;
             } catch (e) {
+                _private.logActionError({type: 'runtime'}, e, runtime);
                 runtime.suppressionExecutionActive = false;
                 _private.sendRenderedElementActivity(runtime, false,
                     renderedElementStatusCodes.RENDERING_FAILED, _private.getActivityActionGroup(runtime));

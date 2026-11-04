@@ -2,7 +2,7 @@
 
 describe('Survey and countdown activity context', function () {
     var $, experiences, $root, activities, originalActivities, originalRecommendations, originalSnippets;
-    var recommendationOptions, countdowns;
+    var recommendationOptions, countdowns, originalApi;
 
     beforeEach(function () {
         $ = Breinify.UTL._jquery();
@@ -13,6 +13,9 @@ describe('Survey and countdown activity context', function () {
         countdowns = [];
         recommendationOptions = [];
         originalActivities = Breinify.plugins.activities;
+        originalApi = Breinify.plugins.api;
+        // the module registry belongs to the generated customer script, outside this library
+        Breinify.plugins.api = {isModule: function () { return false; }, addModule: function () {}};
         originalRecommendations = Breinify.plugins.recommendations;
         originalSnippets = Breinify.plugins.snippetManager;
         Breinify.plugins.activities = {
@@ -31,6 +34,8 @@ describe('Survey and countdown activity context', function () {
         document.body.classList.remove('br-survey-scroll-lock');
         $root.remove();
         Breinify.plugins.activities = originalActivities;
+        if (typeof originalApi === 'undefined') delete Breinify.plugins.api;
+        else Breinify.plugins.api = originalApi;
         Breinify.plugins.recommendations = originalRecommendations;
         Breinify.plugins.snippetManager = originalSnippets;
     });

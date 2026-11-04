@@ -224,6 +224,39 @@ describe('BreinifyUtil', function () {
     });
 
     //noinspection JSUnresolvedFunction
+    it('parses the current query with URLSearchParams decoding', function () {
+        var url = window.location.href;
+        try {
+            window.history.replaceState({}, '', '?q=hello+world&value=a%3Db&q=last+value#ignored');
+            expect(Breinify.UTL.loc.params()).toEqual({q: 'last value', value: 'a=b'});
+        } finally {
+            window.history.replaceState({}, '', url);
+        }
+    });
+
+    it('honors custom separators on the current page and explicit URLs', function () {
+        var url = window.location.href;
+        try {
+            window.history.replaceState({}, '', '?q=wrong#q:current%20value;p:5');
+            expect(Breinify.UTL.loc.params('#', ';', ':')).toEqual({q: 'current value', p: '5'});
+            expect(Breinify.UTL.loc.params('#', ';', ':', 'https://sample.com/#q:explicit%20value;p:6'))
+                .toEqual({q: 'explicit value', p: '6'});
+        } finally {
+            window.history.replaceState({}, '', url);
+        }
+    });
+
+    it('falls back to the legacy parser when URLSearchParams is unavailable', function () {
+        var url = window.location.href;
+        spyOn(window, 'URLSearchParams').and.throwError('URLSearchParams unavailable');
+        try {
+            window.history.replaceState({}, '', '?q=legacy%20value&p=5');
+            expect(Breinify.UTL.loc.params()).toEqual({q: 'legacy value', p: '5'});
+        } finally {
+            window.history.replaceState({}, '', url);
+        }
+    });
+
     it('param retrieval in loc is working correctly', function () {
         var url;
 
@@ -552,6 +585,7 @@ describe('BreinifyUtil', function () {
     });
 
     it('appliesContentByDomOperation', function () {
+        var $ = Breinify.UTL._jquery();
         var $fixture = $(
             '<div>' +
             '    <span class="first"></span>' +

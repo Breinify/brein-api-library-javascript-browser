@@ -13812,56 +13812,62 @@ dependencyScope.jQuery = $;
             },
 
             params: function (paramListSeparator, paramSeparator, paramSplit, url) {
-
-                try {
-                    const urlSearchParams = new URLSearchParams(window.location.search);
-                    const result = {};
-                    urlSearchParams.forEach(function (value, key) {
-                        result[key] = value;
-                    });
-
-                    return result;
-                } catch (e) {
-
-                    // if the url is not passed in we use a special decoding for HTML entities
-                    // to avoid this, just pass in the url
-                    if (typeof url !== 'string') {
-                        let decoder = document.createElement('textarea');
-                        decoder.innerHTML = this.url();
-                        url = decoder.value;
+                const currentQuery = typeof url !== 'string' &&
+                    (typeof paramListSeparator !== 'string' || paramListSeparator === '?') &&
+                    (typeof paramSeparator !== 'string' || paramSeparator === '&') &&
+                    (typeof paramSplit !== 'string' || paramSplit === '=');
+                if (currentQuery) {
+                    try {
+                        const urlSearchParams = new URLSearchParams(window.location.search);
+                        const result = {};
+                        urlSearchParams.forEach(function (value, key) {
+                            result[key] = value;
+                        });
+                        return result;
+                    } catch (e) {
+                        // use the legacy parser when URLSearchParams is unavailable
                     }
-
-                    paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
-                    paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
-                    paramSplit = typeof paramSplit === 'string' ? paramSplit : '=';
-
-                    let paramListSeparatorPos = url.indexOf(paramListSeparator);
-                    if (paramListSeparatorPos < 0) {
-                        return {};
-                    }
-
-                    let paramsUrl = url.substring(paramListSeparatorPos + 1);
-                    let paramStrs = paramsUrl.split(paramSeparator);
-                    if (paramStrs.length === 0) {
-                        return {};
-                    }
-
-                    let result = {};
-                    for (let i = 0; i < paramStrs.length; i++) {
-                        let paramStr = paramStrs[i];
-                        let paramVals = paramStr.split(paramSplit);
-
-                        let paramName = decodeURIComponent(paramVals[0]);
-
-                        if (paramVals.length === 2) {
-                            result[paramName] = decodeURIComponent(paramVals[1]);
-                        } else {
-                            result[paramName] = null;
-                        }
-                    }
-
-                    return result;
                 }
+
+                // explicit URLs and custom separators must not be replaced with the current page query
+                // if the url is not passed in we use a special decoding for HTML entities
+                // to avoid this, just pass in the url
+                if (typeof url !== 'string') {
+                    let decoder = document.createElement('textarea');
+                    decoder.innerHTML = this.url();
+                    url = decoder.value;
+                }
+
+                paramListSeparator = typeof paramListSeparator === 'string' ? paramListSeparator : '?';
+                paramSeparator = typeof paramSeparator === 'string' ? paramSeparator : '&';
+                paramSplit = typeof paramSplit === 'string' ? paramSplit : '=';
+
+                let paramListSeparatorPos = url.indexOf(paramListSeparator);
+                if (paramListSeparatorPos < 0) {
+                    return {};
+                }
+
+                let paramsUrl = url.substring(paramListSeparatorPos + 1);
+                let paramStrs = paramsUrl.split(paramSeparator);
+                if (paramStrs.length === 0) {
+                    return {};
+                }
+
+                let result = {};
+                for (let i = 0; i < paramStrs.length; i++) {
+                    let paramStr = paramStrs[i];
+                    let paramVals = paramStr.split(paramSplit);
+
+                    let paramName = decodeURIComponent(paramVals[0]);
+
+                    if (paramVals.length === 2) {
+                        result[paramName] = decodeURIComponent(paramVals[1]);
+                    } else {
+                        result[paramName] = null;
+                    }
+                }
+
+                return result;
             },
 
             hasParam: function (param, paramListSeparator, paramSeparator, paramSplit, url) {
@@ -17842,28 +17848,76 @@ dependencyScope.jQuery = $;
         });
     };
 
-    Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings) {
+    /*
+     * Reports an explicitly caught execution error through the existing window-error mapper.
+     * This helper installs no listener and does not intercept exceptions or console.error calls on the page.
+     * Callers must distinguish execution failures from expected service failures and deduplicate before calling.
+     * Modify Content does this in reportExecutionError, before this stack scan or any activity request.
+     */
+    Breinify.handleCaughtError = function (error, context) {
+        // without a stack we cannot supply genuine source coordinates to the existing error mapper
+        if (!error || typeof error.stack !== 'string') return false;
+
+        /*
+         * Accept only HTTPS sources on a single Breinify subdomain, including customer and cdns-script hosts.
+         * The anchored host and trailing slash reject lookalikes such as breinify.com.example.org.
+         * Local files, customer-hosted SDK copies, and unrelated hosts deliberately fall back to the caller's log.
+         * A matching frame identifies our execution path; it does not prove the original bug is in our code.
+         */
+        const sourcePattern = /^https:\/\/[a-z0-9-]+\.breinify\.com\//i;
+        const frames = error.stack.split('\n');
+        for (let i = 0; i < frames.length; i++) {
+            // extract URL:line:column from Chrome-style "at ..." or Firefox-style "function@..." frames
+            const frame = frames[i].match(/(https?:\/\/[^\s()]+):(\d+):(\d+)/);
+
+            // skip frames without usable coordinates or outside the allowed Breinify sources
+            if (!frame || !sourcePattern.test(frame[1])) continue;
+            try {
+                /*
+                 * Adapt the first eligible frame to the ErrorEvent shape expected by handleError.
+                 * Keep the original error/stack and honor the configured mapper's filtering or sampling.
+                 * Return immediately even if the mapper declines: at most one activity attempt per call.
+                 */
+                return Breinify.handleError({
+                    message: typeof error.message === 'string' ? error.message : String(error),
+                    error: error,
+                    filename: frame[1],
+                    lineno: Number(frame[2]),
+                    colno: Number(frame[3])
+                }, sourcePattern, {caught: true}, context);
+            } catch (reportingError) {
+                // telemetry must not interrupt the error handler or recursively report its own failure
+                return false;
+            }
+        }
+
+        // no attributable source was found; the caller may retain its normal console fallback
+        return false;
+    };
+
+    Breinify.handleError = function (e, scriptSourceRegEx, scriptSettings, context) {
 
         let mapper = Breinify.plugins._getCustomization(BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_ERROR_TAGS_MAPPER);
         if ($.isPlainObject(mapper) && $.isFunction(mapper.map)) {
             mapper = mapper.map;
         } else if (_config === null) {
-            return;
+            return false;
         } else {
             mapper = _config.get(ATTR_CONFIG.ERROR_TAGS_MAPPER);
         }
 
         if (!$.isFunction(mapper)) {
-            return;
+            return false;
         }
 
         const tags = mapper(e, scriptSourceRegEx, scriptSettings);
         if (!$.isPlainObject(tags)) {
-            return;
+            return false;
         }
 
         // send the activity with the error details
-        Breinify.activity({}, 'scriptError', tags);
+        Breinify.activity({}, 'scriptError', $.extend({}, tags, context ? {execution: context} : {}));
+        return true;
     };
 
     // bind the utilities to be available through Breinify
