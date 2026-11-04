@@ -201,6 +201,78 @@ describe('BreinifyUtil', function () {
         });
     });
 
+    describe('split-test activity tag', function () {
+        it('uses the explicit assignment without reading storage or mutating the snapshot', function () {
+            const assignment = Object.freeze({testName: 'Popup (Add Ons)', selectedInstance: 'assigned-instance'});
+            spyOn(Breinify.UTL.user, 'getSplitTestData').and.throwError('Must not read a newer assignment');
+            expect(Breinify.UTL.user.createSplitTestActivityTag(assignment))
+                .toBe('Popup (Add Ons) (assigned-instance)');
+            expect(Breinify.UTL.user.createSplitTestActivityTag({
+                testName: 'Popup (Add Ons)', selectedInstance: 'different-instance'
+            })).toBe('Popup (Add Ons) (different-instance)');
+            expect(Breinify.UTL.user.getSplitTestData).not.toHaveBeenCalled();
+            expect(assignment.selectedInstance).toBe('assigned-instance');
+        });
+
+        it('preserves legacy handling of missing names, instances and invalid assignments', function () {
+            [null, undefined, [], 'Popup', {}, {testName: ' '}, {selectedInstance: 'instance'}]
+                .forEach(function (assignment) {
+                    expect(Breinify.UTL.user.createSplitTestActivityTag(assignment)).toBeNull();
+                });
+            [null, undefined, '', ' ', 123].forEach(function (instance) {
+                expect(Breinify.UTL.user.createSplitTestActivityTag({testName: 'Popup', selectedInstance: instance}))
+                    .toBe('Popup');
+            });
+        });
+    });
+
+    describe('applying split-test activity tags', function () {
+        it('updates all attribution fields together and preserves unrelated tags and the assignment', function () {
+            const assignment = Object.freeze({testName: 'Popup', selectedInstance: 'instance',
+                groupDecision: 'Original', isControlGroup: true});
+            const tags = {splitTest: 'stale', group: 'stale', groupType: 'test', productIds: ['product']};
+            const result = Breinify.UTL.user.applySplitTestTags(tags, assignment);
+            expect(result).toBe(tags);
+            expect(tags).toEqual({splitTest: 'Popup (instance)', group: 'Original', groupType: 'control',
+                productIds: ['product']});
+            expect(assignment.groupDecision).toBe('Original');
+        });
+
+        it('leaves existing tags untouched for missing or invalid assignments without explicit defaults', function () {
+            [null, undefined, [], 'Popup', 123, false].forEach(function (assignment) {
+                const tags = {splitTest: 'Parent (instance)', group: 'Original', groupType: 'control', widget: 'Popup'};
+                const result = Breinify.UTL.user.applySplitTestTags(tags, assignment);
+                expect(result).toBe(tags);
+                expect(tags).toEqual({splitTest: 'Parent (instance)', group: 'Original', groupType: 'control',
+                    widget: 'Popup'});
+                expect(Breinify.UTL.user.applySplitTestTags({}, assignment)).toEqual({});
+            });
+        });
+
+        it('honors the server control flag before the legacy flag without guessing from group names', function () {
+            const tags = {};
+            Breinify.UTL.user.applySplitTestTags(tags, {groupDecision: 'Control', isControlGroup: false, isControl: true});
+            expect(tags.groupType).toBe('test');
+            Breinify.UTL.user.applySplitTestTags(tags, {groupDecision: 'Custom', isControl: true});
+            expect(tags.groupType).toBe('control');
+            Breinify.UTL.user.applySplitTestTags(tags, {groupDecision: 'Control'});
+            expect(tags.groupType).toBe('test');
+        });
+
+        it('supports existing plugin defaults for missing groups and inactive assignments', function () {
+            const defaults = Object.freeze({defaultGroup: 'Breinify', defaultControlGroup: 'Control',
+                defaultTestGroup: 'Breinify'});
+            expect(Breinify.UTL.user.applySplitTestTags({}, null, defaults))
+                .toEqual({splitTest: null, group: 'Breinify', groupType: 'none'});
+            expect(Breinify.UTL.user.applySplitTestTags({}, {active: false, groupDecision: 'Old'}, defaults))
+                .toEqual({splitTest: null, group: 'Breinify', groupType: 'none'});
+            expect(Breinify.UTL.user.applySplitTestTags({}, {isControl: true}, defaults).group).toBe('Control');
+            expect(Breinify.UTL.user.applySplitTestTags({}, {}, defaults).group).toBe('Breinify');
+            expect(Breinify.UTL.user.applySplitTestTags({}, null, {}))
+                .toEqual({splitTest: null, group: null, groupType: 'none'});
+        });
+    });
+
     describe('split-test assignment expiry', function () {
         var user;
         var originalData;

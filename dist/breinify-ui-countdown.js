@@ -1096,15 +1096,8 @@
                 tags.refCampaignExId = experience.campaignData.campaignExecutionId;
             }
 
-            // add the split-test info if any split-test
-            if ($.isPlainObject(settings.splitTestData)) {
-                tags.groupType = settings.splitTestData.isControlGroup === true ? 'control' : 'test';
-                tags.group = Breinify.UTL.isNonEmptyString(settings.splitTestData.groupDecision);
-
-                const test = Breinify.UTL.isNonEmptyString(settings.splitTestData.testName);
-                const instance = Breinify.UTL.isNonEmptyString(settings.splitTestData.selectedInstance);
-                tags.splitTest = test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
-            }
+            // add the split-test info when an assignment is available
+            Breinify.UTL.user.applySplitTestTags(tags, settings.splitTestData);
 
             // the countdown's own assignment wins; inheritance affects activity tags only
             const activityTags = Breinify.plugins.webExperiences.applyActivityContext(tags, this._activityContext);

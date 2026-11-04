@@ -59,9 +59,6 @@
     const RENDERED_ELEMENT_ACTIVITY_TYPE = "renderedElement";
     const MODIFY_CONTENT_WIDGET_TYPE = "modifyContent";
     const ACTION_TYPE_EXECUTED = "executed";
-    const SPLIT_TEST_GROUP_TYPE_CONTROL = "control";
-    const SPLIT_TEST_GROUP_TYPE_TEST = "test";
-    const SPLIT_TEST_GROUP_TYPE_NONE = "none";
 
     /*
      * Action implementations are isolated by type. New actions belong here;
@@ -2333,28 +2330,8 @@
         },
 
         getSplitTestActivityTags: function (runtime) {
-            const splitTestData = runtime && runtime.decision && $.isPlainObject(runtime.decision.splitTestData)
-                ? runtime.decision.splitTestData
-                : null;
-            if (splitTestData === null) {
-                return {
-                    groupType: SPLIT_TEST_GROUP_TYPE_NONE,
-                    splitTest: null,
-                    group: null
-                };
-            }
-
-            const testName = Breinify.UTL.isNonEmptyString(splitTestData.testName);
-            const selectedInstance = Breinify.UTL.isNonEmptyString(splitTestData.selectedInstance);
-            return {
-                groupType: splitTestData.isControlGroup === true
-                    ? SPLIT_TEST_GROUP_TYPE_CONTROL
-                    : SPLIT_TEST_GROUP_TYPE_TEST,
-                splitTest: testName === null
-                    ? null
-                    : testName + (selectedInstance === null ? "" : " (" + selectedInstance + ")"),
-                group: Breinify.UTL.isNonEmptyString(splitTestData.groupDecision)
-            };
+            const splitTestData = runtime?.decision?.splitTestData;
+            return Breinify.UTL.user.applySplitTestTags({}, splitTestData, {});
         },
 
         createActivityContext: function (runtime) {

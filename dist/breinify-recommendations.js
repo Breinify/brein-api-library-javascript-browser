@@ -1838,36 +1838,8 @@
         },
 
         _createDefaultTags: function (recommendationData, additionalEventData) {
-            const defaultTags = {};
-
-            const splitTestData = $.isPlainObject(recommendationData?.splitTestData)
-                ? recommendationData.splitTestData
-                : {active: false};
-
-            let groupType;
-            let group;
-
-            if (splitTestData.active === false) {
-                groupType = Renderer.splitTest.defaultGroupType;
-                group = Renderer.splitTest.defaultGroup;
-            } else if (splitTestData.isControl === true) {
-                groupType = Renderer.splitTest.controlGroupType;
-                group = Breinify.UTL.isNonEmptyString(splitTestData.groupDecision) === null
-                    ? Renderer.splitTest.defaultControlGroup
-                    : splitTestData.groupDecision;
-            } else {
-                groupType = Renderer.splitTest.testGroupType;
-                group = Breinify.UTL.isNonEmptyString(splitTestData.groupDecision) === null
-                    ? Renderer.splitTest.defaultTestGroup
-                    : splitTestData.groupDecision;
-            }
-
-            const test = Breinify.UTL.isNonEmptyString(splitTestData.testName);
-            const instance = Breinify.UTL.isNonEmptyString(splitTestData.selectedInstance);
-
-            defaultTags.group = group;
-            defaultTags.groupType = groupType;
-            defaultTags.splitTest = test === null ? null : test + (instance === null ? "" : " (" + instance + ")");
+            const splitTestData = recommendationData?.splitTestData;
+            const defaultTags = Breinify.UTL.user.applySplitTestTags({}, splitTestData, Renderer.splitTest);
 
             const recommendationPayload = $.isPlainObject(recommendationData?.payload)
                 ? recommendationData.payload

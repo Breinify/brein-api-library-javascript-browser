@@ -89,6 +89,41 @@ Pending specs are counted separately. The `test` task regenerates the unminified
 `target/combined` through the existing build tasks; `test-run` reads it and the plugin source files
 without changing them. Distribution minification and copying happen only after `dist` passes its test step.
 
+## Split-test activity attribution
+
+Build `activity.tags.splitTest` from the assignment used to render the experience:
+
+```javascript
+const assignment = response.splitTestData;
+Breinify.UTL.user.applySplitTestTags(tags, assignment);
+
+// Explicit values use the same assignment shape:
+Breinify.UTL.user.applySplitTestTags(tags, {
+    testName: 'My test',
+    selectedInstance: assignedInstance,
+    groupDecision: 'Original',
+    isControlGroup: true
+});
+```
+
+The helper updates `splitTest`, `group` and `groupType`, preserves other tags and returns the same
+object. It never reads or updates stored assignments. Pass the captured assignment so delayed
+clicks retain the instance that produced the experience. `isControlGroup` takes precedence over
+legacy `isControl`; group names are not used to guess control status. Missing or invalid
+assignments leave tags untouched, so callers do not need a plain-object guard. Inactive assignments
+use `group: null` and `groupType: 'none'`. An optional third argument supplies plugin defaults:
+`defaultGroup`, `defaultControlGroup`, `defaultTestGroup`, `defaultGroupType`, `controlGroupType`
+and `testGroupType`. Providing a defaults object (including `{}`) also applies defaults when the
+assignment is missing or invalid.
+
+Use `createSplitTestActivityTag(assignment)` only when the formatted label alone is needed.
+It returns `testName (selectedInstance)`, or `null` without a test name. Missing instances retain
+the bare name for compatibility, but the backend's instance attribution requires a complete
+assignment; an incomplete label can exclude otherwise valid clicks from metrics.
+
+Recommendations, content modifications and countdowns share this helper. Publish the updated
+core library before or together with plugins and customer scripts that call it.
+
 ## Getting Started
 
 For feature-based experiences, see [Feature resolution and UI configuration](../../brein-external/brein-external-script-creator/docs/feature-definitions.md#waiting-for-freshness-when-using-a-feature)

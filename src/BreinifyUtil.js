@@ -1353,6 +1353,73 @@
             referrerUrl: null,
 
             /**
+             * Use when only the activity's splitTest label is needed; use applySplitTestTags for all attribution tags.
+             * The backend requires "test name (instance)": omitting the instance can exclude valid clicks from metrics.
+             * Always pass the assignment that rendered the experience, not a newer stored assignment.
+             * Does not read storage or change the assignment. Returns null without a test name,
+             * or the bare name without an instance, matching legacy activity-tag behavior.
+             * Backend instance attribution requires a nonempty selectedInstance.
+             *
+             * @param assignment the splitTestData object containing testName and selectedInstance
+             * @returns {string|null} the test name followed by the assigned instance in parentheses
+             */
+            createSplitTestActivityTag: function (assignment) {
+                if (!$.isPlainObject(assignment)) {
+                    return null;
+                }
+
+                const test = BreinifyUtil.isNonEmptyString(assignment.testName);
+                const instance = BreinifyUtil.isNonEmptyString(assignment.selectedInstance);
+                return test === null ? null : test + (instance === null ? '' : ' (' + instance + ')');
+            },
+
+            /**
+             * Sets splitTest, group and groupType together, preserving unrelated tags and returning the same object.
+             * Pass response.splitTestData or explicit testName, selectedInstance, groupDecision and isControlGroup values
+             * in an assignment object. The legacy isControl flag is supported when isControlGroup is absent.
+             * Missing or invalid assignments leave tags unchanged unless a defaults object is supplied.
+             * Inactive assignments use the default group; named groups are never assumed to be controls.
+             * Neither the assignment nor stored user data is modified.
+             *
+             * @param tags the activity tags object to update
+             * @param assignment the explicit assignment snapshot, or null when no assignment exists
+             * @param defaults optional defaultGroup, defaultControlGroup, defaultTestGroup and their group-type values
+             * @returns {Object} the supplied tags object
+             */
+            applySplitTestTags: function (tags, assignment, defaults) {
+                if (!$.isPlainObject(tags)) {
+                    throw new TypeError('Activity tags must be a plain object.');
+                }
+
+                const data = $.isPlainObject(assignment) ? assignment : null;
+                if (data === null && !$.isPlainObject(defaults)) {
+                    return tags;
+                }
+
+                const settings = $.extend({}, {
+                    defaultGroup: null,
+                    defaultControlGroup: null,
+                    defaultTestGroup: null,
+                    defaultGroupType: 'none',
+                    controlGroupType: 'control',
+                    testGroupType: 'test'
+                }, $.isPlainObject(defaults) ? defaults : {});
+
+                tags.splitTest = this.createSplitTestActivityTag(data);
+                if (data === null || data.active === false) {
+                    tags.group = settings.defaultGroup;
+                    tags.groupType = settings.defaultGroupType;
+                } else {
+                    const isControl = typeof data.isControlGroup === 'boolean' ? data.isControlGroup : data.isControl === true;
+                    const group = BreinifyUtil.isNonEmptyString(data.groupDecision);
+                    tags.group = group === null ? (isControl ? settings.defaultControlGroup : settings.defaultTestGroup) : group;
+                    tags.groupType = isControl ? settings.controlGroupType : settings.testGroupType;
+                }
+
+                return tags;
+            },
+
+            /**
              * Returns current assignments, removing expired entries from memory and storage on every read.
              * Preview assignments also honor expiresAt (epoch milliseconds); reads never extend their lifetime.
              */
