@@ -4466,6 +4466,12 @@
                 return null;
             }
 
+            // generated configurations may represent absent optional iteration as an empty object
+            if ($.isPlainObject(config?.iteration) && $.isEmptyObject(config.iteration)) {
+                config = $.extend({}, config);
+                delete config.iteration;
+            }
+
             _private.initializeDecisionPageObserver();
 
             const key = _private.key(webExId, webExVersionId);

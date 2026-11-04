@@ -259,4 +259,52 @@ describe('UiModifyContent optional iteration', function () {
         expect(runtime.iterationState).toBeUndefined();
         expect(fixture.textContent).toBe('ordinary');
     });
+
+    it('runs ordinary actions with empty iteration without changing the supplied configuration', function () {
+        const ordinary = action('ordinary');
+        ordinary.settings.selector = '#' + id + ' .target';
+        const config = {iteration: {}, actions: {_default: [ordinary]}};
+        Object.freeze(config);
+        runtime = plugin.register(module, id, 'v', config);
+        const eligible = module.findRequirements(Breinify.UTL._jquery()(fixture), {type: 'full-scan'});
+        expect(eligible).toBe(true);
+        plugin.handle(id, 'v', {type: 'full-scan'});
+        plugin.handle(id, 'v', {type: 'full-scan'});
+        expect(fixture.textContent).toBe('ordinary');
+        expect(runtime.iterationState).toBeUndefined();
+        expect(config.iteration).toEqual({});
+        expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('evaluates product metrics and renders their bindings with empty optional iteration', function () {
+        spyOn(Breinify.plugins.webExperiences, 'getActivationGroup').and.returnValue('133645012');
+        const condition = {type: 'decision', settings: {
+            refId: 'metric', input: {source: 'ACTIVATION_GROUP', group: 1}
+        }};
+        const banner = action('POPULAR! %%condition.dataFeedMetric.metricValue | number:0%% purchases');
+        banner.settings.selector = '#' + id + ' .target';
+        runtime = plugin.register(module, id, 'v', {
+            iteration: {},
+            decision: {required: true, service: id, configurationId: id, conditions: [condition]},
+            conditionsGroups: [{actionGroup: 'matched', conditions: [condition]}],
+            actions: {matched: [banner], _default: []}
+        });
+        plugin.handle(id, 'v', {type: 'full-scan'});
+        jasmine.clock().tick(1);
+        expect(requests.length).toBe(1);
+        const entries = requests[0].payload.webExperiences;
+        expect(entries.length).toBe(1);
+        expect(entries[0].conditionInputs.metric).toBe('133645012');
+        expect(entries[0].requestId).toBeUndefined();
+        respond(0);
+        expect(fixture.textContent).toBe('POPULAR! 37 purchases');
+        expect(runtime.iterationState).toBeUndefined();
+        expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it('still rejects nonempty iteration settings without a supported type', function () {
+        configure({selector: '#' + id + ' .row'}, false, null, 'invalid');
+        expect(fixture.textContent).toBe('');
+        expect(console.error).toHaveBeenCalled();
+    });
 });
