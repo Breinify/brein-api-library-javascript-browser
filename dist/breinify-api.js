@@ -15475,6 +15475,94 @@ dependencyScope.jQuery = $;
         },
 
         /**
+         * Formats an integer duration using the flat settings supported by the SpEL duration formatter.
+         * Defaults: hours through seconds, d/h/min/s/ms labels, a space between components, omitted zero
+         * components, and en_US locale. Labels are literal suffixes, including any leading spaces.
+         * Input units range from days through nanoseconds; output bounds range from days through milliseconds.
+         * Remainders below the smallest unit are truncated toward zero. Zero uses the smallest unit;
+         * negative values use one leading minus sign unless truncation produces zero.
+         * Returns null for invalid inputs/settings or unsafe integer conversion. Does not mutate settings.
+         *
+         * @param {number} value A safe integer in the supplied unit.
+         * @param {string} unit A case-insensitive plural unit name, e.g. minutes.
+         * @param {Object} [settings] Flat overrides; null uses defaults. Null/empty locale uses the browser locale.
+         * @returns {string|null} Plain text, without HTML or recipe-specific zero handling.
+         */
+        formatDuration: function (value, unit, settings) {
+            if (!Number.isSafeInteger(value) || typeof unit !== 'string' ||
+                (settings != null && !$.isPlainObject(settings))) {
+                return null;
+            }
+
+            const cfg = Object.assign({
+                largestUnit: 'hours',
+                smallestUnit: 'seconds',
+                labelDays: 'd',
+                labelHours: 'h',
+                labelMinutes: 'min',
+                labelSeconds: 's',
+                labelMilliseconds: 'ms',
+                unitSeparator: ' ',
+                omitZeroUnits: true,
+                locale: 'en_US'
+            }, settings);
+            const units = ['days', 'hours', 'minutes', 'seconds', 'milliseconds', 'microseconds', 'nanoseconds'];
+            const factors = [86400000000000, 3600000000000, 60000000000, 1000000000, 1000000, 1000, 1];
+            const labels = [cfg.labelDays, cfg.labelHours, cfg.labelMinutes, cfg.labelSeconds, cfg.labelMilliseconds];
+            const input = units.indexOf(unit.trim().toLowerCase());
+            const first = typeof cfg.largestUnit === 'string' ? units.indexOf(cfg.largestUnit.trim().toLowerCase()) : -1;
+            const last = typeof cfg.smallestUnit === 'string' ? units.indexOf(cfg.smallestUnit.trim().toLowerCase()) : -1;
+            if (input < 0 || first < 0 || last < first || last > 4 ||
+                typeof cfg.unitSeparator !== 'string' || typeof cfg.omitZeroUnits !== 'boolean') {
+                return null;
+            }
+            for (let i = first; i <= last; i++) {
+                if (typeof labels[i] !== 'string') {
+                    return null;
+                }
+            }
+
+            let locale;
+            if (cfg.locale !== null && cfg.locale !== '') {
+                if (typeof cfg.locale !== 'string') {
+                    return null;
+                }
+                locale = cfg.locale.replace(/_/g, '-');
+            }
+            let numberFormat;
+            try {
+                numberFormat = new Intl.NumberFormat(locale, {maximumFractionDigits: 0});
+            } catch (e) {
+                return null;
+            }
+
+            // convert directly to the smallest output unit to avoid unnecessary intermediate overflow
+            const magnitude = Math.abs(value);
+            let remaining;
+            if (input <= last) {
+                remaining = magnitude * (factors[input] / factors[last]);
+            } else {
+                const divisor = factors[last] / factors[input];
+                remaining = (magnitude - magnitude % divisor) / divisor;
+            }
+            if (!Number.isSafeInteger(remaining)) {
+                return null;
+            }
+            const negative = value < 0 && remaining > 0;
+            const parts = [];
+            for (let i = first; i <= last; i++) {
+                const factor = factors[i] / factors[last];
+                const remainder = remaining % factor;
+                const amount = (remaining - remainder) / factor;
+                remaining = remainder;
+                if (amount > 0 || !cfg.omitZeroUnits || (i === last && parts.length === 0)) {
+                    parts.push(numberFormat.format(amount) + labels[i]);
+                }
+            }
+            return (negative ? '-' : '') + parts.join(cfg.unitSeparator);
+        },
+
+        /**
          * Formats a typed value as plain text, independently of any placeholder or rendering plugin.
          * Supports number, percent, currency, upper, lower, and join. Options are formatter-specific:
          * locale, decimalPlaces (0-20), currency (explicit three-letter code), or separator (explicit string).

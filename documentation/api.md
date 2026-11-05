@@ -38,6 +38,7 @@ This documentation is organized as following:
     * Breinify.UTL.isNonEmptyString() [since version 1.0.24]
     * Breinify.UTL.toPrice() [since version 1.0.24]
     * Breinify.UTL.formatPrice() [since version 1.0.24]
+    * [Breinify.UTL.formatDuration(value, unit, settings)](#duration-formatting)
     * [Breinify.UTL.formatValue(value, formatter, options)](#typed-value-formatting)
     * [Breinify.UTL.placeholders](#placeholder-utilities)
     * Breinify.UTL.toInteger() [since version 1.0.24]
@@ -315,6 +316,45 @@ The utility library provides general functionality, which makes it easy to retri
 
 * {string} **Breinify.UTL.uuid()**:<br/>
   Creates a uuid.
+
+###### Duration formatting
+
+`Breinify.UTL.formatDuration(value, unit, settings)` formats an integer duration as plain text using the same
+flat settings as the SpEL duration formatter. Partial settings override defaults without modifying the supplied object.
+
+```javascript
+const settings = {smallestUnit: 'minutes', labelHours: ' hr', labelMinutes: ' min'};
+Breinify.UTL.formatDuration(30, 'minutes', settings);  // '30 min'
+Breinify.UTL.formatDuration(60, 'minutes', settings);  // '1 hr'
+Breinify.UTL.formatDuration(90, 'minutes', settings);  // '1 hr 30 min'
+Breinify.UTL.formatDuration(390, 'minutes', settings); // '6 hr 30 min'
+Breinify.UTL.formatDuration(0, 'minutes', settings);   // '0 min'
+Breinify.UTL.formatDuration(3601, 'seconds');         // '1h 1s'
+Breinify.UTL.formatDuration(3601, 'seconds', {omitZeroUnits: false}); // '1h 0min 1s'
+```
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `largestUnit` | `'hours'` | Largest displayed unit; larger durations accumulate here. |
+| `smallestUnit` | `'seconds'` | Smallest displayed unit; smaller remainders are discarded. |
+| `labelDays` | `'d'` | Literal day suffix. |
+| `labelHours` | `'h'` | Literal hour suffix. |
+| `labelMinutes` | `'min'` | Literal minute suffix. |
+| `labelSeconds` | `'s'` | Literal second suffix. |
+| `labelMilliseconds` | `'ms'` | Literal millisecond suffix. |
+| `unitSeparator` | `' '` | Text between components. |
+| `omitZeroUnits` | `true` | Omit zero components; an entirely zero result still displays its smallest unit. |
+| `locale` | `'en_US'` | Number locale; underscore/hyphen forms work. Null or empty uses the browser locale. |
+
+Input units are case-insensitive plural names from days through nanoseconds. Output bounds support days through
+milliseconds, with fixed 24-hour days. Labels preserve spaces and are not pluralized. Empty labels and separators
+are allowed. Negative durations have one leading minus sign; truncation toward zero never produces a negative zero.
+
+Omitted or null settings use defaults; unknown settings are ignored. Invalid values, units, bounds, selected labels,
+separators, booleans, or locales return `null`. Numeric strings and fractional values are not coerced. Both the input
+and its conversion to the smallest output unit must be safe JavaScript integers; unsafe conversions return `null`.
+This differs from Java's arbitrary-precision intermediate conversion. HTML, recipe labels, and hiding zero durations
+belong in the caller.
 
 ###### Typed value formatting
 

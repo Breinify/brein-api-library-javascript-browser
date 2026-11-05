@@ -92,6 +92,92 @@ describe('BreinifyUtil', function () {
         });
     });
 
+    describe('formatDuration', function () {
+        const format = Breinify.UTL.formatDuration;
+        const recipeSettings = {smallestUnit: 'minutes', labelHours: ' hr', labelMinutes: ' min'};
+
+        it('matches all recipe ticket examples and leaves settings unchanged', function () {
+            const settings = Object.freeze(Object.assign({}, recipeSettings));
+            const examples = [[30, '30 min'], [59, '59 min'], [60, '1 hr'], [90, '1 hr 30 min'],
+                [120, '2 hr'], [390, '6 hr 30 min'], [1500, '25 hr']];
+            examples.forEach(function (example) {
+                expect(format(example[0], 'minutes', settings)).toBe(example[1]);
+            });
+            expect(settings).toEqual(recipeSettings);
+            expect(format(90, 'minutes', {smallestUnit: 'minutes', labelHours: ' HR', labelMinutes: ' MINS'}))
+                .toBe('1 HR 30 MINS');
+        });
+
+        it('uses the SpEL defaults and accepts every input unit', function () {
+            expect(format(482, 'seconds')).toBe('8min 2s');
+            expect(format(2, ' HOURS ', null)).toBe('2h');
+            expect(format(2, 'days')).toBe('48h');
+            expect(format(1500, 'milliseconds')).toBe('1s');
+            expect(format(1500000, 'microseconds')).toBe('1s');
+            expect(format(1500000000, 'nanoseconds')).toBe('1s');
+            expect(format(2601, 'seconds')).toBe('43min 21s');
+        });
+
+        it('omits zero components by default and can retain every component within the bounds', function () {
+            expect(format(0, 'minutes')).toBe('0s');
+            expect(format(0, 'minutes', recipeSettings)).toBe('0 min');
+            expect(format(60, 'minutes')).toBe('1h');
+            expect(format(3601, 'seconds')).toBe('1h 1s');
+            expect(format(60, 'minutes', {omitZeroUnits: false})).toBe('1h 0min 0s');
+            expect(format(3601, 'seconds', {omitZeroUnits: false})).toBe('1h 0min 1s');
+            expect(format(0, 'seconds', {omitZeroUnits: false})).toBe('0h 0min 0s');
+            expect(format(60, 'minutes', Object.assign({}, recipeSettings, {omitZeroUnits: false})))
+                .toBe('1 hr 0 min');
+        });
+
+        it('truncates remainders toward zero and uses one sign for negative durations', function () {
+            expect(format(3601, 'seconds', recipeSettings)).toBe('1 hr');
+            expect(format(-3601, 'seconds')).toBe('-1h 1s');
+            expect(format(-59, 'seconds', recipeSettings)).toBe('0 min');
+            expect(format(-999, 'milliseconds')).toBe('0s');
+            expect(format(999999, 'nanoseconds', {smallestUnit: 'milliseconds'})).toBe('0ms');
+        });
+
+        it('supports bounds, literal labels, and empty separators and labels', function () {
+            expect(format(90061001, 'milliseconds', {
+                largestUnit: ' DAYS ', smallestUnit: 'MiLlIsEcOnDs', labelDays: ' days', labelHours: ' hr',
+                labelMinutes: ' min', labelSeconds: ' sec', labelMilliseconds: ' ms', unitSeparator: ' / '
+            })).toBe('1 days / 1 hr / 1 min / 1 sec / 1 ms');
+            expect(format(90, 'minutes', {largestUnit: 'minutes', smallestUnit: 'minutes'})).toBe('90min');
+            expect(format(61, 'seconds', {labelMinutes: '', labelSeconds: '', unitSeparator: ''})).toBe('11');
+            expect(format(60, 'minutes', {labelDays: null})).toBe('1h');
+        });
+
+        it('supports underscore and hyphen locales and an explicit browser locale', function () {
+            expect(format(1234, 'hours')).toBe('1,234h');
+            expect(format(1234, 'hours', {locale: 'de_DE'})).toBe('1.234h');
+            expect(format(1234, 'hours', {locale: 'de-DE'})).toBe('1.234h');
+            const localNumber = new Intl.NumberFormat(undefined, {maximumFractionDigits: 0}).format(1234);
+            expect(format(1234, 'hours', {locale: null})).toBe(localNumber + 'h');
+            expect(format(1234, 'hours', {locale: ''})).toBe(localNumber + 'h');
+        });
+
+        it('rejects invalid values and unsafe conversions without coercion', function () {
+            [null, undefined, '60', true, NaN, Infinity, -Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1]
+                .forEach(function (value) { expect(format(value, 'minutes')).toBeNull(); });
+            expect(format(Number.MAX_SAFE_INTEGER, 'hours')).toBeNull();
+            expect(format(Number.MAX_SAFE_INTEGER, 'milliseconds', {
+                largestUnit: 'milliseconds', smallestUnit: 'milliseconds'
+            })).toBe('9,007,199,254,740,991ms');
+            expect(format(8999999999999999, 'nanoseconds')).toBe('2,499h 59min 59s');
+        });
+
+        it('returns null for invalid units and settings', function () {
+            [null, undefined, '', 'minute', 'unknown', 60].forEach(function (unit) {
+                expect(format(60, unit)).toBeNull();
+            });
+            [[], 'settings', {largestUnit: null}, {smallestUnit: null}, {smallestUnit: 'microseconds'},
+                {largestUnit: 'seconds', smallestUnit: 'hours'}, {labelHours: null}, {labelHours: 1},
+                {unitSeparator: null}, {omitZeroUnits: 'false'}, {locale: 1}, {locale: 'not_a_locale_!'}]
+                .forEach(function (settings) { expect(format(60, 'minutes', settings)).toBeNull(); });
+        });
+    });
+
     describe('formatValue', function () {
         it('formats numbers with locale grouping and explicit or default precision', function () {
             const format = Breinify.UTL.formatValue;
