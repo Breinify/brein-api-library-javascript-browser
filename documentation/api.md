@@ -342,13 +342,23 @@ Breinify.UTL.formatDuration(3601, 'seconds', {omitZeroUnits: false}); // '1h 0mi
 | `labelMinutes` | `'min'` | Literal minute suffix. |
 | `labelSeconds` | `'s'` | Literal second suffix. |
 | `labelMilliseconds` | `'ms'` | Literal millisecond suffix. |
+| `labelDay`, `labelHour`, `labelMinute`, `labelSecond`, `labelMillisecond` | Unset | Optional suffix for a component of magnitude one; falls back to the corresponding plural-named label. |
 | `unitSeparator` | `' '` | Text between components. |
 | `omitZeroUnits` | `true` | Omit zero components; an entirely zero result still displays its smallest unit. |
 | `locale` | `'en_US'` | Number locale; underscore/hyphen forms work. Null or empty uses the browser locale. |
 
 Input units are case-insensitive plural names from days through nanoseconds. Output bounds support days through
-milliseconds, with fixed 24-hour days. Labels preserve spaces and are not pluralized. Empty labels and separators
-are allowed. Negative durations have one leading minus sign; truncation toward zero never produces a negative zero.
+milliseconds, with fixed 24-hour days. Labels preserve spaces. Singular labels apply to components of magnitude one,
+including negative durations. Omitted or null singular labels fall back to the existing plural-named labels, preserving
+existing output. Empty labels and separators are allowed. Negative durations have one leading minus sign; truncation
+toward zero never produces a negative zero.
+
+```javascript
+const websiteSettings = {smallestUnit: 'minutes', labelHour: ' HR', labelHours: ' HRS', labelMinutes: ' MINS'};
+Breinify.UTL.formatDuration(60, 'minutes', websiteSettings);  // '1 HR'
+Breinify.UTL.formatDuration(120, 'minutes', websiteSettings); // '2 HRS'
+Breinify.UTL.formatDuration(390, 'minutes', websiteSettings); // '6 HRS 30 MINS'
+```
 
 Omitted or null settings use defaults; unknown settings are ignored. Invalid values, units, bounds, selected labels,
 separators, booleans, or locales return `null`. Numeric strings and fractional values are not coerced. Both the input

@@ -118,6 +118,35 @@ describe('BreinifyUtil', function () {
             expect(format(2601, 'seconds')).toBe('43min 21s');
         });
 
+        it('matches the website singular and plural hour examples', function () {
+            const settings = Object.freeze({smallestUnit: 'minutes', labelHour: ' HR',
+                labelHours: ' HRS', labelMinutes: ' MINS'});
+            [[30, '30 MINS'], [59, '59 MINS'], [60, '1 HR'], [90, '1 HR 30 MINS'],
+                [120, '2 HRS'], [390, '6 HRS 30 MINS']].forEach(function (example) {
+                expect(format(example[0], 'minutes', settings)).toBe(example[1]);
+            });
+            expect(format(-90, 'minutes', settings)).toBe('-1 HR 30 MINS');
+            expect(format(1, 'minutes', settings)).toBe('1 MINS');
+            expect(format(0, 'minutes', settings)).toBe('0 MINS');
+        });
+
+        it('selects singular labels per component and preserves plural fallback and empty labels', function () {
+            const settings = {largestUnit: 'days', smallestUnit: 'milliseconds',
+                labelDay: ' day', labelDays: ' days', labelHour: ' hour', labelHours: ' hours',
+                labelMinute: ' minute', labelMinutes: ' minutes', labelSecond: ' second', labelSeconds: ' seconds',
+                labelMillisecond: ' millisecond', labelMilliseconds: ' milliseconds'};
+            expect(format(90061001, 'milliseconds', settings)).toBe('1 day 1 hour 1 minute 1 second 1 millisecond');
+            expect(format(180122002, 'milliseconds', settings)).toBe('2 days 2 hours 2 minutes 2 seconds 2 milliseconds');
+            expect(format(93661002, 'milliseconds', settings)).toBe('1 day 2 hours 1 minute 1 second 2 milliseconds');
+            expect(format(0, 'milliseconds', Object.assign({}, settings, {omitZeroUnits: false})))
+                .toBe('0 days 0 hours 0 minutes 0 seconds 0 milliseconds');
+            expect(format(60, 'minutes', {labelHour: null, labelHours: ' hours'})).toBe('1 hours');
+            expect(format(60, 'minutes', {labelHour: '', labelHours: ' hours'})).toBe('1');
+            expect(format(60, 'minutes', {labelHours: ' hours'})).toBe('1 hours');
+            expect(format(120, 'minutes', {labelHour: ' hour', labelHours: ' hours'})).toBe('2 hours');
+            expect(format(60, 'minutes', {labelHour: 1})).toBeNull();
+        });
+
         it('omits zero components by default and can retain every component within the bounds', function () {
             expect(format(0, 'minutes')).toBe('0s');
             expect(format(0, 'minutes', recipeSettings)).toBe('0 min');

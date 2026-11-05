@@ -15478,6 +15478,8 @@ dependencyScope.jQuery = $;
          * Formats an integer duration using the flat settings supported by the SpEL duration formatter.
          * Defaults: hours through seconds, d/h/min/s/ms labels, a space between components, omitted zero
          * components, and en_US locale. Labels are literal suffixes, including any leading spaces.
+         * Optional labelDay/Hour/Minute/Second/Millisecond suffixes apply to components of magnitude one;
+         * omitted or null singular labels fall back to the existing plural-named labels.
          * Input units range from days through nanoseconds; output bounds range from days through milliseconds.
          * Remainders below the smallest unit are truncated toward zero. Zero uses the smallest unit;
          * negative values use one leading minus sign unless truncation produces zero.
@@ -15509,6 +15511,7 @@ dependencyScope.jQuery = $;
             const units = ['days', 'hours', 'minutes', 'seconds', 'milliseconds', 'microseconds', 'nanoseconds'];
             const factors = [86400000000000, 3600000000000, 60000000000, 1000000000, 1000000, 1000, 1];
             const labels = [cfg.labelDays, cfg.labelHours, cfg.labelMinutes, cfg.labelSeconds, cfg.labelMilliseconds];
+            const singularLabels = [cfg.labelDay, cfg.labelHour, cfg.labelMinute, cfg.labelSecond, cfg.labelMillisecond];
             const input = units.indexOf(unit.trim().toLowerCase());
             const first = typeof cfg.largestUnit === 'string' ? units.indexOf(cfg.largestUnit.trim().toLowerCase()) : -1;
             const last = typeof cfg.smallestUnit === 'string' ? units.indexOf(cfg.smallestUnit.trim().toLowerCase()) : -1;
@@ -15517,7 +15520,8 @@ dependencyScope.jQuery = $;
                 return null;
             }
             for (let i = first; i <= last; i++) {
-                if (typeof labels[i] !== 'string') {
+                if (typeof labels[i] !== 'string' ||
+                    (singularLabels[i] != null && typeof singularLabels[i] !== 'string')) {
                     return null;
                 }
             }
@@ -15556,7 +15560,8 @@ dependencyScope.jQuery = $;
                 const amount = (remaining - remainder) / factor;
                 remaining = remainder;
                 if (amount > 0 || !cfg.omitZeroUnits || (i === last && parts.length === 0)) {
-                    parts.push(numberFormat.format(amount) + labels[i]);
+                    const label = amount === 1 && singularLabels[i] != null ? singularLabels[i] : labels[i];
+                    parts.push(numberFormat.format(amount) + label);
                 }
             }
             return (negative ? '-' : '') + parts.join(cfg.unitSeparator);
