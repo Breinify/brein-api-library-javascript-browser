@@ -60,6 +60,180 @@
     const MODIFY_CONTENT_WIDGET_TYPE = "modifyContent";
     const ACTION_TYPE_EXECUTED = "executed";
 
+    /**
+     * Shared lifecycle for every advanced JavaScript setting, including the standalone action.
+     * Completion feeds the ordinary group outcome; snippets never send rendering activities themselves.
+     */
+    const actionJavascript = {
+        execute: function (runtime, action, index) {
+            const settings = action.settings?.js;
+            if (!settings) return;
+            const key = _private.getActionSnippetStateIndex(runtime, index, 'js');
+            if (runtime.javascript.entries[key]) return;
+            const entry = {
+                key: key, action: action, index: index, group: runtime.selectedGroupId,
+                page: _private.getDecisionPageKey(), pending: true, executed: false, failed: false,
+                disposed: false, started: false, cleanups: [], controller: new AbortController()
+            };
+            runtime.javascript.entries[key] = entry;
+            try {
+                const timeout = settings.timeoutInMs === undefined ? 30000 : settings.timeoutInMs;
+                if (!Number.isInteger(timeout) || timeout < 1 || timeout > 300000) {
+                    throw new Error('JavaScript timeoutInMs must be an integer between 1 and 300000.');
+                }
+                entry.timer = window.setTimeout(function () {
+                    this.finish(runtime, entry, null, new Error('Action JavaScript timed out.'));
+                }.bind(this), timeout);
+                this.start(runtime, entry);
+            } catch (error) {
+                this.finish(runtime, entry, null, error);
+            }
+        },
+
+        current: function (runtime, entry) {
+            return !entry.disposed && _private.isCurrentRuntime(runtime) &&
+                entry.page === _private.getDecisionPageKey() && entry.group === runtime.selectedGroupId &&
+                entry.key === _private.getActionSnippetStateIndex(runtime, entry.index, 'js');
+        },
+
+        start: function (runtime, entry) {
+            if (!this.current(runtime, entry) || !entry.pending || entry.started) return;
+            const settings = entry.action.settings.js;
+            const id = _private.getSnippetId(settings);
+            if (id === null) throw new Error('Action JavaScript requires a snippet reference.');
+            const snippet = _private.resolveSnippet(runtime, id);
+            if (snippet === null) {
+                if (id.indexOf(WEB_EXPERIENCE_SNIPPET_PREFIX) === 0) {
+                    throw new Error('The local JavaScript snippet is missing.');
+                }
+                if (!entry.observing) {
+                    entry.observing = true;
+                    Breinify.plugins.snippetManager.onSnippetRegistered(id, function () {
+                        if (!this.current(runtime, entry) || !entry.pending) return;
+                        // re-evaluate conditions before a late registration is allowed to invoke user code
+                        runtime.module.onChange({type: 'snippet'});
+                    }.bind(this));
+                }
+                return;
+            }
+            const type = _private.normalizeSnippetType(settings.snippetType || snippet.type || 'javascript');
+            if (type !== SNIPPET_TYPE_JAVASCRIPT || typeof snippet.value !== 'function') {
+                throw new Error('Action JavaScript must resolve to a JavaScript function.');
+            }
+            const params = settings.params === undefined ? {} : settings.params;
+            if (!$.isPlainObject(params)) throw new Error('JavaScript params must be a JSON object.');
+            if (!Breinify.UTL.placeholders && Object.keys(params).length > 0) {
+                throw new Error('JavaScript params require an updated Breinify core SDK.');
+            }
+            const context = _private.createSnippetContext(runtime, entry.action, entry.index);
+            context.params = PLACEHOLDER_TOOLS.snapshot(params);
+            context.signal = entry.controller.signal;
+            context.onCleanup = function (callback) {
+                if (typeof callback !== 'function') throw new Error('onCleanup requires a function.');
+                if (entry.controller.signal.aborted) this.cleanup(callback);
+                else entry.cleanups.push(callback);
+            }.bind(this);
+            entry.started = true;
+            runtime.appliedSnippets[entry.key] = true;
+            const result = snippet.value.call(runtime.module, context);
+            if (result && typeof result.then === 'function') {
+                Promise.resolve(result).then(function (value) {
+                    this.finish(runtime, entry, value, null);
+                }.bind(this), function (error) {
+                    this.finish(runtime, entry, null, error || new Error('Action JavaScript rejected.'));
+                }.bind(this));
+            } else {
+                this.finish(runtime, entry, result, null);
+            }
+        },
+
+        finish: function (runtime, entry, value, error) {
+            if (!entry.pending) return;
+            if (!this.current(runtime, entry)) {
+                this.dispose(entry);
+                return;
+            }
+            window.clearTimeout(entry.timer);
+            entry.pending = false;
+            entry.failed = !!error;
+            entry.error = error;
+            // advanced return values retain legacy semantics; only the standalone action interprets rendering
+            entry.executed = !error;
+            if (!error && entry.action.type === 'runJavaScript') {
+                try { entry.executed = value !== false && value?.rendered !== false; }
+                catch (resultError) {
+                    entry.executed = false;
+                    entry.failed = true;
+                    entry.error = resultError;
+                }
+            }
+            if (entry.failed) this.release(entry);
+            if (!runtime.handling) {
+                Promise.resolve().then(function () {
+                    if (this.current(runtime, entry)) runtime.module.onChange({type: 'snippet'});
+                }.bind(this));
+            }
+        },
+
+        outcome: function (runtime) {
+            const result = {pending: false, executed: false, failed: false};
+            Object.values(runtime.javascript.entries).forEach(function (entry) {
+                if (!this.current(runtime, entry)) return;
+                if (entry.pending && !entry.started) {
+                    try { this.start(runtime, entry); }
+                    catch (error) { this.finish(runtime, entry, null, error); }
+                }
+                result.pending = result.pending || entry.pending;
+                // existing advanced hooks supplement their parent action; they do not create a separate rendering
+                result.executed = result.executed || entry.action.type === 'runJavaScript' && entry.executed;
+                result.failed = result.failed || entry.failed;
+                if (entry.failed && !entry.reported) {
+                    entry.reported = true;
+                    _private.logSnippetError('JavaScript snippet execution failed',
+                        _private.getSnippetId(entry.action.settings.js), entry.error, runtime);
+                }
+            }, this);
+            return result;
+        },
+
+        cleanup: function (callback) {
+            try {
+                Promise.resolve(callback()).catch(function (error) {
+                    _private.logSnippetError('JavaScript cleanup failed', null, error, null);
+                });
+            } catch (error) {
+                _private.logSnippetError('JavaScript cleanup failed', null, error, null);
+            }
+        },
+
+        release: function (entry) {
+            if (!entry.controller.signal.aborted) entry.controller.abort();
+            entry.cleanups.splice(0).reverse().forEach(this.cleanup.bind(this));
+        },
+
+        dispose: function (entry) {
+            if (entry.disposed) return;
+            entry.disposed = true;
+            entry.pending = false;
+            window.clearTimeout(entry.timer);
+            this.release(entry);
+        },
+
+        cancel: function (runtime, keepGroup) {
+            Object.values(runtime.javascript.entries).forEach(function (entry) {
+                if (entry.group !== keepGroup) this.dispose(entry);
+            }, this);
+        },
+
+        preparePage: function (runtime) {
+            const page = _private.getDecisionPageKey();
+            if (runtime.javascript.page !== page) {
+                _private.resetAppliedActions(runtime);
+                runtime.javascript.page = page;
+            }
+        }
+    };
+
     /*
      * Action implementations are isolated by type. New actions belong here;
      * the runtime coordinator only resolves and invokes them. Methods prefixed
@@ -626,8 +800,20 @@
         },
 
         /**
-         * Writes the configured message to the browser console. This is the
-         * initial Modify Content action used to verify lifecycle handling.
+         * Exposes shared advanced JavaScript as a standalone action without a second execution mechanism.
+         */
+        runJavaScript: {
+            execute: function (action) {
+                if (!$.isPlainObject(action.settings?.js)) {
+                    throw new Error('runJavaScript requires the js setting.');
+                }
+                // shared advanced JavaScript supplies the complete action outcome
+                return false;
+            }
+        },
+
+        /**
+         * Writes the configured message to the browser console.
          */
         writeToConsole: {
             execute: function (action) {
@@ -1967,6 +2153,7 @@
                 executedActions: [],
                 appliedSnippets: {},
                 observedSnippets: {},
+                javascript: {page: this.getDecisionPageKey(), entries: {}},
                 conditionResults: {},
                 randomConditionResults: {},
                 selectedGroupId: DEFAULT_ACTION_GROUP,
@@ -2007,6 +2194,7 @@
 
         disposeRuntime: function (runtime) {
             runtime.disposed = true;
+            actionJavascript.cancel(runtime);
             if (runtime.iterationRequestId) {
                 const batch = this.decisionBatches[this.getDecisionService(runtime)];
                 if (batch) delete batch.requests[runtime.iterationRequestId];
@@ -2079,7 +2267,7 @@
             }
             const occurrences = new Map();
             const result = [];
-            entries.forEach(function (original) {
+            entries.forEach(function (original, index) {
                 try {
                     const element = config.type === 'SELECTOR' ? original : null;
                     if (!element && !this.hasIterationValue(original)) return;
@@ -2112,7 +2300,7 @@
                         occurrences.set(identity, occurrence + 1);
                         key = identity + ':' + occurrence;
                     }
-                    result.push({key: key, element: element, values: snapshot, fingerprint: fingerprint});
+                    result.push({key: key, element: element, values: snapshot, fingerprint: fingerprint, index: index});
                 } catch (error) {
                     this.logActionError({type: 'iteration.extract'}, error, runtime);
                     this.sendRenderedElementActivity(runtime, false,
@@ -2164,7 +2352,10 @@
                     actions.showAnimation._initialize(child);
                     actions.showRecommendationBubble._initialize(child);
                 }
-                if (child) retained.add(entry.key);
+                if (child) {
+                    child.iteration.index = entry.index;
+                    retained.add(entry.key);
+                }
             }, this);
             state.children.forEach(function (child, key) {
                 if (!retained.has(key)) {
@@ -2833,6 +3024,10 @@
         notifyTriggerPageChange: function () {
             const page = this.getDecisionPageKey();
             Object.values(this.runtimes).forEach(function (runtime) {
+                if (runtime.javascript.page !== page && Object.keys(runtime.javascript.entries).length > 0) {
+                    actionJavascript.preparePage(runtime);
+                    runtime.module.onChange({type: 'urlChange'});
+                }
                 if (runtime.config?.iteration != null) {
                     runtime.module.onChange({type: 'urlChange'});
                     return;
@@ -3364,6 +3559,10 @@
 
         applyActionSnippet: function (runtime, action, actionIndex, setting, expectedType, expectedStateIndex) {
             if (runtime.iterationParent && !this.isCurrentRuntime(runtime)) return;
+            if (expectedType === SNIPPET_TYPE_JAVASCRIPT) {
+                actionJavascript.execute(runtime, action, actionIndex);
+                return;
+            }
             const settings = this.getActionSettings(action);
             const snippetSettings = settings && settings[setting];
             if (!snippetSettings || typeof snippetSettings !== "object") {
@@ -3402,27 +3601,8 @@
                 return;
             }
 
-            let applied = false;
-            if (expectedType === SNIPPET_TYPE_JAVASCRIPT) {
-                if (typeof resolvedSnippet.value === "function") {
-                    try {
-                        resolvedSnippet.value.call(runtime.module, this.createSnippetContext(runtime, action, actionIndex));
-                        applied = true;
-                    } catch (e) {
-                        this.logSnippetError("JavaScript snippet execution failed", snippetId, e, runtime);
-                        this.sendRenderedElementActivity(runtime, false,
-                            renderedElementStatusCodes.RENDERING_FAILED, this.getActivityActionGroup(runtime));
-                        applied = true;
-                    }
-                } else {
-                    this.logSnippetWarning("JavaScript snippets must resolve to a function", {
-                        snippetId: snippetId
-                    });
-                    applied = true;
-                }
-            } else if (expectedType === SNIPPET_TYPE_CSS && typeof resolvedSnippet.value === "string") {
-                applied = this.injectCssSnippet(snippetId, resolvedSnippet.value);
-            }
+            const applied = expectedType === SNIPPET_TYPE_CSS && typeof resolvedSnippet.value === "string" &&
+                this.injectCssSnippet(snippetId, resolvedSnippet.value);
 
             if (applied) {
                 runtime.appliedSnippets[stateIndex] = true;
@@ -3617,6 +3797,7 @@
                 webExId: runtime.webExId,
                 webExVersionId: runtime.webExVersionId,
                 iteration: runtime.iteration,
+                element: runtime.iterationElement || null,
                 placeholders: action._placeholderContext || this.createPlaceholderContext(runtime)
             };
         },
@@ -3704,6 +3885,11 @@
             const groupActions = Array.isArray(configured) ? configured : [];
             groupActions.forEach(function (action, index) {
                 const key = this.getGroupActionStateIndex(runtime, group, index);
+                const javascriptKey = key + ':snippet:js';
+                if (runtime.javascript.entries[javascriptKey]) {
+                    actionJavascript.dispose(runtime.javascript.entries[javascriptKey]);
+                    delete runtime.javascript.entries[javascriptKey];
+                }
                 if (runtime.bubbles && runtime.bubbles.entries[key]) {
                     actions.showRecommendationBubble._dispose(runtime.bubbles.entries[key]);
                     delete runtime.bubbles.entries[key];
@@ -3736,6 +3922,8 @@
 
         /** A new feature page visit may apply actions again; same-page feature updates keep their limits. */
         resetAppliedActions: function (runtime) {
+            actionJavascript.cancel(runtime);
+            runtime.javascript.entries = {};
             actions.showRecommendationBubble._cancel(runtime);
             if (runtime.bubbles) runtime.bubbles.entries = {};
             actions.showAnimation._cancel(runtime);
@@ -4135,12 +4323,14 @@
 
         isRuntimeActive: function (runtime) {
             if (runtime.iterationParent && !this.isCurrentRuntime(runtime)) return false;
+            actionJavascript.preparePage(runtime);
             conditions.trigger._preparePage(runtime);
             actions.showAnimation._preparePage(runtime);
             actions.showRecommendationBubble._preparePage(runtime);
             if (typeof runtime.module.isValidPage === 'function') {
                 const active = runtime.module.isValidPage() === true;
                 if (!active) {
+                    actionJavascript.cancel(runtime);
                     runtime.module._webExperienceActivation = null;
                     actions.showAnimation._cancel(runtime);
                     actions.showRecommendationBubble._cancel(runtime);
@@ -4150,6 +4340,7 @@
                 const active = Breinify.plugins.webExperiences.checkActivationLogic(runtime.config, runtime.module) === true;
                 if (!active) actions.showAnimation._cancel(runtime);
                 if (!active) actions.showRecommendationBubble._cancel(runtime);
+                if (!active) actionJavascript.cancel(runtime);
                 return active;
             }
             runtime.module._webExperienceActivation = null;
@@ -4196,6 +4387,7 @@
                 : this.isDecisionRequired(runtime) && runtime.decision.matched !== true
                     ? null
                     : this.selectGroup(runtime);
+            if (!runtime.conditionsPending) actionJavascript.cancel(runtime, runtime.selectedGroupId);
             const configuredActions = this.getConfiguredActions(runtime);
 
             for (let i = 0; i < configuredActions.length; i++) {
@@ -4362,6 +4554,7 @@
         },
 
         executeActions: function (runtime) {
+            actionJavascript.cancel(runtime, runtime.selectedGroupId);
             actions.showRecommendationBubble._cancel(runtime, runtime.selectedGroupId);
             if (this.isExperienceSuppressed(runtime)) {
                 return {executed: false, failed: false, pending: false};
@@ -4447,6 +4640,10 @@
                 }
             }
 
+            const javascript = actionJavascript.outcome(runtime);
+            execution.executed = execution.executed || javascript.executed;
+            execution.failed = execution.failed || javascript.failed;
+            execution.pending = execution.pending || javascript.pending;
             this.triggerModifiedContent(runtime, modifications);
             return execution;
         },
