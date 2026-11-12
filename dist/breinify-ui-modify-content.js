@@ -1467,6 +1467,7 @@
      * contract. Methods prefixed with _ are private helpers of the individual
      * condition implementation.
      */
+    // registry keys must match the lowercase names returned by getConditionType
     const conditions = {
 
         /** Counts DOM matches without involving feature definitions, FeatureStorage, or Discovery. */
@@ -1892,7 +1893,7 @@
          * final result; Customer Journey remains authoritative for user-agent
          * classification through the decision service.
          */
-        deviceType: {
+        devicetype: {
 
             /**
              * This method deliberately performs only a simple browser check. The
@@ -1925,7 +1926,7 @@
          * Resolves recurring daily time ranges in the selected browser
          * timezone.
          */
-        timeOfDay: {
+        timeofday: {
             evaluate: function (condition) {
                 const settings = _private.getConditionSettings(condition);
                 const parts = _private.getZonedDateParts(new Date(), settings);
@@ -1961,7 +1962,7 @@
          * Resolves annual or absolute calendar-date ranges in the selected
          * browser timezone.
          */
-        calendarDate: {
+        calendardate: {
             evaluate: function (condition) {
                 const settings = _private.getConditionSettings(condition);
                 const parts = _private.getZonedDateParts(new Date(), settings);
@@ -2013,7 +2014,7 @@
         /**
          * Resolves absolute Unix epoch-millisecond ranges.
          */
-        dateTime: {
+        datetime: {
             evaluate: function (condition) {
                 const currentTime = Date.now();
                 const ranges = _private.getTemporalRanges(condition);
@@ -2048,7 +2049,7 @@
             }
         },
 
-        dayOfWeek: {
+        dayofweek: {
             evaluate: function (condition) {
                 const settings = _private.getConditionSettings(condition);
                 const parts = _private.getZonedDateParts(new Date(), settings);

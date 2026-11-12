@@ -1863,6 +1863,65 @@ describe('UiModifyContent', function () {
         });
     });
 
+    describe('condition evaluator lookup', function () {
+        var webExId = 'modify-content-condition-lookup-test';
+        var activitySpy;
+        var now = Date.UTC(2026, 10, 12, 12);
+        var timeZone = {mode: 'IANA', value: 'UTC'};
+
+        beforeEach(function () {
+            activitySpy = createActivitySpy();
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date(now));
+        });
+
+        afterEach(function () {
+            uiModifyContent.register({}, webExId, 'version', {actions: {}});
+            jasmine.clock().uninstall();
+            activitySpy.restore();
+        });
+
+        [
+            {type: 'deviceType', match: {types: ['DESKTOP']}, miss: {types: ['MOBILE']}},
+            {type: 'timeOfDay', match: {timeZone: timeZone, ranges: [{from: '11:00', to: '13:00'}]},
+                miss: {timeZone: timeZone, ranges: [{from: '13:00', to: '14:00'}]}},
+            {type: 'calendarDate', match: {timeZone: timeZone, ranges: [{from: '2026/11/12', to: '2026/11/13'}]},
+                miss: {timeZone: timeZone, ranges: [{from: '2026/11/13', to: '2026/11/14'}]}},
+            {type: 'dateTime', match: {ranges: [{to: now + 1000}]}, miss: {ranges: [{to: now - 1000}]}},
+            {type: 'dayOfWeek', match: {timeZone: timeZone, days: ['THURSDAY']},
+                miss: {timeZone: timeZone, days: ['FRIDAY']}}
+        ].forEach(function (example) {
+            it('evaluates ' + example.type + ' with canonical, lowercase and uppercase names', function () {
+                [example.type, example.type.toLowerCase(), example.type.toUpperCase()].forEach(function (type) {
+                    var condition = {type: type, settings: example.match};
+                    var runtime = uiModifyContent.register({}, webExId, 'version', {
+                        conditionsGroups: [{actionGroup: 'matched', conditions: [condition]}],
+                        actions: {matched: [], _default: []}
+                    });
+                    uiModifyContent.handle(webExId, 'version', {type: 'full-scan'});
+                    expect(runtime.selectedGroupId).toBe('matched');
+                    condition.settings = example.miss;
+                    uiModifyContent.handle(webExId, 'version', {type: 'full-scan'});
+                    expect(runtime.selectedGroupId).toBe('_default');
+                });
+            });
+        });
+
+        it('re-evaluates the dateTime condition when its end boundary passes', function () {
+            var runtime = uiModifyContent.register({}, webExId, 'version', {
+                conditionsGroups: [{actionGroup: 'matched', conditions: [
+                    {type: 'dateTime', evaluation: {reEvaluateOn: ['initial', 'timeBoundary']},
+                        settings: {ranges: [{to: now + 1000}]}}
+                ]}],
+                actions: {matched: [], _default: []}
+            });
+            uiModifyContent.handle(webExId, 'version', {type: 'full-scan'});
+            expect(runtime.selectedGroupId).toBe('matched');
+            jasmine.clock().tick(1026);
+            expect(runtime.selectedGroupId).toBe('_default');
+        });
+    });
+
     describe('feature conditions', function () {
         var storage;
         var runtime;
@@ -1916,6 +1975,45 @@ describe('UiModifyContent', function () {
             expect(runtime.placeholderConditions.feature.value).toBe('1234');
             expect(runtime.conditionsPending).toBe(false);
             expect(activitySpy.renderedElements.length).toBe(1);
+        });
+
+        it('inserts PDP messaging when the store arrives after timeout within the active date range', function () {
+            var productKey = featureKey + '-product';
+            var host = document.createElement('div');
+            host.innerHTML = '<h1 id="late-store-product-title">Product</h1>';
+            document.body.appendChild(host);
+            try {
+                storage.defineFeature(productKey, {valueType: 'STRING', persistence: {enabled: false}});
+                storage.set(productKey, '21904');
+                setup('STRING', {operator: 'NOT_EQUALS', value: '434', source: 'PAGE',
+                    whenUnavailable: 'WAIT', afterTimeout: 'CONTINUE', waitTimeoutInMs: 10000}, function (store) {
+                    return [
+                        {type: 'feature', settings: {featureId: productKey.substring('__br_feature.'.length),
+                            operator: 'EQUALS', value: '21904', source: 'PAGE'}},
+                        store,
+                        {type: 'dateTime', settings: {ranges: [{to: Date.now() + 60000}]}}
+                    ];
+                });
+                runtime.config.actions.matched = [{type: 'changeContent', settings: {
+                    selector: '#late-store-product-title', operation: 'after', allowHtml: true,
+                    content: '<div class="test-pdp-promotion">2 for $8</div>', maxApplications: 1
+                }}];
+                evaluate();
+                expect(runtime.conditionsPending).toBe(true);
+                expect(host.querySelector('.test-pdp-promotion')).toBeNull();
+                runtime.featureLifecycle.startedAt -= 11000;
+                evaluate();
+                expect(runtime.selectedGroupId).toBe('_default');
+                storage.set(featureKey, '464');
+                storage.flush();
+                expect(runtime.selectedGroupId).toBe('matched');
+                expect(host.querySelector('.test-pdp-promotion')).not.toBeNull();
+                evaluate();
+                expect(host.querySelectorAll('.test-pdp-promotion').length).toBe(1);
+            } finally {
+                storage.remove(productKey);
+                host.remove();
+            }
         });
 
         it('observes late features inside uppercase and mixed-case nested conditions', function () {
