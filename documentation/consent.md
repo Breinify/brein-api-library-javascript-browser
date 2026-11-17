@@ -6,8 +6,8 @@ Private state and policy helpers live in `_private.consent`.
 
 The manager evaluates registered features against mapped consent, customer overrides, and storage
 requirements. It returns immutable decisions. Existing requests, user creation, cookies, storage, and
-plugins are **not yet automatically connected to these decisions**. CMP adapters and script-creator
-settings injection are also separate integration work.
+plugins are **not yet automatically connected to these decisions**. Script Creator supports opt-in settings
+injection before customer initialization; CMP adapters remain separate integration work.
 
 ## Feature decisions
 
@@ -50,7 +50,7 @@ are documentation names for these plain objects, not classes or additional conse
 | `feature` | The registered feature being evaluated. |
 | `granted` | The feature meets its intrinsic consent requirements, configured requirements, and required storage permission. |
 | `userData.identifiers` | May collect/use/send browser and session identifiers for this operation. |
-| `userData.profile` | May collect/use/send configured account/profile fields needed by this operation. This also permits identifiers. |
+| `userData.profile` | May collect/use/send configured account/profile fields needed by this operation. Identifier permission remains separate; temporal-data can use profile coordinates without identifiers. |
 | `storage.read` | May read persistent data belonging to this feature's declared storage purpose. |
 | `storage.write` | May persist data belonging to this feature's declared storage purpose. |
 
@@ -234,15 +234,17 @@ service polling, and subsequent operations must evaluate again. Browser geolocat
 actions such as unsubscribe require their own reviewed operation behavior; do not infer them from a
 transport endpoint. In-memory caches also need to obey data permissions when the consumer paths are wired.
 
-The intended script-creator order remains:
+With `scriptSettings.consent.enabled: true`, Script Creator uses this order:
 
 1. Load the core library, making `UTL.consent` available.
-2. Inject `ScriptSettings` and configure consent.
+2. Inject the consent settings and configure consent.
 3. Run development observers, customer `initCode.js`, entry points, and subsequent scripts.
-4. Evaluate registered features at the operation and data-access boundaries.
+4. Evaluate registered features at operation and data-access boundaries once those consumers are wired.
 
-Injection must precede `initCode.js` and `setConfig()`, which can already trigger requests. Custom order
-and existing global Breinify instances need validation during integration.
+Injection precedes `initCode.js` and `setConfig()`, which can already trigger requests. Enabled integration
+rejects custom library/prefix/suffix order and requires a compatible existing global library, if present.
+Omitted, null, empty, or explicitly disabled creator settings add no setup code and preserve existing behavior.
+The creator can resolve an existing provider through `providerPath`; CMP adapters remain separate work.
 
 If normal library loading fails, the fallback exposes the same constants and feature-based methods.
 Its `evaluate` calls the callback, when it is a function, with a fresh plain decision object containing

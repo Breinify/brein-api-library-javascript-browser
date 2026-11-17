@@ -860,6 +860,7 @@
         consent: {
             levels: _private.consent.levels,
             features: _private.consent.features,
+            integrations: {},
 
             /**
              * Installs a provider and starts the initial consent evaluation.
