@@ -12,7 +12,6 @@
     // bind the jQuery default object $
     const $ = Breinify.UTL._jquery();
     const overload = Breinify.plugins._overload();
-    const Journey = Breinify.plugins.journey;
 
     const prefixAssets = Breinify.UTL.constants.errors.prefix.assets;
 
@@ -571,12 +570,6 @@
                     continue;
                 }
 
-                // check if we are on the right journey
-                let journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
-                if (journey !== null && !Journey.is(journey)) {
-                    continue;
-                }
-
                 if (this.isDataTagEnabled(dataTag, ['enabled']) === false) {
                     return false;
                 }
@@ -605,12 +598,6 @@
             for (var i = 0; i < dataTags.length; i++) {
                 let dataTag = dataTags[i];
                 if (!$.isPlainObject(dataTag)) {
-                    continue;
-                }
-
-                // check if we are on the right journey
-                let journey = $.isArray(dataTag.journey) ? dataTag.journey : null;
-                if (journey !== null && !Journey.is(journey)) {
                     continue;
                 }
 
