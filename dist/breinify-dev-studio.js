@@ -1322,7 +1322,7 @@
                         queryKeys.push(key);
                     }
                 }
-                const stored = window.sessionStorage.getItem('previewIds');
+                const stored = Breinify.UTL.storage.getItem('session', 'previewIds');
                 if (typeof stored === 'string') {
                     values.push(stored);
                 }
@@ -1339,10 +1339,10 @@
                 });
                 const remainingIds = Array.from(remaining.values());
                 if (remainingIds.length === 0) {
-                    window.sessionStorage.removeItem('previewIds');
+                    Breinify.UTL.storage.removeItem('session', 'previewIds');
                 } else {
                     const storedIds = remainingIds.join(',');
-                    window.sessionStorage.setItem('previewIds', storedIds);
+                    Breinify.UTL.storage.setItem('session', 'previewIds', storedIds);
                 }
                 queryKeys.forEach(key => url.searchParams.delete(key));
                 const nextUrl = url.toString();
@@ -1446,7 +1446,7 @@
         _getDevStudioState() {
             const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests', 'features'];
             try {
-                const storedState = JSON.parse(window.sessionStorage.getItem(this.devStudioStateStorageKey));
+                const storedState = Breinify.UTL.storage.getJson('session', this.devStudioStateStorageKey);
                 const storedTab = storedState?.activeTab;
                 const activeTab = storedTab === 'previews' || storedTab === 'channel' ? 'portal-links' : storedTab;
                 return {
@@ -1460,10 +1460,10 @@
 
         _storeDevStudioState() {
             try {
-                window.sessionStorage.setItem(this.devStudioStateStorageKey, JSON.stringify({
+                Breinify.UTL.storage.setJson('session', this.devStudioStateStorageKey, {
                     isVisible: this.isVisible,
                     activeTab: this.activeTab
-                }));
+                });
             } catch (error) {
                 // Storage may be unavailable in restricted browser contexts.
             }

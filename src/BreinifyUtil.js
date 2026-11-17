@@ -14,11 +14,72 @@
         return;
     }
 
-    const storage = {
-        anonymousIdStorage: null
-    };
-
     const _private = {
+        storage: {
+            handles: {},
+            memoryEntries: new Map(),
+            identifierStorage: null,
+
+            memory: {
+                get length() {
+                    return _private.storage.memoryEntries.size;
+                },
+
+                key: function (index) {
+                    const keys = Array.from(_private.storage.memoryEntries.keys());
+                    return typeof keys[index] === 'string' ? keys[index] : null;
+                },
+
+                getItem: function (name) {
+                    const entries = _private.storage.memoryEntries;
+                    const key = String(name);
+                    return entries.has(key) ? entries.get(key) : null;
+                },
+
+                setItem: function (name, value) {
+                    _private.storage.memoryEntries.set(String(name), String(value));
+                },
+
+                removeItem: function (name) {
+                    _private.storage.memoryEntries.delete(String(name));
+                },
+
+                clear: function () {
+                    _private.storage.memoryEntries.clear();
+                }
+            },
+
+            resolve: function (type) {
+                let store;
+                if (type === 'local') {
+                    store = window.localStorage;
+                } else if (type === 'session') {
+                    store = window.sessionStorage;
+                } else if (type === 'memory') {
+                    store = this.memory;
+                } else {
+                    throw new TypeError('Unknown storage type: ' + type);
+                }
+
+                if (store == null || typeof store.getItem !== 'function' ||
+                    typeof store.setItem !== 'function' || typeof store.removeItem !== 'function' ||
+                    typeof store.key !== 'function' || typeof store.length !== 'number') {
+                    throw new Error('Storage is unavailable: ' + type);
+                }
+                return store;
+            },
+
+            getIdentifierStorage: function () {
+                if (this.identifierStorage === null) {
+                    const localAvailable = BreinifyUtil.storage.isAvailable('local');
+                    const sessionAvailable = BreinifyUtil.storage.isAvailable('session');
+                    this.identifierStorage = localAvailable && sessionAvailable
+                        ? anonymousIdStorage.browserStorage : anonymousIdStorage.cookieStorage;
+                }
+                return this.identifierStorage;
+            }
+        },
+
         consent: {
             denied: Object.freeze({}),
             configured: false,
@@ -1260,7 +1321,7 @@
 
                 // we just assume that there is a variable set in the sessionStorage in Dev-Mode
                 try {
-                    return window.sessionStorage['breinify'] === 'true';
+                    return BreinifyUtil.storage.getItem('session', 'breinify') === 'true';
                 } catch (e) {
                     return false;
                 }
@@ -1824,8 +1885,8 @@
                 const referrerKey = BreinifyUtil.cookies.referrerKey;
                 let storedReferrerData = null;
 
-                if (storage.anonymousIdStorage.check(referrerKey, true)) {
-                    const storedValue = BreinifyUtil.isNonEmptyString(storage.anonymousIdStorage.get(referrerKey, true));
+                if (_private.storage.getIdentifierStorage().check(referrerKey, true)) {
+                    const storedValue = BreinifyUtil.isNonEmptyString(_private.storage.getIdentifierStorage().get(referrerKey, true));
                     if (storedValue !== null) {
                         try {
                             storedReferrerData = JSON.parse(storedValue);
@@ -1894,7 +1955,7 @@
                  * Only update the session storage when the information changed.
                  */
                 if (referrerDataChanged === true) {
-                    storage.anonymousIdStorage.set(referrerKey, JSON.stringify(storedReferrerData), null, true, BreinifyUtil.cookie.domain());
+                    _private.storage.getIdentifierStorage().set(referrerKey, JSON.stringify(storedReferrerData), null, true, BreinifyUtil.cookie.domain());
                 }
 
                 /*
@@ -1918,11 +1979,11 @@
                 let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie, false)) {
-                    this.browserId = storage.anonymousIdStorage.get(cookie, false);
+                } else if (_private.storage.getIdentifierStorage().check(cookie, false)) {
+                    this.browserId = _private.storage.getIdentifierStorage().get(cookie, false);
                 } else {
                     this.browserId = BreinifyUtil.uuid();
-                    storage.anonymousIdStorage.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
+                    _private.storage.getIdentifierStorage().set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
                 }
 
                 return this.browserId;
@@ -1933,8 +1994,8 @@
 
                 if (this.sessionId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie, true)) {
-                    this.sessionId = storage.anonymousIdStorage.get(cookie, true);
+                } else if (_private.storage.getIdentifierStorage().check(cookie, true)) {
+                    this.sessionId = _private.storage.getIdentifierStorage().get(cookie, true);
                 } else {
                     this.resetSessionId(false);
                 }
@@ -1957,7 +2018,7 @@
                 }
 
                 let cookie = BreinifyUtil.cookies.sessionId;
-                storage.anonymousIdStorage.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
+                _private.storage.getIdentifierStorage().set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
 
                 return this.sessionId;
             }
@@ -2903,6 +2964,164 @@
             splitTestDataInstanceName: 'split-test-data',
             instance: null,
 
+            /**
+             * Returns a synchronous storage handle whose operations use the shared access methods.
+             * Supported types are local, session, and memory. Browser access errors are propagated.
+             */
+            getStorage: function (type) {
+                const state = _private.storage;
+                state.resolve(type);
+                if (!Object.prototype.hasOwnProperty.call(state.handles, type)) {
+                    state.handles[type] = {
+                        get length() {
+                            return BreinifyUtil.storage.keys(type).length;
+                        },
+                        key: function (index) {
+                            const store = state.resolve(type);
+                            return store.key(index);
+                        },
+                        getItem: function (name) {
+                            return BreinifyUtil.storage.getItem(type, name);
+                        },
+                        setItem: function (name, value) {
+                            BreinifyUtil.storage.setItem(type, name, value);
+                        },
+                        getJson: function (name, fallback) {
+                            return arguments.length >= 2
+                                ? BreinifyUtil.storage.getJson(type, name, fallback)
+                                : BreinifyUtil.storage.getJson(type, name);
+                        },
+                        setJson: function (name, value) {
+                            BreinifyUtil.storage.setJson(type, name, value);
+                        },
+                        removeItem: function (name) {
+                            BreinifyUtil.storage.removeItem(type, name);
+                        },
+                        clear: function () {
+                            const store = state.resolve(type);
+                            store.clear();
+                        }
+                    };
+                }
+                return state.handles[type];
+            },
+
+            getItem: function (type, name) {
+                const store = _private.storage.resolve(type);
+                return store.getItem(name);
+            },
+
+            setItem: function (type, name, value) {
+                const store = _private.storage.resolve(type);
+                store.setItem(name, value);
+            },
+
+            /**
+             * Reads JSON without changing valid values. Missing entries return the supplied fallback or null.
+             * Read and parse errors are thrown unless a third argument supplies an explicit fallback.
+             */
+            getJson: function (type, name, fallback) {
+                const hasFallback = arguments.length >= 3;
+                try {
+                    const json = this.getItem(type, name);
+                    return json === null ? (hasFallback ? fallback : null) : JSON.parse(json);
+                } catch (error) {
+                    if (hasFallback) {
+                        return fallback;
+                    } else {
+                        throw error;
+                    }
+                }
+            },
+
+            /**
+             * Serializes a value before writing. Serialization and storage errors are propagated.
+             */
+            setJson: function (type, name, value) {
+                const json = JSON.stringify(value);
+                if (typeof json !== 'string') {
+                    throw new TypeError('The storage value cannot be serialized as JSON.');
+                }
+                this.setItem(type, name, json);
+            },
+
+            removeItem: function (type, name) {
+                const store = _private.storage.resolve(type);
+                store.removeItem(name);
+            },
+
+            keys: function (type) {
+                const store = _private.storage.resolve(type);
+                const keys = [];
+                for (let i = 0; i < store.length; i++) {
+                    const key = store.key(i);
+                    if (key !== null) {
+                        keys.push(key);
+                    }
+                }
+                return keys;
+            },
+
+            /**
+             * Returns a snapshot of key/value pairs, optionally filtered by prefix and decoded as JSON.
+             * The optional filter receives each matching key before its value is read.
+             * JSON read errors use options.fallback only when that property is explicitly supplied.
+             */
+            entries: function (type, options, filter) {
+                const settings = typeof options === 'undefined' ? {} : options;
+                if (!$.isPlainObject(settings) ||
+                    (typeof settings.prefix !== 'undefined' && typeof settings.prefix !== 'string') ||
+                    (typeof settings.json !== 'undefined' && typeof settings.json !== 'boolean')) {
+                    throw new TypeError('Storage entries options require a string prefix and a boolean json flag.');
+                }
+                if (typeof filter !== 'undefined' && typeof filter !== 'function') {
+                    throw new TypeError('Storage entries filter must be a function.');
+                }
+
+                const _self = this;
+                const prefix = typeof settings.prefix === 'string' ? settings.prefix : '';
+                const hasFallback = Object.prototype.hasOwnProperty.call(settings, 'fallback');
+                return this.keys(type).filter(function (key) {
+                    return key.indexOf(prefix) === 0 && (typeof filter === 'undefined' || filter(key));
+                }).map(function (key) {
+                    let value;
+                    if (settings.json === true && hasFallback) {
+                        value = _self.getJson(type, key, settings.fallback);
+                    } else if (settings.json === true) {
+                        value = _self.getJson(type, key);
+                    } else {
+                        value = _self.getItem(type, key);
+                    }
+                    return [key, value];
+                });
+            },
+
+            /**
+             * Checks read/write availability on demand without replacing an existing entry.
+             * A failed check never selects a different storage location implicitly.
+             */
+            isAvailable: function (type) {
+                const key = 'br-storage-test-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+                let written = false;
+                let available = false;
+                try {
+                    this.setItem(type, key, key);
+                    written = true;
+                    available = this.getItem(type, key) === key;
+                } catch (e) {
+                    // restricted or full storage is reported as unavailable
+                } finally {
+                    if (written) {
+                        try {
+                            this.removeItem(type, key);
+                        } catch (e) {
+                            available = false;
+                        }
+                    }
+                }
+                return available;
+            },
+
             init: function (entries, callback) {
                 if (!$.isPlainObject(entries)) {
                     entries = {};
@@ -2911,34 +3130,11 @@
                 // check if we already have an instance (init may be called multiple times)
                 if (this.instance === null) {
 
-                    let localStorageType;
                     try {
-                        localStorageType = typeof window.localStorage;
+                        this.instance = this.getStorage('local');
                     } catch (e) {
-                        localStorageType = null;
-                    }
-
-                    if (localStorageType === 'object') {
-                        this.instance = window.localStorage;
-                    } else {
-
-                        // we create a simple shim, which only works within the correct loading
-                        this.instance = {
-                            store: {},
-                            setItem: function (key, value) {
-                                this.store[key] = value;
-                            },
-                            getItem: function (key) {
-                                let result = this.store[key];
-                                return typeof result === 'undefined' ? null : result;
-                            },
-                            removeItem: function (key) {
-                                delete this.store[key];
-                            },
-                            clear: function () {
-                                this.store = {}
-                            }
-                        }
+                        // preserve the cache's existing in-memory fallback when local storage is inaccessible
+                        this.instance = this.getStorage('memory');
                     }
                 }
 
@@ -3082,7 +3278,7 @@
         }
     };
 
-    // create the different storages and bind the one to be used
+    // preserve identifier formats and select the storage location on first use
     const anonymousIdStorage = {
         cookieStorage: {
             check: function (cookie) {
@@ -3104,9 +3300,9 @@
             },
             set: function (name, value, expiration) {
                 if (value === null || typeof value === 'undefined') {
-                    window.localStorage.removeItem(name);
+                    BreinifyUtil.storage.removeItem('local', name);
                 } else if (expiration === null) {
-                    window.sessionStorage.setItem(name, value);
+                    BreinifyUtil.storage.setItem('session', name, value);
                 } else if (typeof expiration === 'number' && expiration > 0) {
 
                     const json = JSON.stringify({
@@ -3114,22 +3310,22 @@
                         exp: new Date().getTime() + (expiration * 24 * 60 * 60 * 1000)
                     });
 
-                    window.localStorage.setItem(name, json);
+                    BreinifyUtil.storage.setItem('local', name, json);
                 } else {
-                    window.localStorage.removeItem(name);
+                    BreinifyUtil.storage.removeItem('local', name);
                 }
             },
             _extractValue: function (name, session) {
                 if (session === true) {
-                    return window.sessionStorage.getItem(name);
+                    return BreinifyUtil.storage.getItem('session', name);
                 } else {
 
-                    const json = window.localStorage.getItem(name);
+                    const json = BreinifyUtil.storage.getItem('local', name);
                     try {
                         const obj = JSON.parse(json);
 
                         if (obj.exp < new Date().getTime() || typeof obj.v === 'undefined' || obj.v === null) {
-                            window.localStorage.removeItem(name);
+                            BreinifyUtil.storage.removeItem('local', name);
                             return null;
                         } else {
                             return obj.v;
@@ -3142,16 +3338,8 @@
         }
     };
 
-    try {
-        window.localStorage.setItem('br-local-storage-test', 'true');
-        window.localStorage.removeItem('br-local-storage-test');
-        window.sessionStorage.setItem('br-session-storage-test', 'true');
-        window.sessionStorage.removeItem('br-session-storage-test');
-
-        storage.anonymousIdStorage = anonymousIdStorage.browserStorage;
-    } catch (e) {
-        storage.anonymousIdStorage = anonymousIdStorage.cookieStorage;
-    }
+    // keep the established cookie API and the central storage namespace on the same instance
+    BreinifyUtil.storage.cookie = BreinifyUtil.cookie;
 
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil, true);

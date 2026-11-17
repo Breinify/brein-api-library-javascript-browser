@@ -606,7 +606,7 @@
 
         getLocalStorage: function () {
             try {
-                const storage = window.localStorage;
+                const storage = Breinify.UTL.storage.getStorage('local');
                 if (storage === null || typeof storage === 'undefined') {
                     return null;
                 }

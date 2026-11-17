@@ -862,12 +862,12 @@
                 let data = null;
 
                 // we check the different possible storage
-                const sessionSettings = Breinify.UTL.isNonEmptyString(window.sessionStorage.getItem(storageKey));
+                const sessionSettings = Breinify.UTL.isNonEmptyString(Breinify.UTL.storage.getItem('session', storageKey));
                 if (sessionSettings !== null) {
                     data = JSON.parse(sessionSettings);
                 }
 
-                const localSettings = Breinify.UTL.isNonEmptyString(window.localStorage.getItem(storageKey));
+                const localSettings = Breinify.UTL.isNonEmptyString(Breinify.UTL.storage.getItem('local', storageKey));
                 if (localSettings !== null) {
                     data = JSON.parse(localSettings);
                     data = $.isPlainObject(data) ? data : {};
@@ -875,17 +875,17 @@
                     if (data.time + data.ttl < Date.now()) {
 
                         // the information is expired, remove it
-                        window.localStorage.removeItem(storageKey);
+                        Breinify.UTL.storage.removeItem('local', storageKey);
                         data = null;
                     } else if (data.renew === true) {
 
                         // the information is valid and should be "renewed"
-                        window.localStorage.setItem(storageKey, JSON.stringify({
+                        Breinify.UTL.storage.setJson('local', storageKey, {
                             time: Date.now(),
                             ttl: data.ttl,
                             renew: true,
                             response: data.response
-                        }));
+                        });
 
                         data = data.response;
                     } else {
@@ -912,33 +912,33 @@
 
             let type = Breinify.UTL.isNonEmptyString(this.settings.experience.displayWindowDuration);
             if (type === 'ONE_TIME_VISIBILITY') {
-                window.sessionStorage.removeItem(storageKey);
-                window.localStorage.removeItem(storageKey);
+                Breinify.UTL.storage.removeItem('session', storageKey);
+                Breinify.UTL.storage.removeItem('local', storageKey);
             } else if (type === 'TIME_LIMITED_VISIBILITY') {
                 const durationInSec = Breinify.UTL.toInteger(this.settings.experience.displayWindowValue);
-                window.localStorage.setItem(storageKey, JSON.stringify({
+                Breinify.UTL.storage.setJson('local', storageKey, {
                     time: Date.now(),
                     ttl: durationInSec * 1000,
                     renew: false,
                     response: response
-                }));
-                window.sessionStorage.removeItem(storageKey);
+                });
+                Breinify.UTL.storage.removeItem('session', storageKey);
             } else if (type === 'PER_TAB_SESSION_VISIBILITY') {
                 // store in sessionStorage
-                window.sessionStorage.setItem(storageKey, JSON.stringify(response));
-                window.localStorage.removeItem(storageKey);
+                Breinify.UTL.storage.setJson('session', storageKey, response);
+                Breinify.UTL.storage.removeItem('local', storageKey);
             }
             // default: ACTIVE_BROWSING_SESSION_VISIBILITY
             else {
 
                 // store in localStorage, update on each retrieval and remove if older than 30min
-                window.localStorage.setItem(storageKey, JSON.stringify({
+                Breinify.UTL.storage.setJson('local', storageKey, {
                     time: Date.now(),
                     ttl: 30 * 60 * 1000,
                     renew: false,
                     response: response
-                }));
-                window.sessionStorage.removeItem(storageKey);
+                });
+                Breinify.UTL.storage.removeItem('session', storageKey);
             }
         }
 

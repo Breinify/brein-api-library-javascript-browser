@@ -20,6 +20,12 @@ The core `Breinify.UTL.consent` object supports provider configuration, evaluati
 and change notifications before customer initialization. See [the consent contract](documentation/consent.md).
 This is the foundation only; existing requests and data access are not yet connected to it.
 
+## Browser storage
+
+`Breinify.UTL.storage` provides shared local/session/memory access, JSON helpers, and entry enumeration.
+See [browser storage and the stored-data inventory](documentation/storage.md) for the API, existing keys,
+lifetimes, cookies, and fallback behavior.
+
 ## Running tests
 
 The `test` task runs `test-setup` → `clean:combine` → `combine:false` → `test-run`. Specs load

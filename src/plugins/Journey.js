@@ -18,16 +18,7 @@
         currentJourney: [],
 
         init: function () {
-            let storedValue = window.sessionStorage.getItem(storageKey);
-            if (typeof storedValue === 'string') {
-                try {
-                    this.currentJourney = JSON.parse(storedValue);
-                } catch (e) {
-                    this.currentJourney = [];
-                }
-            } else {
-                this.currentJourney = [];
-            }
+            this.currentJourney = Breinify.UTL.storage.getJson('session', storageKey, []);
         },
 
         appendEntry: function (entry) {
@@ -37,7 +28,7 @@
                 this.currentJourney.splice(0, this.currentJourney.length - maxSize);
             }
 
-            window.sessionStorage.setItem(storageKey, JSON.stringify(this.currentJourney));
+            Breinify.UTL.storage.setJson('session', storageKey, this.currentJourney);
         },
 
         handleClick: function ($el, utilizeDataTags) {

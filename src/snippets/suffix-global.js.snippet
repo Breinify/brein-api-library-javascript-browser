@@ -12,6 +12,16 @@
      * We just create a simple wrapper, which makes sure every code works.
      */
     const Breinify = {};
+    const emptyStorage = {
+        length: 0,
+        key: function () { return null; },
+        getItem: function () { return null; },
+        setItem: function () {},
+        getJson: function (name, fallback) { return arguments.length >= 2 ? fallback : null; },
+        setJson: function () {},
+        removeItem: function () {},
+        clear: function () {}
+    };
 
     // things that shouldn't be used anyways (not documented)
     Breinify.BreinifyConfig = function() {};
@@ -66,6 +76,32 @@
     };
     Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
+        storage: {
+            instance: emptyStorage,
+            splitTestDataInstanceName: 'split-test-data',
+            getStorage: function () { return emptyStorage; },
+            getItem: function () { return null; },
+            setItem: function () {},
+            getJson: function (type, name, fallback) { return arguments.length >= 3 ? fallback : null; },
+            setJson: function () {},
+            removeItem: function () {},
+            keys: function () { return []; },
+            entries: function () { return []; },
+            isAvailable: function () { return false; },
+            init: function (entries, callback) {
+                if (typeof callback === 'function') {
+                    callback(null, {loaded: [], failed: Object.keys(entries || {})});
+                }
+            },
+            get: function () { return null; },
+            update: function () {},
+            isExpired: function () { return true; },
+            getOrWait: function (name, callback) {
+                if (typeof callback === 'function') {
+                    callback(new Error('Breinify not available.'), null);
+                }
+            }
+        },
         consent: {
             configure: function () {},
             evaluate: function (callback) {
@@ -195,6 +231,8 @@
         extend: function(str) { return {}; },
         _jquery: function() { return null; }
     };
+
+    Breinify.UTL.storage.cookie = Breinify.UTL.cookie;
 
     // no additional plugins available
     Breinify.plugins = {

@@ -161,12 +161,7 @@
                 return null;
             }
 
-            try {
-                const jsonData = window.localStorage.getItem(key);
-                return typeof jsonData === 'string' ? JSON.parse(jsonData) : null;
-            } catch (e) {
-                return null;
-            }
+            return Breinify.UTL.storage.getJson('local', key, null);
         },
 
         setSplitTestData: function (payload, response) {
@@ -184,7 +179,7 @@
             // store the result in the local-storage if a storage is provided
             if (key !== null) {
                 try {
-                    window.localStorage.setItem(key, JSON.stringify(this.cachedResult));
+                    Breinify.UTL.storage.setJson('local', key, this.cachedResult);
                 } catch (e) {
                     // do nothing
                 }

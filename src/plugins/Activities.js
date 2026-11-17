@@ -229,28 +229,26 @@
 
             store: function (id, activityData) {
                 const activityDataId = typeof id === 'string' ? id : Breinify.UTL.uuid();
-                const json = JSON.stringify(activityData);
-                window.localStorage.setItem(this.prefix + activityDataId, json);
+                Breinify.UTL.storage.setJson('local', this.prefix + activityDataId, activityData);
                 return activityDataId;
             },
 
             getAll: function () {
                 let activitiesData = null;
+                const entries = Breinify.UTL.storage.entries('local', {
+                    prefix: this.prefix,
+                    json: true,
+                    fallback: null
+                });
 
-                for (var i = 0, len = window.localStorage.length; i < len; ++i) {
-                    let key = window.localStorage.key(i);
-                    if (typeof key !== 'string' || key.indexOf(this.prefix) !== 0) {
-                        continue;
-                    }
-
-                    let id = key.substring(this.prefix.length);
-                    let entry = this.get(id);
-                    if (entry === null) {
+                for (const [key, entry] of entries) {
+                    if (!$.isPlainObject(entry)) {
                         continue;
                     } else if (activitiesData === null) {
                         activitiesData = {};
                     }
 
+                    const id = key.substring(this.prefix.length);
                     activitiesData[id] = entry;
                 }
 
@@ -258,17 +256,12 @@
             },
 
             get: function (id) {
-                try {
-                    const json = window.localStorage.getItem(this.prefix + id);
-                    const entry = typeof json === 'string' ? JSON.parse(json) : null;
-                    return $.isPlainObject(entry) ? entry : null;
-                } catch (e) {
-                    return null;
-                }
+                const entry = Breinify.UTL.storage.getJson('local', this.prefix + id, null);
+                return $.isPlainObject(entry) ? entry : null;
             },
 
             remove: function (id) {
-                window.localStorage.removeItem(this.prefix + id);
+                Breinify.UTL.storage.removeItem('local', this.prefix + id);
             }
         }
     };

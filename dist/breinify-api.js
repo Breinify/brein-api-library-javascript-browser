@@ -13144,11 +13144,154 @@ dependencyScope.jQuery = $;
         return;
     }
 
-    const storage = {
-        anonymousIdStorage: null
-    };
-
     const _private = {
+        storage: {
+            handles: {},
+            memoryEntries: new Map(),
+            identifierStorage: null,
+
+            memory: {
+                get length() {
+                    return _private.storage.memoryEntries.size;
+                },
+
+                key: function (index) {
+                    const keys = Array.from(_private.storage.memoryEntries.keys());
+                    return typeof keys[index] === 'string' ? keys[index] : null;
+                },
+
+                getItem: function (name) {
+                    const entries = _private.storage.memoryEntries;
+                    const key = String(name);
+                    return entries.has(key) ? entries.get(key) : null;
+                },
+
+                setItem: function (name, value) {
+                    _private.storage.memoryEntries.set(String(name), String(value));
+                },
+
+                removeItem: function (name) {
+                    _private.storage.memoryEntries.delete(String(name));
+                },
+
+                clear: function () {
+                    _private.storage.memoryEntries.clear();
+                }
+            },
+
+            resolve: function (type) {
+                let store;
+                if (type === 'local') {
+                    store = window.localStorage;
+                } else if (type === 'session') {
+                    store = window.sessionStorage;
+                } else if (type === 'memory') {
+                    store = this.memory;
+                } else {
+                    throw new TypeError('Unknown storage type: ' + type);
+                }
+
+                if (store == null || typeof store.getItem !== 'function' ||
+                    typeof store.setItem !== 'function' || typeof store.removeItem !== 'function' ||
+                    typeof store.key !== 'function' || typeof store.length !== 'number') {
+                    throw new Error('Storage is unavailable: ' + type);
+                }
+                return store;
+            },
+
+            getIdentifierStorage: function () {
+                if (this.identifierStorage === null) {
+                    const localAvailable = BreinifyUtil.storage.isAvailable('local');
+                    const sessionAvailable = BreinifyUtil.storage.isAvailable('session');
+                    this.identifierStorage = localAvailable && sessionAvailable
+                        ? anonymousIdStorage.browserStorage : anonymousIdStorage.cookieStorage;
+                }
+                return this.identifierStorage;
+            }
+        },
+
+        consent: {
+            denied: Object.freeze({}),
+            configured: false,
+            provider: null,
+            timeoutInMs: 2500,
+            generation: 0,
+            revision: 0,
+            pending: null,
+            current: null,
+            unsubscribe: null,
+            listeners: [],
+
+            invoke: function (callback, value) {
+                try {
+                    callback(value);
+                } catch (error) {
+                    // consent errors must not generate tracking activities
+                    scope.console.error('Breinify consent callback failed.', error);
+                }
+            },
+
+            normalize: function (value) {
+                if (!$.isPlainObject(value)) {
+                    return null;
+                }
+
+                const result = {};
+                const keys = Object.keys(value);
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    if (typeof value[key] !== 'boolean') {
+                        return null;
+                    }
+                    Object.defineProperty(result, key, {value: value[key], enumerable: true});
+                }
+                return Object.freeze(result);
+            },
+
+            publish: function (value) {
+                const consent = _private.consent;
+                const keys = Object.keys(value);
+                const previous = consent.current;
+                const unchanged = previous !== null && keys.length === Object.keys(previous).length &&
+                    keys.every(function (key) {
+                        return Object.prototype.hasOwnProperty.call(previous, key) && previous[key] === value[key];
+                    });
+                if (unchanged) {
+                    return;
+                }
+
+                consent.current = value;
+                const activeGeneration = consent.generation;
+                const activeRevision = consent.revision;
+                consent.listeners.slice().forEach(function (listener) {
+                    if (activeGeneration === consent.generation && activeRevision === consent.revision) {
+                        consent.invoke(listener, value);
+                    }
+                });
+            },
+
+            complete: function (value, notify) {
+                const consent = _private.consent;
+                const request = consent.pending;
+                consent.pending = null;
+                if (request !== null) {
+                    scope.clearTimeout(request.timer);
+                }
+
+                const activeGeneration = consent.generation;
+                const activeRevision = consent.revision;
+                if (notify !== false) {
+                    consent.publish(value);
+                }
+                if (request !== null) {
+                    request.callbacks.forEach(function (callback) {
+                        const unchanged = activeGeneration === consent.generation && activeRevision === consent.revision;
+                        consent.invoke(callback, unchanged ? value : consent.denied);
+                    });
+                }
+            }
+        },
+
         /**
          * Validates only the options owned by a formatter; never mutates the caller's options.
          */
@@ -13648,6 +13791,128 @@ dependencyScope.jQuery = $;
     };
 
     const BreinifyUtil = {
+
+        /**
+         * Core consent lifecycle, available before setConfig and utility initialization.
+         * See documentation/consent.md for the provider and consumer contracts.
+         */
+        consent: {
+            /**
+             * Installs a provider and starts the initial consent evaluation.
+             */
+            configure: function (settings) {
+                const consent = _private.consent;
+                if (!$.isPlainObject(settings)) {
+                    throw new TypeError('Consent settings must be a plain object.');
+                }
+                const wait = typeof settings.timeoutInMs === 'undefined' ? 2500 : settings.timeoutInMs;
+                const nextProvider = settings.provider;
+                if (typeof wait !== 'number' || !Number.isFinite(wait) || wait < 0 || wait > 2147483647) {
+                    throw new RangeError('Consent timeoutInMs must be between 0 and 2147483647.');
+                } else if (nextProvider != null && (typeof nextProvider.evaluate !== 'function' ||
+                    (typeof nextProvider.onChange !== 'undefined' && typeof nextProvider.onChange !== 'function'))) {
+                    throw new TypeError('A consent provider needs evaluate and an optional onChange function.');
+                }
+
+                consent.generation++;
+                consent.revision++;
+                consent.configured = false;
+                consent.provider = null;
+                const previousUnsubscribe = consent.unsubscribe;
+                consent.unsubscribe = null;
+                if (typeof previousUnsubscribe === 'function') {
+                    consent.invoke(previousUnsubscribe);
+                }
+                consent.complete(consent.denied, consent.current !== null);
+                consent.current = null;
+
+                consent.provider = nextProvider || null;
+                consent.timeoutInMs = wait;
+                consent.configured = true;
+                const activeGeneration = consent.generation;
+                if (consent.provider !== null && typeof consent.provider.onChange === 'function') {
+                    try {
+                        consent.unsubscribe = consent.provider.onChange(function (value) {
+                            if (activeGeneration !== consent.generation) {
+                                return;
+                            }
+                            const snapshot = consent.normalize(value);
+                            if (snapshot !== null) {
+                                consent.revision++;
+                                consent.complete(snapshot);
+                            }
+                        });
+                    } catch (error) {
+                        scope.console.error('Breinify consent observer failed.', error);
+                    }
+                }
+                this.evaluate(function () {});
+            },
+
+            /**
+             * Evaluates current permissions; concurrent callers share the pending evaluation.
+             */
+            evaluate: function (callback) {
+                const consent = _private.consent;
+                if (typeof callback !== 'function') {
+                    throw new TypeError('Consent evaluation requires a callback.');
+                } else if (!consent.configured) {
+                    consent.invoke(callback, consent.denied);
+                    return;
+                } else if (consent.pending !== null) {
+                    consent.pending.callbacks.push(callback);
+                    return;
+                }
+
+                const activeGeneration = consent.generation;
+                const activeRevision = ++consent.revision;
+                const request = {callbacks: [callback], timer: null};
+                consent.pending = request;
+                request.timer = scope.setTimeout(function () {
+                    if (consent.pending === request) {
+                        consent.complete(consent.denied);
+                    }
+                }, consent.timeoutInMs);
+
+                if (consent.provider !== null) {
+                    try {
+                        consent.provider.evaluate(function (value) {
+                            if (activeGeneration !== consent.generation || activeRevision !== consent.revision) {
+                                return;
+                            }
+                            const snapshot = consent.normalize(value);
+                            if (snapshot !== null) {
+                                consent.revision++;
+                                consent.complete(snapshot);
+                            }
+                        });
+                    } catch (error) {
+                        // an unavailable provider follows the same timeout as unknown consent
+                        scope.console.error('Breinify consent evaluation failed.', error);
+                    }
+                }
+            },
+
+            /**
+             * Observes permission changes and returns an unsubscribe function.
+             */
+            onChange: function (listener) {
+                const consent = _private.consent;
+                if (typeof listener !== 'function') {
+                    throw new TypeError('A consent observer must be a function.');
+                }
+                const subscription = function (value) {
+                    listener(value);
+                };
+                consent.listeners.push(subscription);
+                return function () {
+                    const index = consent.listeners.indexOf(subscription);
+                    if (index !== -1) {
+                        consent.listeners.splice(index, 1);
+                    }
+                };
+            }
+        },
 
         _init: function () {
             _private.domObserver.init();
@@ -14186,7 +14451,7 @@ dependencyScope.jQuery = $;
 
                 // we just assume that there is a variable set in the sessionStorage in Dev-Mode
                 try {
-                    return window.sessionStorage['breinify'] === 'true';
+                    return BreinifyUtil.storage.getItem('session', 'breinify') === 'true';
                 } catch (e) {
                     return false;
                 }
@@ -14750,8 +15015,8 @@ dependencyScope.jQuery = $;
                 const referrerKey = BreinifyUtil.cookies.referrerKey;
                 let storedReferrerData = null;
 
-                if (storage.anonymousIdStorage.check(referrerKey, true)) {
-                    const storedValue = BreinifyUtil.isNonEmptyString(storage.anonymousIdStorage.get(referrerKey, true));
+                if (_private.storage.getIdentifierStorage().check(referrerKey, true)) {
+                    const storedValue = BreinifyUtil.isNonEmptyString(_private.storage.getIdentifierStorage().get(referrerKey, true));
                     if (storedValue !== null) {
                         try {
                             storedReferrerData = JSON.parse(storedValue);
@@ -14820,7 +15085,7 @@ dependencyScope.jQuery = $;
                  * Only update the session storage when the information changed.
                  */
                 if (referrerDataChanged === true) {
-                    storage.anonymousIdStorage.set(referrerKey, JSON.stringify(storedReferrerData), null, true, BreinifyUtil.cookie.domain());
+                    _private.storage.getIdentifierStorage().set(referrerKey, JSON.stringify(storedReferrerData), null, true, BreinifyUtil.cookie.domain());
                 }
 
                 /*
@@ -14844,11 +15109,11 @@ dependencyScope.jQuery = $;
                 let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie, false)) {
-                    this.browserId = storage.anonymousIdStorage.get(cookie, false);
+                } else if (_private.storage.getIdentifierStorage().check(cookie, false)) {
+                    this.browserId = _private.storage.getIdentifierStorage().get(cookie, false);
                 } else {
                     this.browserId = BreinifyUtil.uuid();
-                    storage.anonymousIdStorage.set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
+                    _private.storage.getIdentifierStorage().set(cookie, this.browserId, 10 * 365, true, BreinifyUtil.cookie.domain());
                 }
 
                 return this.browserId;
@@ -14859,8 +15124,8 @@ dependencyScope.jQuery = $;
 
                 if (this.sessionId !== null) {
                     // nothing to do
-                } else if (storage.anonymousIdStorage.check(cookie, true)) {
-                    this.sessionId = storage.anonymousIdStorage.get(cookie, true);
+                } else if (_private.storage.getIdentifierStorage().check(cookie, true)) {
+                    this.sessionId = _private.storage.getIdentifierStorage().get(cookie, true);
                 } else {
                     this.resetSessionId(false);
                 }
@@ -14883,7 +15148,7 @@ dependencyScope.jQuery = $;
                 }
 
                 let cookie = BreinifyUtil.cookies.sessionId;
-                storage.anonymousIdStorage.set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
+                _private.storage.getIdentifierStorage().set(cookie, this.sessionId, null, true, BreinifyUtil.cookie.domain());
 
                 return this.sessionId;
             }
@@ -15829,6 +16094,164 @@ dependencyScope.jQuery = $;
             splitTestDataInstanceName: 'split-test-data',
             instance: null,
 
+            /**
+             * Returns a synchronous storage handle whose operations use the shared access methods.
+             * Supported types are local, session, and memory. Browser access errors are propagated.
+             */
+            getStorage: function (type) {
+                const state = _private.storage;
+                state.resolve(type);
+                if (!Object.prototype.hasOwnProperty.call(state.handles, type)) {
+                    state.handles[type] = {
+                        get length() {
+                            return BreinifyUtil.storage.keys(type).length;
+                        },
+                        key: function (index) {
+                            const store = state.resolve(type);
+                            return store.key(index);
+                        },
+                        getItem: function (name) {
+                            return BreinifyUtil.storage.getItem(type, name);
+                        },
+                        setItem: function (name, value) {
+                            BreinifyUtil.storage.setItem(type, name, value);
+                        },
+                        getJson: function (name, fallback) {
+                            return arguments.length >= 2
+                                ? BreinifyUtil.storage.getJson(type, name, fallback)
+                                : BreinifyUtil.storage.getJson(type, name);
+                        },
+                        setJson: function (name, value) {
+                            BreinifyUtil.storage.setJson(type, name, value);
+                        },
+                        removeItem: function (name) {
+                            BreinifyUtil.storage.removeItem(type, name);
+                        },
+                        clear: function () {
+                            const store = state.resolve(type);
+                            store.clear();
+                        }
+                    };
+                }
+                return state.handles[type];
+            },
+
+            getItem: function (type, name) {
+                const store = _private.storage.resolve(type);
+                return store.getItem(name);
+            },
+
+            setItem: function (type, name, value) {
+                const store = _private.storage.resolve(type);
+                store.setItem(name, value);
+            },
+
+            /**
+             * Reads JSON without changing valid values. Missing entries return the supplied fallback or null.
+             * Read and parse errors are thrown unless a third argument supplies an explicit fallback.
+             */
+            getJson: function (type, name, fallback) {
+                const hasFallback = arguments.length >= 3;
+                try {
+                    const json = this.getItem(type, name);
+                    return json === null ? (hasFallback ? fallback : null) : JSON.parse(json);
+                } catch (error) {
+                    if (hasFallback) {
+                        return fallback;
+                    } else {
+                        throw error;
+                    }
+                }
+            },
+
+            /**
+             * Serializes a value before writing. Serialization and storage errors are propagated.
+             */
+            setJson: function (type, name, value) {
+                const json = JSON.stringify(value);
+                if (typeof json !== 'string') {
+                    throw new TypeError('The storage value cannot be serialized as JSON.');
+                }
+                this.setItem(type, name, json);
+            },
+
+            removeItem: function (type, name) {
+                const store = _private.storage.resolve(type);
+                store.removeItem(name);
+            },
+
+            keys: function (type) {
+                const store = _private.storage.resolve(type);
+                const keys = [];
+                for (let i = 0; i < store.length; i++) {
+                    const key = store.key(i);
+                    if (key !== null) {
+                        keys.push(key);
+                    }
+                }
+                return keys;
+            },
+
+            /**
+             * Returns a snapshot of key/value pairs, optionally filtered by prefix and decoded as JSON.
+             * The optional filter receives each matching key before its value is read.
+             * JSON read errors use options.fallback only when that property is explicitly supplied.
+             */
+            entries: function (type, options, filter) {
+                const settings = typeof options === 'undefined' ? {} : options;
+                if (!$.isPlainObject(settings) ||
+                    (typeof settings.prefix !== 'undefined' && typeof settings.prefix !== 'string') ||
+                    (typeof settings.json !== 'undefined' && typeof settings.json !== 'boolean')) {
+                    throw new TypeError('Storage entries options require a string prefix and a boolean json flag.');
+                }
+                if (typeof filter !== 'undefined' && typeof filter !== 'function') {
+                    throw new TypeError('Storage entries filter must be a function.');
+                }
+
+                const _self = this;
+                const prefix = typeof settings.prefix === 'string' ? settings.prefix : '';
+                const hasFallback = Object.prototype.hasOwnProperty.call(settings, 'fallback');
+                return this.keys(type).filter(function (key) {
+                    return key.indexOf(prefix) === 0 && (typeof filter === 'undefined' || filter(key));
+                }).map(function (key) {
+                    let value;
+                    if (settings.json === true && hasFallback) {
+                        value = _self.getJson(type, key, settings.fallback);
+                    } else if (settings.json === true) {
+                        value = _self.getJson(type, key);
+                    } else {
+                        value = _self.getItem(type, key);
+                    }
+                    return [key, value];
+                });
+            },
+
+            /**
+             * Checks read/write availability on demand without replacing an existing entry.
+             * A failed check never selects a different storage location implicitly.
+             */
+            isAvailable: function (type) {
+                const key = 'br-storage-test-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+                let written = false;
+                let available = false;
+                try {
+                    this.setItem(type, key, key);
+                    written = true;
+                    available = this.getItem(type, key) === key;
+                } catch (e) {
+                    // restricted or full storage is reported as unavailable
+                } finally {
+                    if (written) {
+                        try {
+                            this.removeItem(type, key);
+                        } catch (e) {
+                            available = false;
+                        }
+                    }
+                }
+                return available;
+            },
+
             init: function (entries, callback) {
                 if (!$.isPlainObject(entries)) {
                     entries = {};
@@ -15837,34 +16260,11 @@ dependencyScope.jQuery = $;
                 // check if we already have an instance (init may be called multiple times)
                 if (this.instance === null) {
 
-                    let localStorageType;
                     try {
-                        localStorageType = typeof window.localStorage;
+                        this.instance = this.getStorage('local');
                     } catch (e) {
-                        localStorageType = null;
-                    }
-
-                    if (localStorageType === 'object') {
-                        this.instance = window.localStorage;
-                    } else {
-
-                        // we create a simple shim, which only works within the correct loading
-                        this.instance = {
-                            store: {},
-                            setItem: function (key, value) {
-                                this.store[key] = value;
-                            },
-                            getItem: function (key) {
-                                let result = this.store[key];
-                                return typeof result === 'undefined' ? null : result;
-                            },
-                            removeItem: function (key) {
-                                delete this.store[key];
-                            },
-                            clear: function () {
-                                this.store = {}
-                            }
-                        }
+                        // preserve the cache's existing in-memory fallback when local storage is inaccessible
+                        this.instance = this.getStorage('memory');
                     }
                 }
 
@@ -16008,7 +16408,7 @@ dependencyScope.jQuery = $;
         }
     };
 
-    // create the different storages and bind the one to be used
+    // preserve identifier formats and select the storage location on first use
     const anonymousIdStorage = {
         cookieStorage: {
             check: function (cookie) {
@@ -16030,9 +16430,9 @@ dependencyScope.jQuery = $;
             },
             set: function (name, value, expiration) {
                 if (value === null || typeof value === 'undefined') {
-                    window.localStorage.removeItem(name);
+                    BreinifyUtil.storage.removeItem('local', name);
                 } else if (expiration === null) {
-                    window.sessionStorage.setItem(name, value);
+                    BreinifyUtil.storage.setItem('session', name, value);
                 } else if (typeof expiration === 'number' && expiration > 0) {
 
                     const json = JSON.stringify({
@@ -16040,22 +16440,22 @@ dependencyScope.jQuery = $;
                         exp: new Date().getTime() + (expiration * 24 * 60 * 60 * 1000)
                     });
 
-                    window.localStorage.setItem(name, json);
+                    BreinifyUtil.storage.setItem('local', name, json);
                 } else {
-                    window.localStorage.removeItem(name);
+                    BreinifyUtil.storage.removeItem('local', name);
                 }
             },
             _extractValue: function (name, session) {
                 if (session === true) {
-                    return window.sessionStorage.getItem(name);
+                    return BreinifyUtil.storage.getItem('session', name);
                 } else {
 
-                    const json = window.localStorage.getItem(name);
+                    const json = BreinifyUtil.storage.getItem('local', name);
                     try {
                         const obj = JSON.parse(json);
 
                         if (obj.exp < new Date().getTime() || typeof obj.v === 'undefined' || obj.v === null) {
-                            window.localStorage.removeItem(name);
+                            BreinifyUtil.storage.removeItem('local', name);
                             return null;
                         } else {
                             return obj.v;
@@ -16068,16 +16468,8 @@ dependencyScope.jQuery = $;
         }
     };
 
-    try {
-        window.localStorage.setItem('br-local-storage-test', 'true');
-        window.localStorage.removeItem('br-local-storage-test');
-        window.sessionStorage.setItem('br-session-storage-test', 'true');
-        window.sessionStorage.removeItem('br-session-storage-test');
-
-        storage.anonymousIdStorage = anonymousIdStorage.browserStorage;
-    } catch (e) {
-        storage.anonymousIdStorage = anonymousIdStorage.cookieStorage;
-    }
+    // keep the established cookie API and the central storage namespace on the same instance
+    BreinifyUtil.storage.cookie = BreinifyUtil.cookie;
 
     //noinspection JSUnresolvedFunction
     misc.export(dependencyScope, 'BreinifyUtil', BreinifyUtil, true);
@@ -16122,13 +16514,6 @@ dependencyScope.jQuery = $;
     attributes.add('ACTIVITY_ENDPOINT', {
         name: 'activityEndpoint',
         defaultValue: '/activity',
-        validate: function (value) {
-            return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
-        }
-    });
-    attributes.add('LOOKUP_ENDPOINT', {
-        name: 'lookupEndpoint',
-        defaultValue: '/lookup',
         validate: function (value) {
             return value !== null && typeof value === 'string' && '' !== value.trim() && value.charAt(0) === '/';
         }
@@ -17080,12 +17465,6 @@ dependencyScope.jQuery = $;
             return '' + unixTimestamp;
         },
 
-        generateLookUpMessage: function (dimensions, unixTimestamp) {
-            dimensions = $.isArray(dimensions) ? dimensions : [];
-            let dimension = dimensions.length === 0 ? '' : dimensions[0];
-            return dimension + unixTimestamp + dimensions.length;
-        },
-
         generateTemporalDataMessage: function (unixTimestamp, localDateTime, timezone) {
             let paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
             let paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
@@ -17979,78 +18358,6 @@ dependencyScope.jQuery = $;
         });
     };
 
-    /**
-     * Method to lookup the specified dimensions information.
-     */
-    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
-
-        Breinify.lookupUser(user, dimensions, sign, function (data) {
-            const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
-            _privates.ajax(url, data, onLookUp, onLookUp);
-        });
-    };
-
-    /**
-     * Creates a user request entity used to fire a query against the lookup endpoint.
-     *
-     * @param user {object} the user-information
-     * @param dimensions {Array|string} an array of dimensions
-     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
-     * @param onReady {function|null} function to be executed after successful user creation
-     */
-    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
-
-        const _onReady = function (user) {
-            if ($.isFunction(onReady)) {
-                onReady(user);
-            }
-        };
-
-        // get the user information
-        _privates.createUser(user, function (user) {
-
-            if (!user.validate()) {
-                _onReady(null);
-                return;
-            }
-
-            // get some default values for the passed parameters - if not set
-            dimensions = typeof dimensions === 'string' ? [dimensions] : ($.isArray(dimensions) ? dimensions : []);
-            sign = typeof sign === 'boolean' ? sign : false;
-
-            // get the other values needed
-            const unixTimestamp = BreinifyUtil.unixTimestamp();
-            let signature = null;
-            if (sign) {
-                const secret = _config.get(ATTR_CONFIG.SECRET);
-                if (typeof secret === 'string') {
-                    const message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
-                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
-                } else {
-                    _onReady(null);
-                    return;
-                }
-            }
-
-            // create the data set
-            const data = {
-                'user': user.all(),
-
-                'lookup': {
-                    'dimensions': dimensions
-                },
-
-                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
-                'signature': signature,
-                'unixTimestamp': unixTimestamp
-            };
-
-            if ($.isFunction(onReady)) {
-                _onReady(data);
-            }
-        });
-    };
-
     /*
      * Maps a caught error's first eligible stack frame to source coordinates and submits it to handleError.
      * Use when the caller already classifies execution failures and owns its reporting budget.
@@ -18317,6 +18624,16 @@ dependencyScope.jQuery = $;
      * We just create a simple wrapper, which makes sure every code works.
      */
     const Breinify = {};
+    const emptyStorage = {
+        length: 0,
+        key: function () { return null; },
+        getItem: function () { return null; },
+        setItem: function () {},
+        getJson: function (name, fallback) { return arguments.length >= 2 ? fallback : null; },
+        setJson: function () {},
+        removeItem: function () {},
+        clear: function () {}
+    };
 
     // things that shouldn't be used anyways (not documented)
     Breinify.BreinifyConfig = function() {};
@@ -18337,16 +18654,6 @@ dependencyScope.jQuery = $;
     Breinify.activity = function (user, type, category, description, sign, onReady) {
         if (typeof onReady === 'function') {
             onReady();
-        }
-    };
-    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
-        if (typeof onReady === 'function') {
-            onReady();
-        }
-    };
-    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
-        if (typeof onLookUp === 'function') {
-            onLookUp();
         }
     };
     Breinify.temporalDataUser = function (user, timezone, localDateTime, sign, onReady) {
@@ -18381,6 +18688,41 @@ dependencyScope.jQuery = $;
     };
     Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
+        storage: {
+            instance: emptyStorage,
+            splitTestDataInstanceName: 'split-test-data',
+            getStorage: function () { return emptyStorage; },
+            getItem: function () { return null; },
+            setItem: function () {},
+            getJson: function (type, name, fallback) { return arguments.length >= 3 ? fallback : null; },
+            setJson: function () {},
+            removeItem: function () {},
+            keys: function () { return []; },
+            entries: function () { return []; },
+            isAvailable: function () { return false; },
+            init: function (entries, callback) {
+                if (typeof callback === 'function') {
+                    callback(null, {loaded: [], failed: Object.keys(entries || {})});
+                }
+            },
+            get: function () { return null; },
+            update: function () {},
+            isExpired: function () { return true; },
+            getOrWait: function (name, callback) {
+                if (typeof callback === 'function') {
+                    callback(new Error('Breinify not available.'), null);
+                }
+            }
+        },
+        consent: {
+            configure: function () {},
+            evaluate: function (callback) {
+                if (typeof callback === 'function') {
+                    callback(Object.freeze({}));
+                }
+            },
+            onChange: function () { return function () {}; }
+        },
         out: {
             normalizeErrorMessage: function(error) { console.error(error); },
             log: function (logLevel, message) { console.log(message); },
@@ -18501,6 +18843,8 @@ dependencyScope.jQuery = $;
         extend: function(str) { return {}; },
         _jquery: function() { return null; }
     };
+
+    Breinify.UTL.storage.cookie = Breinify.UTL.cookie;
 
     // no additional plugins available
     Breinify.plugins = {

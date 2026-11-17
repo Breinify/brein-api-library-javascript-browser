@@ -2089,7 +2089,7 @@
             const storage = this.getBrowserStorage(DECISION_CACHE_SCOPE_PERSISTENT);
             if (storage) {
                 try {
-                    const stored = JSON.parse(storage.getItem(SUPPRESSION_STORAGE_KEY));
+                    const stored = storage.getJson(SUPPRESSION_STORAGE_KEY);
                     if ($.isPlainObject(stored) && stored.version === 1 && $.isPlainObject(stored.entries)) {
                         Object.keys(stored.entries).forEach(function (id) {
                             const expiry = stored.entries[id];
@@ -2116,8 +2116,8 @@
             state.entries[state.key] = expiresAt;
             if (state.storage) {
                 try {
-                    state.storage.setItem(SUPPRESSION_STORAGE_KEY,
-                        JSON.stringify({version: 1, entries: state.entries}));
+                    state.storage.setJson(SUPPRESSION_STORAGE_KEY,
+                        {version: 1, entries: state.entries});
                 } catch (e) {
                     // keep the in-memory cooldown when storage is disabled or full
                 }
@@ -3070,8 +3070,8 @@
 
             try {
                 return scope === DECISION_CACHE_SCOPE_PERSISTENT
-                    ? window.localStorage || null
-                    : window.sessionStorage || null;
+                    ? Breinify.UTL.storage.getStorage("local") || null
+                    : Breinify.UTL.storage.getStorage("session") || null;
             } catch (e) {
                 return null;
             }
@@ -3095,8 +3095,7 @@
             }
 
             try {
-                const raw = storage.getItem(DECISION_STORAGE_KEY);
-                const parsed = raw === null ? null : JSON.parse(raw);
+                const parsed = storage.getJson(DECISION_STORAGE_KEY);
                 if (!$.isPlainObject(parsed) || parsed.version !== DECISION_STORAGE_VERSION ||
                     !$.isPlainObject(parsed.entries)) {
                     return {
@@ -3122,10 +3121,10 @@
             }
 
             try {
-                storageData.storage.setItem(DECISION_STORAGE_KEY, JSON.stringify({
+                storageData.storage.setJson(DECISION_STORAGE_KEY, {
                     version: DECISION_STORAGE_VERSION,
                     entries: storageData.entries
-                }));
+                });
             } catch (e) {
                 // Storage may be disabled or full. The in-memory cache remains usable.
             }
@@ -3146,8 +3145,7 @@
             }
 
             try {
-                const raw = storage.getItem(RANDOM_STORAGE_KEY);
-                const parsed = raw === null ? null : JSON.parse(raw);
+                const parsed = storage.getJson(RANDOM_STORAGE_KEY);
                 if (!$.isPlainObject(parsed) || parsed.version !== RANDOM_STORAGE_VERSION ||
                     !$.isPlainObject(parsed.entries)) {
                     return {
@@ -3171,10 +3169,10 @@
             }
 
             try {
-                storageData.storage.setItem(RANDOM_STORAGE_KEY, JSON.stringify({
+                storageData.storage.setJson(RANDOM_STORAGE_KEY, {
                     version: RANDOM_STORAGE_VERSION,
                     entries: storageData.entries
-                }));
+                });
             } catch (e) {
                 // Storage may be disabled or full. The in-memory result remains usable.
             }

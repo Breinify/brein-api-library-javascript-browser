@@ -1069,9 +1069,14 @@ These methods are relative to `Breinify.UTL.user`.
 
 ###### Storage utilities
 
-`Breinify.UTL.storage` is a named JSON cache using `localStorage` when available, with an in-memory fallback
-when storage cannot be obtained. Initialize it before reading or writing. Storage access and malformed stored
-JSON can throw; these helpers do not universally suppress browser-storage errors.
+`Breinify.UTL.storage` provides direct local/session/memory access through `getItem`, `setItem`, `removeItem`,
+`getJson`, `setJson`, `keys`, and `entries`. These methods need no initialization. `getJson` throws read/parse
+errors unless an explicit fallback is supplied. `storage.cookie` aliases `UTL.cookie`. See
+[browser storage](storage.md) for signatures, examples, and the inventory of stored data.
+
+The existing named JSON cache below uses local storage when available, with an in-memory fallback when
+storage cannot be obtained. Initialize this cache before reading or writing. Storage access and malformed
+stored JSON can throw; these helpers do not universally suppress browser-storage errors.
 
 | Method | Behavior |
 | --- | --- |
