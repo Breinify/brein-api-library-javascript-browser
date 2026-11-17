@@ -27,7 +27,6 @@ module.exports = function (grunt) {
     /*
      * Configuration settings
      */
-    var defaultPort = 20000;
     var banner = '/*\n' +
         ' * ' + '<%= pkg.name %>\n' +
         ' * ' + 'v<%= pkg.version %>\n' +
@@ -46,10 +45,6 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-bower-install-simple');
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-contrib-clean');
-    //noinspection JSUnresolvedFunction
-    grunt.loadNpmTasks('grunt-contrib-connect');
-    //noinspection JSUnresolvedFunction
-    grunt.loadNpmTasks('grunt-contrib-watch');
     //noinspection JSUnresolvedFunction
     grunt.loadNpmTasks('grunt-contrib-concat');
     //noinspection JSUnresolvedFunction
@@ -113,50 +108,7 @@ module.exports = function (grunt) {
              */
             dist: [
                 'dist'
-            ],
-            setup: [
-                'target/root'
             ]
-        },
-
-        /*
-         * The watch tasks observes changes on the file-system, which
-         * allow us to see changes directly in the browser.
-         */
-        watch: {
-            server: {
-                options: {
-                    livereload: true,
-
-                    /*
-                     * See documentation: Setting this option to false speeds
-                     * up the reaction time of the watch (usually 500ms faster
-                     * for most)
-                     */
-                    spawn: false
-                },
-
-                // define the task to run when a change happens
-                tasks: ['setup'],
-
-                // files to observe, can be an array
-                files: ['src/**/*', 'sample/**/*']
-            }
-        },
-
-        /*
-         * The connect task starts a web server for us to see our results and
-         * do some testing.
-         */
-        connect: {
-            server: {
-                options: {
-                    port: '<%= server.port %>',
-                    base: 'target/root'
-                    // we don't need any livereload because we have watch
-                    // livereload: true
-                }
-            }
         },
 
         /*
@@ -201,21 +153,6 @@ module.exports = function (grunt) {
                     }
                 },
                 dest: 'target/dep'
-            },
-            setup: {
-                options: {
-                    includeDev: true,
-                    checkExistence: true,
-                    paths: bowerPaths,
-                    overrides: {
-                        'brein-util': {'main': 'grunt/default-layout/**/*'},
-                        'cryptojslib': {'ignore': true},
-                        'jquery': {'ignore': true},
-                        'jstz': {'ignore': true}
-                    }
-                },
-                base: bowerPaths.bowerDirectory + '/brein-util/grunt/default-layout',
-                dest: 'target/root'
             }
         },
 
@@ -322,15 +259,9 @@ module.exports = function (grunt) {
         },
 
         /*
-         * Copies the files into the right location for the web server.
+         * Copies the library and plugins into the distribution directory.
          */
         copy: {
-            setup: {
-                files: [
-                    {expand: true, cwd: 'dist', src: '**/*.js', dest: 'target/root/js'},
-                    {expand: true, cwd: 'sample', src: '**', dest: 'target/root'}
-                ]
-            },
             dist: {
                 files: [
                     {expand: true, cwd: 'target/combined', src: '**/*.js', dest: 'dist'}
@@ -368,17 +299,6 @@ module.exports = function (grunt) {
                 ]
             }
         }
-    });
-
-    //noinspection JSUnresolvedFunction
-    grunt.registerTask('server', 'Start the web-server for fast debugging.', function (port) {
-        port = typeof port === 'undefined' || port === null || isNaN(parseFloat(port)) || !isFinite(port) ? defaultPort : parseInt(port);
-
-        grunt.config.set('server.port', port);
-        grunt.log.writeln('Starting web server on port ' + port + '...');
-
-        //noinspection JSUnresolvedVariable
-        grunt.task.run('setup', 'connect:server', 'watch:server');
     });
 
     //noinspection JSUnresolvedFunction
@@ -427,13 +347,6 @@ module.exports = function (grunt) {
     });
 
     //noinspection JSUnresolvedFunction
-    grunt.registerTask('setup', 'Updates the files for the web server', function () {
-
-        //noinspection JSUnresolvedVariable
-        grunt.task.run('clean:setup', 'combine:false', 'createBowerDir', 'bower:setup', 'dist', 'copy:setup');
-    });
-
-    //noinspection JSUnresolvedFunction
     grunt.registerTask('publish', 'Publishes the package to npm', function () {
 
         //noinspection JSUnresolvedVariable
@@ -443,8 +356,6 @@ module.exports = function (grunt) {
     //noinspection JSUnresolvedFunction
     grunt.registerTask('help', 'Help output regarding the tasks', function () {
         console.log('Usage:');
-        console.log(' - grunt server<port> : to start a web server on the defined port (default: ' + defaultPort + '); auto refresh is enabled');
-        console.log(' - grunt setup        : updates the current version of the web server');
         console.log(' - grunt dep:<bool>   : to resolve dependencies; true to clean up dependencies, otherwise false (default)');
         console.log(' - grunt dist         : run tests, then minify and distribute the tested files');
         console.log(' - grunt test         : prepare Chromium and a core test bundle, then run Jasmine specs (optional --spec=<filename>)');
