@@ -34,16 +34,6 @@
             onReady();
         }
     };
-    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
-        if (typeof onReady === 'function') {
-            onReady();
-        }
-    };
-    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
-        if (typeof onLookUp === 'function') {
-            onLookUp();
-        }
-    };
     Breinify.temporalDataUser = function (user, timezone, localDateTime, sign, onReady) {
          if (typeof onReady === 'function') {
             onReady();
@@ -76,6 +66,15 @@
     };
     Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
+        consent: {
+            configure: function () {},
+            evaluate: function (callback) {
+                if (typeof callback === 'function') {
+                    callback(Object.freeze({}));
+                }
+            },
+            onChange: function () { return function () {}; }
+        },
         out: {
             normalizeErrorMessage: function(error) { console.error(error); },
             log: function (logLevel, message) { console.log(message); },

@@ -19,6 +19,88 @@
     };
 
     const _private = {
+        consent: {
+            denied: Object.freeze({}),
+            configured: false,
+            provider: null,
+            timeoutInMs: 2500,
+            generation: 0,
+            revision: 0,
+            pending: null,
+            current: null,
+            unsubscribe: null,
+            listeners: [],
+
+            invoke: function (callback, value) {
+                try {
+                    callback(value);
+                } catch (error) {
+                    // consent errors must not generate tracking activities
+                    scope.console.error('Breinify consent callback failed.', error);
+                }
+            },
+
+            normalize: function (value) {
+                if (!$.isPlainObject(value)) {
+                    return null;
+                }
+
+                const result = {};
+                const keys = Object.keys(value);
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    if (typeof value[key] !== 'boolean') {
+                        return null;
+                    }
+                    Object.defineProperty(result, key, {value: value[key], enumerable: true});
+                }
+                return Object.freeze(result);
+            },
+
+            publish: function (value) {
+                const consent = _private.consent;
+                const keys = Object.keys(value);
+                const previous = consent.current;
+                const unchanged = previous !== null && keys.length === Object.keys(previous).length &&
+                    keys.every(function (key) {
+                        return Object.prototype.hasOwnProperty.call(previous, key) && previous[key] === value[key];
+                    });
+                if (unchanged) {
+                    return;
+                }
+
+                consent.current = value;
+                const activeGeneration = consent.generation;
+                const activeRevision = consent.revision;
+                consent.listeners.slice().forEach(function (listener) {
+                    if (activeGeneration === consent.generation && activeRevision === consent.revision) {
+                        consent.invoke(listener, value);
+                    }
+                });
+            },
+
+            complete: function (value, notify) {
+                const consent = _private.consent;
+                const request = consent.pending;
+                consent.pending = null;
+                if (request !== null) {
+                    scope.clearTimeout(request.timer);
+                }
+
+                const activeGeneration = consent.generation;
+                const activeRevision = consent.revision;
+                if (notify !== false) {
+                    consent.publish(value);
+                }
+                if (request !== null) {
+                    request.callbacks.forEach(function (callback) {
+                        const unchanged = activeGeneration === consent.generation && activeRevision === consent.revision;
+                        consent.invoke(callback, unchanged ? value : consent.denied);
+                    });
+                }
+            }
+        },
+
         /**
          * Validates only the options owned by a formatter; never mutates the caller's options.
          */
@@ -518,6 +600,128 @@
     };
 
     const BreinifyUtil = {
+
+        /**
+         * Core consent lifecycle, available before setConfig and utility initialization.
+         * See documentation/consent.md for the provider and consumer contracts.
+         */
+        consent: {
+            /**
+             * Installs a provider and starts the initial consent evaluation.
+             */
+            configure: function (settings) {
+                const consent = _private.consent;
+                if (!$.isPlainObject(settings)) {
+                    throw new TypeError('Consent settings must be a plain object.');
+                }
+                const wait = typeof settings.timeoutInMs === 'undefined' ? 2500 : settings.timeoutInMs;
+                const nextProvider = settings.provider;
+                if (typeof wait !== 'number' || !Number.isFinite(wait) || wait < 0 || wait > 2147483647) {
+                    throw new RangeError('Consent timeoutInMs must be between 0 and 2147483647.');
+                } else if (nextProvider != null && (typeof nextProvider.evaluate !== 'function' ||
+                    (typeof nextProvider.onChange !== 'undefined' && typeof nextProvider.onChange !== 'function'))) {
+                    throw new TypeError('A consent provider needs evaluate and an optional onChange function.');
+                }
+
+                consent.generation++;
+                consent.revision++;
+                consent.configured = false;
+                consent.provider = null;
+                const previousUnsubscribe = consent.unsubscribe;
+                consent.unsubscribe = null;
+                if (typeof previousUnsubscribe === 'function') {
+                    consent.invoke(previousUnsubscribe);
+                }
+                consent.complete(consent.denied, consent.current !== null);
+                consent.current = null;
+
+                consent.provider = nextProvider || null;
+                consent.timeoutInMs = wait;
+                consent.configured = true;
+                const activeGeneration = consent.generation;
+                if (consent.provider !== null && typeof consent.provider.onChange === 'function') {
+                    try {
+                        consent.unsubscribe = consent.provider.onChange(function (value) {
+                            if (activeGeneration !== consent.generation) {
+                                return;
+                            }
+                            const snapshot = consent.normalize(value);
+                            if (snapshot !== null) {
+                                consent.revision++;
+                                consent.complete(snapshot);
+                            }
+                        });
+                    } catch (error) {
+                        scope.console.error('Breinify consent observer failed.', error);
+                    }
+                }
+                this.evaluate(function () {});
+            },
+
+            /**
+             * Evaluates current permissions; concurrent callers share the pending evaluation.
+             */
+            evaluate: function (callback) {
+                const consent = _private.consent;
+                if (typeof callback !== 'function') {
+                    throw new TypeError('Consent evaluation requires a callback.');
+                } else if (!consent.configured) {
+                    consent.invoke(callback, consent.denied);
+                    return;
+                } else if (consent.pending !== null) {
+                    consent.pending.callbacks.push(callback);
+                    return;
+                }
+
+                const activeGeneration = consent.generation;
+                const activeRevision = ++consent.revision;
+                const request = {callbacks: [callback], timer: null};
+                consent.pending = request;
+                request.timer = scope.setTimeout(function () {
+                    if (consent.pending === request) {
+                        consent.complete(consent.denied);
+                    }
+                }, consent.timeoutInMs);
+
+                if (consent.provider !== null) {
+                    try {
+                        consent.provider.evaluate(function (value) {
+                            if (activeGeneration !== consent.generation || activeRevision !== consent.revision) {
+                                return;
+                            }
+                            const snapshot = consent.normalize(value);
+                            if (snapshot !== null) {
+                                consent.revision++;
+                                consent.complete(snapshot);
+                            }
+                        });
+                    } catch (error) {
+                        // an unavailable provider follows the same timeout as unknown consent
+                        scope.console.error('Breinify consent evaluation failed.', error);
+                    }
+                }
+            },
+
+            /**
+             * Observes permission changes and returns an unsubscribe function.
+             */
+            onChange: function (listener) {
+                const consent = _private.consent;
+                if (typeof listener !== 'function') {
+                    throw new TypeError('A consent observer must be a function.');
+                }
+                const subscription = function (value) {
+                    listener(value);
+                };
+                consent.listeners.push(subscription);
+                return function () {
+                    const index = consent.listeners.indexOf(subscription);
+                    if (index !== -1) {
+                        consent.listeners.splice(index, 1);
+                    }
+                };
+            }
+        },
 
         _init: function () {
             _private.domObserver.init();

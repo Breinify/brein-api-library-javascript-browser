@@ -1,122 +1,107 @@
 ## User Field Documentation
 
-Breinify supports various user properties that you can include in the analytics.
+Pass user information as a plain object to methods such as `Breinify.activity` and `Breinify.temporalData`.
+The fields below are supported by `Breinify.BreinifyUser`; unknown top-level fields throw an error.
+Put custom metadata inside `additional`.
 
-### Example of different user info
+### Examples
+
+Each object is an independent example. Combine known fields in one object when appropriate.
 
 ```javascript
-var user1 = {
-    'email' : 'johndoe@gmail.com'
+const emailUser = {
+    email: 'johndoe@gmail.com'
 };
 
-var user2 = {
-    'firstName' : 'John',
-    'lastName' : 'Doe',
-    'dateOfBirth' : new Date(88387200 * 1000);
+const namedUser = {
+    firstName: 'John',
+    lastName: 'Doe',
+    dateOfBirth: '07/30/1985'
 };
 
-var user3 = {
-    'md5Email' : '761cd16b141770ecb0bbb8a4e5962d16'
+const hashedUser = {
+    md5Email: Breinify.UTL.md5('johndoe@gmail.com')
 };
 
-var user4 = {
-    'deviceId' : 'AAAAAAAAA-BBBB-CCCC-1111-222222220000'
+const deviceUser = {
+    deviceId: 'AAAAAAAA-BBBB-CCCC-1111-222222220000'
 };
 
-/*
- * A user can contain additional information, which may be relevant for the end-point called,
- * e.g., the result of temporalData may enhance if a longitute and latitude is passed.
- */
-var user4 = {
-    'additional': {
-      'location': {
-        'latitude': 37.323,
-        'longitude': -122.0322
-      }
+// provide location context for temporal-data requests
+const locationUser = {
+    additional: {
+        location: {
+            latitude: 37.323,
+            longitude: -122.0322
+        }
     }
 };
+
+Breinify.temporalData(locationUser, false, (data, error) => {
+    if (error) {
+        console.error(error, data);
+        return;
+    }
+    console.log(data);
+});
 ```
 
 ### Fields
 
-#### Email
+These examples describe the values to supply. Except for the structure of `additional`, the browser library
+primarily checks field names rather than enforcing each field's type or format.
 
-Attribute key: `email`
+| Attribute key | Example value | Description |
+| --- | --- | --- |
+| `email` | `'johndoe@gmail.com'` | The user's email address. Setting a nonempty email also computes `md5Email`. |
+| `emails` | `['johndoe@gmail.com', 'john@example.com']` | Additional email addresses associated with the user. |
+| `firstName` | `'John'` | The user's first name. |
+| `lastName` | `'Doe'` | The user's last name. |
+| `dateOfBirth` | `'07/30/1985'` | The user's date of birth. Use a date string; repository examples use `MM/DD/YYYY`. The library does not parse or validate this format. |
+| `deviceId` | `'AAAAAAAA-BBBB-CCCC-1111-222222220000'` | An identifier for the user's device. |
+| `md5Email` | `Breinify.UTL.md5('johndoe@gmail.com')` | The MD5 hash of an email address. When `email` is present, its computed hash takes precedence. The library hashes the supplied string without trimming or lowercasing it. |
+| `sessionId` | `'SID:ANON:example.com:j6oAOxCWZ'` | The current session identifier. API request helpers supply one automatically when it is not overridden. |
+| `sessionIds` | `['previous-session-id']` | Other session identifiers associated with the user. |
+| `phone` | `'+14155550123'` | The user's phone number. |
+| `userId` | `'customer-123'` | Your application’s user identifier. |
+| `userIds` | `['customer-123', 'loyalty-456']` | Other user identifiers associated with the user. |
+| `twitterId` | `'123456789'` | The user's Twitter identifier. |
+| `additional` | `{location: {latitude: 37.323, longitude: -122.0322}}` | A plain object containing location context and other metadata. Nested objects are allowed. |
 
-Example value: `johndoe@gmail.com`
+Pass a date string rather than a JavaScript `Date` object. The current user setter treats objects without
+enumerable properties, including ordinary `Date` instances, as empty and removes the field. It does not
+convert a `Date` into a birthday string.
 
-Description: The email address of the current user, if known.
+### Additional information
 
-#### First Name
+These objects are values for the user's `additional` field, not standalone user objects:
 
-Attribute key: `firstName`
-
-Example value: `John`
-
-Description: The first name of the current user, if known.
-
-#### Last Name
-
-Attribute String: `lastName`
-
-Example: `Doe`
-
-Description: The last name of the current user, if known.
-
-#### Date of Birth
-
-Attribute key: `dateOfBirth`
-
-Example value: `new Date(1985, 6, 30)`
-
-Description: The email address of the current user, if known.
-
-#### Device ID
-
-Attribute key: `deviceId`
-
-Example value: `AAAAAAAAA-BBBB-CCCC-1111-222222220000`
-
-Description: The current user's device's id, if known.
-
-#### MD5 Email
-
-Attribute key: `md5Email`
-
-Example value: `761cd16b141770ecb0bbb8a4e5962d16`
-
-Description: A hashed version of the user's email address.
-
-
-#### Session ID
-
-Attribute key: `sessionId`
-
-Example value: `SID:ANON:w3.org:j6oAOxCWZ`
-
-Description: The user's [Session Id](https://en.wikipedia.org/wiki/Session_ID).
-
-#### additional Information
-
-Attribute key: `additional`
-
-Example values:
-
-```
-var additional1 = {
-    'location': {
-        'latitude': 37.323,
-        'longitude': -122.0322
+```javascript
+const coordinateInfo = {
+    location: {
+        latitude: 37.323,
+        longitude: -122.0322
     }
 };
 
-var additional2 = {
-    'location': {
-        'city': 'Cupertino',
-        'state': 'California',
-        'country': 'US'
+const addressInfo = {
+    location: {
+        city: 'Cupertino',
+        state: 'California',
+        country: 'US'
     }
+};
+
+const user = {
+    email: 'johndoe@gmail.com',
+    additional: coordinateInfo
 };
 ```
 
-Description: The user's [Session Id](https://en.wikipedia.org/wiki/Session_ID).
+When creating a user, the library fills missing browser context in `additional`, including `userAgent`,
+`referrer` (when available), `url`, `timezone` (when available), and `localDateTime`. Request helpers also
+add session and browser identifiers. An empty object `{}` can therefore be used for an anonymous request.
+
+For asynchronous user creation, if numeric latitude and longitude are missing, the library may attempt
+browser geolocation only when the browser's Permissions API reports that permission is already granted.
+It does not prompt for location permission. Supply coordinates explicitly when the request needs a known location.

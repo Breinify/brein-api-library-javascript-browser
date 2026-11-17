@@ -14,6 +14,12 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 
 **TemporalData Endpoint**: The endpoint offers features to resolve temporal information like a timestamp, a location (latitude and longitude or free-text), or an IP-address, to temporal information (e.g., timezone, epoch, formatted dates, day-name),  holidays at the specified time and location, city, zip-code, neighborhood, country, or county of the location, events at the specified time and location (e.g., description, size, type), weather at the specified time and location (e.g., description, temperature).
 
+## Consent
+
+The core `Breinify.UTL.consent` object supports provider configuration, evaluation with a timeout,
+and change notifications before customer initialization. See [the consent contract](documentation/consent.md).
+This is the foundation only; existing requests and data access are not yet connected to it.
+
 ## Running tests
 
 The `test` task runs `test-setup` → `clean:combine` → `combine:false` → `test-run`. Specs load

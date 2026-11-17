@@ -4,65 +4,113 @@
 
 ### Library Documentation
 
-The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. Thus, the following documentation is organized in three sections: *General Attributes*, *API*, and *Utilities (UTL)*.
+The library provides several attributes, methods, and objects to simplify the usage of the Breinify API. Besides methods to actually send or retrieve data, it also includes general information (e.g., about the version and used configuration), as well as utilities. This reference covers the core library. Separately loaded plugins have their own APIs and documentation.
 
-This documentation is organized as following:
+The examples use modern JavaScript and assume that the library has been loaded and configured.
+This page covers the following API methods and utilities:
 
+* [Version availability](#version-availability)
 * [General Attributes](#general-attributes)
-  * Breinify.version [since version 1.0.1]
-  * Breinify.config() [since version 1.0.1]
-  * Breinify.setConfig(config) [since version 1.0.1]
+  * Breinify.version
+  * Breinify.config()
+  * Breinify.setConfig(config)
+  * Breinify.onReady(callback)
+  * [Complete configuration reference](#complete-configuration-reference)
 * [API](#api)
-  * Breinify.activity(user, type, category, description, tags, sign, onReady) [since version 1.0.1]
-  * Breinify.temporaldata(user, sign, onReady) [since version 1.0.11]
+  * Breinify.activity(user, type, category, description, tags, sign, onReady)
+  * Breinify.temporalData(user, sign, onReady)
+  * [Breinify.recommendation](#recommendations)
+  * [Breinify.service](#services)
+  * [Request builders](#request-builders)
+  * [Error reporting](#error-reporting)
 * [Utilities (UTL)](#utilities-utl)
   * [Breinify.UTL (general functions)](#breinifyutl-general-functions)
-    * Breinify.UTL.trimQuotes(str, inclSingleQuotes) [since version 1.0.1]
-    * Breinify.UTL.texts(selector, excludeChildren) [since version 1.0.1]
-    * Breinify.UTL.text(selector, excludeChildren) [since version 1.0.1]
-    * Breinify.UTL.setText(selector, value) [since version 1.0.1]
-    * Breinify.UTL.md5(value) [since version 1.0.1]
-    * Breinify.UTL.isEmpty(value) [since version 1.0.1]
-    * Breinify.UTL.isSimpleObject(obj) [since version 1.0.1]
-    * Breinify.UTL.unixTimestamp() [since version 1.0.1]
-    * Breinify.UTL.timezone() [since version 1.0.1]
-    * Breinify.UTL.localDateTime() [since version 1.0.1]
-    * Breinify.UTL.endsWith() [since version 1.0.16]
-    * Breinify.UTL.getNested() [since version 1.0.18]
-    * Breinify.UTL.deleteNullProperties() [since version 1.0.19]
-    * Breinify.UTL.uuid() [since version 1.0.13]
-    * Breinify.UTL.capitalize() [since version 1.0.23]
-    * Breinify.UTL.lowerize() [since version 1.0.23]
-    * Breinify.UTL.firstLetter() [since version 1.0.23]
-    * Breinify.UTL.toNumber() [since version 1.0.23]
-    * Breinify.UTL.isNonEmptyString() [since version 1.0.24]
-    * Breinify.UTL.toPrice() [since version 1.0.24]
-    * Breinify.UTL.formatPrice() [since version 1.0.24]
+    * Breinify.UTL.trimQuotes(str, inclSingleQuotes)
+    * Breinify.UTL.texts(selector, excludeChildren)
+    * Breinify.UTL.text(selector, excludeChildren)
+    * Breinify.UTL.setText(selector, value)
+    * Breinify.UTL.md5(value)
+    * Breinify.UTL.isEmpty(value)
+    * Breinify.UTL.isSimpleObject(obj)
+    * Breinify.UTL.unixTimestamp()
+    * Breinify.UTL.timezone()
+    * Breinify.UTL.localDateTime()
+    * Breinify.UTL.endsWith(str, suffix)
+    * Breinify.UTL.getNested(obj, str1, str2, ...)
+    * Breinify.UTL.deleteNullProperties(obj)
+    * Breinify.UTL.uuid()
+    * Breinify.UTL.capitalize(str)
+    * Breinify.UTL.lowerize(str)
+    * Breinify.UTL.firstLetter(str, toLowerCase)
+    * Breinify.UTL.toNumber(value)
+    * Breinify.UTL.isNonEmptyString(value)
+    * Breinify.UTL.toPrice(value)
+    * Breinify.UTL.formatPrice(price, settings)
     * [Breinify.UTL.formatDuration(value, unit, settings)](#duration-formatting)
     * [Breinify.UTL.formatValue(value, formatter, options)](#typed-value-formatting)
     * [Breinify.UTL.placeholders](#placeholder-utilities)
-    * Breinify.UTL.toInteger() [since version 1.0.24]
-    * Breinify.UTL.equals() [since version 1.0.24]
+    * Breinify.UTL.toInteger(value)
+    * Breinify.UTL.equals(first, second)
   * [Breinify.UTL.events](#breinifyutlevents)
-    * Breinify.UTL.events.click(selector, func, onlyOnce) [since version 1.0.1]
-    * Breinify.UTL.events.pageloaded(func) [since version 1.0.1]
+    * Breinify.UTL.events.click(selector, func, onlyOnce)
+    * Breinify.UTL.events.pageloaded(func)
   * [Breinify.UTL.loc](#breinifyutlloc)
-    * Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
-    * Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
-    * Breinify.UTL.loc.isParam(param, params) [since version 1.0.1]
-    * Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
-    * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
-    * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url) [since version 1.0.1]
-    * Breinify.UTL.loc.url() [since version 1.0.1]
-    * Breinify.UTL.loc.extract() [since version 1.0.16]
-    * Breinify.UTL.loc.matches(regEx) [since version 1.0.1]
+    * Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.isParam(param, params)
+    * Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)
+    * Breinify.UTL.loc.url()
+    * Breinify.UTL.loc.extract(url)
+    * Breinify.UTL.loc.matches(regEx)
   * [Breinify.UTL.cookie](#breinifyutlcookie)
-    * Breinify.UTL.cookie.all() [since version 1.0.1]
-    * Breinify.UTL.cookie.reset(name, domain) [since version 1.0.1]
-    * Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain) [since version 1.0.1]
-    * Breinify.UTL.cookie.get(name) [since version 1.0.1]
-    * Breinify.UTL.cookie.check(name) [since version 1.0.1]
-    * Breinify.UTL._query() [since version 1.0.16]
+    * Breinify.UTL.cookie.all()
+    * Breinify.UTL.cookie.reset(name, domain)
+    * Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain, httpsOnly, sameSite)
+    * Breinify.UTL.cookie.get(name)
+    * Breinify.UTL.cookie.check(name)
+  * Breinify.UTL._jquery()
+  * [Additional utility methods](#additional-utility-methods)
+  * [User, storage, and integration utilities](#user-storage-and-integration-utilities)
+* [Constructors and plugins](#constructors-and-plugins)
+
+#### Version availability
+
+This reference describes the current source API. `package.json` reports **1.0.25**. The GitHub `master`
+revision checked on 2026-11-17 is [`c8139fb`](https://github.com/Breinify/brein-api-library-javascript-browser/commit/c8139fbdf4a6b8639f5fb07668f78527c964c909), matching the local committed source.
+The highest available Git tag is **1.0.23**; neither `1.0.24` nor `1.0.25` has a Git tag.
+Later functionality was added while the package version remained unchanged. A version string alone therefore
+does not establish that a deployed bundle contains every method below. Check the actual bundle's methods or
+use a build from the required source revision. Git history does not prove npm/CDN publication availability.
+
+The table replaces the old, partly incorrect “since version” labels. “Verified tag” means the earliest
+available tag whose source contains the method, not a claim about its first published release or current signature.
+
+| Feature | Earliest verified tag | Source-history evidence where useful |
+| --- | --- | --- |
+| `version`, `config`, `setConfig`, `activity`; text helpers, `md5`, `isEmpty` | `1.0.4` | Earlier untagged source exists; no `1.0.1` tag is available. |
+| `UTL.events.click/pageloaded`; basic URL-parameter helpers and `loc.matches`; `cookie.all/reset/set/get/check` | `1.0.4` | Verified in the earliest available tag; this does not verify the former `1.0.1` claims. |
+| `UTL.isSimpleObject` | `1.0.6` | Added in `f5830af9`, with package version `1.0.6`. |
+| `temporalData`, `UTL.unixTimestamp`, `UTL.timezone`, `UTL.localDateTime` | `1.0.7` | These predate the old `temporalData` claim of `1.0.11`. |
+| `recommendation`, `UTL.trimQuotes` | `1.0.8` | `trimQuotes` was added in `e397e73a`; its old `1.0.1` label was incorrect. |
+| `UTL.uuid` | `1.0.15` | Added in `a8c9ff5f` while the package said `1.0.13`; no `1.0.13` tag is available. |
+| `UTL.endsWith`, `UTL.getNested`, `UTL.loc.extract`, `UTL._jquery` | `1.0.16` | `getNested` was already present before the old `1.0.18` claim. |
+| `UTL.deleteNullProperties` | `1.0.19` | Added in `66258a68` with package version `1.0.19`. |
+| `onReady`, `UTL.capitalize`, `UTL.lowerize`, `UTL.firstLetter`, `UTL.toNumber` | `1.0.23` | Added during the untagged `1.0.22` development period. |
+| `handleError` | `1.0.23` | Present in the tagged source; later error-reporting helpers are separate additions. |
+| `UTL.isNonEmptyString`, `UTL.toPrice`, `UTL.toInteger`, `UTL.formatPrice`, `UTL.equals` | No available tag | Added in `ad727cf6`, `7f9a2b04`, and `b17167f9` while the package said `1.0.24`. |
+| `service` and `serviceUser` | No available tag | Added in `77a5a78d` (2026-06-30), package version `1.0.25`. |
+| `UTL.formatValue`, `UTL.placeholders` | No available tag | Added in `d2a6708b` (2026-10-27), package version `1.0.25`. |
+| `UTL.formatDuration` | No available tag | Added in `015eeae9` (2026-11-04); singular labels followed in `501f568`. Package version stayed `1.0.25`. |
+| `handleCaughtError`, `reportExecutionError` | No available tag | Added in `e1127098` and `0c4218c5` (2026-11-04), package version `1.0.25`. |
+| `UTL.user.getReferrerData` | No available tag | Added in `81d1d886` (2026-07-18), package version `1.0.25`; its current behavior is described below. |
+| `UTL.consent` | Working-tree addition at review time | Not present in the audited `master` revision; do not infer availability from `1.0.25`. |
+
+The core request methods and non-internal utility methods are covered below. Private implementation details
+(`UTL.internal`, underscore-prefixed lifecycle hooks, mutable caches, and plugin internals) are not a supported
+application contract. `_jquery()` is documented because integrations use it explicitly. Plugin-specific methods
+are outside the core reference; see [Constructors and plugins](#constructors-and-plugins).
 
 #### General Attributes
 
@@ -71,23 +119,24 @@ This documentation is organized as following:
 
   **Example Usage**:
   ```javascript
-  window.alert('The current version of the library is: ' + Breinify.version);
+  window.alert(`The current version of the library is: ${Breinify.version}`);
   ```
   <br/>
 
 * {object} **Breinify.config()**:<br/>
-  Retrieves the current configuration of the library. The following JSON is a sample object return by this function.
+  Retrieves the current configuration object. The following example shows selected default properties; the returned object also includes other settings and callback functions.
 
   ```javascript
-  {
+  const config = {
     activityEndpoint: '/activity',
     apiKey: '0000-0000-0000-0000-0000-0000-0000-0000',
     category: 'other',
     secret: null,
-    timeout: 1000,
+    temporaldataEndpoint: '/temporaldata',
+    timeout: 4000,
     url: 'https://api.breinify.com',
     validate: true
-  }
+  };
   ```
 
   **Configuration Properties**:
@@ -97,23 +146,27 @@ This documentation is organized as following:
   {string} **apiKey**: The API-key to be used (mandatory).
 
   {string} **temporaldataEndpoint**: The end-point of the API to retrieve temporal-data results.
-  
-  {string} **secret**: The secret attached to the API-key (should always be null utilizing this type of library).
 
-  {number} **timeout**: The maximum amount of time in milliseconds an API-call should take. If the API does not response after this amount of time, the call is cancelled.
+  {string|null} **secret**: The secret attached to the API-key (should always be null utilizing this type of library).
 
-  {string} **url**: The url of the API.
+  {number} **timeout**: The request timeout in milliseconds (default: `4000`). If the API does not respond within this time, the request is cancelled.
+
+  {string} **url**: The URL of the API.
+
+  {string|null} **category**: The default activity category (default: `'other'`).
+
+  {boolean} **validate**: Whether configuration properties are validated (default: `true`).
 
   **Example Usage**:
   ```javascript
-  $.each(Breinify.config(), function (property, value) {
-    console.log('The configuration property "' + property + '" has the value "' + value + '".')
-  });
+  for (const [property, value] of Object.entries(Breinify.config())) {
+    console.log(`The configuration property "${property}" has the value "${value}".`);
+  }
   ```
   <br/>
 
 * **Breinify.setConfig(config)**:<br/>
-  Updates the current configuration of the library for the properties supplied.
+  Replaces the current configuration with the supplied properties plus library defaults. Omitted properties reset to their defaults. To preserve existing settings, pass `{...Breinify.config(), ...changes}`.
 
   **Parameters**:
 
@@ -127,6 +180,41 @@ This documentation is organized as following:
   ```
   <br/>
 
+* **Breinify.onReady(callback)**:<br/>
+  Registers a function to run after the first `setConfig` call. If already ready, schedules the callback with
+  a zero-delay timer. This indicates configuration readiness, not completion of requests or DOM readiness.
+  Do not depend on callback arguments: registration before configuration uses an event handler, while later
+  registration invokes the callback without arguments.
+
+* {string} **Breinify.jQueryVersion**:<br/>
+  The version of the bundled jQuery instance, or `'FALLBACK'` if normal library loading failed.
+
+##### Complete configuration reference
+
+In addition to the properties described above, the following settings are accepted by
+[`BreinifyConfig`](../src/BreinifyConfig.js). This table covers all remaining registered configuration keys.
+
+| Property | Default | Meaning |
+| --- | --- | --- |
+| `recommendationEndpoint` | `'/recommendation'` | Recommendation path relative to `url`. |
+| `serviceUrl` | `'https://aps.breinify.com'` | Base URL for service-gateway requests. |
+| `serviceEndpoint` | `'/services/request'` | Service-gateway path. |
+| `withCredentials` | `false` | Sets the AJAX request's `xhrFields.withCredentials`. |
+| `handleParameters` | `false` | Processes Breinify tracking parameters when `setConfig` runs. |
+| `parametersMapper` | Identity function | Maps decoded tracking-parameter data before handling it. |
+| `handleUtm` | `false` | Processes UTM parameters when `setConfig` runs. |
+| `utmMapper` | Returns `{utmData, user}` | Maps UTM data and its user before activity generation. |
+| `handleReferrer` | `true` | Enables referrer enrichment; adds session-entry journey information. |
+| `createUser` | Returns `{}` | Supplies default user information before request-specific enrichment and overrides. |
+| `errorTagsMapper` | Built-in mapper | Maps eligible script-error events to activity tags; returning a non-plain-object value suppresses reporting. |
+| `cookieDomain` | `null` | Optional domain used by `UTL.cookie.domain()`; it is not automatically applied to every raw `cookie.set` call. |
+| `cookieHttpsOnly` | `true` | Default Secure flag for cookies. |
+| `cookieSameSite` | `'none'` | Default SameSite value for cookies. |
+
+Calling `setConfig` can run configured parameter handlers and initialize DOM observation. Set callbacks and
+tracking settings before calling it. Mapper functions and `createUser` are synchronous; returning a Promise
+is not a supported replacement for their result objects.
+
 #### API
 
 * **Breinify.activity(user, type, category, description, tags, sign, onReady)**:<br/>
@@ -136,137 +224,252 @@ This documentation is organized as following:
 
   {object} **user**: A plain object specifying the user information the activity belongs to. More information about the structure can be found [here](./user.md).
 
-  {string|null} **type**: The type of the activity collected, i.e., one of *search*, *login*, *logout*, *addToCart*, *removeFromCart*, *checkOut*, *selectProduct*, or *other*. If not specified, the default *other* will be used.
+  {string|null} **type**: The activity type, for example `search`, `login`, `logout`, `addToCart`, `removeFromCart`, `checkOut`, `selectProduct`, or `other`. The library does not enforce this list or default the type to `other`; pass the intended type explicitly.
 
-  {string|null} **category**: The category of the platform/service/products, i.e., one of *apparel*, *home*, *education*, *family*, *food*, *health*, *job*, *services*, or *other*. If not specified, the configured type (see *Breinify.config().category*) is used.
+  {string|null} **category**: The platform, service, or product category, for example `apparel`, `home`, `education`, `family`, `food`, `health`, `job`, `services`, or `other`. The library does not enforce this list. If not specified, the configured category (see *Breinify.config().category*) is used.
 
-  {string|null} **description**: A string with further information about the activity performed. Depending on the type of the activity, some typical descriptions are: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and the amount or monetary value items (type === 'checkout').
-  
-  {object|null} **tags**: The tags associated to the activity, must be a simple object (see utility function: [isSimpleObject](#breinifyutl-general-functions)).
+  {string|null} **description**: A string with further information about the activity performed. Depending on the type of the activity, some typical descriptions are: the used search query (type === 'search'), the name of the selected product (type === 'selectProduct'), the item added or removed from the cart (type === 'addToCart' || type === 'removeFromCart'), and checkout details (type === 'checkOut').
 
-  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
+  {object|null} **tags**: Activity tags as a simple object (see [isSimpleObject](#breinifyutl-general-functions)). Omitted or `null` tags become `{}`. Unsupported property values and incompatible array entries become `null`.
 
-  {function|null} **onReady**: A function which is triggered after the activity was sent. The function has the retrieved answer as the first parameter.
+  {boolean|null} **sign**: Whether to sign the request using a configured `secret`. For activities, omitted or `null` signing follows whether a secret is configured; temporal-data requests default to unsigned. Keep `secret` set to `null` and use `false` in browser examples; do not expose a signing secret in browser code.
+
+  {function|null} **onReady**: Optional callback. On success it receives the response as its first argument. On request failure it receives an error-details object and an error-message string as its second argument.
+
+  **Supported call forms** (argument count matters):
+
+  * `activity(user, type)`
+  * `activity(user, type, tags)`
+  * `activity(user, type, description, tags)`
+  * `activity(user, type, category, description, tags)`
+  * `activity(user, type, category, description, tags, onReady)`
+  * `activity(user, type, category, description, tags, sign, onReady)`
+
+  Use `null` for an unused category or description in the longer forms. There is no six-argument form ending in a boolean; use the seven-argument form with a callback to set `sign` explicitly.
 
   **Example Usage**:
   ```javascript
-  var product = 'The selected product';
-  var userEmail = 'thecurrentuser@me.com';
+  const product = 'The selected product';
+  const userEmail = 'thecurrentuser@me.com';
   Breinify.activity({
-    'email': userEmail
+    email: userEmail
   }, 'selectProduct', null, product, {
-    'isAdvertised': true  
-  }, false, function () {
-    show('Sent activity "selectProduct" with product "' + product + '".');
+    isAdvertised: true
+  }, false, (data, error) => {
+    if (error) {
+      console.error(error, data);
+      return;
+    }
+    console.log(`Sent activity "selectProduct" with product "${product}".`);
   });
   ```
   <br/>
 
-* **Breinify.temporaldata(user, sign, onReady)**:<br/>
-  Retrieves temporal information about the passed user information. 
-  
+* **Breinify.temporalData(user, sign, onReady)**:<br/>
+  Retrieves temporal information about the passed user information.
+
   **Parameters**:
 
   {object} **user**: A plain object specifying the user information the temporal data should be retrieved for. More information about the structure can be found [here](./user.md).
 
-  {boolean|null} **sign**: A boolean value specifying if the call should be signed, which is only available if the *secret* is configured. It is strongly advised not to use a signed call when utilizing this library.
+  {boolean|null} **sign**: Whether to sign the request using a configured `secret`. Omitted or `null` signing defaults to `false`. Keep `secret` set to `null` and use `false` in browser examples; do not expose a signing secret in browser code.
 
-  {function|null} **onReady**: A function which is triggered after the answer of the call was received. The function has the retrieved information as first parameter.
+  {function} **onReady**: Callback receiving the response on success, or an error-details object and an error-message string on request failure.
+
+  **Supported call forms**: `temporalData(onReady)`, `temporalData(sign, onReady)`, `temporalData(user, onReady)`, and `temporalData(user, sign, onReady)`. Use `{}` when no user information is available.
 
   **Example Usage**:
-  ```
-  Breinify.temporalData({}, false, function (data) {
+  ```javascript
+  Breinify.temporalData({}, false, (data, error) => {
+    if (error) {
+      console.error(error, data);
+      return;
+    }
     console.log(data);
   });
   ```
   <br/>
-  
+
+##### Recommendations
+
+`Breinify.recommendation(...)` sends a POST request to `url + recommendationEndpoint`. The callback uses
+`(data, errorText)`, like activities and temporal data. Supported forms are:
+
+* `recommendation(user, callback)` — requests three recommendations.
+* `recommendation(user, count, callback)`
+* `recommendation(user, count, category, callback)`
+* `recommendation(user, count, sign, callback)`
+* `recommendation(user, count, category, sign, callback)`
+* `recommendation(user, settings, callback)`
+* `recommendation(user, settings, sign, callback)`
+
+`user` is a plain object, `count` is a number, `category` is a string, and `sign` is a boolean (default `false`).
+`settings` can be a plain recommendation object or an array of them. A count becomes `numRecommendations`;
+a category becomes a one-element `recommendationCategories` array. An array of settings is sent under
+`recommendations`; one object is sent under `recommendation`.
+
+```javascript
+Breinify.recommendation({}, {numRecommendations: 3}, false, (data, error) => {
+  if (error) {
+    console.error(error, data);
+    return;
+  }
+  console.log(data);
+});
+```
+
+The library stores returned split-test data. If the Recommendations plugin is loaded, its render/activity
+hooks can also run for core recommendation calls. A configured `recommendationRequestWrapper` customization
+can intercept the request and response. Recommendation-object fields beyond the core count/category mapping
+belong to the backend or the selected plugin contract.
+
+##### Services
+
+`Breinify.service(service, payload, callback)` and `Breinify.service(service, payload, user, callback)` submit
+a request to the service gateway. `service` is a nonempty service-token string, `payload` is a plain object,
+and the optional `user` is a plain object. The library adds the resolved user to `payload.user`; explicit
+`payload.user` values override the separate user argument and generated defaults. The supplied payload is copied.
+
+**The callback is different from the other request methods:** `callback(error, progress, result)`.
+
+* Running job: `(null, {progress, additionalData}, null)`; the library automatically polls again.
+* Success: `(null, null, result)`.
+* Failure: `(error, null, null)`, where the error may be an `Error` or a structured backend/transport value.
+
+Polling uses the returned job ID, optional service URL, and `backOffInMs` (default `250` milliseconds).
+The callback can run multiple times for progress before a terminal result. This API does not return a Promise
+or expose a cancellation handle.
+
+```javascript
+// replace the token with one supplied by your service integration
+const serviceToken = 'YOUR_SERVICE_TOKEN';
+Breinify.service(serviceToken, {}, (error, progress, result) => {
+  if (error != null) {
+    console.error(error);
+  } else if (progress !== null) {
+    console.log('Service progress:', progress);
+  } else {
+    console.log('Service result:', result);
+  }
+});
+```
+
+##### Request builders
+
+These exposed helpers prepare request data and invoke a callback; they do not send the network request.
+They can still enrich users, access identifier storage, or resolve geolocation.
+
+| Method | Callback/result |
+| --- | --- |
+| `Breinify.activityUser(user, type, category, description, tags, sign, onReady)` | `onReady(requestData)` containing `user`, `activity`, `apiKey`, `signature`, and `unixTimestamp`. |
+| `Breinify.temporalDataUser(user, sign, onReady)` | `onReady(requestData)` containing the user, key, signature, and timestamp. |
+| `Breinify.recommendationUser(user, settings, sign, onReady, preFunction)` | `onReady(requestData)` with `recommendation` or `recommendations`. Optional `preFunction(continueWith)` must invoke `continueWith`; `continueWith(false)` cancels creation. |
+| `Breinify.serviceUser(service, payload, user, onReady)` | `onReady({requestData, servicePayload}, null)`, or `onReady(null, error)` on handled preparation failures. |
+
+The first three builders can call back with `null` when preparation fails, such as when signing is requested
+without a string secret. Invalid user/configuration fields may throw instead. They are callback APIs, not Promise APIs.
+
+##### Error reporting
+
+These methods report script errors as activities; a `true` result means reporting was initiated, not that the
+server acknowledged it. Reporting depends on the configured error mapper and eligible source information.
+
+| Method | Behavior |
+| --- | --- |
+| `Breinify.reportExecutionError(error, context)` | Preferred helper for caught execution defects. Requires a JavaScript `Error`, filters operational/configuration failures, deduplicates reports, and limits attempts to 20 per page URL. Returns a boolean. |
+| `Breinify.handleCaughtError(error, context)` | Extracts the first eligible HTTPS stack frame on a single `*.breinify.com` subdomain and delegates to `handleError`. No shared reporting budget; use when the caller owns filtering and deduplication. Returns a boolean. |
+| `Breinify.handleError(event, scriptSourceRegEx, scriptSettings, context)` | Low-level error-event mapping and `scriptError` activity submission. Returns `false` when no mapper is available or it declines the event. |
+
+`reportExecutionError` retains string context fields `plugin`, `phase`, `webExperienceId`, `campaignWebExId`,
+`module`, and `snippetId`. Expected service, network, validation, and permission failures should remain part of
+normal application error handling. See [execution-error behavior](./plugins/ui-modify-content-errors.md).
+
 #### Utilities (UTL)
 
 The utility library provides general functionality, which makes it easy to retrieve values from, e.g., the url or cookies. In addition, it simplifies the retrieval of values from the DOM-tree or the handling of events.
 
 ##### Breinify.UTL (general functions)
 
-* {[string]} **Breinify.UTL.trimQuotes(str, inclSingleQuotes)**:<br/>
+* {string} **Breinify.UTL.trimQuotes(str, inclSingleQuotes)**:<br/>
   Trims a string by removing quotes, i.e. if *inclSingleQuotes* is *true* *"* and *'*, otherwise only *"*. It should be noted, that a value like "test' leads to test, if *inclSingleQuotes* is set to *true*.
-  
+
   **Parameters**:
-  
+
   {string} **str**: The string to be trimmed
-  
-  {boolean|null}: **inclSingleQuotes**: true, if only *"* should be removed, otherwise *'*
-  
+
+  {boolean|null} **inclSingleQuotes**: `true` to remove surrounding single or double quotes; otherwise only double quotes are removed. Non-string input is returned unchanged.
+
   **Example Usage**:
     ```javascript
-    var trimmedText = Breinify.UTL.trimQuotes('"Hello World"', false);
+    const trimmedText = Breinify.UTL.trimQuotes('"Hello World"', false);
     console.log('"Hello World"', trimmedText);
     ```
     <br/>
 
-* {[string]} **Breinify.UTL.texts(selector, excludeChildren)**:<br/>
+* {string[]} **Breinify.UTL.texts(selector, excludeChildren)**:<br/>
   Gets the text of the elements selected by the specified *selector*.
 
   **Parameters**:
 
-  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+  {string|Element|jQuery} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
 
-  {boolean|null} **excludeChildren**: true, if the result for an element should also include the text of the children (concatenated by newline if needed), or false, if only the text of the selected element should be read (default true).
+  {boolean|null} **excludeChildren**: `true` (default) reads text and inline content while skipping ordinary block children; `false` also reads immediate block children and adds a newline after them. Inline content, inputs, and `<br>` elements receive special handling. Nested block descendants are not recursively included without limit.
 
   **Example Usage**:
   ```javascript
-  var texts = Breinify.UTL.texts('ul li', false);
+  const texts = Breinify.UTL.texts('ul li', false);
   console.log(texts);
   ```
   <br/>
 
 * {string} **Breinify.UTL.text(selector, excludeChildren)**:<br/>
-  Gets the concatenated text of the specified element(s).
+  Gets the text of the specified elements joined without a separator. Returns `''` when there are no text results.
 
   **Parameters**:
 
-  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+  {string|Element|jQuery} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
 
-  {boolean|null} **excludeChildren**: true, if the result for an element should also include the text of the children (concatenated by newline if needed), or false, if only the text of the selected element should be read (default true).
+  {boolean|null} **excludeChildren**: `true` (default) reads text and inline content while skipping ordinary block children; `false` also reads immediate block children and adds a newline after them. Inline content, inputs, and `<br>` elements receive special handling. Nested block descendants are not recursively included without limit.
 
   **Example Usage**:
   ```javascript
-  var text = Breinify.UTL.text('input[attr="name"]', false);
+  const text = Breinify.UTL.text('input[name="name"]', false);
   console.log(text);
   ```
   <br/>
 
-* {string} **Breinify.UTL.setText(selector, value)**:<br/>
-  Sets the text for the selected element(s).
+* **Breinify.UTL.setText(selector, value)**:<br/>
+  Sets the value of selected inputs, or the text content of other selected elements. Returns `undefined`.
 
   **Parameters**:
 
-  {string} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
+  {string|Element|jQuery} **selector**: The CSS-selector to specify the element(s) to read from (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors). In addition, the selector can also be a DOM-element.
 
   {string} **value**: The text to be set.
 
   **Example Usage**:
   ```javascript
-  Breinify.UTL.setText('input[attr="name"]', 'Philipp');
+  Breinify.UTL.setText('input[name="name"]', 'Philipp');
   ```
   <br/>
 
-* {string} **Breinify.UTL.md5(value)**:<br/>
-  Gets the hashed value for the passed *value*.
+* {string|null} **Breinify.UTL.md5(value)**:<br/>
+  Returns the MD5 hash of the supplied string, or `null` for a null input.
 
   **Parameters**:
 
-  {string} **value**: The value to be hashed.
+  {string|null} **value**: The value to be hashed.
 
   **Example Usage**:
   ```javascript
-  var md5 = Breinify.UTL.text('HELLO', false);
-  window.alert('The hashed value of "HELLO" is ' + md5);
+  const md5 = Breinify.UTL.md5('HELLO');
+  window.alert(`The hashed value of "HELLO" is ${md5}`);
   ```
   <br/>
 
 * {boolean} **Breinify.UTL.isEmpty(value)**:<br/>
   Checks if the passed *value* is empty. Empty has a different meaning for different types. An *object* is assumed to be empty:
-    * if it is plain and has no attributes
+    * if it is an object with no enumerable properties (including an empty array)
     * if it is a string equal to *''* after it is trimmed
     * if it is *null* or *undefined*
 
@@ -283,39 +486,69 @@ The utility library provides general functionality, which makes it easy to retri
   <br/>
 
 * {boolean} **Breinify.UTL.isSimpleObject(obj)**:<br/>
-  Checks if the passed object is a simple object, i.e., is *null* or is an object without any function and just using simple types (e.g., *boolean*, *string*, *number*, *null*) or an array of simple types (of the same type).
+  Checks if the passed object is a simple object, i.e., is *null* or *undefined*, or is a plain object without any function and just using simple types (e.g., *boolean*, *string*, *number*, *null*) or an array of simple types (all non-null entries must have the same type; null entries are allowed).
 
   **Example of a simple object**:
   ```javascript
-  var simpleObject = {
-    'string': 'string',
-    'int': 5,
-    'double': 9.1,
-    'array': ['a', 'b', 'c'],
-    'null': null
-  }
+  const simpleObject = {
+    string: 'string',
+    int: 5,
+    double: 9.1,
+    array: ['a', 'b', 'c'],
+    null: null
+  };
   ```
-  
+
 * {number} **Breinify.UTL.unixTimestamp()**:<br/>
-  Returns the current unix time-stamp (also called epoch time).
-  
-* {string} **Breinify.UTL.timezone()**:<br/>
-  Determines the clients timezone. 
-  
+  Returns the current Unix timestamp in whole seconds since the Unix epoch.
+
+* {string|null} **Breinify.UTL.timezone()**:<br/>
+  Returns the client’s timezone name, or `null` if it cannot be determined.
+
 * {string} **Breinify.UTL.localDateTime()**:<br/>
-  Creates a string representing the current local date and time.
+  Returns the current local date and time using `new Date().toString()`.
 
 * {boolean} **Breinify.UTL.endsWith(str, suffix)**:<br/>
   Checks if `str` ends with `suffix`.
 
 * {mixed} **Breinify.UTL.getNested(obj, str1, str2, ...)**:<br/>
-  Gets the value behind obj.str1.str2...
+  Gets the value at `obj.str1.str2...` through plain objects and own properties. Returns `null` for missing or undefined values; it does not traverse arrays.
 
 * **Breinify.UTL.deleteNullProperties(obj)**:<br/>
-  Removed null and empty objects from the passed obj
+  Mutates the supplied plain object, recursively removing null properties and empty plain-object properties. It does not traverse arrays or remove undefined values. Returns `undefined` for a plain-object input; other inputs are returned unchanged.
 
 * {string} **Breinify.UTL.uuid()**:<br/>
-  Creates a uuid.
+  Creates a randomly generated UUID-shaped string using `Math.random()`. It is not a cryptographic identifier.
+
+* {string} **Breinify.UTL.capitalize(str)**, **Breinify.UTL.lowerize(str)**, and **Breinify.UTL.firstLetter(str, toLowerCase)**:<br/>
+  Change only the first character's case, leaving the rest unchanged. `capitalize` uppercases it; `lowerize` lowercases it. `firstLetter` lowercases only when its second argument is `true`, otherwise it uppercases. Empty strings and non-string inputs are returned unchanged.
+
+* {number} **Breinify.UTL.toNumber(value)**:<br/>
+  Returns numeric inputs unchanged and parses signed integer or decimal strings (also `Infinity`). Invalid strings and non-number/non-string values return `NaN`; whitespace, exponent notation, and thousands separators are not accepted.
+
+* {string|null} **Breinify.UTL.isNonEmptyString(value)**:<br/>
+  Returns the trimmed string when it is nonempty, otherwise `null`. Despite its name, this method does not return a boolean.
+
+* {number|null} **Breinify.UTL.toPrice(value)** and **Breinify.UTL.toInteger(value)**:<br/>
+  Convert with `toNumber`, then round using `toFixed(2)` or `toFixed(0)` and return a number. Invalid conversions return `null`. `toInteger` rounds rather than truncating; `toPrice` does not preserve trailing zeros in its numeric result.
+
+* {string|null} **Breinify.UTL.formatPrice(price, settings)**:<br/>
+  Formats a price with two fraction digits. Settings default to `{locales: 'en-US', symbol: '$', symbolPosition: 'prefix'}`. Use `symbolPosition: 'suffix'` to append the symbol; other position values omit it. This legacy helper accepts numeric strings, uses permissive coercion, and writes defaults into the supplied settings object. Prefer `formatValue` for strict typed formatting and explicit currency codes.
+
+* {boolean} **Breinify.UTL.equals(first, second)**:<br/>
+  Compares plain objects recursively and arrays without regard to order, while respecting duplicate counts. Other values are compared using strict equality; cyclic structures are not supported.
+
+```javascript
+Breinify.UTL.capitalize('hello');                    // 'Hello'
+Breinify.UTL.lowerize('Hello');                      // 'hello'
+Breinify.UTL.firstLetter('hello', false);            // 'Hello'
+Breinify.UTL.toNumber('12.5');                       // 12.5
+Breinify.UTL.isNonEmptyString('  hello  ');          // 'hello'
+Breinify.UTL.toPrice('12.345');                      // 12.35
+Breinify.UTL.toInteger('12.6');                      // 13
+Breinify.UTL.formatPrice(12.5);                      // '$12.50'
+Breinify.UTL.equals({items: [1, 2]}, {items: [2, 1]}); // true
+```
 
 ###### Duration formatting
 
@@ -452,38 +685,38 @@ uses text-node insertion inside configured HTML, rejecting tokens in attributes 
 
 ##### Breinify.UTL.events
 
-For simplicity the library provides the possibility to handle/react to specific events triggered by the DOM-tree. Currently, two events are supported, i.e., *click* and *pageloaded*.
+For simplicity the library provides the possibility to handle/react to specific events triggered by the DOM-tree. The following helpers register click handlers and DOM-ready callbacks.
 
 * **Breinify.UTL.events.click(selector, func, onlyOnce)**:<br/>
-  Gets all the cookies currently defined and accessible.
+  Registers a click handler on the elements currently matched by the selector.
 
   **Parameters**:
 
-  {string} **selector**: The CSS-selector to specify the element(s) to listen for click-events (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors).
+  {string|Element|jQuery} **selector**: The CSS-selector to specify the element(s) to listen for click-events (see [jQuery Selectors](https://api.jquery.com/category/selectors/) for a detailed overview of available selectors).
 
-  {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using *this*. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
+  {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using `this` in a regular function, or `event.currentTarget` in an arrow function. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
 
-  {boolean} **onlyOnce**: Specify if the event should only be trigger at most once.
+  {boolean} **onlyOnce**: If `true`, runs the handler at most once per matched element (default: `false`).
 
   **Example Usage**:
   ```javascript
-  Breinify.UTL.events.click('body', function () {
+  Breinify.UTL.events.click('body', () => {
     window.alert('You clicked the document.');
   });
   ```
   <br/>
 
 * **Breinify.UTL.events.pageloaded(func)**:<br/>
-  Gets all the cookies currently defined and accessible.
+  Runs a callback when the DOM is ready, including when it is registered after DOM readiness. It does not wait for all images and other resources to finish loading.
 
   **Parameters**:
 
-  {function} **func**: The function to execute when the event is captured. The function retrieves an *event* object which can be used to control the further processing. In addition, the handling function also has access to the DOM-element that the handler was bound to using *this*. For further details, have a look at [jQuery Event Handling](https://learn.jquery.com/events/inside-event-handling-function/).
+  {function} **func**: A jQuery ready callback. Its argument is the library's jQuery instance, not an event object.
 
   **Example Usage**:
   ```javascript
-  Breinify.UTL.events.click('body', function () {
-    window.alert('The document is loaded.');
+  Breinify.UTL.events.pageloaded(() => {
+    window.alert('The document is ready.');
   });
   ```
   <br/>
@@ -493,7 +726,7 @@ For simplicity the library provides the possibility to handle/react to specific 
 The location part of the utilities contains functions to validate, match, or retrieve information from the url or parameters specified within.
 
 * {object} **Breinify.UTL.loc.params(paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
-  Retrieves an object with representing the parameters specified within the URL.
+  Returns an object containing URL parameters. Repeated names keep the last value. With no explicit URL and default separators, it uses `URLSearchParams` on the current query string (including `+` decoding and empty values). Explicit URLs, custom separators, or browsers without `URLSearchParams` use the legacy parser: values are decoded with `decodeURIComponent`, and entries without exactly one value separator become `null`.
 
   **Parameters**:
 
@@ -507,13 +740,13 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  var params = Breinify.UTL.loc.params(null, null, null, 'http://mydomain.com?q=I\'m%20searching');
-  window.alert('The parameter "q" has the value: ' + params.q);
+  const params = Breinify.UTL.loc.params(null, null, null, 'https://example.com?q=hello%20world');
+  window.alert(`The parameter "q" has the value: ${params.q}`);
   ```
   <br/>
 
 * {boolean} **Breinify.UTL.loc.hasParam(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
-  Validates if the URL contains a specific parameter.
+  Checks whether the parsed URL contains a string-valued parameter. A legacy-parser entry with value `null` is not considered present.
 
   **Parameters**:
 
@@ -529,14 +762,14 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  if (Breinify.UTL.loc.hasParam('#', null, null, 'http://mydomain.com#q=I\'m%20searching')) {
+  if (Breinify.UTL.loc.hasParam('q', '#', null, null, 'https://example.com#q=hello%20world')) {
     window.alert('The parameter "q" was specified.');
   }
   ```
   <br/>
 
 * {boolean} **Breinify.UTL.loc.isParam(param, params)**:<br/>
-  Validates if the parameter is defined within the specified params.
+  Checks whether `params` is a plain object with its own string-valued property named `param`.
 
   **Parameters**:
 
@@ -546,7 +779,7 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  var params = Breinify.UTL.loc.params(null, null, null, 'http://mydomain.com?q=I\'m%20searching');
+  const params = Breinify.UTL.loc.params(null, null, null, 'https://example.com?q=hello%20world');
   if (Breinify.UTL.loc.isParam('q', params)) {
     window.alert('The parameter "q" was specified.');
   }
@@ -554,11 +787,11 @@ The location part of the utilities contains functions to validate, match, or ret
   <br/>
 
 * {boolean} **Breinify.UTL.loc.paramIs(expected, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
-  Validates if the specified parameter is equal (*===*) to the *expected* value.
+  Parses the parameter using the type of `expected`, then compares with strict equality (`===`).
 
   **Parameters**:
 
-  {string} **expected**: The expected value of the parameter to look for.
+  {string|number|boolean} **expected**: The expected value of the parameter to look for.
 
   {string} **param**: The parameter to look for.
 
@@ -573,18 +806,18 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  if (Breinify.UTL.loc.paramIs(5, 'page', null, null, null, 'http://mydomain.com?page=5')) {
-    window.alert('The parameter "q" is a number with the value 5.');
+  if (Breinify.UTL.loc.paramIs(5, 'page', null, null, null, 'https://example.com?page=5')) {
+    window.alert('The parameter "page" is a number with the value 5.');
   }
   ```
   <br/>
 
-* {object} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
-  Parses the specified parameter to the expected type (i.e., *number*, *string*, *boolean*). If the parameter cannot be parsed, **null** is returned.
+* {string|number|boolean|object|Array|null} **Breinify.UTL.loc.parsedParam(expectedType, param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+  Parses a parameter as `number`, `string`, `boolean`, or `json`. Missing parameters, unsupported types, and invalid JSON return `null`. Invalid numeric strings return `NaN`. Boolean parsing returns `true` only for case-insensitive `"true"`; every other present string returns `false`.
 
   **Parameters**:
 
-  {string} **expectedType**: The expected type, i.e., *number*, *string*, or *boolean*.
+  {string} **expectedType**: The expected type: `number`, `string`, `boolean`, or `json`.
 
   {string} **param**: The parameter to look for.
 
@@ -598,14 +831,14 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  var page = Breinify.UTL.loc.parsedParam('number', 'page', null, null, null, 'http://mydomain.com?page=search')
-  if (page === null) {
+  const page = Breinify.UTL.loc.parsedParam('number', 'page', null, null, null, 'https://example.com?page=search');
+  if (page === null || Number.isNaN(page)) {
     window.alert('Invalid parameter information.');
   }
   ```
   <br/>
 
-* {object} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
+* {string|null} **Breinify.UTL.loc.param(param, paramListSeparator, paramSeparator, paramSplit, url)**:<br/>
   Gets a specific parameter from the url. The function returns *null*, if the parameter does not exist.
 
   **Parameters**:
@@ -622,8 +855,8 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  var page = Breinify.UTL.loc.param('page', null, null, null, 'http://mydomain.com?page=search')
-  window.alert('The parameter "page" has the value "' + page + '".');
+  const page = Breinify.UTL.loc.param('page', null, null, null, 'https://example.com?page=search');
+  window.alert(`The parameter "page" has the value "${page}".`);
   ```
   <br/>
 
@@ -632,13 +865,14 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  window.alert('You are visiting: "' + Breinify.UTL.loc.url() + '".');
+  const url = Breinify.UTL.loc.url();
+  window.alert(`You are visiting: "${url}".`);
   ```
   <br/>
 
 * {object|null} **Breinify.UTL.loc.extract(url)**:<br/>
-  Tries to extract the parts `protocol`, `port`, `username`, `password`, `domain`, `path`, and `parameters`
-  from the url. The method return `null` if no valid `url` was passed.
+  Tries to extract the parts `full`, `protocol`, `port`, `username`, `password`, `domain`, `path`, and `parameters`
+  from a URL using a legacy regular expression. Returns `null` when the expression does not match; absent components are `null`, and `port` is a number. This is not a general URL validator.
 
   **Parameters**:
 
@@ -646,21 +880,21 @@ The location part of the utilities contains functions to validate, match, or ret
 
   **Example Usage**:
   ```javascript
-  var extract = Breinify.UTL.loc.extract('http://google.com');
-  console.log(extract.domain);
+  const extract = Breinify.UTL.loc.extract('https://example.com');
+  console.log(extract?.domain);
   ```
   <br/>
 
-* {boolean} **Breinify.UTL.loc.matches(regEx)**:<br/>
-  Validates if the current url matches the specified regular expression.
+* {Array|null} **Breinify.UTL.loc.matches(regEx)**:<br/>
+  Returns the match array for the current URL, or `null` when it does not match.
 
   **Parameters**:
 
-  {string|RegEx} **regEx**: The regular expression used for matching.
+  {string|RegExp} **regEx**: The regular expression used for matching.
 
   **Example Usage**:
   ```javascript
-  if (Breinify.UTL.loc.matches('^https?//product.shop.com')) {
+  if (Breinify.UTL.loc.matches(/^https?:\/\/product\.shop\.com(?:[/:?#]|$)/)) {
     window.alert('Welcome to our product list.');
   }
   ```
@@ -675,18 +909,18 @@ The cookie part of the utilities contains functions to validate, match, or retri
 
   **Example Usage**:
   ```javascript
-  var cookies = Breinify.UTL.cookie.all();
-  window.alert('The following cookies were found: ' + JSON.stringify(cookies));
+  const cookies = Breinify.UTL.cookie.all();
+  window.alert(`The following cookies were found: ${JSON.stringify(cookies)}`);
   ```
   <br/>
 
 * **Breinify.UTL.cookie.reset(name, domain)**:<br/>
-  Removes the specified cookie.
+  Expires the cookie for the current default path and `/`. Pass the same domain used when setting it; cookies on other paths may need separate removal.
 
   **Parameters**:
 
   {string} **name**: The name of the cookie to be removed.
-  {string} **domain**: Defines the domain of the cookie (default uses the current domain).
+  {string|null} **domain**: Optional cookie domain. If omitted, no Domain attribute is written (a host-only cookie).
 
   **Example Usage**:
   ```javascript
@@ -694,8 +928,8 @@ The cookie part of the utilities contains functions to validate, match, or retri
   ```
   <br/>
 
-* **Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain)**:<br/>
-  Sets the specified cookie with the specified value.
+* **Breinify.UTL.cookie.set(name, value, expiresInDays, global, domain, httpsOnly, sameSite)**:<br/>
+  Sets a cookie without encoding its name or value. Use `encodeURIComponent` and `decodeURIComponent` when storing values that need encoding.
 
   **Parameters**:
 
@@ -705,9 +939,13 @@ The cookie part of the utilities contains functions to validate, match, or retri
 
   {number|null} **expiresInDays**: The time (in days) after which the cookie expires (default `Session` cookie). If a negative value is passed in, the cookie will be removed.
 
-  {boolean} **global**: Defines if the cookie is set on a global level (for the domain) or just the current page, i.e., sub-folder (default `false`).
+  {boolean} **global**: If `true`, sets `Path=/`; otherwise omits Path and uses the browser’s default cookie path (default: `false`).
 
-  {string} **domain**: Defines the domain of the cookie (default uses the current domain).
+  {string|null} **domain**: Optional cookie domain. If omitted, no Domain attribute is written (a host-only cookie).
+
+  {boolean|null} **httpsOnly**: Overrides the Secure attribute; otherwise uses `config().cookieHttpsOnly` (default: `true`).
+
+  {string|null} **sameSite**: Overrides SameSite with a nonempty string; otherwise uses `config().cookieSameSite` (default: `'none'`). The default cookie settings are intended for HTTPS pages.
 
   **Example Usage**:
   ```javascript
@@ -715,12 +953,12 @@ The cookie part of the utilities contains functions to validate, match, or retri
   ```
   <br/>
 
-* {string} **Breinify.UTL.cookie.get(name)**:<br/>
+* {string|null} **Breinify.UTL.cookie.get(name)**:<br/>
   Gets the value of the cookie with the specified name, if no such cookie exists *null* is returned.
 
   **Parameters**:
 
-  {string} **name**: The name of the cookie to be get.
+  {string} **name**: The name of the cookie to look up.
 
   **Example Usage**:
   ```javascript
@@ -733,7 +971,7 @@ The cookie part of the utilities contains functions to validate, match, or retri
 
   **Parameters**:
 
-  {string} **name**: The name of the cookie to be get.
+  {string} **name**: The name of the cookie to look up.
 
   **Example Usage**:
   ```javascript
@@ -742,12 +980,141 @@ The cookie part of the utilities contains functions to validate, match, or retri
   }
   ```
   <br/>
-  
-* {object} **Breinify.UTL._jquery()**:<br/>
-  Returns the jQuery instance used internally by the library
+
+##### Internal jQuery instance
+
+* {function} **Breinify.UTL._jquery()**:<br/>
+  Returns the jQuery instance used internally by the library.
 
   **Example Usage**:
   ```javascript
-  var $ = Breinify.UTL._jquery();
+  const $ = Breinify.UTL._jquery();
   ```
   <br/>
+
+##### Additional utility methods
+
+All names in this section are relative to `Breinify.UTL`. These complement the detailed helpers above.
+`UTL.cookies` contains the internal storage-key names `sessionId`, `browserId`, `referrerKey`, and
+`delayedActivities`; `UTL.constants.errors.prefix` contains diagnostic prefixes `validation`, `api`, and `assets`.
+
+| Method | Behavior |
+| --- | --- |
+| `select(selector, childSelector, directChild)` | Returns the internal jQuery selection of matching descendants, or direct children when `directChild === true`. |
+| `ensureSimpleObject(value)` | Returns a normalized plain object suitable for tags. Null/non-plain inputs become `{}`; unsupported values and incompatible array entries become `null`. |
+| `getNestedByPath(object, path)` | Dotted-path counterpart to `getNested`; traverses plain objects and returns `null` for missing/undefined values. |
+| `localString(date, options)` | Calls `date.toLocaleString('en-US', options)` with defaults `year: 'numeric'`, `month/day: '2-digit'`, `hour12: false`, and `timeZone: 'UTC'`. Pass a `Date`. |
+| `extend(target, ...sources)` | Mutates and returns `target`, recursively merging plain objects and skipping null/undefined source values. Arrays and other values are assigned directly. |
+| `bindjQueryPlugins(plugins, jQuery)` | Runs named plugin functions with the supplied jQuery instance (default: the internal one), temporarily assigning it to `window.jQuery`. |
+| `loc.createGetParameter(value)` | JSON/base64 encodes a value into Breinify's dot-prefixed URL-parameter format. Returns `null` if encoding fails, including unsupported input for `btoa`. |
+| `loc.parseGetParameter(name, value)` | Decodes Breinify parameter data or legacy URI-encoded base64 JSON. `name` is currently unused. Returns `null` for invalid base64/JSON; malformed URI escaping in legacy input may throw. |
+| `cookie.setJson(name, object, expiresInDays, global, domain, httpsOnly)` | Encodes a plain object as base64 JSON in a cookie. Non-plain inputs or encoding errors reset the cookie. Some Unicode characters are converted to numeric HTML entities. |
+| `cookie.getJson(name)` | Decodes a JSON cookie; returns `null` when absent or invalid. It does not reverse the HTML-entity conversion performed by `setJson`. |
+| `cookie.domain()` | Returns a cached domain derived from `cookieDomain` or a hostname heuristic, or `null`. This is not a public-suffix parser. |
+| `events.observeDomChange(selector, callback)` | Polls every 50 ms for matching elements and calls `callback($element)` for unmarked elements. Returns an observer ID. A shared `data-brnfy-observation-triggered` marker means overlapping observers can affect one another. |
+| `events.removeDomObserver(id)` | Removes one polling observer and stops the timer if no observers remain. |
+| `events.removeAllDomObserver()` | Removes all polling observers and stops the timer. Existing element markers remain. |
+| `placeholders.format(value, expression)` | Applies one supported placeholder formatter suffix, such as `'number:0'` or `'join:", "'`, directly to a value. Invalid expressions or inputs throw. |
+
+###### DOM utilities
+
+These methods are relative to `Breinify.UTL.dom`. `$element` and `$anchor` mean jQuery objects from
+`Breinify.UTL._jquery()`.
+
+| Method | Behavior |
+| --- | --- |
+| `isNodeType(element, nodeTypes)` | Checks a DOM node or every node in a nonempty jQuery selection against a node-type number or array of numbers. Returns a boolean. |
+| `getTagName($element)` | Returns the lowercase tag name, or `'no tag'` when unavailable. |
+| `determineElementType($element, mapper)` | Returns a descriptive element category; an optional `mapper(tagName, $element)` can override it with a nonempty string. |
+| `attachByOperation(operation, $anchor, $element)` | Applies `replace`, `before`, `after`, `prepend`, or `append`. Returns whether the operation was applied. |
+| `applyContentByOperation(operation, $anchor, content, allowHtml)` | Also supports `replaceContent`, requires one anchor, and inserts string content as text unless `allowHtml === true`. Node/jQuery content is accepted for structural operations, but not `replaceContent`. Returns a boolean. |
+| `addModification(id, modification)` | Registers `{selector, preCondition, modifier}` for DOM observation. Optional `preCondition($elements)` gates execution; `modifier($elements)` must return `true` to mark the modification as applied. |
+| `removeModification(id)` | Removes the registered modification; it does not undo existing DOM changes. |
+| `addClassChangeObserver($elements, callback)` | Immediately reports initial classes, then class changes through `callback(null, {el, modified, addedClasses, removedClasses})`. |
+| `addClickObserver(selector, name, settings, callback)` | Registers a delegated click callback for present/future matching elements. `settings` defaults to `{allowMultiFire: false, useCapture: false}`; it may be omitted by passing the callback third. The callback receives `(event, {triggered, selector, name})`. Registration with an existing selector/name replaces that callback. |
+
+###### Logging and data-layer integration
+
+* `Breinify.UTL.out.log(level, message, ...values)` logs in development mode. The convenience methods
+  `out.error`, `out.warn`, `out.info`, `out.debug`, and `out.trace` accept a message and additional values.
+  Logging is suppressed outside development mode.
+* `Breinify.UTL.out.normalizeErrorMessage(error)` converts errors or other values into diagnostic text.
+* `Breinify.UTL.google.addDataLayerEventListener(name, listener, replayExisting)` registers a named listener
+  for `window.dataLayer` pushes. The listener is either `(name, event) => { ... }` or an object with
+  `handle(name, event)` and optional `filter(name, event)` functions. An object filter must return `true`
+  to deliver the event. `replayExisting === true` also delivers existing entries. The helper waits up to
+  approximately ten seconds for a data layer to appear. A fourth `checkTime` parameter is used internally
+  for retries; omit it in application calls.
+
+##### User, storage, and integration utilities
+
+###### User utilities
+
+These methods are relative to `Breinify.UTL.user`.
+
+| Method | Behavior |
+| --- | --- |
+| `create(user)` | Returns merged user data from configured defaults, generated identifiers, customization lookup, and the explicit user (highest priority). This can read/write identifier storage; the `BreinifyUser` constructor adds further browser context. |
+| `getBrowserId()` | Reads or creates the persisted browser identifier and caches it in memory. |
+| `getSessionId()` | Reads or creates the session identifier and caches it in memory. |
+| `resetSessionId(reset)` | Generates a new ID when `reset === true` or no ID is cached, persists it, and returns it. |
+| `getMarkerSessionId()` | Returns the nonempty `br-msid` URL parameter, or `null`. |
+| `determineApiVersion()` | Returns `Breinify.plugins.api.version` when available, otherwise `'n/a'`. This is separate from `Breinify.version`. |
+| `getSplitTestData()` | Returns stored assignments, removing entries with expired/missing timestamps and expired preview assignments. Reads do not renew them. |
+| `replaceSplitTestData(name, assignment)` | Replaces one named assignment and updates `testName` and `lastUpdated`. Also accepts a single assignment object containing `testName`. |
+| `updateSplitTestData(assignments)` | Replaces all stored split-test data. |
+| `createSplitTestActivityTag(assignment)` | Returns `'testName (selectedInstance)'`, the bare test name if the instance is missing, or `null` without a test name. |
+| `applySplitTestTags(tags, assignment, defaults)` | Mutates and returns the supplied tags, setting `splitTest`, `group`, and `groupType` from the captured assignment. Does not read stored assignments. See [split-test attribution](../README.md#split-test-activity-attribution). |
+| `getReferrerData(sessionId)` | Returns session-entry `{entryUrl, entryReferrer, distance}` or `null` when `handleReferrer` is disabled. It persists journey state and increases distance when the page URL changes. |
+
+###### Storage utilities
+
+`Breinify.UTL.storage` is a named JSON cache using `localStorage` when available, with an in-memory fallback
+when storage cannot be obtained. Initialize it before reading or writing. Storage access and malformed stored
+JSON can throw; these helpers do not universally suppress browser-storage errors.
+
+| Method | Behavior |
+| --- | --- |
+| `storage.init(entries, callback)` | Initializes storage and loads missing/expired named entries. Each entry uses `{values, expiresInSec}` or `{loader, expiresInSec}`; a loader calls `done(error, data)`. Completion is `callback(null, {loaded, failed})`. |
+| `storage.load(name, entry, callback)` | Loads one entry; completion is `callback(error, name)` on the normal loader/value path. |
+| `storage.update(name, expiresInSec, data)` | Stores JSON under `breinify-<name>` with a creation time and expiry. Returns no value and does nothing before initialization. |
+| `storage.get(name)` | Returns stored data or `null`; **does not check expiry**. |
+| `storage.isExpired(name)` | Checks the stored expiry; missing/uninitialized entries are expired. Nonpositive lifetimes are stored with expiry `-1` and are therefore considered expired by this method. |
+| `storage.getOrWait(name, callback, timeout)` | Polls every 50 ms until `get` returns a non-null value or the timeout is exceeded. Uses `callback(error, data)`. Pass an explicit timeout in milliseconds; the fourth `waitedFor` argument is internal. |
+| `storage.createStorableData(expiresInSec, data)` | Returns the JSON storage envelope `{expires, created, data}`. |
+
+Anonymous identifier storage is private implementation state. It is not exposed as `UTL.browserStorage` or
+`UTL.cookieStorage`; use the user-identifier methods above. The named cache uses seconds for expiry, while
+the public cookie setter uses days.
+
+###### Consent
+
+The working tree adds `Breinify.UTL.consent.configure(settings)`, `consent.evaluate(callback)`, and
+`consent.onChange(listener)`. Configuration selects a provider and timeout, evaluation resolves a permissions
+snapshot, and observation returns an unsubscribe function. See the [consent contract](./consent.md).
+This capability is not in the audited Git `master` revision and does not yet gate existing requests, cookies,
+storage, or plugins automatically. Applications must explicitly consult the result.
+
+#### Constructors and plugins
+
+The library exposes these constructors for integrations that need its model objects:
+
+| Constructor | Instance methods |
+| --- | --- |
+| `new Breinify.BreinifyUser(user, onReady)` | `set(attribute, value)`, `setAll(user)`, `get(attribute)`, `reset(attribute)`, `all()`, `validate()`, `add(key, value)` or `add(object)`, `read(key)`, and `addGeoLocation(onReady)`. See [user fields](./user.md). `add`/`read` operate on `additional`. |
+| `new Breinify.BreinifyConfig(config)` | `get(attribute)`, `set(attribute, value)`, `all()`, `default(attribute)`, and `validate(force)`. Constructing one does not install it globally; use `setConfig` to do that. |
+| `new Breinify.AttributeCollection()` | Schema helpers `add(key, setting)`, `all()`, `defaults()`, `default(attribute)`, `is(attribute)`, `setting(attribute)`, `group(groupId)`, `validate(attribute, value)`, and `validateProperties(object)`. Primarily used by the library's models. |
+
+`Breinify.BreinifyUser.ATTRIBUTES` and `Breinify.BreinifyConfig.ATTRIBUTES` map symbolic names to property
+keys; `Breinify.BreinifyConfig.CONSTANTS` includes customization identifiers. Model `all()` methods expose
+the current backing object rather than a defensive copy. Validation may throw.
+
+`Breinify.plugins` contains plugins only after their separate scripts have loaded. Plugins added through
+the standard registry receive `setConfig(object)` or `setConfig(key, value)` and `getConfig(key, fallback)`.
+Unlike core `Breinify.setConfig`, the standard plugin setter merges supplied keys. Methods beginning with
+`_` on the registry are lifecycle/customization internals, not a general application API.
+
+Plugin contracts are separate from this core reference. Available focused guides include
+[Modify Content errors](./plugins/ui-modify-content-errors.md), [surveys](./plugins/ui-survey.md), and
+[custom survey pages](./plugins/ui-survey-custom-pages-api.md). Other plugin implementations are in
+[`src/plugins`](../src/plugins); this page does not claim complete documentation of each plugin's methods.

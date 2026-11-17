@@ -306,12 +306,6 @@
             return '' + unixTimestamp;
         },
 
-        generateLookUpMessage: function (dimensions, unixTimestamp) {
-            dimensions = $.isArray(dimensions) ? dimensions : [];
-            let dimension = dimensions.length === 0 ? '' : dimensions[0];
-            return dimension + unixTimestamp + dimensions.length;
-        },
-
         generateTemporalDataMessage: function (unixTimestamp, localDateTime, timezone) {
             let paraLocalDateTime = typeof localDateTime === 'undefined' || localDateTime === null ? "" : localDateTime;
             let paraTimezone = typeof timezone === 'undefined' || timezone === null ? "" : timezone;
@@ -1202,78 +1196,6 @@
                     checksum: _privates.createServiceChecksum(apiKey, serviceName, requestPayload)
                 }
             }, null);
-        });
-    };
-
-    /**
-     * Method to lookup the specified dimensions information.
-     */
-    Breinify.lookup = function (user, dimensions, sign, onLookUp) {
-
-        Breinify.lookupUser(user, dimensions, sign, function (data) {
-            const url = _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.LOOKUP_ENDPOINT);
-            _privates.ajax(url, data, onLookUp, onLookUp);
-        });
-    };
-
-    /**
-     * Creates a user request entity used to fire a query against the lookup endpoint.
-     *
-     * @param user {object} the user-information
-     * @param dimensions {Array|string} an array of dimensions
-     * @param sign {boolean|null} true if a signature should be added (needs the secret to be configured - not recommended in open systems), otherwise false (can be null or undefined)
-     * @param onReady {function|null} function to be executed after successful user creation
-     */
-    Breinify.lookupUser = function (user, dimensions, sign, onReady) {
-
-        const _onReady = function (user) {
-            if ($.isFunction(onReady)) {
-                onReady(user);
-            }
-        };
-
-        // get the user information
-        _privates.createUser(user, function (user) {
-
-            if (!user.validate()) {
-                _onReady(null);
-                return;
-            }
-
-            // get some default values for the passed parameters - if not set
-            dimensions = typeof dimensions === 'string' ? [dimensions] : ($.isArray(dimensions) ? dimensions : []);
-            sign = typeof sign === 'boolean' ? sign : false;
-
-            // get the other values needed
-            const unixTimestamp = BreinifyUtil.unixTimestamp();
-            let signature = null;
-            if (sign) {
-                const secret = _config.get(ATTR_CONFIG.SECRET);
-                if (typeof secret === 'string') {
-                    const message = _privates.generateLookUpMessage(dimensions, unixTimestamp);
-                    signature = _privates.determineSignature(message, _config.get(ATTR_CONFIG.SECRET))
-                } else {
-                    _onReady(null);
-                    return;
-                }
-            }
-
-            // create the data set
-            const data = {
-                'user': user.all(),
-
-                'lookup': {
-                    'dimensions': dimensions
-                },
-
-                'apiKey': _config.get(ATTR_CONFIG.API_KEY),
-                'signature': signature,
-                'unixTimestamp': unixTimestamp
-            };
-
-            if ($.isFunction(onReady)) {
-                _onReady(data);
-            }
         });
     };
 
