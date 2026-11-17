@@ -17,7 +17,12 @@ This library utilizes [Breinify's API](https://www.breinify.com) to provide task
 ## Consent
 
 The core `Breinify.UTL.consent` object supports provider configuration, evaluation with a timeout,
-and change notifications before customer initialization. See [the consent contract](documentation/consent.md).
+and change notifications before customer initialization. Its named levels are Content, Functional,
+Analytics, and Personalization. `isGranted(feature, onGranted, onDenied)` requires a registered feature
+and passes an immutable decision to the matching callback, including user-data and storage permissions.
+`evaluate(feature, callback)` returns that decision through one callback for either outcome. Feature
+overrides and a global storage requirement are supported by the evaluator.
+See [the consent contract](documentation/consent.md) for dependencies and user-data handling.
 This is the foundation only; existing requests and data access are not yet connected to it.
 
 ## Browser storage

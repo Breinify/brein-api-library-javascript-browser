@@ -2784,9 +2784,6 @@
             },
             markers: [
                 {selector: 'br-ui-countdown', name: 'Breinify countdown'},
-                {selector: 'br-ui-search', name: 'Breinify search'},
-                {selector: 'br-ui-search-result', name: 'Breinify search result'},
-                {selector: 'br-ui-search-results', name: 'Breinify search results'},
                 {selector: 'br-ui-survey', name: 'Breinify survey'},
                 {selector: 'br-ui-survey-popup', name: 'Breinify survey popup'},
                 {

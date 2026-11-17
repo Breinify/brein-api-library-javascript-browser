@@ -103,10 +103,34 @@
             }
         },
         consent: {
+            levels: Object.freeze({
+                CONTENT: 'content',
+                FUNCTIONAL: 'functional',
+                ANALYTICS: 'analytics',
+                PERSONALIZATION: 'personalization'
+            }),
+            features: Object.freeze({
+                RECOMMENDATIONS: 'recommendations',
+                MODIFY_CONTENT: 'modifyContent',
+                TEMPORAL_DATA: 'temporalData',
+                ACTIVITIES: 'activities',
+                DELAYED_ACTIVITIES: 'delayedActivities',
+                PRESENTATION_STORAGE: 'presentationStorage'
+            }),
             configure: function () {},
-            evaluate: function (callback) {
+            evaluate: function (feature, callback) {
                 if (typeof callback === 'function') {
-                    callback(Object.freeze({}));
+                    callback({
+                        feature: feature,
+                        granted: false,
+                        userData: {identifiers: false, profile: false},
+                        storage: {read: false, write: false}
+                    });
+                }
+            },
+            isGranted: function (feature, onGranted, onDenied) {
+                if (typeof onDenied === 'function') {
+                    onDenied();
                 }
             },
             onChange: function () { return function () {}; }

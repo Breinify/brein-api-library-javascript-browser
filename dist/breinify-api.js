@@ -13211,6 +13211,54 @@ dependencyScope.jQuery = $;
         },
 
         consent: {
+            levels: Object.freeze({
+                CONTENT: 'content',
+                FUNCTIONAL: 'functional',
+                ANALYTICS: 'analytics',
+                PERSONALIZATION: 'personalization'
+            }),
+            features: Object.freeze({
+                RECOMMENDATIONS: 'recommendations',
+                MODIFY_CONTENT: 'modifyContent',
+                TEMPORAL_DATA: 'temporalData',
+                ACTIVITIES: 'activities',
+                DELAYED_ACTIVITIES: 'delayedActivities',
+                PRESENTATION_STORAGE: 'presentationStorage'
+            }),
+            definitions: {
+                recommendations: {
+                    requires: 'content',
+                    userData: {identifiers: 'personalization', profile: 'personalization'},
+                    storage: 'none'
+                },
+                modifyContent: {
+                    requires: 'content',
+                    userData: {identifiers: 'personalization', profile: 'personalization'},
+                    storage: 'none'
+                },
+                temporalData: {
+                    requires: 'content',
+                    userData: {identifiers: null, profile: 'personalization'},
+                    storage: 'none'
+                },
+                activities: {
+                    requires: 'analytics',
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    storage: 'none'
+                },
+                delayedActivities: {
+                    requires: 'analytics',
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    storage: 'required'
+                },
+                presentationStorage: {
+                    requires: 'functional',
+                    userData: {identifiers: null, profile: null},
+                    storage: 'required'
+                }
+            },
+            featureRules: Object.freeze({}),
+            storageRequirement: Object.freeze(['content']),
             denied: Object.freeze({}),
             configured: false,
             provider: null,
@@ -13221,6 +13269,145 @@ dependencyScope.jQuery = $;
             current: null,
             unsubscribe: null,
             listeners: [],
+
+            validateFeature: function (feature) {
+                if (typeof feature !== 'string') {
+                    throw new TypeError('Consent evaluation requires a registered feature.');
+                } else if (!Object.prototype.hasOwnProperty.call(this.definitions, feature)) {
+                    throw new RangeError('Unknown consent feature: ' + feature);
+                }
+            },
+
+            parseRequirement: function (value) {
+                const levels = this.levels;
+                const entries = Array.isArray(value) ? value.slice() : [value];
+                if (entries.length === 0) {
+                    throw new RangeError('A consent requirement must contain at least one level.');
+                }
+                for (let i = 0; i < entries.length; i++) {
+                    const entry = entries[i];
+                    if (typeof entry !== 'string') {
+                        throw new TypeError('Consent requirements must contain level names.');
+                    } else if (!Object.keys(levels).some(function (key) { return levels[key] === entry; })) {
+                        throw new RangeError('Unknown consent level: ' + entry);
+                    }
+                }
+                return Object.freeze(entries);
+            },
+
+            parseFeatureRules: function (value) {
+                if (typeof value === 'undefined') {
+                    return Object.freeze({});
+                } else if (!$.isPlainObject(value)) {
+                    throw new TypeError('Consent features must be a plain object.');
+                }
+                const result = {};
+                const consent = this;
+                Object.keys(value).forEach(function (feature) {
+                    consent.validateFeature(feature);
+                    const rule = value[feature];
+                    if (!$.isPlainObject(rule) || Object.keys(rule).some(function (key) {
+                        return key !== 'requires' && key !== 'enabled';
+                    }) || (typeof rule.enabled !== 'undefined' && typeof rule.enabled !== 'boolean')) {
+                        throw new TypeError('A feature rule supports requires and a boolean enabled flag.');
+                    }
+                    const requirement = typeof rule.requires === 'undefined'
+                        ? consent.definitions[feature].requires : rule.requires;
+                    result[feature] = Object.freeze({
+                        enabled: rule.enabled !== false,
+                        requires: consent.parseRequirement(requirement)
+                    });
+                });
+                return Object.freeze(result);
+            },
+
+            parseStorageRequirement: function (value) {
+                if (typeof value === 'undefined') {
+                    return this.parseRequirement(this.levels.CONTENT);
+                } else if (!$.isPlainObject(value) || Object.keys(value).some(function (key) { return key !== 'requires'; })) {
+                    throw new TypeError('Consent storage settings support only requires.');
+                }
+                return this.parseRequirement(typeof value.requires === 'undefined' ? this.levels.CONTENT : value.requires);
+            },
+
+            permits: function (permissions, level) {
+                if (level === this.levels.CONTENT) {
+                    return true;
+                } else if (!Object.prototype.hasOwnProperty.call(permissions, level) || permissions[level] !== true) {
+                    return false;
+                } else {
+                    return level !== this.levels.PERSONALIZATION ||
+                        Object.prototype.hasOwnProperty.call(permissions, this.levels.ANALYTICS) &&
+                        permissions[this.levels.ANALYTICS] === true;
+                }
+            },
+
+            createDecision: function (feature, permissions, rule, storageRequirement, activeGeneration) {
+                const consent = this;
+                const definition = this.definitions[feature];
+                const requires = rule === undefined ? [definition.requires] : rule.requires;
+                let granted = activeGeneration === this.generation && (rule === undefined || rule.enabled) &&
+                    this.permits(permissions, definition.requires) && requires.every(function (level) {
+                        return consent.permits(permissions, level);
+                    });
+                const storageGranted = definition.storage !== 'none' && storageRequirement.every(function (level) {
+                    return consent.permits(permissions, level);
+                });
+                if (definition.storage === 'required' && !storageGranted) {
+                    granted = false;
+                }
+                const profile = granted && definition.userData.profile !== null &&
+                    this.permits(permissions, definition.userData.profile);
+                const identifiers = granted && definition.userData.identifiers !== null &&
+                    this.permits(permissions, definition.userData.identifiers);
+                return Object.freeze({
+                    feature: feature,
+                    granted: granted,
+                    userData: Object.freeze({identifiers: identifiers, profile: profile}),
+                    storage: Object.freeze({read: granted && storageGranted, write: granted && storageGranted})
+                });
+            },
+
+            readPermissions: function (callback) {
+                const consent = _private.consent;
+                if (typeof callback !== 'function') {
+                    throw new TypeError('Consent evaluation requires a callback.');
+                } else if (!consent.configured) {
+                    consent.invoke(callback, consent.denied);
+                    return;
+                } else if (consent.pending !== null) {
+                    consent.pending.callbacks.push(callback);
+                    return;
+                }
+
+                const activeGeneration = consent.generation;
+                const activeRevision = ++consent.revision;
+                const request = {callbacks: [callback], timer: null};
+                consent.pending = request;
+                request.timer = scope.setTimeout(function () {
+                    if (consent.pending === request) {
+                        consent.complete(consent.denied);
+                    }
+                }, consent.timeoutInMs);
+
+                if (consent.provider !== null) {
+                    try {
+                        consent.provider.evaluate(function (value) {
+                            if (activeGeneration !== consent.generation || activeRevision !== consent.revision) {
+                                return;
+                            }
+                            const snapshot = consent.normalize(value);
+                            if (snapshot !== null) {
+                                consent.revision++;
+                                consent.complete(snapshot);
+                            }
+                        });
+                    } catch (error) {
+                        // an unavailable provider follows the same timeout as unknown consent
+                        scope.console.error('Breinify consent evaluation failed.', error);
+                    }
+                }
+            },
 
             invoke: function (callback, value) {
                 try {
@@ -13243,7 +13430,11 @@ dependencyScope.jQuery = $;
                     if (typeof value[key] !== 'boolean') {
                         return null;
                     }
-                    Object.defineProperty(result, key, {value: value[key], enumerable: true});
+                    const granted = key === this.levels.PERSONALIZATION
+                        ? value[key] && Object.prototype.hasOwnProperty.call(value, this.levels.ANALYTICS) &&
+                            value[this.levels.ANALYTICS] === true
+                        : value[key];
+                    Object.defineProperty(result, key, {value: granted, enumerable: true});
                 }
                 return Object.freeze(result);
             },
@@ -13797,6 +13988,9 @@ dependencyScope.jQuery = $;
          * See documentation/consent.md for the provider and consumer contracts.
          */
         consent: {
+            levels: _private.consent.levels,
+            features: _private.consent.features,
+
             /**
              * Installs a provider and starts the initial consent evaluation.
              */
@@ -13813,6 +14007,8 @@ dependencyScope.jQuery = $;
                     (typeof nextProvider.onChange !== 'undefined' && typeof nextProvider.onChange !== 'function'))) {
                     throw new TypeError('A consent provider needs evaluate and an optional onChange function.');
                 }
+                const nextFeatureRules = consent.parseFeatureRules(settings.features);
+                const nextStorageRequirement = consent.parseStorageRequirement(settings.storage);
 
                 consent.generation++;
                 consent.revision++;
@@ -13828,6 +14024,8 @@ dependencyScope.jQuery = $;
 
                 consent.provider = nextProvider || null;
                 consent.timeoutInMs = wait;
+                consent.featureRules = nextFeatureRules;
+                consent.storageRequirement = nextStorageRequirement;
                 consent.configured = true;
                 const activeGeneration = consent.generation;
                 if (consent.provider !== null && typeof consent.provider.onChange === 'function') {
@@ -13846,51 +14044,45 @@ dependencyScope.jQuery = $;
                         scope.console.error('Breinify consent observer failed.', error);
                     }
                 }
-                this.evaluate(function () {});
+                consent.readPermissions(function () {});
             },
 
             /**
-             * Evaluates current permissions; concurrent callers share the pending evaluation.
+             * Evaluates a registered feature; concurrent callers share the pending permission query.
              */
-            evaluate: function (callback) {
+            evaluate: function (feature, callback) {
                 const consent = _private.consent;
+                consent.validateFeature(feature);
                 if (typeof callback !== 'function') {
                     throw new TypeError('Consent evaluation requires a callback.');
-                } else if (!consent.configured) {
-                    consent.invoke(callback, consent.denied);
-                    return;
-                } else if (consent.pending !== null) {
-                    consent.pending.callbacks.push(callback);
-                    return;
                 }
-
                 const activeGeneration = consent.generation;
-                const activeRevision = ++consent.revision;
-                const request = {callbacks: [callback], timer: null};
-                consent.pending = request;
-                request.timer = scope.setTimeout(function () {
-                    if (consent.pending === request) {
-                        consent.complete(consent.denied);
-                    }
-                }, consent.timeoutInMs);
+                const rule = consent.featureRules[feature];
+                const storageRequirement = consent.storageRequirement;
+                consent.readPermissions(function (permissions) {
+                    const decision = consent.createDecision(feature, permissions, rule, storageRequirement, activeGeneration);
+                    callback(decision);
+                });
+            },
 
-                if (consent.provider !== null) {
-                    try {
-                        consent.provider.evaluate(function (value) {
-                            if (activeGeneration !== consent.generation || activeRevision !== consent.revision) {
-                                return;
-                            }
-                            const snapshot = consent.normalize(value);
-                            if (snapshot !== null) {
-                                consent.revision++;
-                                consent.complete(snapshot);
-                            }
-                        });
-                    } catch (error) {
-                        // an unavailable provider follows the same timeout as unknown consent
-                        scope.console.error('Breinify consent evaluation failed.', error);
-                    }
+            /**
+             * Evaluates a registered feature and supplies the decision to the matching callback.
+             */
+            isGranted: function (feature, onGranted, onDenied) {
+                _private.consent.validateFeature(feature);
+                if (typeof onGranted !== 'function') {
+                    throw new TypeError('A consent check requires an onGranted callback.');
+                } else if (typeof onDenied !== 'undefined' && typeof onDenied !== 'function') {
+                    throw new TypeError('The onDenied callback must be a function when supplied.');
                 }
+
+                this.evaluate(feature, function (decision) {
+                    if (decision.granted) {
+                        onGranted(decision);
+                    } else if (typeof onDenied === 'function') {
+                        onDenied(decision);
+                    }
+                });
             },
 
             /**
@@ -18715,10 +18907,34 @@ dependencyScope.jQuery = $;
             }
         },
         consent: {
+            levels: Object.freeze({
+                CONTENT: 'content',
+                FUNCTIONAL: 'functional',
+                ANALYTICS: 'analytics',
+                PERSONALIZATION: 'personalization'
+            }),
+            features: Object.freeze({
+                RECOMMENDATIONS: 'recommendations',
+                MODIFY_CONTENT: 'modifyContent',
+                TEMPORAL_DATA: 'temporalData',
+                ACTIVITIES: 'activities',
+                DELAYED_ACTIVITIES: 'delayedActivities',
+                PRESENTATION_STORAGE: 'presentationStorage'
+            }),
             configure: function () {},
-            evaluate: function (callback) {
+            evaluate: function (feature, callback) {
                 if (typeof callback === 'function') {
-                    callback(Object.freeze({}));
+                    callback({
+                        feature: feature,
+                        granted: false,
+                        userData: {identifiers: false, profile: false},
+                        storage: {read: false, write: false}
+                    });
+                }
+            },
+            isGranted: function (feature, onGranted, onDenied) {
+                if (typeof onDenied === 'function') {
+                    onDenied();
                 }
             },
             onChange: function () { return function () {}; }

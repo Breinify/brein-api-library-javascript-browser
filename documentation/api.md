@@ -1094,11 +1094,21 @@ the public cookie setter uses days.
 
 ###### Consent
 
-The working tree adds `Breinify.UTL.consent.configure(settings)`, `consent.evaluate(callback)`, and
-`consent.onChange(listener)`. Configuration selects a provider and timeout, evaluation resolves a permissions
-snapshot, and observation returns an unsubscribe function. See the [consent contract](./consent.md).
-This capability is not in the audited Git `master` revision and does not yet gate existing requests, cookies,
-storage, or plugins automatically. Applications must explicitly consult the result.
+`Breinify.UTL.consent` exposes `configure(settings)`, `evaluate(feature, callback)`,
+`isGranted(feature, onGranted, onDenied)`, and
+`onChange(listener)`. Configuration selects a provider and timeout, evaluation resolves an immutable
+feature decision with `granted`, `userData`, and `storage` permissions. Observation reports normalized
+CMP permissions and returns an unsubscribe function. `isGranted` invokes `onGranted(decision)` only when
+the feature is granted, otherwise the optional `onDenied(decision)`. Neither runs while consent is unknown.
+Both decision methods require a registered feature and return no value synchronously.
+
+The frozen `consent.levels` object defines `CONTENT`, `FUNCTIONAL`, `ANALYTICS`, and `PERSONALIZATION`.
+Functional is independent; Personalization requires Analytics. The frozen `consent.features` object
+identifies supported operations, including recommendations, Modify Content, temporal-data, immediate/delayed
+activities, and presentation storage. Levels belong in feature/storage requirements; passing a level
+instead of a feature is rejected. Customer overrides and storage dependencies apply even after timeout.
+These decisions do not yet gate existing requests, user creation, cookies, storage, or plugins automatically.
+See the [consent contract](./consent.md) for defaults, overrides, and integration boundaries.
 
 #### Constructors and plugins
 
