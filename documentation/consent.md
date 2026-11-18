@@ -399,3 +399,38 @@ hides when consent is disabled and cleans up its refresh timer when Dev Studio i
 
 Built-in adapters expose `getSettings()` with copied provider names and mappings for inspection. Custom
 providers may implement the same optional method; otherwise the tab identifies them as custom.
+
+
+### Storage dependencies in inspection
+
+`inspect().features` reports `storageDependencies` instead of the internal `storage` dependency flag.
+Each entry names a storage feature and includes `required`, `read`, and `write`. The diagnostic `decision`
+contains the operation's grant and user-data permissions; it omits the internal `decision.storage` flags.
+`evaluate()` and `getDecision()` retain their existing enforcement shape and behavior.
+
+For example, with Analytics and Personalization granted, an activity includes:
+
+```javascript
+storageDependencies: [
+    {feature: 'identifierStorage', required: false, read: true, write: true},
+    {feature: 'profileStorage', required: false, read: true, write: true},
+    {feature: 'splitTestStorage', required: false, read: true, write: true}
+]
+```
+
+Optional dependencies can be denied while the operation remains allowed. Delayed activities additionally
+require `continuityStorage`; denying this dependency denies delayed delivery. Storage-purpose features
+show their own required storage permission. Dependencies combine the operation's applicable user-data
+permission with the storage purpose's decision, including feature overrides and global storage requirements.
+Recommendation responses may persist split assignments independently of profile enrichment.
+
+These entries describe permitted storage paths in the library, not a record of actual reads/writes or a
+promise that a value exists. Configuration, available data, and the caller determine whether a path runs.
+An empty list means no declared dependency, as with the core content-token transport and explicit preference
+management. Custom callers and plugins can have additional storage needs. When enforcement is disabled,
+dependency read/write values are `null`, indicating no active consent decision.
+Dev Studio displays each dependency by name with its optional/required status and read/write permissions.
+
+The Dev Studio Consent tab lists levels with green checks for granted permissions and red crosses for denied permissions.
+Separate Feature permissions and Storage permissions tables use the same indicators. Feature rows retain their named
+optional or required storage dependencies, while storage rows show read and write permissions for each storage purpose.

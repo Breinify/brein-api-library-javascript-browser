@@ -17,6 +17,7 @@
     const _private = {
         storage: {
             handles: {},
+            preferences: {},
             memoryEntries: new Map(),
             identifierStorage: null,
 
@@ -49,7 +50,48 @@
                 }
             },
 
+            /**
+             * Selects one available backend for an explicit preference order, without reading or writing entries.
+             * Equal orders reuse the selection for this library instance; operation failures never select again.
+             */
+            select: function (type) {
+                if (!Array.isArray(type)) {
+                    if (type !== 'local' && type !== 'session' && type !== 'memory') {
+                        throw new TypeError('Unknown storage type: ' + type);
+                    }
+                    return type;
+                } else if (type.length === 0) {
+                    throw new TypeError('Storage preferences must not be empty.');
+                }
+
+                for (let i = 0; i < type.length; i++) {
+                    const candidate = type[i];
+                    if (candidate !== 'local' && candidate !== 'session' && candidate !== 'memory') {
+                        throw new TypeError('Unknown storage type: ' + candidate);
+                    }
+                }
+
+                const key = type.join('|');
+                if (Object.prototype.hasOwnProperty.call(this.preferences, key)) {
+                    return this.preferences[key];
+                }
+
+                let unavailable;
+                for (let i = 0; i < type.length; i++) {
+                    const candidate = type[i];
+                    try {
+                        this.resolve(candidate);
+                        this.preferences[key] = candidate;
+                        return candidate;
+                    } catch (error) {
+                        unavailable = error;
+                    }
+                }
+                throw unavailable;
+            },
+
             resolve: function (type) {
+                type = this.select(type);
                 let store;
                 if (type === 'local') {
                     store = window.localStorage;
@@ -230,6 +272,39 @@
             isStoragePurpose: function (feature) {
                 return typeof feature === 'string' && Object.prototype.hasOwnProperty.call(this.definitions, feature) &&
                     feature.endsWith('Storage') && this.definitions[feature].storage === 'required';
+            },
+
+            // diagnostic dependencies only; request and storage enforcement retain their separate decisions
+            inspectStorage: function (feature, decision) {
+                const consent = this;
+                const definition = this.definitions[feature];
+                const dependencies = [];
+                const add = function (purpose, required, permitted) {
+                    const storageDecision = consent.snapshot(purpose, false);
+                    dependencies.push({
+                        feature: purpose,
+                        required: required,
+                        read: decision === null ? null : permitted && storageDecision.storage.read,
+                        write: decision === null ? null : permitted && storageDecision.storage.write
+                    });
+                };
+                if (definition.storage === 'required') {
+                    add(definition.storageFeature || feature, true, decision !== null && decision.granted);
+                }
+                const createsUser = ['recommendations', 'modifyContent', 'temporalData',
+                    'activities', 'delayedActivities'].indexOf(feature) !== -1;
+                if (createsUser) {
+                    if (definition.userData.identifiers !== null) {
+                        add('identifierStorage', false, decision !== null && decision.userData.identifiers);
+                    }
+                    if (definition.userData.profile !== null) {
+                        add('profileStorage', false, decision !== null && decision.userData.profile);
+                    }
+                    // recommendation responses can persist assignments even without profile enrichment
+                    add('splitTestStorage', false, decision !== null &&
+                        (feature === 'recommendations' ? decision.granted : decision.userData.profile));
+                }
+                return dependencies;
             },
 
             storageAllowed: function (name, mode, refresh) {
@@ -1180,12 +1255,17 @@
                 const features = Object.keys(consent.definitions).map(function (feature) {
                     const definition = consent.definitions[feature];
                     const rule = consent.featureRules[feature];
+                    const decision = consent.configured ? consent.snapshot(feature, false) : null;
                     return {
                         feature: feature,
                         requires: [definition.requires].concat(rule ? rule.requires : [])
                             .filter(function (level, index, values) { return values.indexOf(level) === index; }),
-                        storage: definition.storage,
-                        decision: consent.configured ? consent.snapshot(feature, false) : null
+                        storageDependencies: consent.inspectStorage(feature, decision),
+                        decision: decision === null ? null : {
+                            feature: decision.feature,
+                            granted: decision.granted,
+                            userData: decision.userData
+                        }
                     };
                 });
                 return $.extend(true, {}, {
@@ -3607,10 +3687,12 @@
 
             /**
              * Returns a synchronous storage handle whose operations use the shared access methods.
-             * Supported types are local, session, and memory. Browser access errors are propagated.
+             * Accepts one type or an ordered preference of local, session, and memory backends.
+             * Preferences select one available backend; later operation failures are propagated without fallback.
              */
             getStorage: function (type) {
                 const state = _private.storage;
+                type = state.select(type);
                 state.resolve(type);
                 if (!Object.prototype.hasOwnProperty.call(state.handles, type)) {
                     state.handles[type] = {

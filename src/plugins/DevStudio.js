@@ -909,9 +909,21 @@
                 div.user-field-value { align-items: center; color: #fff; display: flex; justify-content: space-between; }
                 div.user-field-value span { flex-grow: 1; min-width: 0; }
                 div.user-empty { color: #bbbbbb; font-style: italic; }
+                #consent-container { white-space: normal; }
+                .consent-levels { list-style: none; padding: 0; margin: 12px 0 0; }
+                .consent-levels li { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+                .consent-status { display: inline-block; font-weight: bold; font-size: 16px; min-width: 18px; text-align: center; }
+                .consent-status.granted { color: #7cdb98; }
+                .consent-status.denied { color: #ff8585; }
+                .consent-status.unknown { color: #bbb; }
+                .consent-section { margin-top: 20px; }
+                .consent-section h2 { font-size: 14px; color: #eee; margin-bottom: 8px; }
+                .consent-table td { vertical-align: top; }
+                .consent-table [data-storage-feature] + [data-storage-feature] { margin-top: 10px; }
                 .consent-table-scroll { overflow-x: auto; margin: 12px 0; }
                 .consent-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
-                .consent-table th, .consent-table td { padding: 8px; text-align: left; border-bottom: 1px solid #444; }
+                .consent-table th, .consent-table td { color: #eee; padding: 8px; text-align: left; border-bottom: 1px solid #444; }
+                .consent-table th { word-break: normal; }
                 .consent-table small { display: block; color: #bbb; margin-top: 4px; }
                 .feature-card { background: #242424; border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-top: 10px; padding: 10px; }
                 .feature-name { color: #4fc3f7; font-size: 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
@@ -2581,6 +2593,13 @@
             }
         }
 
+        _createConsentStatus(value) {
+            const state = value === true ? 'granted' : value === false ? 'denied' : 'unknown';
+            const label = value === true ? 'Granted' : value === false ? 'Denied' : 'Not evaluated';
+            return $('<span class="consent-status" role="img"></span>').addClass(state)
+                .attr({'aria-label': label, title: label}).text(value === true ? '✓' : value === false ? '✕' : '—');
+        }
+
         _refreshConsent(force) {
             if (!this._hasConsent()) return;
             try {
@@ -2599,28 +2618,63 @@
                 $summary.append($('<p></p>').text('Provider: ' + (snapshot.settings.provider || 'Not configured') +
                     ' · Timeout: ' + snapshot.settings.timeoutInMs + ' ms'));
                 if (snapshot.pending) $summary.append($('<p></p>').text('A consent evaluation is pending.'));
-                $summary.append($('<p></p>').text(Object.keys(snapshot.levels).map(level =>
-                    level + ': ' + (snapshot.levels[level] ? 'Granted' : 'Denied')).join(' · ')));
+                const $levels = $('<ul class="consent-levels"></ul>');
+                Object.keys(snapshot.levels).forEach(level => {
+                    $levels.append($('<li></li>').attr('data-level', level)
+                        .append(this._createConsentStatus(snapshot.levels[level]))
+                        .append($('<span></span>').text(level)));
+                });
+                $summary.append($levels);
                 this.$consentContainer.append($summary);
                 this.$consentContainer.append($('<p class="user-empty"></p>').text(
-                    'Read-only view, updated while visible. No CMP query or user collection. ' +
-                    'While waiting, these are the conservative permissions; operations wait for consent or timeout.'));
-                const $table = $('<table class="consent-table"><thead><tr>' +
+                    'Read-only view, updated while visible. While waiting, operations wait for consent or timeout.'));
+                const $features = $('<table class="consent-table"><thead><tr>' +
                     '<th>Feature / required levels</th><th>Allowed</th><th>IDs</th><th>Profile</th>' +
-                    '<th>Storage read / write</th></tr></thead><tbody></tbody></table>');
+                    '<th>Storage dependencies · read / write</th></tr></thead><tbody></tbody></table>');
+                const $storage = $('<table class="consent-table"><thead><tr>' +
+                    '<th>Storage / required levels</th><th>Read</th><th>Write</th>' +
+                    '</tr></thead><tbody></tbody></table>');
                 snapshot.features.forEach(feature => {
                     const decision = feature.decision;
-                    const yesNo = value => value ? 'Yes' : 'No';
+                    const ownStorage = feature.storageDependencies.find(dependency =>
+                        dependency.required && dependency.feature === feature.feature);
                     const $row = $('<tr></tr>').attr('data-feature', feature.feature);
                     $row.append($('<td></td>').text(feature.feature).append($('<small></small>').text(
-                        feature.requires.join(' + ') + (feature.storage === 'required' ? ' · storage required' : ''))));
-                    [yesNo(decision.granted), yesNo(decision.userData.identifiers), yesNo(decision.userData.profile),
-                        yesNo(decision.storage.read) + ' / ' + yesNo(decision.storage.write)].forEach(value => {
-                        $row.append($('<td></td>').text(value));
+                        feature.requires.join(' + '))));
+                    if (ownStorage) {
+                        [ownStorage.read, ownStorage.write].forEach(value => {
+                            $row.append($('<td></td>').append(this._createConsentStatus(value)));
+                        });
+                        $storage.find('tbody').append($row);
+                        return;
+                    }
+                    [decision.granted, decision.userData.identifiers, decision.userData.profile].forEach(value => {
+                        $row.append($('<td></td>').append(this._createConsentStatus(value)));
                     });
-                    $table.find('tbody').append($row);
+                    const $dependencies = $('<td></td>');
+                    if (feature.storageDependencies.length === 0) {
+                        $dependencies.text('No declared dependency');
+                    }
+                    feature.storageDependencies.forEach(dependency => {
+                        const $dependency = $('<div></div>').attr('data-storage-feature', dependency.feature);
+                        const $permissions = $('<small></small>').text(dependency.required ? 'Required · ' : 'Optional · ')
+                            .append(this._createConsentStatus(dependency.read)).append(' / ')
+                            .append(this._createConsentStatus(dependency.write));
+                        $dependency.text(dependency.feature).append($permissions);
+                        $dependencies.append($dependency);
+                    });
+                    $row.append($dependencies);
+                    $features.find('tbody').append($row);
                 });
-                this.$consentContainer.append($('<div class="consent-table-scroll"></div>').append($table));
+                [['Feature permissions', $features], ['Storage permissions', $storage]].forEach(entry => {
+                    const $section = $('<section class="consent-section"></section>');
+                    $section.append($('<h2></h2>').text(entry[0]));
+                    $section.append($('<div class="consent-table-scroll"></div>').append(entry[1]));
+                    this.$consentContainer.append($section);
+                });
+                this.$consentContainer.append($('<p class="user-empty"></p>').text(
+                    'Storage dependencies show permitted access for each feature, not observed reads or writes. ' +
+                    'Optional storage can be denied while the feature remains available.'));
                 const $settings = $('<details><summary>Settings and mappings</summary></details>');
                 $settings.append($('<pre class="feature-value"></pre>').text(JSON.stringify(snapshot.settings, null, 2)));
                 this.$consentContainer.append($settings);

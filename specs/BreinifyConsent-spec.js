@@ -426,3 +426,87 @@ describe('Consent inspection', function () {
         expect(snapshot.features.every(function (feature) { return feature.decision === null; })).toBe(true);
     });
 });
+
+describe('Consent storage dependency inspection', function () {
+    const consent = Breinify.UTL.consent;
+
+    function configure(permissions, settings) {
+        consent.configure(Object.assign({}, settings, {
+            provider: {evaluate: function (callback) { callback(permissions); }}
+        }));
+    }
+
+    function feature(name) {
+        return consent.inspect().features.filter(function (entry) { return entry.feature === name; })[0];
+    }
+
+    function dependency(name, required, allowed) {
+        return {feature: name, required: required, read: allowed, write: allowed};
+    }
+
+    afterEach(function () { consent.configure({enabled: false}); });
+
+    it('shows optional activity storage with Accept all without changing enforcement decisions', function () {
+        configure({functional: true, analytics: true, personalization: true});
+        const activity = feature('activities');
+        expect(activity.storage).toBeUndefined();
+        expect(activity.decision.storage).toBeUndefined();
+        expect(activity.storageDependencies).toEqual([
+            dependency('identifierStorage', false, true),
+            dependency('profileStorage', false, true),
+            dependency('splitTestStorage', false, true)
+        ]);
+        expect(consent.getDecision('activities').storage).toEqual({read: false, write: false});
+        expect(feature('identifierStorage').storageDependencies).toEqual([
+            dependency('identifierStorage', true, true)
+        ]);
+    });
+
+    it('distinguishes Analytics-only access from profile-dependent storage', function () {
+        configure({analytics: true});
+        expect(feature('activities').storageDependencies).toEqual([
+            dependency('identifierStorage', false, true),
+            dependency('profileStorage', false, false),
+            dependency('splitTestStorage', false, false)
+        ]);
+        expect(feature('recommendations').storageDependencies).toEqual([
+            dependency('identifierStorage', false, false),
+            dependency('profileStorage', false, false),
+            dependency('splitTestStorage', false, true)
+        ]);
+        expect(feature('temporalData').storageDependencies.map(function (entry) { return entry.feature; }))
+            .toEqual(['profileStorage', 'splitTestStorage']);
+        expect(feature('contentTokens').storageDependencies).toEqual([]);
+        expect(feature('preferenceManagement').storageDependencies).toEqual([]);
+    });
+
+    it('keeps immediate requests allowed when global storage restrictions block optional access', function () {
+        configure({analytics: true}, {storage: {requires: 'personalization'}});
+        const activity = feature('activities');
+        expect(activity.decision.granted).toBe(true);
+        expect(activity.storageDependencies.every(function (entry) { return !entry.read && !entry.write; })).toBe(true);
+        const delayed = feature('delayedActivities');
+        expect(delayed.decision.granted).toBe(false);
+        expect(delayed.storageDependencies[0]).toEqual(dependency('continuityStorage', true, false));
+    });
+
+    it('honors purpose overrides and exposes required continuity storage for delayed activities', function () {
+        configure({analytics: true, personalization: true}, {features: {identifierStorage: {enabled: false}}});
+        expect(feature('activities').storageDependencies[0]).toEqual(dependency('identifierStorage', false, false));
+        expect(feature('activities').decision.granted).toBe(true);
+        expect(feature('delayedActivities').storageDependencies[0]).toEqual(dependency('continuityStorage', true, true));
+    });
+
+    it('reports denied and disabled states without inventing permissions or retaining returned mutations', function () {
+        configure({});
+        const recommendations = feature('recommendations');
+        expect(recommendations.decision.granted).toBe(true);
+        expect(recommendations.storageDependencies.every(function (entry) { return !entry.read && !entry.write; })).toBe(true);
+        recommendations.storageDependencies[0].read = true;
+        expect(feature('recommendations').storageDependencies[0].read).toBe(false);
+        consent.configure({enabled: false});
+        expect(feature('activities').storageDependencies.every(function (entry) {
+            return entry.read === null && entry.write === null;
+        })).toBe(true);
+    });
+});

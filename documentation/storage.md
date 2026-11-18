@@ -11,7 +11,8 @@ consent. Customer integration code outside this library needs a separate review.
 ## Direct access
 
 These methods work immediately after the core library loads; they do not require `storage.init()`.
-The type is explicitly `'local'`, `'session'`, or `'memory'`. Memory lasts for the current library instance.
+The type is explicitly `'local'`, `'session'`, or `'memory'`, or a nonempty array of these types in
+preference order. Memory lasts for the current library instance.
 
 | Method | Behavior |
 | --- | --- |
@@ -27,6 +28,7 @@ The type is explicitly `'local'`, `'session'`, or `'memory'`. Memory lasts for t
 
 Raw access propagates browser errors, including blocked storage and quota failures, allowing the caller
 to apply its own fallback. It never silently switches from local/session storage to memory or cookies.
+An ordered preference selects one available backend as described below; it does not retry failed operations.
 `getJson` with an explicit fallback is the exception for read/parse failures. Valid JSON values including
 `null`, `false`, `0`, and `""` are returned unchanged; the fallback is not schema validation.
 
@@ -38,6 +40,46 @@ storage.setJson('session', 'my-settings', settings);
 // omit the fallback when malformed JSON or inaccessible storage should throw
 const requiredData = storage.getJson('local', 'my-data');
 ```
+
+### Exclusive storage and ordered preferences
+
+```javascript
+const storage = Breinify.UTL.storage;
+const key = 'my-display-state';
+storage.register(key, Breinify.UTL.consent.features.PRESENTATION_STORAGE);
+
+// one backend only
+const local = storage.getStorage('local');
+const session = storage.getStorage('session');
+
+// select local when available, otherwise session
+const preferred = storage.getStorage(['local', 'session']);
+preferred.setItem(key, 'hidden');
+
+// direct methods reuse the same selection for the same preference order
+const value = storage.getItem(['local', 'session'], key);
+storage.setItem(['local', 'session'], key, 'visible');
+```
+
+Selection checks whether the backend can be obtained and exposes the Storage interface. It does not
+read an application entry or write a probe. Only an unavailable backend advances to the next preference.
+If none is available, the access error is propagated and no selection is retained. Invalid types and
+empty preference arrays are rejected; memory is considered only when explicitly listed.
+
+Once selected, the backend type is retained for that exact preference order for the lifetime of the
+library instance. Handles and direct methods share this selection, including equivalent newly created
+arrays. The native browser storage object is still resolved again for each operation. A later read error,
+write error, quota failure, missing entry, or malformed JSON never switches backends. Recovery of a
+previously unavailable preferred backend does not change an existing selection either. No values are
+merged or compared across backends. Single-string calls always use their explicitly named backend.
+
+The same type argument works with JSON access, removal, keys, and entries. `isAvailable` remains an
+explicit read/write probe; it does not control preference selection or trigger fallback on probe failure.
+
+Backend selection and consent purpose are independent. Register the purpose for the key before use;
+all reads and writes still evaluate that purpose, including through retained handles. Denied direct
+reads/writes return before selecting a backend. The library does not infer purpose from the value or
+validate the meaning of arbitrary payloads. Unregistered keys retain the Profile Storage default.
 
 ### Iterating entries
 
