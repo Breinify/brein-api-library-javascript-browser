@@ -50,7 +50,7 @@ describe('Breinify core consent', function () {
         expect(levels).toEqual({CONTENT: 'content', FUNCTIONAL: 'functional', ANALYTICS: 'analytics', PERSONALIZATION: 'personalization'});
         expect(Object.isFrozen(levels)).toBe(true);
         expect(Object.isFrozen(features)).toBe(true);
-        expect(Object.keys(features).length).toBe(11);
+        expect(Object.keys(features).length).toBe(12);
         expect(features.MODIFY_CONTENT).toBe('modifyContent');
     });
 
@@ -91,6 +91,8 @@ describe('Breinify core consent', function () {
                     });
                     expect(evaluate(features.PRESENTATION_STORAGE)).toHaveBeenCalledOnceWith(
                         decision(features.PRESENTATION_STORAGE, functional, false, false, functional));
+                    expect(evaluate(features.CONTENT_STORAGE)).toHaveBeenCalledOnceWith(
+                        decision(features.CONTENT_STORAGE, true, false, false, true));
                     expect(source.personalization).toBe(personalization);
                 });
             });

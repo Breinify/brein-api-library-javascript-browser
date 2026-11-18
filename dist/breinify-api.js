@@ -13223,6 +13223,7 @@ dependencyScope.jQuery = $;
                 TEMPORAL_DATA: 'temporalData',
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
+                CONTENT_STORAGE: 'contentStorage',
                 PRESENTATION_STORAGE: 'presentationStorage',
                 IDENTIFIER_STORAGE: 'identifierStorage',
                 PROFILE_STORAGE: 'profileStorage',
@@ -13281,6 +13282,11 @@ dependencyScope.jQuery = $;
                     userData: {identifiers: 'analytics', profile: 'personalization'},
                     storage: 'required'
                 },
+                contentStorage: {
+                    requires: 'content',
+                    userData: {identifiers: null, profile: null},
+                    storage: 'required'
+                },
                 presentationStorage: {
                     requires: 'functional',
                     userData: {identifiers: null, profile: null},
@@ -13308,6 +13314,8 @@ dependencyScope.jQuery = $;
                 const key = String(name);
                 if (Object.prototype.hasOwnProperty.call(this.storageFeatures, key)) {
                     return this.storageFeatures[key];
+                } else if (key.indexOf('breinify-content-') === 0) {
+                    return 'contentStorage';
                 } else if ((/^x-breinify-(bid|uuid)$/.test(key) || key.indexOf('br-storage-test-') === 0)) {
                     return 'identifierStorage';
                 } else if (key === 'x-breinify-delayed' || key.indexOf('breinify-sa-data-') === 0) {
@@ -19337,6 +19345,7 @@ dependencyScope.jQuery = $;
                 TEMPORAL_DATA: 'temporalData',
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
+                CONTENT_STORAGE: 'contentStorage',
                 PRESENTATION_STORAGE: 'presentationStorage',
                 IDENTIFIER_STORAGE: 'identifierStorage',
                 PROFILE_STORAGE: 'profileStorage',

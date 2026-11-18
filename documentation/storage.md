@@ -115,9 +115,9 @@ was configured. [Consent configuration](consent.md#configuration-and-overrides) 
 | Consent state | Library storage behavior |
 | --- | --- |
 | No consent settings, or enforcement explicitly disabled | Legacy behavior: entries may be read/written when their features run, subject to configuration and browser availability. No CMP grant is required by the library. |
-| Enabled, provider not ready or not yet returning valid permissions | Synchronous storage access denies optional reads/writes immediately. It does not queue a write for later. Async request operations can wait for consent, but that does not grant storage. |
-| Enabled, consent query times out | Content-only evaluation. All built-in persistent storage purposes below remain denied. A later grant permits subsequent access; denied writes are not replayed. |
-| Enabled, valid consent with all optional purposes false | Same storage denial as Content-only. This includes Airgap's all-false purposes with `confirmed: false`; it is a known snapshot. |
+| Enabled, provider not ready or not yet returning valid permissions | Synchronous storage access denies optional reads/writes immediately. Declared `contentStorage` remains available unless an override requires missing consent. Writes are not queued for later. Async request operations can still wait for consent. |
+| Enabled, consent query times out | Content-only evaluation. Declared `contentStorage` is available under its default policy; storage requiring optional consent remains denied. A later grant permits subsequent access; denied writes are not replayed. |
+| Enabled, valid consent with all optional purposes false | Content-only policy: declared content storage is available by default; optional storage is denied. Airgap's all-false purposes with `confirmed: false` is a known snapshot. |
 | Enabled, relevant permissions granted | The corresponding purpose is available, subject to feature overrides and `storage.requires`. Personalization requires Analytics; Functional is independent. |
 | Enabled, permissions revoked | Further denied reads return `null`, writes do nothing, and enumeration omits denied keys. Publication of the changed snapshot also cleans known denied data as described below. |
 
@@ -125,6 +125,7 @@ These purpose labels are used in every inventory table:
 
 | Storage purpose / feature | Default required consent | What it covers |
 | --- | --- | --- |
+| `contentStorage` | Content (no optional grant) | Explicitly declared non-user product/content caches; no identifier or profile permission. |
 | `identifierStorage` | Analytics | Generated browser/session identifiers and identifier availability probes. |
 | `delayedActivities` | Analytics | Persisted activities awaiting delivery; storage is required for this feature. |
 | `splitTestStorage` | Analytics | Stored assignments and attribution data. |
@@ -134,12 +135,39 @@ These purpose labels are used in every inventory table:
 `storage.requires` adds a requirement to every purpose. For example, `storage.requires: 'personalization'`
 means identifiers need Analytics + Personalization, while presentation storage needs Functional + Analytics
 + Personalization. A feature-specific `enabled: false` denies its storage regardless of granted levels.
-No built-in cookie/local/session entry is assigned to Content-only storage by default.
+Keys prefixed with `breinify-content-`, and keys explicitly registered as `contentStorage`, use Content-only
+storage by default. A global Personalization requirement also blocks these content caches until Analytics
++ Personalization is granted. Content storage is a data-purpose declaration, not an exemption from overrides.
 
 The classifier uses the key, not the backend: moving a key from local storage to a cookie or explicit
 memory storage does not change its requirement. `storage.register(key, feature)` can classify a custom key;
-SplitTests registers its configured storage keys as `splitTestStorage`. Unregistered keys default to
-`profileStorage`. `storage.isAllowed(key[, 'read'|'write'])` queries the current key policy.
+SplitTests registers its configured storage keys as `splitTestStorage`. Keys without a recognized prefix or
+explicit registration default to `profileStorage`. `storage.isAllowed(key[, 'read'|'write'])` queries the current key policy.
+
+### Declaring non-user content storage
+
+Use this purpose only for data such as a product catalog or shared sale information. Do not store visitor
+IDs, account data, behavioral history, visitor-specific assignments, or personalized responses under it.
+The storage manager does not inspect JSON contents to establish whether a declaration is accurate.
+
+```javascript
+const storage = Breinify.UTL.storage;
+const key = 'breinify-content-products';
+const cached = storage.getJson('local', key, null);
+storage.setJson('local', key, {timestamp: Date.now(), items: products});
+```
+
+The prefix is recognized by the core before customer modules initialize, so an initial Content-only
+snapshot preserves an existing cache. For a custom key:
+
+```javascript
+storage.register('public-product-catalog', Breinify.UTL.consent.features.CONTENT_STORAGE);
+```
+
+Register custom keys before using them. If the key also matches a library cleanup prefix, register before
+consent initialization to avoid early cleanup using its previous/default classification; otherwise use
+the `breinify-content-` prefix. Registration does not recover already-deleted data. The same purpose works
+with local, session, and explicit memory storage, and applies to matching cookie names as well.
 
 ## Time and browser scope
 
@@ -166,6 +194,7 @@ above; with enforcement disabled, the same writes follow legacy behavior.
 
 | Key | Owner and stored data | When written / renewed | Consent purpose | Lifetime / logical scope |
 | --- | --- | --- | --- | --- |
+| `breinify-content-<name>` | Caller-declared non-user product/content cache. | When the owning content feature writes through UTL. | `contentStorage` | Caller-defined format, expiry and renewal; the prefix adds no automatic TTL. Logical scope is the supplied name. |
 | `x-breinify-bid` | Core user: browser ID in `{v, exp}`. | First permitted browser-ID lookup when no valid ID exists. | `identifierStorage` | 3,650 days from creation, checked on read. Shared browser identity for this origin; reads do not renew it. Cookie fallback below. |
 | `breinify-split-test-data` | Core named cache: assignments and attribution metadata in `{expires, created, data}`. | Updating/replacing split-test data, including recommendation and Modify Content result metadata. | `splitTestStorage` | Envelope duration is `30 * 24 * 60` seconds: **12 hours**, not 30 days. Assignment reads separately prune entries older than 24 hours and expired preview `expiresAt` values. Named-cache `get` does not itself enforce envelope expiry. Entries keyed by test name. |
 | `breinify-gp-data` | Core: hashes of already-handled tracking parameters for deduplication. | Handling a newly recognized tracking-parameter activity. | `profileStorage` (fallback classification) | 60-second envelope metadata; `get` does not itself enforce expiry. Shared named cache for the origin. |
@@ -220,6 +249,23 @@ These JavaScript-written cookies are not HttpOnly. JSON cookie encoding is not e
 public `set`/`setJson` methods accept custom names, expiry in **days**, and domain/path options (`global`
 selects root path; otherwise no explicit Path is emitted). Custom keys default to `profileStorage` unless
 classified; their actual contents and scope depend on the caller.
+
+## Customer integration: Bradford sale items
+
+The sale-items module uses the library's token helper with `CONTENT_TOKENS` and an empty payload. It sends
+no user information. Its cache uses `CONTENT_STORAGE`, independently of the network operation. This does
+not enable consent settings for Bradford; absent settings retain legacy behavior. The migrated module
+requires a library build containing `CONTENT_STORAGE`, its prefix classification, and the storage helpers.
+
+| Location / key | Stored data and write trigger | Consent purpose | Time and scope |
+| --- | --- | --- | --- |
+| Local `breinify-content-sale-items` | `{timestamp, items}` for shared sale products. Written after a resource response and when filtering a cached array; cached rewrites retain the original timestamp. | `contentStorage` | Origin-wide product cache. **30-minute freshness interval**; stale items are served while refreshing. Expired promotions are excluded using their promotion timestamps. This is not a browser-enforced deletion TTL. |
+| Local `breinify-sale-items` (legacy) | Previous cache with the same format. Registered as content storage during module initialization for migration. | `contentStorage` after registration; previously unclassified | Valid existing data is copied to the new key without renewing its timestamp, then the old key is removed if cleanup succeeds. If absent/already cleaned or migration fails, the module fetches fresh content. |
+
+If persistence is denied by an explicit customer override, the module still loads products using its
+separate content-token permission and keeps the current product index in memory. Denying `contentTokens`
+can block the network request; denying `contentStorage` blocks the cache. Failed or denied token requests
+clear the in-progress flag so a subsequent load can retry. No automatic consent replay is added.
 
 ## Script Creator bootstrap exception
 

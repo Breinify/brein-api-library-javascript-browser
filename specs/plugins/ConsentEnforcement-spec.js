@@ -365,4 +365,67 @@ describe('Consent enforcement', function () {
         expect(createUser).not.toHaveBeenCalled();
     });
 
+
+    it('preserves pre-existing public content through initial denial and optional-consent revocation', function () {
+        const key = 'breinify-content-products';
+        localStorage.setItem(key, JSON.stringify({items: ['sku']}));
+        configure({});
+        expect(storage.getJson('local', key)).toEqual({items: ['sku']});
+        storage.setJson('local', key, {items: ['updated']});
+        expect(consent.getDecision(consent.features.CONTENT_STORAGE).userData)
+            .toEqual({identifiers: false, profile: false});
+        permissions = {analytics: true, personalization: true};
+        notify(permissions);
+        permissions = {};
+        notify(permissions);
+        expect(storage.getJson('local', key)).toEqual({items: ['updated']});
+        expect(storage.getJson('local', 'unclassified')).toBeNull();
+    });
+
+    it('allows declared content storage while optional consent is unknown and after timeout', function () {
+        jasmine.clock().install();
+        try {
+            consent.configure({timeoutInMs: 20, provider: {evaluate: function () {}}});
+            storage.setJson('session', 'breinify-content-products', ['sku']);
+            storage.setItem('local', 'unclassified', 'private');
+            expect(storage.getJson('session', 'breinify-content-products')).toEqual(['sku']);
+            expect(localStorage.getItem('unclassified')).toBeNull();
+            jasmine.clock().tick(21);
+            expect(storage.getJson('session', 'breinify-content-products')).toEqual(['sku']);
+        } finally {
+            jasmine.clock().uninstall();
+        }
+    });
+
+    it('honors global storage restrictions and content-storage overrides for public data', function () {
+        const key = 'breinify-content-products';
+        configure({}, {storage: {requires: 'personalization'}});
+        storage.setItem('local', key, 'blocked');
+        expect(localStorage.getItem(key)).toBeNull();
+        permissions = {analytics: true, personalization: true};
+        notify(permissions);
+        storage.setItem('local', key, 'allowed');
+        expect(storage.getItem('local', key)).toBe('allowed');
+        permissions = {};
+        notify(permissions);
+        expect(localStorage.getItem(key)).toBeNull();
+        configure({analytics: true, personalization: true}, {features: {contentStorage: {enabled: false}}});
+        storage.setItem('session', key, 'blocked');
+        expect(sessionStorage.getItem(key)).toBeNull();
+        configure({}, {features: {contentStorage: {requires: 'functional'}}});
+        expect(storage.isAllowed(key)).toBe(false);
+        permissions = {functional: true};
+        notify(permissions);
+        expect(storage.isAllowed(key)).toBe(true);
+    });
+
+    it('allows explicitly registered public content without changing unclassified storage', function () {
+        configure({});
+        storage.register('test-public-catalog', consent.features.CONTENT_STORAGE);
+        storage.setJson('local', 'test-public-catalog', {items: ['sku']});
+        storage.setJson('local', 'test-unclassified-catalog', {items: ['sku']});
+        expect(storage.getJson('local', 'test-public-catalog')).toEqual({items: ['sku']});
+        expect(localStorage.getItem('test-unclassified-catalog')).toBeNull();
+    });
+
 });
