@@ -380,3 +380,36 @@ describe('Breinify core consent', function () {
         expect(console.error).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('Consent inspection', function () {
+    const consent = Breinify.UTL.consent;
+
+    afterEach(function () { consent.configure({enabled: false}); });
+
+    it('does not query providers and returns isolated configuration and decisions', function () {
+        const evaluate = jasmine.createSpy('provider').and.callFake(function (callback) {
+            callback({analytics: true, personalization: true});
+        });
+        consent.configure({provider: {evaluate: evaluate}, features: {temporalData: {requires: ['personalization']}},
+            storage: {requires: ['personalization']}});
+        evaluate.calls.reset();
+        const snapshot = consent.inspect();
+        expect(snapshot.status).toBe('known');
+        expect(snapshot.settings.provider).toBe('custom');
+        expect(snapshot.levels.personalization).toBe(true);
+        snapshot.settings.features.temporalData.requires.push('functional');
+        snapshot.levels.analytics = false;
+        const again = consent.inspect();
+        expect(again.settings.features.temporalData.requires).toEqual(['personalization']);
+        expect(again.levels.analytics).toBe(true);
+        expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it('reports disabled consent without claiming that feature enforcement is active', function () {
+        consent.configure({enabled: false});
+        const snapshot = consent.inspect();
+        expect(snapshot.enabled).toBe(false);
+        expect(snapshot.status).toBe('disabled');
+        expect(snapshot.features.every(function (feature) { return feature.decision === null; })).toBe(true);
+    });
+});

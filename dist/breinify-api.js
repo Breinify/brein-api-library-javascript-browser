@@ -14121,6 +14121,85 @@ dependencyScope.jQuery = $;
             features: _private.consent.features,
             integrations: {},
 
+            // shared adapter mechanics; CMP readiness, reads and event wiring stay in each integration
+            utils: {
+                mappings: function (settings, defaults) {
+                    if (typeof settings !== 'undefined' &&
+                        (!settings || typeof settings !== 'object' || Array.isArray(settings))) {
+                        throw new TypeError('Consent mappings must be an object.');
+                    }
+                    const result = {};
+                    Object.keys(settings || {}).forEach(function (level) {
+                        if (!Object.prototype.hasOwnProperty.call(defaults, level)) {
+                            throw new RangeError('Unknown consent mapping level: ' + level);
+                        }
+                    });
+                    Object.keys(defaults).forEach(function (level) {
+                        const value = settings && Object.prototype.hasOwnProperty.call(settings, level)
+                            ? settings[level] : defaults[level];
+                        const purposes = Array.isArray(value) ? value.slice() : [value];
+                        if (purposes.length === 0 || purposes.some(function (purpose) {
+                            return typeof purpose !== 'string' || purpose.trim() === '';
+                        })) {
+                            throw new TypeError('Consent mappings require one or more purpose names.');
+                        }
+                        result[level] = purposes;
+                    });
+                    return result;
+                },
+
+                createObserver: function (onEmpty) {
+                    const state = {listeners: [], pending: null};
+                    return {
+                        hasListeners: function () {
+                            return state.listeners.length > 0;
+                        },
+
+                        isIdle: function () {
+                            return state.listeners.length === 0 && state.pending === null;
+                        },
+
+                        wait: function (callback) {
+                            // the core combines concurrent operations; keep only its latest pending query
+                            state.pending = callback;
+                        },
+
+                        subscribe: function (callback) {
+                            const entry = {callback: callback};
+                            state.listeners.push(entry);
+                            return function () {
+                                const index = state.listeners.indexOf(entry);
+                                if (index === -1) {
+                                    return;
+                                }
+                                state.listeners.splice(index, 1);
+                                if (state.listeners.length === 0) {
+                                    state.pending = null;
+                                    onEmpty();
+                                }
+                            };
+                        },
+
+                        publish: function (snapshot) {
+                            if (snapshot === null) {
+                                return;
+                            }
+                            const callback = state.pending;
+                            state.pending = null;
+                            state.listeners.slice().forEach(function (entry) {
+                                if (state.listeners.indexOf(entry) !== -1) {
+                                    _private.consent.invoke(entry.callback, Object.assign({}, snapshot));
+                                }
+                            });
+                            if (typeof callback === 'function') {
+                                _private.consent.invoke(callback, Object.assign({}, snapshot));
+                            }
+                            // callbacks may have started another evaluation; callers check isIdle before cleanup
+                        }
+                    };
+                }
+            },
+
             /**
              * Installs a provider and starts the initial consent evaluation.
              */
@@ -14185,6 +14264,49 @@ dependencyScope.jQuery = $;
 
             isEnabled: function () {
                 return _private.consent.configured;
+            },
+
+            /**
+             * Returns diagnostic copies without refreshing the CMP or accessing user data and storage.
+             */
+            inspect: function () {
+                const consent = _private.consent;
+                const permissions = consent.current || consent.denied;
+                const levels = {};
+                Object.keys(consent.levels).forEach(function (key) {
+                    const level = consent.levels[key];
+                    levels[level] = consent.permits(permissions, level);
+                });
+                const provider = consent.provider;
+                const providerSettings = provider && typeof provider.getSettings === 'function'
+                    ? provider.getSettings() : {provider: provider === null ? null : 'custom'};
+                const features = Object.keys(consent.definitions).map(function (feature) {
+                    const definition = consent.definitions[feature];
+                    const rule = consent.featureRules[feature];
+                    return {
+                        feature: feature,
+                        requires: [definition.requires].concat(rule ? rule.requires : [])
+                            .filter(function (level, index, values) { return values.indexOf(level) === index; }),
+                        storage: definition.storage,
+                        decision: consent.configured ? consent.snapshot(feature, false) : null
+                    };
+                });
+                return $.extend(true, {}, {
+                    enabled: consent.configured,
+                    status: !consent.configured ? 'disabled' : consent.current === null ? 'waiting'
+                        : consent.current === consent.denied ? 'timeout' : 'known',
+                    pending: consent.pending !== null,
+                    settings: {
+                        provider: providerSettings.provider,
+                        mappings: providerSettings.mappings || {},
+                        timeoutInMs: consent.timeoutInMs,
+                        features: consent.featureRules,
+                        storage: {requires: consent.storageRequirement}
+                    },
+                    permissions: permissions,
+                    levels: levels,
+                    features: features
+                });
             },
 
             /**
@@ -19333,6 +19455,18 @@ dependencyScope.jQuery = $;
         },
         consent: {
             integrations: {},
+            utils: {
+                mappings: function () { return {}; },
+                createObserver: function () {
+                    return {
+                        hasListeners: function () { return false; },
+                        isIdle: function () { return true; },
+                        wait: function () {},
+                        subscribe: function () { return function () {}; },
+                        publish: function () {}
+                    };
+                }
+            },
             levels: Object.freeze({
                 CONTENT: 'content',
                 FUNCTIONAL: 'functional',

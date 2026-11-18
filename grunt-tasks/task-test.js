@@ -53,8 +53,14 @@ async function runFile(browser, file, bundle, timeout) {
                 await page.addScriptTag({path: path.resolve('src/plugins', plugin + '.js')});
             }
         }
+        if (file === 'specs/plugins/DevStudio-spec.js') {
+            await page.addScriptTag({path: path.resolve('src/plugins/DevStudio.js')});
+        }
         if (file.startsWith('specs/consent/')) {
-            await page.addScriptTag({path: path.resolve('src/consent/consent-integration-airgap.js')});
+            const integrations = fs.readdirSync('src/consent').filter(name => /^consent-integration-.*\.js$/.test(name));
+            for (const integration of integrations.sort()) {
+                await page.addScriptTag({path: path.resolve('src/consent', integration)});
+            }
         }
 
         // Jasmine 7 installs its browser globals itself; the HTML boot script is not needed in headless mode.

@@ -8,7 +8,7 @@ The manager evaluates registered features against mapped consent, customer overr
 requirements. Core requests, user creation, storage, cookies, and the bundled consumer paths described
 below enforce these decisions when consent is enabled. Omitted or disabled settings preserve legacy
 behavior. Script Creator injects settings before customer initialization and loads the selected adapter;
-the Airgap adapter is available in `src/consent/consent-integration-airgap.js`.
+Airgap, Osano, and OneTrust adapters are available in `src/consent/consent-integration-<provider>.js`.
 
 ## Feature decisions
 
@@ -294,3 +294,102 @@ decision; without a callback it simply returns.
 The fallback `isGranted` only calls `onDenied()` when it is a function, without arguments or validation;
 otherwise it returns without calling anything. It never calls `onGranted`. Configuration and observation
 are inert in that fallback.
+
+
+## CMP adapters
+
+Set `scriptSettings.consent` to enable a provider, for example:
+
+```json
+{
+  "enabled": true,
+  "provider": "osano",
+  "timeoutInMs": 2500
+}
+```
+
+Provider names are `airgap`, `osano`, and `onetrust` (case-insensitive in Script Creator).
+The creator includes only the selected adapter before configuring consent. Loading an adapter alone
+registers its factory without reading the CMP or enabling consent.
+
+| Library permission | Airgap purpose | Osano category | OneTrust group |
+| --- | --- | --- | --- |
+| Functional | `Functional` | `PERSONALIZATION` | `C0003` |
+| Analytics | `Analytics` | `ANALYTICS` | `C0002` |
+| Personalization | `Advertising` + Analytics | `PERSONALIZATION` + Analytics | `C0003` + Analytics |
+
+The core enforces the Analytics prerequisite for Personalization. Functional remains independent.
+Content is the baseline and needs no optional CMP category. Known denial permits content operations
+with the feature's restricted user-data permissions; unknown consent waits for the configured timeout.
+
+Customers can replace a permission's mapping with a list of CMP purpose/category/group names. Every
+entry in that list must be granted. Unspecified mappings retain the defaults. For example, this OneTrust
+configuration additionally requires the customer's advertising group for Personalization:
+
+```json
+{
+  "enabled": true,
+  "provider": "onetrust",
+  "mappings": {
+    "personalization": ["C0003", "C0004"]
+  }
+}
+```
+
+Group IDs and their purposes must match the customer's CMP configuration. These mappings change level
+grants; feature and storage overrides still apply independently.
+
+### Osano
+
+The adapter reads `window.Osano.cm.getConsent()` for each evaluation and accepts only category values
+of `ACCEPT`. Missing categories and other values do not grant permission. An unavailable result remains
+unresolved. It uses Osano's documented preload queue and `onInitialized` hook when the CMP is not loaded,
+preserving existing queue entries and options. Once available, it observes `osano-cm-initialized` and
+`osano-cm-consent-saved`. The unsaved `osano-cm-consent-changed` toggle event does not itself grant consent.
+`cm.ready()` registers external APIs with Osano and is not used as a readiness callback.
+
+See the [Osano JavaScript API](https://developers.osano.com/cmp/javascript-api/developer-documentation-consent-javascript-api).
+
+### OneTrust
+
+The adapter reads the comma-separated `window.OnetrustActiveGroups` value on every evaluation and matches
+whole group IDs. Missing/non-string data remains unresolved; an empty string or only `C0001` grants no
+optional permissions. It subscribes to the window events `OneTrustGroupsUpdated` and `OTConsentApplied`
+before the SDK loads, then rereads the active groups. It does not replace `OptanonWrapper` or create a
+OneTrust stub. See the [OneTrust events guide](https://developer.onetrust.com/onetrust/docs/javascript-events-guide)
+and [active groups documentation](https://docs.onetrust.com/en/consent--preferences/cookie-consent/managing-cookie-scripts-cookie-blocking-and-technical-implementation/onetrustactivegroups---using-the-data-layer-object).
+
+Both adapters remove their observers when unsubscribed. Late CMP availability can update future
+operations after a timeout; it does not replay an operation already completed with restricted permissions.
+Neither adapter requests consent, changes CMP choices, reads CMP cookies directly, nor stores consent itself.
+
+
+### Shared adapter utilities
+
+`Breinify.UTL.consent.utils` supplies `mappings(settings, defaults)` and `createObserver(onEmpty)`.
+Mappings are validated and copied. Each observer owns its listeners and latest pending core query;
+`subscribe(callback)` returns an idempotent unsubscribe function, `wait(callback)` replaces that query,
+and `publish(snapshot)` delivers independent copies of the flat permission snapshot. A null snapshot
+leaves the query pending. Delivery isolates callback errors through the core consent callback handler.
+
+Adapters retain their CMP reads, readiness hooks, event registration, and cleanup. They use
+`hasListeners()` and `isIdle()` to decide whether observation is needed. Callbacks may start another
+pending evaluation during publication, so cleanup checks `isIdle()` after delivery. Removing the last
+listener clears the pending query and calls `onEmpty`. The fallback utility exposes inert helpers.
+Updated adapters require the core version that supplies these utilities.
+
+
+## Dev Studio Consent tab
+
+When consent is enabled and the core supports inspection, Dev Studio shows a Consent tab. It displays
+the provider, effective mappings and configuration, waiting/known/timeout state, effective consent levels,
+and every registered feature's availability, identifier/profile permissions, and storage read/write
+permissions. Feature requirements and required storage are shown alongside each decision.
+
+The tab reads `Breinify.UTL.consent.inspect()` without querying the CMP, evaluating operations, collecting
+users, or reading stored values. It refreshes once per second while visible. Its conservative permissions
+while waiting describe the current snapshot; operations still wait for consent or their timeout. The tab
+hides when consent is disabled and cleans up its refresh timer when Dev Studio is removed.
+
+Built-in adapters expose `getSettings()` with copied provider names and mappings for inspection. Custom
+providers may implement the same optional method; otherwise the tab identifies them as custom.

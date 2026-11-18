@@ -106,6 +106,18 @@
         },
         consent: {
             integrations: {},
+            utils: {
+                mappings: function () { return {}; },
+                createObserver: function () {
+                    return {
+                        hasListeners: function () { return false; },
+                        isIdle: function () { return true; },
+                        wait: function () {},
+                        subscribe: function () { return function () {}; },
+                        publish: function () {}
+                    };
+                }
+            },
             levels: Object.freeze({
                 CONTENT: 'content',
                 FUNCTIONAL: 'functional',

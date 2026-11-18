@@ -819,6 +819,9 @@
         $userContainer = null;
         $splitTestsContainer = null;
         $featuresContainer = null;
+        $consentContainer = null;
+        consentTimer = null;
+        consentSnapshot = null;
         $inspectContainer = null;
         $portalLinksContainer = null;
         $channelContainer = null;
@@ -906,6 +909,10 @@
                 div.user-field-value { align-items: center; color: #fff; display: flex; justify-content: space-between; }
                 div.user-field-value span { flex-grow: 1; min-width: 0; }
                 div.user-empty { color: #bbbbbb; font-style: italic; }
+                .consent-table-scroll { overflow-x: auto; margin: 12px 0; }
+                .consent-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
+                .consent-table th, .consent-table td { padding: 8px; text-align: left; border-bottom: 1px solid #444; }
+                .consent-table small { display: block; color: #bbb; margin-top: 4px; }
                 .feature-card { background: #242424; border: 1px solid #333; border-left: 4px solid #4fc3f7; border-radius: 4px; margin-top: 10px; padding: 10px; }
                 .feature-name { color: #4fc3f7; font-size: 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
                 .feature-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -1066,6 +1073,7 @@
                         <button class="tab" data-tab="user">User</button>
                         <button class="tab" data-tab="split-tests">Split Tests</button>
                         <button class="tab" data-tab="features" hidden>Features</button>
+                        <button class="tab" data-tab="consent" hidden>Consent</button>
                         <button class="tab" data-tab="inspect">Inspect</button>
                         <button class="tab" data-tab="console">Console</button>
                         <button class="tab" data-tab="portal-links">Links<span class="portal-link-status" aria-hidden="true">(-)</span></button>
@@ -1086,6 +1094,7 @@
                 <div id="user-container" class="container"></div>
                 <div id="split-tests-container" class="container"></div>
                 <div id="features-container" class="container"></div>
+                <div id="consent-container" class="container"></div>
                 <div id="inspect-container" class="container"></div>
             </div>
             <div id="payload-modal" role="presentation" aria-hidden="true">
@@ -1115,6 +1124,7 @@
             this.$userContainer = this.$shadowRoot.find('#user-container');
             this.$splitTestsContainer = this.$shadowRoot.find('#split-tests-container');
             this.$featuresContainer = this.$shadowRoot.find('#features-container');
+            this.$consentContainer = this.$shadowRoot.find('#consent-container');
             this.$inspectContainer = this.$shadowRoot.find('#inspect-container');
             this.$portalLinksContainer = this.$shadowRoot.find('#portal-links-container');
             this.$channelContainer = this.$shadowRoot.find('#channel-container');
@@ -1168,6 +1178,7 @@
 
             this._renderConsole();
             this._updateFeaturesTab();
+            this._updateConsentTab();
             _private.resizable(this.$shadowRoot);
         }
 
@@ -1176,11 +1187,19 @@
         }
 
         connectedCallback() {
+            this._updateConsentTab();
+            // passive snapshots also detect configuration changes when no permission event is emitted
+            this.consentTimer = window.setInterval(() => {
+                this._updateConsentTab();
+                if (this.isVisible && this.activeTab === 'consent') this._refreshConsent();
+            }, 1000);
             // defer until the generated script has assigned its preview metadata
             this.previewTimer = window.setTimeout(() => this._updatePreviews(), 0);
         }
 
         disconnectedCallback() {
+            window.clearInterval(this.consentTimer);
+            this.consentTimer = null;
             window.clearTimeout(this.previewTimer);
             this.previewTimer = null;
         }
@@ -1444,7 +1463,7 @@
         }
 
         _getDevStudioState() {
-            const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests', 'features'];
+            const allowedTabs = ['info', 'portal-links', 'inspect', 'console', 'user', 'split-tests', 'features', 'consent'];
             try {
                 const storedState = Breinify.UTL.storage.getJson('session', this.devStudioStateStorageKey);
                 const storedTab = storedState?.activeTab;
@@ -2549,6 +2568,69 @@
             }
         }
 
+        _hasConsent() {
+            const consent = Breinify.UTL.consent;
+            return consent && typeof consent.inspect === 'function' && consent.isEnabled();
+        }
+
+        _updateConsentTab() {
+            const available = this._hasConsent();
+            this.$tabs.filter('[data-tab="consent"]').prop('hidden', !available);
+            if (!available && this.activeTab === 'consent') {
+                this._switchTab({target: {dataset: {tab: 'info'}}});
+            }
+        }
+
+        _refreshConsent(force) {
+            if (!this._hasConsent()) return;
+            try {
+                const snapshot = Breinify.UTL.consent.inspect();
+                const serialized = JSON.stringify(snapshot);
+                if (force !== true && serialized === this.consentSnapshot) return;
+                this.consentSnapshot = serialized;
+                this.$consentContainer.empty();
+                const states = {
+                    waiting: 'Waiting for consent information',
+                    known: 'Consent information available',
+                    timeout: 'Timeout — Content-only fallback'
+                };
+                const $summary = $('<article class="feature-card"></article>');
+                $summary.append($('<h2 class="feature-name"></h2>').text(states[snapshot.status] || snapshot.status));
+                $summary.append($('<p></p>').text('Provider: ' + (snapshot.settings.provider || 'Not configured') +
+                    ' · Timeout: ' + snapshot.settings.timeoutInMs + ' ms'));
+                if (snapshot.pending) $summary.append($('<p></p>').text('A consent evaluation is pending.'));
+                $summary.append($('<p></p>').text(Object.keys(snapshot.levels).map(level =>
+                    level + ': ' + (snapshot.levels[level] ? 'Granted' : 'Denied')).join(' · ')));
+                this.$consentContainer.append($summary);
+                this.$consentContainer.append($('<p class="user-empty"></p>').text(
+                    'Read-only view, updated while visible. No CMP query or user collection. ' +
+                    'While waiting, these are the conservative permissions; operations wait for consent or timeout.'));
+                const $table = $('<table class="consent-table"><thead><tr>' +
+                    '<th>Feature / required levels</th><th>Allowed</th><th>IDs</th><th>Profile</th>' +
+                    '<th>Storage read / write</th></tr></thead><tbody></tbody></table>');
+                snapshot.features.forEach(feature => {
+                    const decision = feature.decision;
+                    const yesNo = value => value ? 'Yes' : 'No';
+                    const $row = $('<tr></tr>').attr('data-feature', feature.feature);
+                    $row.append($('<td></td>').text(feature.feature).append($('<small></small>').text(
+                        feature.requires.join(' + ') + (feature.storage === 'required' ? ' · storage required' : ''))));
+                    [yesNo(decision.granted), yesNo(decision.userData.identifiers), yesNo(decision.userData.profile),
+                        yesNo(decision.storage.read) + ' / ' + yesNo(decision.storage.write)].forEach(value => {
+                        $row.append($('<td></td>').text(value));
+                    });
+                    $table.find('tbody').append($row);
+                });
+                this.$consentContainer.append($('<div class="consent-table-scroll"></div>').append($table));
+                const $settings = $('<details><summary>Settings and mappings</summary></details>');
+                $settings.append($('<pre class="feature-value"></pre>').text(JSON.stringify(snapshot.settings, null, 2)));
+                this.$consentContainer.append($settings);
+            } catch (error) {
+                this.consentSnapshot = null;
+                this.$consentContainer.empty().append($('<p class="user-empty"></p>').text(
+                    'Unable to inspect consent settings.'));
+            }
+        }
+
         _updateFeaturesTab() {
             const storage = Breinify.plugins.featureStorage;
             const available = $.isPlainObject(storage);
@@ -2709,8 +2791,9 @@
 
         _switchTab(event) {
             const requestedTab = (event.currentTarget || event.target).dataset.tab;
-            const selectedTab = requestedTab === 'features' && !$.isPlainObject(Breinify.plugins.featureStorage)
-                ? 'info' : requestedTab;
+            const unavailable = requestedTab === 'features' && !$.isPlainObject(Breinify.plugins.featureStorage) ||
+                requestedTab === 'consent' && !this._hasConsent();
+            const selectedTab = unavailable ? 'info' : requestedTab;
             this.$shadowRoot.find('div.container').removeClass('active');
             this.activeTab = selectedTab;
             this.$tabs.each(function () {
@@ -2739,6 +2822,10 @@
                 this._stopInspecting();
                 this._refreshSplitTests();
                 this.$splitTestsContainer.addClass('active');
+            } else if (selectedTab === 'consent') {
+                this._stopInspecting();
+                this._refreshConsent(true);
+                this.$consentContainer.addClass('active');
             } else if (selectedTab === 'features') {
                 this._stopInspecting();
                 this._refreshFeatures();

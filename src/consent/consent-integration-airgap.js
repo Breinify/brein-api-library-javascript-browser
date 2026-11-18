@@ -13,30 +13,6 @@
             personalization: ['Advertising']
         },
 
-        mappings: function (settings) {
-            if (typeof settings !== 'undefined' && (!settings || typeof settings !== 'object' || Array.isArray(settings))) {
-                throw new TypeError('Airgap consent mappings must be an object.');
-            }
-            const result = {};
-            Object.keys(settings || {}).forEach(function (level) {
-                if (!Object.prototype.hasOwnProperty.call(_private.defaults, level)) {
-                    throw new RangeError('Unknown consent mapping level: ' + level);
-                }
-            });
-            Object.keys(_private.defaults).forEach(function (level) {
-                const value = settings && Object.prototype.hasOwnProperty.call(settings, level)
-                    ? settings[level] : _private.defaults[level];
-                const purposes = Array.isArray(value) ? value.slice() : [value];
-                if (purposes.length === 0 || purposes.some(function (purpose) {
-                    return typeof purpose !== 'string' || purpose.trim() === '';
-                })) {
-                    throw new TypeError('Airgap mappings require one or more purpose names.');
-                }
-                result[level] = purposes;
-            });
-            return result;
-        },
-
         snapshot: function (api, mappings) {
             const value = api.getConsent();
             const purposes = value && value.purposes;
@@ -67,25 +43,17 @@
                 };
             }
             return api;
-        },
-
-        invoke: function (callback, value) {
-            try {
-                callback(Object.assign({}, value));
-            } catch (error) {
-                scope.console.error('Airgap consent callback failed.', error);
-            }
         }
     };
 
     consent.integrations.airgap = {
         create: function (settings) {
-            const mappings = _private.mappings(settings);
-            const listeners = [];
+            const mappings = consent.utils.mappings(settings, _private.defaults);
             let api = null;
             let started = false;
             let observing = false;
-            let pending = null;
+
+            const observer = consent.utils.createObserver(stop);
 
             function publish() {
                 let snapshot;
@@ -95,23 +63,19 @@
                     scope.console.error('Airgap consent read failed.', error);
                     return;
                 }
-                if (snapshot === null) {
-                    return;
-                }
-                const callback = pending;
-                pending = null;
-                listeners.slice().forEach(function (entry) {
-                    if (listeners.indexOf(entry) !== -1) {
-                        _private.invoke(entry.callback, snapshot);
-                    }
-                });
-                if (typeof callback === 'function') {
-                    _private.invoke(callback, snapshot);
+                observer.publish(snapshot);
+            }
+
+            function stop() {
+                if (observing) {
+                    api.removeEventListener('consent-change', publish);
+                    api.removeEventListener('consent-resolution', publish);
+                    observing = false;
                 }
             }
 
             function observe() {
-                if (api !== null && !observing && listeners.length > 0) {
+                if (api !== null && !observing && observer.hasListeners()) {
                     api.addEventListener('consent-change', publish);
                     api.addEventListener('consent-resolution', publish);
                     observing = true;
@@ -132,6 +96,10 @@
             }
 
             return {
+                getSettings: function () {
+                    return {provider: 'airgap', mappings: consent.utils.mappings(undefined, mappings)};
+                },
+
                 evaluate: function (callback) {
                     if (api !== null) {
                         const snapshot = _private.snapshot(api, mappings);
@@ -140,31 +108,16 @@
                         }
                     } else {
                         // only the latest pending core query is needed while Airgap is loading
-                        pending = callback;
+                        observer.wait(callback);
                         start();
                     }
                 },
 
                 onChange: function (callback) {
-                    const entry = {callback: callback};
-                    listeners.push(entry);
+                    const unsubscribe = observer.subscribe(callback);
                     observe();
                     start();
-                    return function () {
-                        const index = listeners.indexOf(entry);
-                        if (index === -1) {
-                            return;
-                        }
-                        listeners.splice(index, 1);
-                        if (listeners.length === 0) {
-                            pending = null;
-                            if (observing) {
-                                api.removeEventListener('consent-change', publish);
-                                api.removeEventListener('consent-resolution', publish);
-                                observing = false;
-                            }
-                        }
-                    };
+                    return unsubscribe;
                 }
             };
         }
