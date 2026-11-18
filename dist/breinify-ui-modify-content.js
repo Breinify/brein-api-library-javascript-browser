@@ -4773,6 +4773,24 @@
         },
 
         handleRuntime: function (runtime, data) {
+            if (!Breinify.UTL.consent.isEnabled()) {
+                return this._handleRuntimeGranted(runtime, data);
+            }
+
+            let result = true;
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('modifyContent', function (decision) {
+                if (decision !== null && !decision.granted) {
+                    result = false;
+                } else if (runtime !== null && _private.isCurrentRuntime(runtime)) {
+                    result = self._handleRuntimeGranted(runtime, data);
+                }
+            });
+
+            return result;
+        },
+
+        _handleRuntimeGranted: function (runtime, data) {
             if (runtime === null) {
                 return false;
             }
@@ -4843,6 +4861,17 @@
             }
         }
     };
+
+    Breinify.UTL.consent.onChange(function () {
+        _private.suppressionExpirations.clear();
+
+        Object.values(_private.runtimes).forEach(function (runtime) {
+            if (runtime.decision) {
+                runtime.decision.conditionResults = {};
+                runtime.decision.conditionCache = {};
+            }
+        });
+    });
 
     Breinify.plugins._add("uiModifyContent", UiModifyContent);
 })();

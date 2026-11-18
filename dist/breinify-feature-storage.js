@@ -26,6 +26,7 @@
         featureChangeTimer: null,
         flushingFeatureChanges: false,
         currentFeatures: {},
+        restoredFeatures: new Set(),
         currentFeatureMeta: {},
         pendingFeatureChanges: {},
         listeners: [],
@@ -830,6 +831,7 @@
                     }
 
                     self.currentFeatures[featureName] = parsed.value;
+                    self.restoredFeatures.add(featureName);
                     self.featureDefinitions[featureName] = definition;
                     self.touchPersistedFeature(featureName, {
                         featureDefinition: definition
@@ -1329,6 +1331,7 @@
         },
 
         applyFeatureChange: function (name, oldValue, newValue, additional) {
+            this.restoredFeatures.delete(this.normalizeName(name));
             const normalizedName = this.normalizeName(name);
             if (normalizedName === '') {
                 return false;
@@ -2424,6 +2427,12 @@
          */
         get: function (name) {
             const normalizedName = _private.normalizeName(name);
+            if (_private.restoredFeatures.has(normalizedName) &&
+                !Breinify.UTL.storage.isAllowed(_private.getPersistenceKey(normalizedName), 'read')) {
+                delete _private.currentFeatures[normalizedName];
+                delete _private.currentFeatureMeta[normalizedName];
+                _private.restoredFeatures.delete(normalizedName);
+            }
             if (normalizedName === '') {
                 return null;
             }
@@ -2789,6 +2798,16 @@
     };
 
     // bind the module
+    Breinify.UTL.consent.onChange(function () {
+        _private.restoredFeatures.forEach(function (name) {
+            if (!Breinify.UTL.storage.isAllowed(_private.getPersistenceKey(name), 'read')) {
+                delete _private.currentFeatures[name];
+                delete _private.currentFeatureMeta[name];
+                _private.restoredFeatures.delete(name);
+            }
+        });
+    });
+
     _plugin = Breinify.plugins._add('featureStorage', FeatureStorage);
 
     // restore persisted state silently after plugin registration

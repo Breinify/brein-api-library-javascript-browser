@@ -13223,7 +13223,12 @@ dependencyScope.jQuery = $;
                 TEMPORAL_DATA: 'temporalData',
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
-                PRESENTATION_STORAGE: 'presentationStorage'
+                PRESENTATION_STORAGE: 'presentationStorage',
+                IDENTIFIER_STORAGE: 'identifierStorage',
+                PROFILE_STORAGE: 'profileStorage',
+                SPLIT_TEST_STORAGE: 'splitTestStorage',
+                CONTENT_TOKENS: 'contentTokens',
+                PREFERENCE_MANAGEMENT: 'preferenceManagement'
             }),
             definitions: {
                 recommendations: {
@@ -13251,6 +13256,31 @@ dependencyScope.jQuery = $;
                     userData: {identifiers: 'analytics', profile: 'personalization'},
                     storage: 'required'
                 },
+                contentTokens: {
+                    requires: 'content',
+                    userData: {identifiers: 'personalization', profile: 'personalization'},
+                    storage: 'none'
+                },
+                preferenceManagement: {
+                    requires: 'content',
+                    userData: {identifiers: null, profile: null},
+                    storage: 'none'
+                },
+                identifierStorage: {
+                    requires: 'analytics',
+                    userData: {identifiers: 'analytics', profile: null},
+                    storage: 'required'
+                },
+                profileStorage: {
+                    requires: 'personalization',
+                    userData: {identifiers: 'personalization', profile: 'personalization'},
+                    storage: 'required'
+                },
+                splitTestStorage: {
+                    requires: 'analytics',
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    storage: 'required'
+                },
                 presentationStorage: {
                     requires: 'functional',
                     userData: {identifiers: null, profile: null},
@@ -13269,6 +13299,91 @@ dependencyScope.jQuery = $;
             current: null,
             unsubscribe: null,
             listeners: [],
+
+            refreshing: false,
+            publishing: false,
+            storageFeatures: {},
+
+            storageFeature: function (name) {
+                const key = String(name);
+                if (Object.prototype.hasOwnProperty.call(this.storageFeatures, key)) {
+                    return this.storageFeatures[key];
+                } else if ((/^x-breinify-(bid|uuid)$/.test(key) || key.indexOf('br-storage-test-') === 0)) {
+                    return 'identifierStorage';
+                } else if (key === 'x-breinify-delayed' || key.indexOf('breinify-sa-data-') === 0) {
+                    return 'delayedActivities';
+                } else if (key === 'breinify-split-test-data' || key.indexOf('br-ctd-') === 0) {
+                    return 'splitTestStorage';
+                } else if (/^(br-wed-|br::wemc::|breinify::dev-studio::)/.test(key)) {
+                    return 'presentationStorage';
+                } else {
+                    // unclassified values may contain customer profile information
+                    return 'profileStorage';
+                }
+            },
+
+            snapshot: function (feature, refresh) {
+                this.validateFeature(feature);
+                if (!this.configured) {
+                    return null;
+                }
+                if (refresh !== false && !this.refreshing && !this.publishing) {
+                    this.refreshing = true;
+                    try {
+                        this.readPermissions(function () {});
+                    } finally {
+                        this.refreshing = false;
+                    }
+                }
+                return this.createDecision(feature, this.current || this.denied, this.featureRules[feature],
+                    this.storageRequirement, this.generation);
+            },
+
+            storageAllowed: function (name, mode, refresh) {
+                const decision = this.snapshot(this.storageFeature(name), refresh);
+                return decision === null || decision.storage[mode] === true;
+            },
+
+            clearRestrictedData: function () {
+                const consent = this;
+                const user = BreinifyUtil.user;
+                if (!consent.storageAllowed('x-breinify-bid', 'read', false)) {
+                    user.browserId = null;
+                    user.sessionId = null;
+                    _private.storage.identifierStorage = null;
+                }
+                if (!consent.storageAllowed('x-breinify-rfr', 'read', false)) {
+                    user.referrerData = null;
+                    user.referrerDataResolved = false;
+                }
+                if (!consent.storageAllowed('breinify-split-test-data', 'read', false)) {
+                    user.splitTestData = null;
+                }
+                ['local', 'session', 'memory'].forEach(function (type) {
+                    try {
+                        const store = _private.storage.resolve(type);
+                        const keys = [];
+                        for (let i = 0; i < store.length; i++) {
+                            keys.push(store.key(i));
+                        }
+                        keys.forEach(function (key) {
+                            const owned = /^(x-breinify-|breinify-|breinify::|br-wed-|br-ctd-|br::wemc::)/.test(key) ||
+                                Object.prototype.hasOwnProperty.call(consent.storageFeatures, key);
+                            if (owned && !consent.storageAllowed(key, 'read', false)) {
+                                store.removeItem(key);
+                            }
+                        });
+                    } catch (error) {
+                        // inaccessible storage remains unreadable; do not replace it with another store
+                    }
+                });
+                ['x-breinify-bid', 'x-breinify-uuid', 'x-breinify-rfr', 'x-breinify-delayed'].forEach(function (key) {
+                    if (!consent.storageAllowed(key, 'read', false)) {
+                        BreinifyUtil.cookie.reset(key);
+                        BreinifyUtil.cookie.reset(key, BreinifyUtil.cookie.domain());
+                    }
+                });
+            },
 
             validateFeature: function (feature) {
                 if (typeof feature !== 'string') {
@@ -13452,13 +13567,19 @@ dependencyScope.jQuery = $;
                 }
 
                 consent.current = value;
+                consent.clearRestrictedData();
                 const activeGeneration = consent.generation;
                 const activeRevision = consent.revision;
-                consent.listeners.slice().forEach(function (listener) {
-                    if (activeGeneration === consent.generation && activeRevision === consent.revision) {
-                        consent.invoke(listener, value);
-                    }
-                });
+                consent.publishing = true;
+                try {
+                    consent.listeners.slice().forEach(function (listener) {
+                        if (activeGeneration === consent.generation && activeRevision === consent.revision) {
+                            consent.invoke(listener, value);
+                        }
+                    });
+                } finally {
+                    consent.publishing = false;
+                }
             },
 
             complete: function (value, notify) {
@@ -14000,6 +14121,7 @@ dependencyScope.jQuery = $;
                 if (!$.isPlainObject(settings)) {
                     throw new TypeError('Consent settings must be a plain object.');
                 }
+
                 const wait = typeof settings.timeoutInMs === 'undefined' ? 2500 : settings.timeoutInMs;
                 const nextProvider = settings.provider;
                 if (typeof wait !== 'number' || !Number.isFinite(wait) || wait < 0 || wait > 2147483647) {
@@ -14008,6 +14130,7 @@ dependencyScope.jQuery = $;
                     (typeof nextProvider.onChange !== 'undefined' && typeof nextProvider.onChange !== 'function'))) {
                     throw new TypeError('A consent provider needs evaluate and an optional onChange function.');
                 }
+
                 const nextFeatureRules = consent.parseFeatureRules(settings.features);
                 const nextStorageRequirement = consent.parseStorageRequirement(settings.storage);
 
@@ -14027,7 +14150,11 @@ dependencyScope.jQuery = $;
                 consent.timeoutInMs = wait;
                 consent.featureRules = nextFeatureRules;
                 consent.storageRequirement = nextStorageRequirement;
-                consent.configured = true;
+                consent.configured = settings.enabled !== false;
+                if (!consent.configured) {
+                    return;
+                }
+
                 const activeGeneration = consent.generation;
                 if (consent.provider !== null && typeof consent.provider.onChange === 'function') {
                     try {
@@ -14046,6 +14173,101 @@ dependencyScope.jQuery = $;
                     }
                 }
                 consent.readPermissions(function () {});
+            },
+
+            isEnabled: function () {
+                return _private.consent.configured;
+            },
+
+            /**
+             * Synchronous consumers use the latest provider snapshot, denying unknown permissions.
+             * Operations that can wait must use evaluateOperation instead.
+             */
+            getDecision: function (feature) {
+                return _private.consent.snapshot(feature);
+            },
+
+            /**
+             * A null decision preserves legacy behavior when consent was not enabled.
+             */
+            evaluateOperation: function (feature, callback) {
+                _private.consent.validateFeature(feature);
+                if (this.isEnabled()) {
+                    this.evaluate(feature, callback);
+                } else {
+                    callback(null);
+                }
+            },
+
+            createDeniedError: function (feature) {
+                const error = new Error('Consent denied for ' + feature + '.');
+                error.code = 'CONSENT_DENIED';
+                return error;
+            },
+
+            /**
+             * Returns a copy containing only permitted user fields. Unlinked requests get fresh IDs.
+             */
+            filterUser: function (user, decision) {
+                const value = $.isPlainObject(user) ? user : {};
+                if (decision === null) {
+                    return $.extend(true, {}, value);
+                }
+                const ids = decision.userData.identifiers;
+                const profile = decision.userData.profile;
+                const result = profile ? $.extend(true, {}, value) : {};
+                if (ids) {
+                    if (typeof value.sessionId === 'string') {
+                        result.sessionId = value.sessionId;
+                    }
+                    const browserId = value.additional && value.additional.identifiers &&
+                        value.additional.identifiers.browserId;
+                    result.additional = $.extend(true, {}, result.additional, {
+                        identifiers: typeof browserId === 'string' ? {browserId: browserId} : {}
+                    });
+                } else {
+                    delete result.sessionIds;
+                    result.sessionId = BreinifyUtil.uuid();
+                    result.additional = $.extend(true, {}, result.additional);
+                    // replace, rather than merge, identifier aliases supplied by integrations
+                    result.additional.identifiers = {browserId: BreinifyUtil.uuid()};
+                    delete result.additional.splitTests;
+                    delete result.additional.journey;
+                }
+                return result;
+            },
+
+            /**
+             * Strips recognized identity fields from content payloads, including nested user overrides.
+             * Preference-management payloads are explicit visitor instructions and are not enriched.
+             */
+            filterPayload: function (payload, decision) {
+                if (decision === null || decision.feature === this.features.PREFERENCE_MANAGEMENT) {
+                    return $.extend(true, {}, payload);
+                }
+                const consent = this;
+                const identity = /^(browserId|sessionId|sessionIds|deviceId|userId|userIds|email|emails|md5Email|phone|firstName|lastName|dateOfBirth|twitterId|ipAddress|location|latitude|longitude|identifiers|profile|journey|splitTests|msid|markerSessionId|userAgent|referrer)$/i;
+                const visit = function (value) {
+                    if (Array.isArray(value)) {
+                        return value.map(visit);
+                    } else if (!$.isPlainObject(value)) {
+                        return value;
+                    }
+                    const result = {};
+                    Object.keys(value).forEach(function (key) {
+                        if (key === 'user') {
+                            result[key] = consent.filterUser(value[key], decision);
+                        } else if (/^(browserId|sessionId)$/i.test(key)) {
+                            result[key] = decision.userData.identifiers ? value[key] : BreinifyUtil.uuid();
+                        } else if (identity.test(key) && !decision.userData.profile) {
+                            // content context survives; recognized personal data does not
+                        } else {
+                            result[key] = visit(value[key]);
+                        }
+                    });
+                    return result;
+                };
+                return visit(payload);
             },
 
             /**
@@ -14442,6 +14664,11 @@ dependencyScope.jQuery = $;
                     }
                 }
 
+                Object.keys(result).forEach(function (name) {
+                    if (!_private.consent.storageAllowed(name, 'read')) {
+                        delete result[name];
+                    }
+                });
                 return result;
             },
 
@@ -14484,6 +14711,9 @@ dependencyScope.jQuery = $;
             },
 
             set: function (name, value, expiresInDays, global, specDomain, httpsOnly, specSamesite) {
+                if (!(expiresInDays < 0) && !_private.consent.storageAllowed(name, 'write')) {
+                    return;
+                }
 
                 let expires;
                 if (typeof expiresInDays === 'number') {
@@ -14527,6 +14757,9 @@ dependencyScope.jQuery = $;
             },
 
             get: function (name) {
+                if (!_private.consent.storageAllowed(name, 'read')) {
+                    return null;
+                }
                 let cookies = this.all();
 
                 if (cookies.hasOwnProperty(name)) {
@@ -14666,7 +14899,19 @@ dependencyScope.jQuery = $;
                 }, timeout);
             },
 
-            token: function (apiToken, payload, cb, timeout) {
+            token: function (apiToken, payload, cb, timeout, feature) {
+                const consent = BreinifyUtil.consent;
+                feature = typeof feature === 'string' ? feature : consent.features.CONTENT_TOKENS;
+                consent.evaluateOperation(feature, function (decision) {
+                    if (decision !== null && !decision.granted) {
+                        cb(consent.createDeniedError(feature));
+                        return;
+                    }
+                    BreinifyUtil.internal._token(apiToken, consent.filterPayload(payload, decision), cb, timeout);
+                });
+            },
+
+            _token: function (apiToken, payload, cb, timeout) {
                 $.ajax({
                     'url': 'https://api.breinify.com/res/' + apiToken,
                     'type': 'GET',
@@ -15119,8 +15364,17 @@ dependencyScope.jQuery = $;
                 }
             },
 
-            create: function (user) {
-                const sessionId = this.getSessionId();
+            create: function (user, decision) {
+                decision = typeof decision === 'undefined'
+                    ? BreinifyUtil.consent.getDecision('activities') : decision;
+                if (decision !== null && !decision.userData.profile) {
+                    const identifiers = decision.userData.identifiers ? {
+                        sessionId: this.getSessionId(),
+                        additional: {identifiers: {browserId: this.getBrowserId()}}
+                    } : {};
+                    return BreinifyUtil.consent.filterUser(identifiers, decision);
+                }
+                const sessionId = decision === null || decision.userData.identifiers ? this.getSessionId() : null;
 
                 let splitTestData;
                 try {
@@ -15145,7 +15399,7 @@ dependencyScope.jQuery = $;
                         'splitTests': splitTestData,
                         'journey': referrerData,
                         'identifiers': {
-                            'browserId': this.getBrowserId()
+                            'browserId': decision === null || decision.userData.identifiers ? this.getBrowserId() : null
                         }
                     }
                 };
@@ -15176,7 +15430,8 @@ dependencyScope.jQuery = $;
                     userLookupResult = $.isPlainObject(userLookupResult) ? userLookupResult : {};
                 }
 
-                return $.extend(true, {}, createdUser, defaultUser, userLookupResult, user);
+                return BreinifyUtil.consent.filterUser(
+                    $.extend(true, {}, createdUser, defaultUser, userLookupResult, user), decision);
             },
 
             /**
@@ -15191,6 +15446,9 @@ dependencyScope.jQuery = $;
              * @returns {Object|null}
              */
             getReferrerData: function (sessionId) {
+                if (!_private.consent.storageAllowed('x-breinify-rfr', 'read')) {
+                    return null;
+                }
                 if (scope.Breinify.config()['handleReferrer'] !== true) {
                     return null;
                 }
@@ -15299,6 +15557,11 @@ dependencyScope.jQuery = $;
             },
 
             getBrowserId: function () {
+                if (!_private.consent.storageAllowed('x-breinify-bid', 'read')) {
+                    this.browserId = null;
+                    this.sessionId = null;
+                    return BreinifyUtil.uuid();
+                }
                 let cookie = BreinifyUtil.cookies.browserId;
                 if (this.browserId !== null) {
                     // nothing to do
@@ -15313,6 +15576,11 @@ dependencyScope.jQuery = $;
             },
 
             getSessionId: function () {
+                if (!_private.consent.storageAllowed('x-breinify-bid', 'read')) {
+                    this.browserId = null;
+                    this.sessionId = null;
+                    return BreinifyUtil.uuid();
+                }
                 let cookie = BreinifyUtil.cookies.sessionId;
 
                 if (this.sessionId !== null) {
@@ -15327,6 +15595,11 @@ dependencyScope.jQuery = $;
             },
 
             getMarkerSessionId: function () {
+                const decision = BreinifyUtil.consent.getDecision('activities');
+                if (decision !== null && !decision.userData.profile) {
+                    return null;
+                }
+
                 let markerSessionId = BreinifyUtil.loc.param('br-msid');
                 if (typeof markerSessionId === 'string' && markerSessionId.trim() !== '') {
                     return markerSessionId;
@@ -15336,6 +15609,11 @@ dependencyScope.jQuery = $;
             },
 
             resetSessionId: function (reset) {
+                if (!_private.consent.storageAllowed('x-breinify-bid', 'read')) {
+                    this.browserId = null;
+                    this.sessionId = null;
+                    return BreinifyUtil.uuid();
+                }
                 if (reset === true || BreinifyUtil.isEmpty(this.sessionId)) {
                     this.sessionId = BreinifyUtil.uuid();
                 }
@@ -16284,6 +16562,15 @@ dependencyScope.jQuery = $;
         },
 
         storage: {
+            register: function (name, feature) {
+                _private.consent.validateFeature(feature);
+                _private.consent.storageFeatures[String(name)] = feature;
+            },
+
+            isAllowed: function (name, mode) {
+                return _private.consent.storageAllowed(name, mode === 'write' ? 'write' : 'read');
+            },
+
             splitTestDataInstanceName: 'split-test-data',
             instance: null,
 
@@ -16300,8 +16587,7 @@ dependencyScope.jQuery = $;
                             return BreinifyUtil.storage.keys(type).length;
                         },
                         key: function (index) {
-                            const store = state.resolve(type);
-                            return store.key(index);
+                            return BreinifyUtil.storage.keys(type)[index] || null;
                         },
                         getItem: function (name) {
                             return BreinifyUtil.storage.getItem(type, name);
@@ -16330,11 +16616,17 @@ dependencyScope.jQuery = $;
             },
 
             getItem: function (type, name) {
+                if (!_private.consent.storageAllowed(name, 'read')) {
+                    return null;
+                }
                 const store = _private.storage.resolve(type);
                 return store.getItem(name);
             },
 
             setItem: function (type, name, value) {
+                if (!_private.consent.storageAllowed(name, 'write')) {
+                    return;
+                }
                 const store = _private.storage.resolve(type);
                 store.setItem(name, value);
             },
@@ -16378,7 +16670,7 @@ dependencyScope.jQuery = $;
                 const keys = [];
                 for (let i = 0; i < store.length; i++) {
                     const key = store.key(i);
-                    if (key !== null) {
+                    if (key !== null && _private.consent.storageAllowed(key, 'read')) {
                         keys.push(key);
                     }
                 }
@@ -17112,7 +17404,8 @@ dependencyScope.jQuery = $;
 
                 // check if the permission is already granted
                 permissions.query({name: 'geolocation'}).then(function (permission) {
-                    if (permission.state !== 'granted') {
+                    const decision = BreinifyUtil.consent.getDecision('temporalData');
+                    if (permission.state !== 'granted' || decision !== null && !decision.userData.profile) {
                         _self.resolvedGeoLocation = true;
                         callback(null);
 
@@ -17120,6 +17413,13 @@ dependencyScope.jQuery = $;
                     }
 
                     geo.getCurrentPosition(function (position) {
+                        const current = BreinifyUtil.consent.getDecision('temporalData');
+                        if (current !== null && !current.userData.profile) {
+                            _self.geoLocation = null;
+                            _self.resolvedGeoLocation = false;
+                            callback(null);
+                            return;
+                        }
                         _self.resolvedGeoLocation = true;
                         _self.geoLocation = {
                             'accuracy': position.coords.accuracy,
@@ -17146,12 +17446,27 @@ dependencyScope.jQuery = $;
         }
     };
 
-    const BreinifyUser = function (user, onReady) {
+    BreinifyUtil.consent.onChange(function () {
+        _privates.geoLocation = null;
+        _privates.resolvedGeoLocation = false;
+    });
+
+    const BreinifyUser = function (user, onReady, decision) {
         const instance = this;
         instance.version = '1.0.25';
 
+        decision = typeof decision === 'undefined' ? BreinifyUtil.consent.getDecision('activities') : decision;
+        if (decision !== null) {
+            user = BreinifyUtil.consent.filterUser(user instanceof BreinifyUser ? user.all() : user, decision);
+        }
         // set the values provided
         instance.setAll(user);
+        if (decision !== null && !decision.userData.profile) {
+            if ($.isFunction(onReady)) {
+                onReady(instance);
+            }
+            return;
+        }
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
@@ -17223,8 +17538,16 @@ dependencyScope.jQuery = $;
         addGeoLocation: function (onReady) {
             const instance = this;
 
+            const decision = BreinifyUtil.consent.getDecision('temporalData');
+            if (decision !== null && !decision.userData.profile) {
+                if ($.isFunction(onReady)) {
+                    onReady(instance);
+                }
+                return;
+            }
             _privates.resolveGeoLocation(function (location) {
-                if (!BreinifyUtil.isEmpty(location)) {
+                const current = BreinifyUtil.consent.getDecision('temporalData');
+                if ((current === null || current.userData.profile) && !BreinifyUtil.isEmpty(location)) {
                     instance.add('location', location);
                 }
 
@@ -17592,8 +17915,49 @@ dependencyScope.jQuery = $;
             callback(data, errorText);
         },
 
-        ajax: function (url, data, success, error) {
+        determineConsentFeature: function (url, data) {
+            const features = BreinifyUtil.consent.features;
+            if (data.activity) {
+                return features.ACTIVITIES;
+            } else if (data.service || data.jobId) {
+                return features.MODIFY_CONTENT;
+            } else if (url === _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT)) {
+                return features.TEMPORAL_DATA;
+            } else {
+                return features.RECOMMENDATIONS;
+            }
+        },
 
+        ajax: function (url, data, success, error) {
+            const consent = BreinifyUtil.consent;
+            if (data === null) {
+                if ($.isFunction(error)) {
+                    error(null, 'Consent denied or request could not be created.');
+                }
+                return;
+            }
+
+            const feature = this.determineConsentFeature(url, data);
+            const send = function (decision) {
+                if (decision !== null && !decision.granted) {
+                    if ($.isFunction(error)) {
+                        error(consent.createDeniedError(feature), 'Consent denied for ' + feature + '.');
+                    }
+                    return;
+                }
+                let request = consent.filterPayload(data, decision);
+                if ($.isPlainObject(data.user)) {
+                    request.user = consent.filterUser(data.user, decision);
+                }
+                if (decision !== null && request.service) {
+                    request.checksum = _privates.createServiceChecksum(request.apiKey, request.service, request.payload);
+                }
+                _privates.sendAjax(url, request, success, error);
+            };
+            send(consent.getDecision(feature));
+        },
+
+        sendAjax: function (url, data, success, error) {
             $.ajax({
 
                 // set some general stuff regarding communication
@@ -17742,7 +18106,7 @@ dependencyScope.jQuery = $;
             }
         },
 
-        handleServiceResponse: function (url, requestData, servicePayload, callback, response) {
+        handleServiceResponse: function (url, requestData, servicePayload, callback, response, initialConsent) {
             if (!$.isPlainObject(response)) {
                 callback(this.createServiceClientError('Unexpected service response.', {
                     response: response
@@ -17788,7 +18152,8 @@ dependencyScope.jQuery = $;
                         _privates.determineServicePollUrl(jobState) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT),
                         nextRequest,
                         servicePayload,
-                        callback
+                        callback,
+                        initialConsent
                     );
                 }, backOffInMs);
             } else if (status === 'SUCCEEDED') {
@@ -17810,9 +18175,28 @@ dependencyScope.jQuery = $;
             }
         },
 
-        sendServiceRequest: function (url, requestData, servicePayload, callback) {
+        sendServiceRequest: function (url, requestData, servicePayload, callback, initialConsent) {
+            const decision = BreinifyUtil.consent.getDecision('modifyContent');
+            initialConsent = typeof initialConsent === 'undefined' ? decision : initialConsent;
+            const isRestricted = function () {
+                const current = BreinifyUtil.consent.getDecision('modifyContent');
+                if (current === null) {
+                    return false;
+                }
+                const previous = initialConsent === null ? {identifiers: true, profile: true} : initialConsent.userData;
+                return !current.granted || previous.identifiers && !current.userData.identifiers ||
+                    previous.profile && !current.userData.profile;
+            };
+            if (isRestricted()) {
+                callback(BreinifyUtil.consent.createDeniedError('modifyContent'), null, null);
+                return;
+            }
             this.ajax(url, requestData, function (response) {
-                _privates.handleServiceResponse(url, requestData, servicePayload, callback, response);
+                if (isRestricted()) {
+                    callback(BreinifyUtil.consent.createDeniedError('modifyContent'), null, null);
+                    return;
+                }
+                _privates.handleServiceResponse(url, requestData, servicePayload, callback, response, initialConsent);
             }, function (errorData, errorText) {
                 const error = $.isPlainObject(errorData) ? errorData : {};
                 error.message = typeof errorText === 'string' && errorText.trim() !== '' ? errorText : 'Service request failed.';
@@ -17960,8 +18344,24 @@ dependencyScope.jQuery = $;
             Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags);
         },
 
-        createUser: function (user, onSuccess) {
-            new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
+        createUser: function (user, onSuccess, feature) {
+            BreinifyUtil.consent.evaluateOperation(feature, function (decision) {
+                if (decision !== null && !decision.granted) {
+                    onSuccess(null);
+                    return;
+                }
+                new BreinifyUser(BreinifyUtil.user.create(user, decision), function (createdUser) {
+                    const current = BreinifyUtil.consent.getDecision(feature);
+                    if (current !== null && !current.granted) {
+                        onSuccess(null);
+                    } else {
+                        if (current !== null) {
+                            createdUser._user = BreinifyUtil.consent.filterUser(createdUser.all(), current);
+                        }
+                        onSuccess(createdUser);
+                    }
+                }, decision);
+            });
         },
 
         triggerEvent: function (eventName, data, origin) {
@@ -18196,7 +18596,7 @@ dependencyScope.jQuery = $;
 
         const onSuccess = function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -18241,12 +18641,12 @@ dependencyScope.jQuery = $;
             preFunction(function (execute) {
                 if (execute !== false) {
                     // get the user information if the execution should happen
-                    _privates.createUser(user, onSuccess);
+                    _privates.createUser(user, onSuccess, 'recommendations');
                 }
             });
         } else {
             // get the user information
-            _privates.createUser(user, onSuccess);
+            _privates.createUser(user, onSuccess, 'recommendations');
         }
     };
 
@@ -18268,37 +18668,49 @@ dependencyScope.jQuery = $;
         overload.overload({
             'Object,String': function (user, type) {
                 Breinify.activityUser(user, type, null, null, null, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,Object': function (user, type, tags) {
                 Breinify.activityUser(user, type, null, null, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,Object': function (user, type, description, tags) {
                 Breinify.activityUser(user, type, null, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object': function (user, type, category, description, tags) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object,Function': function (user, type, category, description, tags, callback) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,String,String,String,Object,Boolean,Function': function (user, type, category, description, tags, sign, callback) {
                 Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data, callback, callback);
                 });
             }
@@ -18327,7 +18739,7 @@ dependencyScope.jQuery = $;
         // get the user information
         _privates.createUser(user, function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -18372,7 +18784,7 @@ dependencyScope.jQuery = $;
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
-        });
+        }, 'activities');
     };
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
@@ -18428,7 +18840,7 @@ dependencyScope.jQuery = $;
         // get the user information
         _privates.createUser(user, function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -18466,7 +18878,7 @@ dependencyScope.jQuery = $;
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
-        });
+        }, 'temporalData');
     };
 
     /**
@@ -18529,14 +18941,16 @@ dependencyScope.jQuery = $;
         const passedUser = $.isPlainObject(user) ? user : {};
         _privates.createUser(passedUser, function (createdUser) {
 
-            if (!createdUser.validate()) {
+            if (createdUser === null || !createdUser.validate()) {
                 _onReady(null, _privates.createServiceClientError('Failed to create a valid user for the service request.'));
                 return;
             }
 
             const createdUserData = createdUser.all();
             const payloadUser = $.isPlainObject(requestPayload.user) ? requestPayload.user : {};
-            requestPayload.user = $.extend(true, {}, createdUserData, passedUser, payloadUser);
+            const decision = BreinifyUtil.consent.getDecision('modifyContent');
+            requestPayload.user = BreinifyUtil.consent.filterUser(
+                $.extend(true, {}, createdUserData, passedUser, payloadUser), decision);
 
             const apiKey = _config.get(ATTR_CONFIG.API_KEY);
             _onReady({
@@ -18548,7 +18962,7 @@ dependencyScope.jQuery = $;
                     checksum: _privates.createServiceChecksum(apiKey, serviceName, requestPayload)
                 }
             }, null);
-        });
+        }, 'modifyContent');
     };
 
     /*
@@ -18883,6 +19297,8 @@ dependencyScope.jQuery = $;
     Breinify.UTL = {
         storage: {
             instance: emptyStorage,
+            register: function () {},
+            isAllowed: function () { return false; },
             splitTestDataInstanceName: 'split-test-data',
             getStorage: function () { return emptyStorage; },
             getItem: function () { return null; },
@@ -18921,9 +19337,25 @@ dependencyScope.jQuery = $;
                 TEMPORAL_DATA: 'temporalData',
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
-                PRESENTATION_STORAGE: 'presentationStorage'
+                PRESENTATION_STORAGE: 'presentationStorage',
+                IDENTIFIER_STORAGE: 'identifierStorage',
+                PROFILE_STORAGE: 'profileStorage',
+                SPLIT_TEST_STORAGE: 'splitTestStorage',
+                CONTENT_TOKENS: 'contentTokens',
+                PREFERENCE_MANAGEMENT: 'preferenceManagement'
             }),
             configure: function () {},
+            isEnabled: function () { return true; },
+            getDecision: function (feature) {
+                return {feature: feature, granted: false,
+                    userData: {identifiers: false, profile: false}, storage: {read: false, write: false}};
+            },
+            evaluateOperation: function (feature, callback) {
+                this.evaluate(feature, callback);
+            },
+            filterUser: function () { return {}; },
+            filterPayload: function () { return {}; },
+            createDeniedError: function () { return new Error('Breinify not available.'); },
             evaluate: function (feature, callback) {
                 if (typeof callback === 'function') {
                     callback({

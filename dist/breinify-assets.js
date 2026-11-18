@@ -55,6 +55,18 @@
         },
 
         textResource: function (frameId, timestamp, callback) {
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('modifyContent', function (decision) {
+                if (decision !== null && !decision.granted) {
+                    callback(Breinify.UTL.consent.createDeniedError('modifyContent'));
+                    return;
+                }
+
+                self.textResourceGranted(frameId, timestamp, callback);
+            });
+        },
+
+        textResourceGranted: function (frameId, timestamp, callback) {
             const _self = this;
 
             // make sure the timestamp is valid
@@ -234,6 +246,18 @@
         },
 
         _handleMappedResource: function ($el, callback) {
+            callback = $.isFunction(callback) ? callback : this._createCallback();
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('modifyContent', function (decision) {
+                if (decision !== null && !decision.granted) {
+                    callback(Breinify.UTL.consent.createDeniedError('modifyContent'));
+                    return;
+                }
+                self._handleMappedResourceGranted($el, callback);
+            });
+        },
+
+        _handleMappedResourceGranted: function ($el, callback) {
             const _self = this;
             callback = $.isFunction(callback) ? callback : this._createCallback();
 
@@ -301,6 +325,18 @@
         },
 
         _renderMappedResource: function ($el, type, mapId, settings, callback) {
+            callback = $.isFunction(callback) ? callback : this._createCallback();
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('modifyContent', function (decision) {
+                if (decision !== null && !decision.granted) {
+                    callback(Breinify.UTL.consent.createDeniedError('modifyContent'));
+                    return;
+                }
+                self._renderMappedResourceGranted($el, type, mapId, settings, callback);
+            });
+        },
+
+        _renderMappedResourceGranted: function ($el, type, mapId, settings, callback) {
             const _self = this;
             callback = $.isFunction(callback) ? callback : this._createCallback();
 
@@ -463,12 +499,14 @@
             const ss = '00'; //('0' + curDate.getSeconds()).slice(-2);
 
             // get and modify the user object (we do not want all the additional information, just the user info)
-            const user = Breinify.UTL.user.create();
+            const decision = Breinify.UTL.consent.getDecision('modifyContent');
+            const user = Breinify.UTL.user.create(undefined, decision);
             delete user.additional;
 
             // determine the values
             const date = yyyy + MM + dd + ' ' + HH + mm + ss;
-            const browserId = Breinify.UTL.user.getBrowserId();
+            const browserId = decision === null || decision.userData.identifiers
+                ? Breinify.UTL.user.getBrowserId() : Breinify.UTL.uuid();
 
             // build the whole thing, we add back the browserId
             const data = $.extend(true, {
@@ -480,7 +518,7 @@
                 }
             }, user, $.isPlainObject(settings) ? settings : {});
 
-            return this._createUrl(mapId, data);
+            return this._createUrl(mapId, Breinify.UTL.consent.filterPayload(data, decision));
         },
 
         _createUrl: function (mapId, data) {

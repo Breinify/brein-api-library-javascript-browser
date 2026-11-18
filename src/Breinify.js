@@ -240,8 +240,49 @@
             callback(data, errorText);
         },
 
-        ajax: function (url, data, success, error) {
+        determineConsentFeature: function (url, data) {
+            const features = BreinifyUtil.consent.features;
+            if (data.activity) {
+                return features.ACTIVITIES;
+            } else if (data.service || data.jobId) {
+                return features.MODIFY_CONTENT;
+            } else if (url === _config.get(ATTR_CONFIG.URL) + _config.get(ATTR_CONFIG.TEMPORAL_DATA_ENDPOINT)) {
+                return features.TEMPORAL_DATA;
+            } else {
+                return features.RECOMMENDATIONS;
+            }
+        },
 
+        ajax: function (url, data, success, error) {
+            const consent = BreinifyUtil.consent;
+            if (data === null) {
+                if ($.isFunction(error)) {
+                    error(null, 'Consent denied or request could not be created.');
+                }
+                return;
+            }
+
+            const feature = this.determineConsentFeature(url, data);
+            const send = function (decision) {
+                if (decision !== null && !decision.granted) {
+                    if ($.isFunction(error)) {
+                        error(consent.createDeniedError(feature), 'Consent denied for ' + feature + '.');
+                    }
+                    return;
+                }
+                let request = consent.filterPayload(data, decision);
+                if ($.isPlainObject(data.user)) {
+                    request.user = consent.filterUser(data.user, decision);
+                }
+                if (decision !== null && request.service) {
+                    request.checksum = _privates.createServiceChecksum(request.apiKey, request.service, request.payload);
+                }
+                _privates.sendAjax(url, request, success, error);
+            };
+            send(consent.getDecision(feature));
+        },
+
+        sendAjax: function (url, data, success, error) {
             $.ajax({
 
                 // set some general stuff regarding communication
@@ -390,7 +431,7 @@
             }
         },
 
-        handleServiceResponse: function (url, requestData, servicePayload, callback, response) {
+        handleServiceResponse: function (url, requestData, servicePayload, callback, response, initialConsent) {
             if (!$.isPlainObject(response)) {
                 callback(this.createServiceClientError('Unexpected service response.', {
                     response: response
@@ -436,7 +477,8 @@
                         _privates.determineServicePollUrl(jobState) + _config.get(ATTR_CONFIG.SERVICE_ENDPOINT),
                         nextRequest,
                         servicePayload,
-                        callback
+                        callback,
+                        initialConsent
                     );
                 }, backOffInMs);
             } else if (status === 'SUCCEEDED') {
@@ -458,9 +500,28 @@
             }
         },
 
-        sendServiceRequest: function (url, requestData, servicePayload, callback) {
+        sendServiceRequest: function (url, requestData, servicePayload, callback, initialConsent) {
+            const decision = BreinifyUtil.consent.getDecision('modifyContent');
+            initialConsent = typeof initialConsent === 'undefined' ? decision : initialConsent;
+            const isRestricted = function () {
+                const current = BreinifyUtil.consent.getDecision('modifyContent');
+                if (current === null) {
+                    return false;
+                }
+                const previous = initialConsent === null ? {identifiers: true, profile: true} : initialConsent.userData;
+                return !current.granted || previous.identifiers && !current.userData.identifiers ||
+                    previous.profile && !current.userData.profile;
+            };
+            if (isRestricted()) {
+                callback(BreinifyUtil.consent.createDeniedError('modifyContent'), null, null);
+                return;
+            }
             this.ajax(url, requestData, function (response) {
-                _privates.handleServiceResponse(url, requestData, servicePayload, callback, response);
+                if (isRestricted()) {
+                    callback(BreinifyUtil.consent.createDeniedError('modifyContent'), null, null);
+                    return;
+                }
+                _privates.handleServiceResponse(url, requestData, servicePayload, callback, response, initialConsent);
             }, function (errorData, errorText) {
                 const error = $.isPlainObject(errorData) ? errorData : {};
                 error.message = typeof errorText === 'string' && errorText.trim() !== '' ? errorText : 'Service request failed.';
@@ -608,8 +669,24 @@
             Breinify.activity(user, activity.type, activity.category, activity.description, activity.tags);
         },
 
-        createUser: function (user, onSuccess) {
-            new BreinifyUser(BreinifyUtil.user.create(user), onSuccess);
+        createUser: function (user, onSuccess, feature) {
+            BreinifyUtil.consent.evaluateOperation(feature, function (decision) {
+                if (decision !== null && !decision.granted) {
+                    onSuccess(null);
+                    return;
+                }
+                new BreinifyUser(BreinifyUtil.user.create(user, decision), function (createdUser) {
+                    const current = BreinifyUtil.consent.getDecision(feature);
+                    if (current !== null && !current.granted) {
+                        onSuccess(null);
+                    } else {
+                        if (current !== null) {
+                            createdUser._user = BreinifyUtil.consent.filterUser(createdUser.all(), current);
+                        }
+                        onSuccess(createdUser);
+                    }
+                }, decision);
+            });
         },
 
         triggerEvent: function (eventName, data, origin) {
@@ -844,7 +921,7 @@
 
         const onSuccess = function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -889,12 +966,12 @@
             preFunction(function (execute) {
                 if (execute !== false) {
                     // get the user information if the execution should happen
-                    _privates.createUser(user, onSuccess);
+                    _privates.createUser(user, onSuccess, 'recommendations');
                 }
             });
         } else {
             // get the user information
-            _privates.createUser(user, onSuccess);
+            _privates.createUser(user, onSuccess, 'recommendations');
         }
     };
 
@@ -916,37 +993,49 @@
         overload.overload({
             'Object,String': function (user, type) {
                 Breinify.activityUser(user, type, null, null, null, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,Object': function (user, type, tags) {
                 Breinify.activityUser(user, type, null, null, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,Object': function (user, type, description, tags) {
                 Breinify.activityUser(user, type, null, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object': function (user, type, category, description, tags) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data);
                 });
             },
             'Object,String,String,String,Object,Function': function (user, type, category, description, tags, callback) {
                 Breinify.activityUser(user, type, category, description, tags, null, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data, callback, callback);
                 });
             },
             'Object,String,String,String,Object,Boolean,Function': function (user, type, category, description, tags, sign, callback) {
                 Breinify.activityUser(user, type, category, description, tags, sign, function (data) {
-                    _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    if (data !== null) {
+                        _privates.triggerEvent('breinifyActivity[' + type + ']', [data]);
+                    }
                     _privates.ajax(url, data, callback, callback);
                 });
             }
@@ -975,7 +1064,7 @@
         // get the user information
         _privates.createUser(user, function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -1020,7 +1109,7 @@
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
-        });
+        }, 'activities');
     };
 
     //noinspection JSCommentMatchesSignature,JSValidateJSDoc
@@ -1076,7 +1165,7 @@
         // get the user information
         _privates.createUser(user, function (user) {
 
-            if (!user.validate()) {
+            if (user === null || !user.validate()) {
                 _onReady(null);
                 return;
             }
@@ -1114,7 +1203,7 @@
             if ($.isFunction(onReady)) {
                 _onReady(data);
             }
-        });
+        }, 'temporalData');
     };
 
     /**
@@ -1177,14 +1266,16 @@
         const passedUser = $.isPlainObject(user) ? user : {};
         _privates.createUser(passedUser, function (createdUser) {
 
-            if (!createdUser.validate()) {
+            if (createdUser === null || !createdUser.validate()) {
                 _onReady(null, _privates.createServiceClientError('Failed to create a valid user for the service request.'));
                 return;
             }
 
             const createdUserData = createdUser.all();
             const payloadUser = $.isPlainObject(requestPayload.user) ? requestPayload.user : {};
-            requestPayload.user = $.extend(true, {}, createdUserData, passedUser, payloadUser);
+            const decision = BreinifyUtil.consent.getDecision('modifyContent');
+            requestPayload.user = BreinifyUtil.consent.filterUser(
+                $.extend(true, {}, createdUserData, passedUser, payloadUser), decision);
 
             const apiKey = _config.get(ATTR_CONFIG.API_KEY);
             _onReady({
@@ -1196,7 +1287,7 @@
                     checksum: _privates.createServiceChecksum(apiKey, serviceName, requestPayload)
                 }
             }, null);
-        });
+        }, 'modifyContent');
     };
 
     /*

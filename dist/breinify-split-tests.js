@@ -41,6 +41,12 @@
             this.testName = settings.testName;
             this.tokens = $.extend(true, {}, this.tokens, $.isPlainObject(settings.tokens) ? settings.tokens : {});
             this.storageKey = $.extend(true, {}, this.storageKey, $.isPlainObject(settings.storageKey) ? settings.storageKey : {});
+            Object.values(this.storageKey).forEach(function (key) {
+                if (typeof key === 'string') {
+                    Breinify.UTL.storage.register(key, 'splitTestStorage');
+                }
+            });
+
             this.timing = $.extend(true, {}, this.timing, $.isPlainObject(settings.timing) ? settings.timing : {});
             this.payload = $.isPlainObject(settings.payload) || $.isFunction(settings.payload) ? settings.payload : null;
 
@@ -363,5 +369,9 @@
     };
 
     // bind the module
+    Breinify.UTL.consent.onChange(function () {
+        // the next retrieval must resolve again instead of reusing a completed test with an empty result
+        module.splitTests = {};
+    });
     Breinify.plugins._add('splitTests', module);
 })();

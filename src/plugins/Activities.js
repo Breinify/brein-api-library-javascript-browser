@@ -82,6 +82,12 @@
             const _self = this;
 
             this.init(gaSettings, function (status) {
+                const decision = Breinify.UTL.consent.getDecision('activities');
+                if (decision !== null && !decision.granted) {
+                    return;
+                }
+                activity.user = Breinify.UTL.consent.filterUser(activity.user, decision);
+                activity.tags = Breinify.UTL.consent.filterPayload(activity.tags || {}, decision);
                 if (status === false) {
                     return;
                 }
@@ -1322,6 +1328,12 @@
          * @returns {string|null} the id assigned to the activity, or null if it could not be stored
          */
         scheduleDelayedActivity: function (user, type, tags, maxAgeInMs, filter, id) {
+            const decision = Breinify.UTL.consent.getDecision('delayedActivities');
+            if (decision !== null && !decision.granted) {
+                return null;
+            }
+            user = Breinify.UTL.consent.filterUser(user, decision);
+            tags = Breinify.UTL.consent.filterPayload(tags || {}, decision);
 
             // get the activity data
             const activityData = {
@@ -1375,6 +1387,15 @@
         },
 
         checkDelayedActivityData: function () {
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('delayedActivities', function (decision) {
+                if (decision === null || decision.granted) {
+                    self._readDelayedActivities();
+                }
+            });
+        },
+
+        _readDelayedActivities: function () {
             const _self = this;
 
             // check each activity after ready
@@ -1385,6 +1406,10 @@
         },
 
         _checkDelayedActivityData: function (id, activityData) {
+            const decision = Breinify.UTL.consent.getDecision('delayedActivities');
+            if (decision !== null && !decision.granted) {
+                return;
+            }
 
             if (typeof activityData.type !== 'string' ||
                 !($.isPlainObject(activityData.tags) || typeof activityData.tags === 'undefined' || activityData.tags === null) ||
@@ -1433,6 +1458,11 @@
             } else if ($.isFunction(instance[funcName])) {
                 const _self = this;
                 instance[funcName].apply(instance, [id, activityData, function (id, activityData, sendAndRemoveActivity, removeActivity) {
+                    const current = Breinify.UTL.consent.getDecision('delayedActivities');
+                    if (current !== null && !current.granted) {
+                        _self.removeDelayedActivityData(id);
+                        return;
+                    }
                     if (sendAndRemoveActivity === true) {
                         _self._send(activityData.type, activityData.user, activityData.tags);
                         _self.removeDelayedActivityData(id);
@@ -1708,6 +1738,19 @@
         },
 
         _send: function (type, user, tags, callback) {
+            const self = this;
+            Breinify.UTL.consent.evaluateOperation('activities', function (decision) {
+                if (decision !== null && !decision.granted) {
+                    if (typeof callback === 'function') {
+                        callback(Breinify.UTL.consent.createDeniedError('activities'));
+                    }
+                    return;
+                }
+                self._sendGranted(type, user, tags, callback);
+            });
+        },
+
+        _sendGranted: function (type, user, tags, callback) {
             user = Breinify.UTL.user.create(user);
             tags = this._extendTags(type, tags);
 

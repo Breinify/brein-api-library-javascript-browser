@@ -7,7 +7,7 @@ const {chromium} = require('playwright');
 // Keep dependency order explicit; plugins are loaded only for plugin specs.
 const plugins = [
     'FeatureStorage', 'Trigger', 'Activities', 'SnippetManager', 'WebExperiences',
-    'Recommendations', 'UiRecommendations', 'UiModifyContent', 'UiSurvey', 'UiCountdown', 'AlertMe', 'Sms'
+    'Assets', 'SplitTests', 'OptStatus', 'Recommendations', 'UiRecommendations', 'UiModifyContent', 'UiSurvey', 'UiCountdown', 'AlertMe', 'Sms'
 ];
 
 function taskCommand(task) {

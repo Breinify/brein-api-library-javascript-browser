@@ -5,9 +5,10 @@
 Private state and policy helpers live in `_private.consent`.
 
 The manager evaluates registered features against mapped consent, customer overrides, and storage
-requirements. It returns immutable decisions. Existing requests, user creation, cookies, storage, and
-plugins are **not yet automatically connected to these decisions**. Script Creator supports opt-in settings
-injection before customer initialization; CMP adapters remain separate integration work.
+requirements. Core requests, user creation, storage, cookies, and the bundled consumer paths described
+below enforce these decisions when consent is enabled. Omitted or disabled settings preserve legacy
+behavior. Script Creator injects settings before customer initialization and loads the selected adapter;
+the Airgap adapter is available in `src/consent/consent-integration-airgap.js`.
 
 ## Feature decisions
 
@@ -61,7 +62,8 @@ in-memory identifier does not make that identifier persist across navigation.
 
 The current policy resolves read and write together, while exposing them separately for consumers.
 These are permissions, not a browser availability probe: quota errors or blocked browser storage still
-need handling by the feature. Evaluation itself does not read storage, create users, or send requests.
+need handling by the feature. Permission changes remove denied library-owned stored data and invalidate
+relevant cached data; evaluation does not create users or send application requests.
 
 ## Public methods
 
@@ -70,6 +72,9 @@ need handling by the feature. Evaluation itself does not read storage, create us
 | `configure(settings)` | Validates and installs the provider and policies, subscribes to updates, and starts an initial permission query. Does not wait for completion. |
 | `evaluate(feature, callback)` | Calls `callback(decision)` once, whether granted or denied. May resolve synchronously; returns no value. |
 | `isGranted(feature, onGranted[, onDenied])` | Evaluates the feature and invokes only `onGranted(decision)` or the optional `onDenied(decision)`. Returns no value. |
+| `isEnabled()` | Reports whether runtime enforcement is configured. |
+| `evaluateOperation(feature, callback)` | Evaluates an enabled operation asynchronously; passes `null` when enforcement is disabled to preserve legacy behavior. |
+| `getDecision(feature)` | Refreshes from a synchronous provider where possible and returns the current decision; unresolved permissions use the baseline. Returns `null` when enforcement is disabled. Async operations should use `evaluateOperation`. |
 | `onChange(listener)` | Registers `listener(permissions)` for changes in normalized CMP permissions and returns an idempotent unsubscribe function. Does not replay the last notification. |
 
 `onChange` reports permission changes, not a decision for every feature. Consumers evaluate their feature
@@ -114,12 +119,17 @@ checks. Customer configuration can override registered features; it cannot regis
 
 | Feature constant / value | Default and intrinsic requirement | User data | Storage dependency / purpose |
 | --- | --- | --- | --- |
-| `RECOMMENDATIONS` / `recommendations` | Content | None without Personalization; configured identifiers/profile with Personalization. | None for the request itself. |
+| `RECOMMENDATIONS` / `recommendations` | Content | Fresh request IDs without Personalization; configured identifiers/profile with Personalization. | None for the request itself. |
 | `MODIFY_CONTENT` / `modifyContent` | Content | Same as recommendations. | None for Modify Content's content-decision service request. |
-| `TEMPORAL_DATA` / `temporalData` | Content | Explicit query inputs or transient request-IP context; with Personalization, available profile latitude/longitude may also be used. No browser/session identifiers. | None. |
+| `TEMPORAL_DATA` / `temporalData` | Content | Explicit query inputs or transient request-IP context; with Personalization, available profile latitude/longitude may also be used. No stable browser/session identifiers. | None. |
 | `ACTIVITIES` / `activities` | Analytics | Identifiers with Analytics; configured account/profile fields additionally with Personalization. | None for immediate delivery. |
 | `DELAYED_ACTIVITIES` / `delayedActivities` | Analytics | Same data permissions as immediate activities when granted. | Required Analytics storage for cross-page delivery. |
 | `PRESENTATION_STORAGE` / `presentationStorage` | Functional | No identifiers/profile. | Required Functional storage for approved display preferences/state. |
+| `CONTENT_TOKENS` / `contentTokens` | Content | Same as recommendations. | None for the request. |
+| `PREFERENCE_MANAGEMENT` / `preferenceManagement` | Content | Explicit preference-management inputs are preserved without automatic user enrichment. | None. |
+| `IDENTIFIER_STORAGE` / `identifierStorage` | Analytics | Browser/session IDs. | Required Analytics storage. |
+| `PROFILE_STORAGE` / `profileStorage` | Personalization | Profile/referrer and unclassified stored data. | Required Personalization storage. |
+| `SPLIT_TEST_STORAGE` / `splitTestStorage` | Analytics | Assignments and attribution metadata. | Required Analytics storage. |
 
 `MODIFY_CONTENT` does not classify every possible service-gateway token as content. Other service purposes
 need their own reviewed feature definition. A cache or side effect of a content response is not authorized
@@ -131,7 +141,7 @@ For activities these are Analytics and Personalization respectively; `null` forb
 An Analytics grant alone therefore never permits account/profile fields.
 
 Immediate activity decisions always return both storage flags as `false`. Reading or persisting browser/session
-identifiers belongs to user creation's separate storage policy, which still needs to be wired. Permission to
+identifiers belongs to user creation's separate `identifierStorage` policy. Permission to
 include an identifier in a request does not authorize reading it from cookies or browser storage.
 
 | Dependency | Without storage permission |
@@ -147,6 +157,7 @@ navigation. The `PRESENTATION_STORAGE` feature represents persistence itself, no
 
 | Setting | Meaning |
 | --- | --- |
+| `enabled` | Core configuration is enabled unless explicitly `false`; Script Creator requires `enabled: true` to inject configuration. |
 | `timeoutInMs` | Maximum wait per query, default `2500`. Finite number from `0` to `2147483647`. Zero permits synchronous resolution, otherwise timeout occurs on the next timer turn. |
 | `provider` | Provider object described below. An absent provider remains unresolved until timeout. |
 | `features` | Optional map keyed by registered feature values. Each rule supports `requires` and `enabled`. |
@@ -222,29 +233,53 @@ checks with denied decisions, including pending content requests. Previously kno
 with a baseline notification when changed. Existing observer subscriptions remain registered. Configure
 once during normal startup; do not reconfigure before each operation.
 
-## User creation and integration boundaries
+## Runtime enforcement and integration boundaries
 
-Evaluate the feature before collecting information, then pass that same decision through user creation
-and storage access for the operation. `UTL.user.create(user)` currently returns synchronously; callback-based
-request builders provide the place to wait for consent before calling it. The `BreinifyUser` constructor
-must also respect the decision instead of adding disallowed context or automatic browser geolocation.
+Request builders wait for feature evaluation before invoking user creation. If the feature is denied,
+no request is sent. With Content-only permissions, recommendations, Modify Content/discovery, temporal
+content and content tokens continue. User profile fields and existing browser/session IDs are removed;
+when an ID is included it is a fresh UUID for that request, never retained as a replacement visitor ID.
+Activity requests require Analytics. Personalization enables profile enrichment, including configured
+user hooks. Browser geolocation also checks permission before collection and after asynchronous work.
 
-A decision is an operation snapshot, not a reusable grant for later calls. Delayed activity processing,
-service polling, and subsequent operations must evaluate again. Browser geolocation and explicit user
-actions such as unsubscribe require their own reviewed operation behavior; do not infer them from a
-transport endpoint. In-memory caches also need to obey data permissions when the consumer paths are wired.
+`UTL.user.create(user)` remains synchronous and uses the current activity data permissions by default.
+Request builders pass their own feature decision. Synchronous storage/user access cannot wait for an
+unresolved provider, so it denies optional permissions until a usable snapshot is available. Delayed
+activity storage, stored identifiers, and display state have separate requirements. See [storage](storage.md).
+
+The final request gateway rechecks permissions and sanitizes user data, including nested service payload
+user overrides. Service polling stops if its original identifier/profile permissions are withdrawn.
+Anonymous service jobs can continue. Token payloads strip recognized identity fields recursively;
+arbitrary customer-defined fields, opaque strings, and custom integration callbacks still need review.
+Content payloads must not disguise personal data under unrelated names.
+
+Bundled Activities, mapped Assets, SplitTests, FeatureStorage, and UiModifyContent consumer paths use the
+consent/storage layer. Revocation clears stored identifiers and relevant restored/cache state. Explicit
+OptStatus preference requests retain the visitor's supplied target (for example, an email to unsubscribe)
+without enriching a user; the Unsubscribe endpoint likewise serves explicit preference requests. Shopify
+cart access and development tooling are separate functional tools, not analytics transports.
+
+Core API requests preserve the configured `withCredentials` value (default `false`), whether consent is
+enabled or disabled. Credentials may support essential endpoint behavior, so consent does not override
+this transport setting. Content-only payload filtering does not guarantee that a credentialed request
+carries no identifying cookies. Endpoint cookies and browser-supplied IP/headers are separate from the
+user payload and UTL storage policy. Customer integrations making their own network/storage calls need
+their own review.
 
 With `scriptSettings.consent.enabled: true`, Script Creator uses this order:
 
 1. Load the core library, making `UTL.consent` available.
-2. Inject the consent settings and configure consent.
+2. Load the configured CMP adapter, then inject settings and configure consent.
 3. Run development observers, customer `initCode.js`, entry points, and subsequent scripts.
-4. Evaluate registered features at operation and data-access boundaries once those consumers are wired.
+4. Evaluate consent at operation and data-access boundaries.
 
 Injection precedes `initCode.js` and `setConfig()`, which can already trigger requests. Enabled integration
 rejects custom library/prefix/suffix order and requires a compatible existing global library, if present.
-Omitted, null, empty, or explicitly disabled creator settings add no setup code and preserve existing behavior.
-The creator can resolve an existing provider through `providerPath`; CMP adapters remain separate work.
+Omitted, null, empty, or explicitly disabled creator settings add no setup code and preserve legacy behavior.
+The creator resolves provider names through `ConsentProvider`; adapters register in `consent.integrations`.
+Airgap maps Functional, Analytics, and Advertising to the corresponding library permissions. `Auto` grants
+its mapped purpose; an all-false `purposes` object is known Content-only consent even when unconfirmed.
+The CMP must permit the library script to load for these internal checks to run.
 
 If normal library loading fails, the fallback exposes the same constants and feature-based methods.
 Its `evaluate` calls the callback, when it is a function, with a fresh plain decision object containing

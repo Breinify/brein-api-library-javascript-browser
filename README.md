@@ -23,13 +23,14 @@ and passes an immutable decision to the matching callback, including user-data a
 `evaluate(feature, callback)` returns that decision through one callback for either outcome. Feature
 overrides and a global storage requirement are supported by the evaluator.
 See [the consent contract](documentation/consent.md) for dependencies and user-data handling.
-This is the foundation only; existing requests and data access are not yet connected to it.
+When enabled, core requests and the documented library storage/consumer paths enforce these decisions.
+Omitted or disabled settings preserve legacy behavior.
 
 ## Browser storage
 
 `Breinify.UTL.storage` provides shared local/session/memory access, JSON helpers, and entry enumeration.
 See [browser storage and the stored-data inventory](documentation/storage.md) for the API, existing keys,
-lifetimes, cookies, and fallback behavior.
+consent requirements, write triggers, lifetimes, browser scope, cookies, and fallback behavior.
 
 ## Running tests
 

@@ -76,7 +76,7 @@
                 } else {
                     _private.handleError(error, cb);
                 }
-            }, 30000);
+            }, 30000, Breinify.UTL.consent.features.PREFERENCE_MANAGEMENT);
         },
 
         optViaCode: function (code, cb, overrides) {
@@ -91,7 +91,7 @@
                 } else {
                     _private.handleError(error, cb);
                 }
-            }, 30000);
+            }, 30000, Breinify.UTL.consent.features.PREFERENCE_MANAGEMENT);
         },
 
         opt: function (user, optStatus, campaigns, additional, callback) {
@@ -157,7 +157,7 @@
                     if (remaining === 0) {
                         callback({success: failed.length === 0, failed: failed, results: results});
                     }
-                }, 30000);
+                }, 30000, Breinify.UTL.consent.features.PREFERENCE_MANAGEMENT);
             }
         }
     };

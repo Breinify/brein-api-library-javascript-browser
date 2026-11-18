@@ -127,7 +127,8 @@
 
                 // check if the permission is already granted
                 permissions.query({name: 'geolocation'}).then(function (permission) {
-                    if (permission.state !== 'granted') {
+                    const decision = BreinifyUtil.consent.getDecision('temporalData');
+                    if (permission.state !== 'granted' || decision !== null && !decision.userData.profile) {
                         _self.resolvedGeoLocation = true;
                         callback(null);
 
@@ -135,6 +136,13 @@
                     }
 
                     geo.getCurrentPosition(function (position) {
+                        const current = BreinifyUtil.consent.getDecision('temporalData');
+                        if (current !== null && !current.userData.profile) {
+                            _self.geoLocation = null;
+                            _self.resolvedGeoLocation = false;
+                            callback(null);
+                            return;
+                        }
                         _self.resolvedGeoLocation = true;
                         _self.geoLocation = {
                             'accuracy': position.coords.accuracy,
@@ -161,12 +169,27 @@
         }
     };
 
-    const BreinifyUser = function (user, onReady) {
+    BreinifyUtil.consent.onChange(function () {
+        _privates.geoLocation = null;
+        _privates.resolvedGeoLocation = false;
+    });
+
+    const BreinifyUser = function (user, onReady, decision) {
         const instance = this;
         instance.version = '{{PROJECT.VERSION}}';
 
+        decision = typeof decision === 'undefined' ? BreinifyUtil.consent.getDecision('activities') : decision;
+        if (decision !== null) {
+            user = BreinifyUtil.consent.filterUser(user instanceof BreinifyUser ? user.all() : user, decision);
+        }
         // set the values provided
         instance.setAll(user);
+        if (decision !== null && !decision.userData.profile) {
+            if ($.isFunction(onReady)) {
+                onReady(instance);
+            }
+            return;
+        }
 
         // set the user-agent to a default value if there isn't one yet
         if (instance.read('userAgent') === null) {
@@ -238,8 +261,16 @@
         addGeoLocation: function (onReady) {
             const instance = this;
 
+            const decision = BreinifyUtil.consent.getDecision('temporalData');
+            if (decision !== null && !decision.userData.profile) {
+                if ($.isFunction(onReady)) {
+                    onReady(instance);
+                }
+                return;
+            }
             _privates.resolveGeoLocation(function (location) {
-                if (!BreinifyUtil.isEmpty(location)) {
+                const current = BreinifyUtil.consent.getDecision('temporalData');
+                if ((current === null || current.userData.profile) && !BreinifyUtil.isEmpty(location)) {
                     instance.add('location', location);
                 }
 

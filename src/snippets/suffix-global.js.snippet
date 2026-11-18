@@ -78,6 +78,8 @@
     Breinify.UTL = {
         storage: {
             instance: emptyStorage,
+            register: function () {},
+            isAllowed: function () { return false; },
             splitTestDataInstanceName: 'split-test-data',
             getStorage: function () { return emptyStorage; },
             getItem: function () { return null; },
@@ -116,9 +118,25 @@
                 TEMPORAL_DATA: 'temporalData',
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
-                PRESENTATION_STORAGE: 'presentationStorage'
+                PRESENTATION_STORAGE: 'presentationStorage',
+                IDENTIFIER_STORAGE: 'identifierStorage',
+                PROFILE_STORAGE: 'profileStorage',
+                SPLIT_TEST_STORAGE: 'splitTestStorage',
+                CONTENT_TOKENS: 'contentTokens',
+                PREFERENCE_MANAGEMENT: 'preferenceManagement'
             }),
             configure: function () {},
+            isEnabled: function () { return true; },
+            getDecision: function (feature) {
+                return {feature: feature, granted: false,
+                    userData: {identifiers: false, profile: false}, storage: {read: false, write: false}};
+            },
+            evaluateOperation: function (feature, callback) {
+                this.evaluate(feature, callback);
+            },
+            filterUser: function () { return {}; },
+            filterPayload: function () { return {}; },
+            createDeniedError: function () { return new Error('Breinify not available.'); },
             evaluate: function (feature, callback) {
                 if (typeof callback === 'function') {
                     callback({
