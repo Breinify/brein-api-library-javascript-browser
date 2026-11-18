@@ -58,6 +58,7 @@
 
         persistence: {
             storagePrefix: 'breinify::featureStorage::feature::',
+            purposePrefix: 'breinify::featureStorage::purpose::',
             cleanupKey: 'breinify::featureStorage::cleanupAt',
             cleanupIntervalInMs: 6 * 60 * 60 * 1000,   // 6h
             defaultTtlInMs: 24 * 60 * 60 * 1000        // 24h
@@ -521,6 +522,7 @@
                 persistence: {
                     enabled: true,
                     type: 'localStorage',
+                    purpose: 'profileStorage',
                     ttlInMs: this.persistence.defaultTtlInMs
                 }
             };
@@ -548,10 +550,14 @@
                 ? type
                 : defaults.persistence.type;
 
+            const purpose = Breinify.UTL.storage.isPurpose(inputPersistence.purpose)
+                ? inputPersistence.purpose : defaults.persistence.purpose;
+
             const definitionResult = {
                 persistence: {
                     enabled: enabled,
                     type: type,
+                    purpose: purpose,
                     ttlInMs: ttlInMs
                 }
             };
@@ -602,7 +608,7 @@
                 return;
             }
 
-            this.featureDefinitions[normalizedName] = this.resolveFeatureDefinition(normalizedName, additional);
+            this.setFeatureDefinition(normalizedName, this.resolveFeatureDefinition(normalizedName, additional));
         },
 
         getLocalStorage: function () {
@@ -637,7 +643,39 @@
         },
 
         getPersistenceKey: function (name) {
-            return this.persistence.storagePrefix + name;
+            const definition = this.resolveFeatureDefinition(name);
+            const purpose = definition.persistence.purpose;
+            return purpose === 'profileStorage' ? this.persistence.storagePrefix + name
+                : this.persistence.purposePrefix + purpose + '::feature::' + name;
+        },
+
+        getPersistenceIdentity: function (key) {
+            if (typeof key !== 'string') {
+                return null;
+            } else if (key.indexOf(this.persistence.storagePrefix) === 0) {
+                return {name: key.substring(this.persistence.storagePrefix.length), purpose: 'profileStorage'};
+            } else if (key.indexOf(this.persistence.purposePrefix) === 0) {
+                const parts = key.substring(this.persistence.purposePrefix.length).match(/^([^:]+)::feature::(.+)$/);
+                return parts === null ? null : {name: parts[2],
+                    purpose: Breinify.UTL.storage.isPurpose(parts[1]) ? parts[1] : 'profileStorage'};
+            } else {
+                return null;
+            }
+        },
+
+        setFeatureDefinition: function (name, definition) {
+            const previous = this.resolveFeatureDefinition(name);
+            if (previous.persistence.purpose !== definition.persistence.purpose) {
+                // a new declaration must not relabel data collected under the previous purpose
+                this.removePersistedFeature(name, previous);
+                delete this.currentFeatures[name];
+                delete this.currentFeatureMeta[name];
+                this.restoredFeatures.delete(name);
+                delete this.pendingFeatureChanges[name];
+                delete this.observations[name];
+                delete this.pendingObservations[name];
+            }
+            this.featureDefinitions[name] = definition;
         },
 
         buildPersistedFeatureEntry: function (name, definition) {
@@ -665,8 +703,6 @@
             if (normalizedName === '') {
                 return false;
             }
-
-            this.rememberInlineFeatureDefinition(normalizedName, additional);
 
             const definition = this.resolveFeatureDefinition(normalizedName, additional);
             if (definition.persistence.enabled !== true) {
@@ -794,13 +830,14 @@
             const keysToRemove = [];
 
             try {
-                for (let i = 0; i < storage.length; i++) {
-                    const key = storage.key(i);
-                    if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
+                const keys = Breinify.UTL.storage.keys('local');
+                for (const key of keys) {
+                    const identity = this.getPersistenceIdentity(key);
+                    if (identity === null) {
                         continue;
                     }
 
-                    const featureName = key.substring(this.persistence.storagePrefix.length);
+                    const featureName = identity.name;
                     const parsed = this.parsePersistedFeatureEntry(storage.getItem(key));
 
                     if (!$.isPlainObject(parsed)) {
@@ -813,7 +850,10 @@
                         continue;
                     }
 
-                    const definition = this.normalizeFeatureDefinition(parsed.definition);
+                    const savedDefinition = $.isPlainObject(parsed.definition) ? parsed.definition : {};
+                    const definition = this.normalizeFeatureDefinition(Object.assign({}, savedDefinition, {
+                        persistence: Object.assign({}, savedDefinition.persistence, {purpose: identity.purpose})
+                    }));
                     if (definition.persistence.enabled !== true) {
                         keysToRemove.push(key);
                         continue;
@@ -833,9 +873,14 @@
                     self.currentFeatures[featureName] = parsed.value;
                     self.restoredFeatures.add(featureName);
                     self.featureDefinitions[featureName] = definition;
-                    self.touchPersistedFeature(featureName, {
-                        featureDefinition: definition
-                    });
+                    const currentKey = self.getPersistenceKey(featureName);
+                    if (currentKey !== key) {
+                        // removed purposes can only be restored with Profile Storage permission
+                        self.persistFeature(featureName);
+                        if (storage.getItem(currentKey) !== null) keysToRemove.push(key);
+                    } else {
+                        self.touchPersistedFeature(featureName, {featureDefinition: definition});
+                    }
                 }
             } catch (e) {
                 this.debugError('failed to restore persisted features', e);
@@ -874,7 +919,8 @@
 
                 for (let i = 0; i < storage.length; i++) {
                     const key = storage.key(i);
-                    if (typeof key !== 'string' || key.indexOf(this.persistence.storagePrefix) !== 0) {
+                    const identity = this.getPersistenceIdentity(key);
+                    if (identity === null) {
                         continue;
                     }
 
@@ -1331,12 +1377,17 @@
         },
 
         applyFeatureChange: function (name, oldValue, newValue, additional) {
-            this.restoredFeatures.delete(this.normalizeName(name));
             const normalizedName = this.normalizeName(name);
             if (normalizedName === '') {
                 return false;
             }
 
+            const previousPurpose = this.resolveFeatureDefinition(normalizedName).persistence.purpose;
+            this.rememberInlineFeatureDefinition(normalizedName, additional);
+            this.restoredFeatures.delete(normalizedName);
+            if (previousPurpose !== this.resolveFeatureDefinition(normalizedName).persistence.purpose) {
+                oldValue = null;
+            }
             const normalizedOldValue = typeof oldValue === 'undefined' ? null : oldValue;
             const definition = this.featureDefinitions[normalizedName];
             const normalizedNewValue = this.normalizeFeatureValue(newValue, definition && definition.valueType);
@@ -2302,6 +2353,7 @@
          *   persistence?: {
          *     enabled?: boolean,      // default true
          *     type?: 'localStorage',  // currently only localStorage is supported
+         *     purpose?: string,       // one of the six storage purposes; default profileStorage
          *     ttlInMs?: number        // default 24h
          *   }
          * }
@@ -2314,7 +2366,8 @@
          * cause previously persisted values created under the old definition to be
          * restored until they expire or are explicitly removed.
          *
-         * Defining a feature does not read, update, or remove persisted values.
+         * Changing its storage purpose removes the previous persisted and in-memory value.
+         * Set a fresh value after reclassification; existing data is never relabeled into another purpose.
          *
          * @param {string} name
          * @param {Object=} definition
@@ -2326,7 +2379,7 @@
                 return this;
             }
 
-            _private.featureDefinitions[normalizedName] = _private.normalizeFeatureDefinition(definition);
+            _private.setFeatureDefinition(normalizedName, _private.normalizeFeatureDefinition(definition));
             return this;
         },
 
@@ -2354,7 +2407,8 @@
         /**
          * Removes one explicit feature definition.
          *
-         * The feature itself is not removed. Future operations fall back to defaults.
+         * Future operations fall back to Profile Storage defaults. If the purpose changes, the previous
+         * saved and current value are discarded, as with defineFeature.
          *
          * @param {string} name
          * @returns {Object} FeatureStorage
@@ -2365,6 +2419,7 @@
                 return this;
             }
 
+            _private.setFeatureDefinition(normalizedName, _private.getDefaultFeatureDefinition());
             delete _private.featureDefinitions[normalizedName];
             return this;
         },

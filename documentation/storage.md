@@ -127,10 +127,10 @@ These purpose labels are used in every inventory table:
 | --- | --- | --- |
 | `contentStorage` | Content (no optional grant) | Explicitly declared non-user product/content caches; no identifier or profile permission. |
 | `identifierStorage` | Analytics | Generated browser/session identifiers and identifier availability probes. |
-| `delayedActivities` | Analytics | Persisted activities awaiting delivery; storage is required for this feature. |
+| `continuityStorage` | Content (no added optional grant) | Temporary pending operations across navigation. Delayed activities additionally require their own Analytics permission. |
 | `splitTestStorage` | Analytics | Stored assignments and attribution data. |
 | `presentationStorage` | Functional | Display windows, decision/random/suppression persistence, and DevStudio UI state. |
-| `profileStorage` | Personalization **and Analytics** | Referrer state and the current fallback for any unclassified key, including feature values, generic caches, and certain developer keys. This does not imply every such value is a profile. |
+| `profileStorage` | Personalization **and Analytics** | Referrer state and the current fallback for any unclassified key, including unclassified feature values and generic caches. This does not imply every such value is a profile. |
 
 `storage.requires` adds a requirement to every purpose. For example, `storage.requires: 'personalization'`
 means identifiers need Analytics + Personalization, while presentation storage needs Functional + Analytics
@@ -169,6 +169,36 @@ consent initialization to avoid early cleanup using its previous/default classif
 the `breinify-content-` prefix. Registration does not recover already-deleted data. The same purpose works
 with local, session, and explicit memory storage, and applies to matching cookie names as well.
 
+## Feature storage classification
+
+FeatureStorage accepts `persistence.purpose` on a definition or inline persistence override. Use one of
+`contentStorage`, `presentationStorage`, `identifierStorage`, `profileStorage`, `splitTestStorage`, or
+`continuityStorage`. Missing, unknown, malformed, and retired values normalize to `profileStorage` without throwing.
+`persistence.enabled` still independently controls whether to save anything.
+
+```javascript
+Breinify.plugins.featureStorage.defineFeature('shared-products', {
+    persistence: {enabled: true, purpose: 'contentStorage', ttlInMs: 1800000}
+});
+```
+
+A declaration applies to the entire record, including value and change metadata. It does not inspect or sanitize
+arbitrary feature contents, grant permission to send them, or make visitor data suitable for Content Storage.
+Declare the purpose according to the actual use case, not merely to obtain a weaker consent requirement.
+
+Profile Storage retains the existing `breinify::featureStorage::feature::<name>` keys. Explicit other purposes use
+`breinify::featureStorage::purpose::<purpose>::feature::<name>`. The core recognizes these before plugin startup,
+so consent cleanup, reads, restoration and revocation use the purpose without first reading the stored payload.
+Classified entries have the same envelope, TTL and renewal behavior as the existing profile entries. The key is
+also the authoritative purpose on restoration. Retired-purpose keys require Profile Storage and migrate to the
+legacy profile key only after a permitted restore. The collection cleanup timestamp remains under Profile Storage;
+its denial does not prevent checking expiry of permitted entries.
+
+Changing a definition's purpose discards its previous saved value, in-memory value and change metadata. Supply a
+fresh value after reclassification; existing private data is not relabeled into a less restrictive category.
+Unknown inline overrides also fall back to Profile Storage; an override omitting `purpose` retains an existing
+explicit declaration, just as omitting TTL retains its configured value.
+
 ## Time and browser scope
 
 **Lifetime** below means the configured expiry or freshness check, not a guarantee of physical deletion
@@ -199,7 +229,7 @@ above; with enforcement disabled, the same writes follow legacy behavior.
 | `breinify-split-test-data` | Core named cache: assignments and attribution metadata in `{expires, created, data}`. | Updating/replacing split-test data, including recommendation and Modify Content result metadata. | `splitTestStorage` | Envelope duration is `30 * 24 * 60` seconds: **12 hours**, not 30 days. Assignment reads separately prune entries older than 24 hours and expired preview `expiresAt` values. Named-cache `get` does not itself enforce envelope expiry. Entries keyed by test name. |
 | `breinify-gp-data` | Core: hashes of already-handled tracking parameters for deduplication. | Handling a newly recognized tracking-parameter activity. | `profileStorage` (fallback classification) | 60-second envelope metadata; `get` does not itself enforce expiry. Shared named cache for the origin. |
 | `breinify-<name>` | Public named cache: caller-supplied data in `{expires, created, data}`. | `storage.load`, `init` loaders/values, or `update`. | `profileStorage` unless explicitly classified or matching a known key | Caller-supplied duration in **seconds**; callers must enforce expiry. Scope is the supplied name. Existing memory fallback applies if local storage cannot be obtained at cache initialization. |
-| `breinify-sa-data-<id>` | Activities: `{user, tags, type, maxAgeInMs, filter, timestamp}`; tags can contain page URL/title. | Scheduling or replacing a delayed activity. | `delayedActivities` | Until sent/removed; positive `maxAgeInMs` is checked when processing, not by a timer deleting the entry. Scope is the supplied/generated activity ID. Cookie fallback below. |
+| `breinify-sa-data-<id>` | Activities: `{user, tags, type, maxAgeInMs, filter, timestamp}`; tags can contain page URL/title. | Scheduling or replacing a delayed activity. | `continuityStorage` + `delayedActivities` | Until sent/removed; positive `maxAgeInMs` is checked when processing, not by a timer deleting the entry. Scope is the supplied/generated activity ID. Cookie fallback below. |
 | Configured `storageKey.live` / `storageKey.test` | SplitTests: assignment response plus `lastUpdated` and `isControl`. | A split-test result is received and a storage key was configured. | `splitTestStorage` (registered by the plugin) | Default freshness **1 hour**, configurable via `timing.expirationAfterMs`. Stale data may remain until replaced. Scope is the configured key/environment; omitting keys avoids persistence. |
 | `br-ctd-<splitTestName>` | UiCountdown through SplitTests: assignment response. | Countdown split-test resolution. | `splitTestStorage` | Same default one-hour freshness as SplitTests. Scope is the split-test name. |
 | `br-wed-<webExVersionId>` | UiCountdown: `{time, ttl, renew, response}` campaign/display state. | Receiving campaign settings for time-limited or active-browsing visibility. | `presentationStorage` | Time-limited: configured `displayWindowValue` in **seconds**. Default active-browsing window: **30 minutes**. Current writes set `renew: false`; only existing `renew: true` entries renew on read. Expired entries are removed on read. Scope is the web-experience version. |
@@ -221,8 +251,8 @@ All rows use origin + tab/session scope. The session ends independently of a coo
 | `br::wemc::decision` | UiModifyContent: version 2 envelope of session condition decisions and bindings. | Session-scoped condition results are updated or expired entries removed. | `presentationStorage` | Session lifetime; positive `maxAgeSeconds` shortens validity, while zero means no additional time limit within the session. Logical scope matches the local decision envelope. |
 | `br::wemc::random` | UiModifyContent: version 1 envelope of random boolean assignments. | First evaluation of a random condition without a stored assignment. | `presentationStorage` | Session lifetime, with no additional TTL. Scope is experience ID + version + condition reference; the current runtime also keeps a memory result. |
 | `breinify::dev-studio::state` | DevStudio: `{isVisible, activeTab}`. | Saving DevStudio UI state. | `presentationStorage` | Tab/session lifetime. One UI-state key per origin/tab. |
-| `previewIds` | DevStudio: comma-separated preview IDs. | Removing a preview rewrites the remaining IDs; removes the key when empty. | `profileStorage` for **UTL access**; direct bootstrap exception below | Tab/session lifetime or explicit preview/reset removal. Scope is the development-preview selection. |
-| `breinify` | Development-mode flag, read by the core helper; not written by the API library. | Written by Script Creator bootstrap, described below. | `profileStorage` for **UTL reads**; direct bootstrap exception below | Tab/session lifetime or explicit reset. Recognized values include `true` and `disabled`. |
+| `previewIds` | DevStudio: comma-separated preview IDs. | Removing a preview rewrites the remaining IDs; removes the key when empty. | Developer exemption; no consent gate | Tab/session lifetime or explicit preview/reset removal. Scope is the development-preview selection. |
+| `breinify` | Development-mode flag, read by the core helper; not written by the API library. | Written by Script Creator bootstrap, described below. | Developer exemption; no consent gate | Tab/session lifetime or explicit reset. Recognized values include `true` and `disabled`. |
 | `br-storage-test-<time>-<random>` | Storage availability probe containing its own key. | Explicit `storage.isAvailable('session')`, also used when selecting identifier storage. | `identifierStorage` | Written/read/removed during the same probe. Removal may fail if browser access becomes unavailable. |
 
 ## Cookie inventory and attributes
@@ -236,7 +266,7 @@ cookies when their local-storage store operation fails. A fallback still needs t
 | `x-breinify-bid` | Raw browser ID; created on a permitted lookup when no valid ID is available. | `identifierStorage` | **3,650 days** from creation, no renewal on ordinary reads. | `UTL.cookie.domain()`, `Path=/`; shared across matching domain/subdomains and tabs. |
 | `x-breinify-uuid` | Raw session ID; created when absent or explicitly reset. | `identifierStorage` | **Session cookie**, no explicit expiry. | Same domain/root path; unlike session storage, this can share a session ID across tabs. |
 | `x-breinify-rfr` | JSON referrer/navigation state, stored as a string by the core identifier backend. | `profileStorage` | **Session cookie**, no explicit expiry. | Same domain/root path; state can be shared across matching tabs/subdomains. |
-| `x-breinify-delayed` | Map of delayed activity IDs to user/tags/type/timing/filter data, encoded by `cookie.setJson`. Written when scheduling via cookie fallback or removing an entry from the map. | `delayedActivities` | **Session cookie**; individual activity `maxAgeInMs` is checked when processing. | Same domain/root path; queued records can be visible to matching tabs/subdomains. Reads merge permitted cookie and local records; removal attempts both backends. |
+| `x-breinify-delayed` | Map of delayed activity IDs to user/tags/type/timing/filter data, encoded by `cookie.setJson`. Written when scheduling via cookie fallback or removing an entry from the map. | `continuityStorage` + `delayedActivities` | **Session cookie**; individual activity `maxAgeInMs` is checked when processing. | Same domain/root path; queued records can be visible to matching tabs/subdomains. Reads merge permitted cookie and local records; removal attempts both backends. |
 
 `UTL.cookie.domain()` uses configured `cookieDomain` if provided (with a leading dot), otherwise the
 current hostname heuristic, with special handling for hosted domains. It returns no explicit domain for
@@ -267,20 +297,20 @@ separate content-token permission and keeps the current product index in memory.
 can block the network request; denying `contentStorage` blocks the cache. Failed or denied token requests
 clear the in-progress flag so a subsequent load can retry. No automatic consent replay is added.
 
-## Script Creator bootstrap exception
+## Developer activation flags
 
-The generated prefix runs before the library's consent initialization. Its current development-mode path
-uses native `window.sessionStorage`, so those accesses **are not gated by UTL consent**, even when consent
-will later be enabled. This is actual current behavior, not a declaration that these keys require no consent.
+`breinify` and `previewIds` are explicitly activated developer controls outside consent management. Both native
+Script Creator bootstrap access and library UTL access ignore feature consent and global `storage.requires`.
+Consent changes do not remove or hide these keys. This exact-key exemption does not apply to arbitrary developer
+keys or DevStudio's separate display-state storage.
 
-| Key | Trigger / contents | Consent behavior | Time and scope |
-| --- | --- | --- | --- |
-| `breinify` | `?breinify=true` or `?breinify=disabled` writes the selected mode; stored mode is read on later navigation. `?breinify=reset` removes it. | Native bootstrap read/write before configuration; later API-library reads use `profileStorage`. | Origin + tab/session, until reset or session end. |
-| `previewIds` | A valid preview-ID query parameter in development mode writes the selection; later pages reuse it. Reset/disabled mode removes it. | Native bootstrap read/write before configuration; later DevStudio UTL writes use `profileStorage`. | Origin + tab/session, until changed, reset, removed, or session end. |
+| Key | Contents and lifecycle | Scope |
+| --- | --- | --- |
+| `breinify` | Development/disabled mode, written by the URL controls and removed by reset. | Origin + tab/session. |
+| `previewIds` | Selected preview IDs, updated by development controls and removed by reset/disable or preview removal. | Origin + tab/session. |
 
-The different bootstrap and UTL behavior is a current integration boundary. These unprefixed keys are not
-among the standard library-prefix cleanup targets. Other customer scripts using native storage or cookies
-also require separate review; this inventory cannot enumerate arbitrary integration-defined keys or CMP-owned data.
+Customer scripts using native storage or cookies are outside UTL enforcement; this inventory cannot enumerate
+arbitrary integration-defined keys or CMP-owned data.
 
 ## Revocation, cleanup, and memory
 

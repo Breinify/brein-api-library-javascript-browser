@@ -50,7 +50,7 @@ describe('Breinify core consent', function () {
         expect(levels).toEqual({CONTENT: 'content', FUNCTIONAL: 'functional', ANALYTICS: 'analytics', PERSONALIZATION: 'personalization'});
         expect(Object.isFrozen(levels)).toBe(true);
         expect(Object.isFrozen(features)).toBe(true);
-        expect(Object.keys(features).length).toBe(12);
+        expect(Object.keys(features).length).toBe(13);
         expect(features.MODIFY_CONTENT).toBe('modifyContent');
     });
 
@@ -157,6 +157,19 @@ describe('Breinify core consent', function () {
         expect(evaluate(features.DELAYED_ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.DELAYED_ACTIVITIES, true, true, true, true));
         expect(evaluate(features.PRESENTATION_STORAGE)).toHaveBeenCalledOnceWith(decision(features.PRESENTATION_STORAGE, true, false, false, true));
         expect(evaluate(features.TEMPORAL_DATA)).toHaveBeenCalledOnceWith(decision(features.TEMPORAL_DATA, true, false, true));
+    });
+
+    it('requires Continuity Storage independently of the delayed activity operation', function () {
+        provide({analytics: true}, {features: {continuityStorage: {enabled: false}}});
+        expect(evaluate(features.DELAYED_ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.DELAYED_ACTIVITIES, false));
+        expect(evaluate(features.ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.ACTIVITIES, true, true));
+        provide({analytics: true}, {features: {continuityStorage: {requires: 'functional'}}});
+        expect(evaluate(features.DELAYED_ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.DELAYED_ACTIVITIES, false));
+        provide({analytics: true, functional: true}, {features: {continuityStorage: {requires: 'functional'}}});
+        expect(evaluate(features.DELAYED_ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.DELAYED_ACTIVITIES, true, true, false, true));
+        provide({});
+        expect(evaluate(features.CONTINUITY_STORAGE)).toHaveBeenCalledOnceWith(decision(features.CONTINUITY_STORAGE, true, false, false, true));
+        expect(evaluate(features.DELAYED_ACTIVITIES)).toHaveBeenCalledOnceWith(decision(features.DELAYED_ACTIVITIES, false));
     });
 
     it('copies configuration and restores defaults when reconfigured without overrides', function () {

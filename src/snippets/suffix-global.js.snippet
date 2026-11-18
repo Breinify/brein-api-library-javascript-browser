@@ -77,6 +77,10 @@
     Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
         storage: {
+            isPurpose: function (feature) {
+                return ['contentStorage', 'presentationStorage', 'identifierStorage', 'profileStorage',
+                    'splitTestStorage', 'continuityStorage'].indexOf(feature) !== -1;
+            },
             instance: emptyStorage,
             register: function () {},
             isAllowed: function () { return false; },
@@ -131,6 +135,7 @@
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
                 CONTENT_STORAGE: 'contentStorage',
+                CONTINUITY_STORAGE: 'continuityStorage',
                 PRESENTATION_STORAGE: 'presentationStorage',
                 IDENTIFIER_STORAGE: 'identifierStorage',
                 PROFILE_STORAGE: 'profileStorage',

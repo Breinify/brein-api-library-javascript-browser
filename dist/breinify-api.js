@@ -13224,6 +13224,7 @@ dependencyScope.jQuery = $;
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
                 CONTENT_STORAGE: 'contentStorage',
+                CONTINUITY_STORAGE: 'continuityStorage',
                 PRESENTATION_STORAGE: 'presentationStorage',
                 IDENTIFIER_STORAGE: 'identifierStorage',
                 PROFILE_STORAGE: 'profileStorage',
@@ -13255,7 +13256,8 @@ dependencyScope.jQuery = $;
                 delayedActivities: {
                     requires: 'analytics',
                     userData: {identifiers: 'analytics', profile: 'personalization'},
-                    storage: 'required'
+                    storage: 'required',
+                    storageFeature: 'continuityStorage'
                 },
                 contentTokens: {
                     requires: 'content',
@@ -13287,6 +13289,11 @@ dependencyScope.jQuery = $;
                     userData: {identifiers: null, profile: null},
                     storage: 'required'
                 },
+                continuityStorage: {
+                    requires: 'content',
+                    userData: {identifiers: null, profile: null},
+                    storage: 'required'
+                },
                 presentationStorage: {
                     requires: 'functional',
                     userData: {identifiers: null, profile: null},
@@ -13312,14 +13319,17 @@ dependencyScope.jQuery = $;
 
             storageFeature: function (name) {
                 const key = String(name);
-                if (Object.prototype.hasOwnProperty.call(this.storageFeatures, key)) {
+                const featurePurpose = /^breinify::featureStorage::purpose::([^:]+)::feature::/.exec(key);
+                if (featurePurpose !== null && this.isStoragePurpose(featurePurpose[1])) {
+                    return featurePurpose[1];
+                } else if (Object.prototype.hasOwnProperty.call(this.storageFeatures, key)) {
                     return this.storageFeatures[key];
                 } else if (key.indexOf('breinify-content-') === 0) {
                     return 'contentStorage';
                 } else if ((/^x-breinify-(bid|uuid)$/.test(key) || key.indexOf('br-storage-test-') === 0)) {
                     return 'identifierStorage';
                 } else if (key === 'x-breinify-delayed' || key.indexOf('breinify-sa-data-') === 0) {
-                    return 'delayedActivities';
+                    return 'continuityStorage';
                 } else if (key === 'breinify-split-test-data' || key.indexOf('br-ctd-') === 0) {
                     return 'splitTestStorage';
                 } else if (/^(br-wed-|br::wemc::|breinify::dev-studio::)/.test(key)) {
@@ -13347,8 +13357,20 @@ dependencyScope.jQuery = $;
                     this.storageRequirement, this.generation);
             },
 
+            isStoragePurpose: function (feature) {
+                return typeof feature === 'string' && Object.prototype.hasOwnProperty.call(this.definitions, feature) &&
+                    feature.endsWith('Storage') && this.definitions[feature].storage === 'required';
+            },
+
             storageAllowed: function (name, mode, refresh) {
-                const decision = this.snapshot(this.storageFeature(name), refresh);
+                // developer activation flags are outside consent management, including global storage restrictions
+                if (name === 'breinify' || name === 'previewIds') {
+                    return true;
+                }
+                const key = String(name);
+                const feature = key === 'x-breinify-delayed' || key.indexOf('breinify-sa-data-') === 0
+                    ? 'delayedActivities' : this.storageFeature(key);
+                const decision = this.snapshot(feature, refresh);
                 return decision === null || decision.storage[mode] === true;
             },
 
@@ -13473,9 +13495,14 @@ dependencyScope.jQuery = $;
                     this.permits(permissions, definition.requires) && requires.every(function (level) {
                         return consent.permits(permissions, level);
                     });
-                const storageGranted = definition.storage !== 'none' && storageRequirement.every(function (level) {
+                let storageGranted = definition.storage !== 'none' && storageRequirement.every(function (level) {
                     return consent.permits(permissions, level);
                 });
+                if (definition.storageFeature) {
+                    const storageDecision = this.createDecision(definition.storageFeature, permissions,
+                        this.featureRules[definition.storageFeature], storageRequirement, activeGeneration);
+                    storageGranted = storageGranted && storageDecision.storage.read && storageDecision.storage.write;
+                }
                 if (definition.storage === 'required' && !storageGranted) {
                     granted = false;
                 }
@@ -16692,6 +16719,10 @@ dependencyScope.jQuery = $;
         },
 
         storage: {
+            isPurpose: function (feature) {
+                return _private.consent.isStoragePurpose(feature);
+            },
+
             register: function (name, feature) {
                 _private.consent.validateFeature(feature);
                 _private.consent.storageFeatures[String(name)] = feature;
@@ -19426,6 +19457,10 @@ dependencyScope.jQuery = $;
     Breinify.handleError = function(e, scriptSourceRegEx) {};
     Breinify.UTL = {
         storage: {
+            isPurpose: function (feature) {
+                return ['contentStorage', 'presentationStorage', 'identifierStorage', 'profileStorage',
+                    'splitTestStorage', 'continuityStorage'].indexOf(feature) !== -1;
+            },
             instance: emptyStorage,
             register: function () {},
             isAllowed: function () { return false; },
@@ -19480,6 +19515,7 @@ dependencyScope.jQuery = $;
                 ACTIVITIES: 'activities',
                 DELAYED_ACTIVITIES: 'delayedActivities',
                 CONTENT_STORAGE: 'contentStorage',
+                CONTINUITY_STORAGE: 'continuityStorage',
                 PRESENTATION_STORAGE: 'presentationStorage',
                 IDENTIFIER_STORAGE: 'identifierStorage',
                 PROFILE_STORAGE: 'profileStorage',

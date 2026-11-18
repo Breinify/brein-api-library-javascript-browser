@@ -123,8 +123,9 @@ checks. Customer configuration can override registered features; it cannot regis
 | `MODIFY_CONTENT` / `modifyContent` | Content | Same as recommendations. | None for Modify Content's content-decision service request. |
 | `TEMPORAL_DATA` / `temporalData` | Content | Explicit query inputs or transient request-IP context; with Personalization, available profile latitude/longitude may also be used. No stable browser/session identifiers. | None. |
 | `ACTIVITIES` / `activities` | Analytics | Identifiers with Analytics; configured account/profile fields additionally with Personalization. | None for immediate delivery. |
-| `DELAYED_ACTIVITIES` / `delayedActivities` | Analytics | Same data permissions as immediate activities when granted. | Required Analytics storage for cross-page delivery. |
+| `DELAYED_ACTIVITIES` / `delayedActivities` | Analytics | Same data permissions as immediate activities when granted. | Required `continuityStorage`, plus Analytics for the operation. |
 | `CONTENT_STORAGE` / `contentStorage` | Content | No identifiers/profile; only declared non-user content. | Storage permitted without optional consent by default; global storage requirements and feature overrides still apply. |
+| `CONTINUITY_STORAGE` / `continuityStorage` | Content | No independent identifier/profile grant; the owning operation controls its payload. | Required storage for temporary operations carried across navigation. Global and feature storage overrides apply. |
 | `PRESENTATION_STORAGE` / `presentationStorage` | Functional | No identifiers/profile. | Required Functional storage for approved display preferences/state. |
 | `CONTENT_TOKENS` / `contentTokens` | Content | Same as recommendations. | None for the request. |
 | `PREFERENCE_MANAGEMENT` / `preferenceManagement` | Content | Explicit preference-management inputs are preserved without automatic user enrichment. | None. |
@@ -154,6 +155,10 @@ include an identifier in a request does not authorize reading it from cookies or
 explicitly registered content keys. It remains available with optional consent denied or unknown unless
 an override requires more consent. It does not grant permission to persist user information. Requiring
 Personalization for all storage also restricts content caches. See the [storage inventory](storage.md).
+
+Delayed activities require both their own operation permission and `continuityStorage`. Disabling or restricting
+Continuity Storage blocks queue reads/writes and delayed delivery without changing immediate activities. Its Content
+default adds no optional permission beyond the owning operation, which still intrinsically requires Analytics.
 
 The current countdown same-tab click handler queues a delayed activity. That delivery path needs
 persistent storage, while following the link does not. Denying the delayed activity must not prevent
@@ -263,7 +268,8 @@ Bundled Activities, mapped Assets, SplitTests, FeatureStorage, and UiModifyConte
 consent/storage layer. Revocation clears stored identifiers and relevant restored/cache state. Explicit
 OptStatus preference requests retain the visitor's supplied target (for example, an email to unsubscribe)
 without enriching a user; the Unsubscribe endpoint likewise serves explicit preference requests. Shopify
-cart access and development tooling are separate functional tools, not analytics transports.
+cart access and development tooling are separate functional tools, not analytics transports. The explicitly activated
+developer flags `breinify` and `previewIds` are outside consent enforcement, including global storage restrictions.
 
 Core API requests preserve the configured `withCredentials` value (default `false`), whether consent is
 enabled or disabled. Credentials may support essential endpoint behavior, so consent does not override

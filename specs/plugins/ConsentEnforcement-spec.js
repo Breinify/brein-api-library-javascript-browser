@@ -225,6 +225,48 @@ describe('Consent enforcement', function () {
         expect(localStorage.length).toBe(0);
     });
 
+    it('exempts developer flags from feature rules, global restrictions and revocation', function () {
+        configure({}, {features: {profileStorage: {enabled: false}}, storage: {requires: 'personalization'}});
+        ['breinify', 'previewIds'].forEach(function (key) {
+            storage.setItem('session', key, 'developer-value');
+            expect(storage.getItem('session', key)).toBe('developer-value');
+            expect(storage.keys('session')).toContain(key);
+        });
+        notify({});
+        expect(storage.getItem('session', 'previewIds')).toBe('developer-value');
+        storage.setItem('session', 'other-developer-key', 'blocked');
+        expect(sessionStorage.getItem('other-developer-key')).toBeNull();
+    });
+
+    it('blocks and cleans delayed queues when Continuity Storage is disabled', function () {
+        configure({analytics: true});
+        const id = Breinify.plugins.activities.scheduleDelayedActivity({}, 'checkOut', {}, 60000);
+        expect(id).not.toBeNull();
+        expect(localStorage.getItem('breinify-sa-data-' + id)).not.toBeNull();
+        configure({analytics: true}, {features: {continuityStorage: {enabled: false}}});
+        expect(localStorage.getItem('breinify-sa-data-' + id)).toBeNull();
+        expect(Breinify.plugins.activities.scheduleDelayedActivity({}, 'checkOut', {}, 60000)).toBeNull();
+        storage.setItem('local', 'breinify-sa-data-direct', '{}');
+        expect(storage.getItem('local', 'breinify-sa-data-direct')).toBeNull();
+        Breinify.UTL.cookie.setJson('x-breinify-delayed', {queued: {}}, null, true);
+        expect(Breinify.UTL.cookie.get('x-breinify-delayed')).toBeNull();
+        Breinify.plugins.activities._send('checkOut', {}, {});
+        expect(ajax).toHaveBeenCalled();
+    });
+
+    it('classifies feature keys before plugin registration and cleans only denied purposes', function () {
+        const prefix = 'breinify::featureStorage::purpose::';
+        const contentKey = prefix + 'contentStorage::feature::catalog';
+        const unknownKey = prefix + 'retiredStorage::feature::legacy';
+        localStorage.setItem(contentKey, 'shared');
+        localStorage.setItem(unknownKey, 'private');
+        configure({});
+        expect(storage.getItem('local', contentKey)).toBe('shared');
+        expect(localStorage.getItem(unknownKey)).toBeNull();
+        configure({}, {features: {contentStorage: {enabled: false}}});
+        expect(localStorage.getItem(contentKey)).toBeNull();
+    });
+
     it('removes denied identity cookies and refuses to read or recreate them', function () {
         Breinify.UTL.cookie.set('x-breinify-bid', 'old', 1, true);
         configure({});

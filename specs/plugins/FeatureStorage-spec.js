@@ -261,3 +261,80 @@ describe('FeatureStorage consumer resolution', function () {
         expect(function () { create([pageRequest(0), pageRequest(0)]); }).toThrowError(TypeError);
     });
 });
+
+
+describe('FeatureStorage consent purposes', function () {
+    const featureStorage = Breinify.plugins.featureStorage;
+    const consent = Breinify.UTL.consent;
+    const name = 'purpose-spec';
+    const legacyKey = 'breinify::featureStorage::feature::' + name;
+    const contentKey = 'breinify::featureStorage::purpose::contentStorage::feature::' + name;
+
+    function configure(permissions, extra) {
+        consent.configure(Object.assign({}, extra, {
+            provider: {evaluate: function (callback) { callback(permissions); }}
+        }));
+    }
+
+    beforeEach(function () {
+        consent.configure({enabled: false});
+        featureStorage.remove(name);
+        featureStorage.removeFeatureDefinition(name);
+    });
+
+    afterEach(function () {
+        consent.configure({enabled: false});
+        featureStorage.remove(name);
+        featureStorage.removeFeatureDefinition(name);
+        featureStorage.flush();
+    });
+
+    it('defaults omitted and unsupported purposes to Profile Storage without throwing', function () {
+        [undefined, null, '', 'activities', 'retiredStorage', {}, 1].forEach(function (purpose) {
+            configure({});
+            featureStorage.defineFeature(name, {persistence: {purpose: purpose}});
+            expect(featureStorage.getFeatureDefinition(name).persistence.purpose).toBe('profileStorage');
+            featureStorage.set(name, 'private');
+            expect(localStorage.getItem(legacyKey)).toBeNull();
+            configure({analytics: true, personalization: true});
+            featureStorage.set(name, 'private');
+            expect(JSON.parse(localStorage.getItem(legacyKey)).value).toBe('private');
+        });
+    });
+
+    it('allows declared content and applies both category and global restrictions', function () {
+        configure({});
+        featureStorage.defineFeature(name, {persistence: {purpose: 'contentStorage'}});
+        featureStorage.set(name, 'shared catalog');
+        expect(JSON.parse(localStorage.getItem(contentKey)).value).toBe('shared catalog');
+        expect(localStorage.getItem(legacyKey)).toBeNull();
+        configure({}, {storage: {requires: 'personalization'}});
+        featureStorage.set(name, 'updated catalog');
+        expect(localStorage.getItem(contentKey)).toBeNull();
+        configure({analytics: true, personalization: true}, {features: {contentStorage: {enabled: false}}});
+        featureStorage.set(name, 'updated catalog');
+        expect(localStorage.getItem(contentKey)).toBeNull();
+    });
+
+    it('discards old data when reclassified and persists only a newly supplied value', function () {
+        featureStorage.set(name, 'old private value');
+        featureStorage.defineFeature(name, {persistence: {purpose: 'contentStorage'}});
+        expect(featureStorage.get(name)).toBeNull();
+        expect(localStorage.getItem(legacyKey)).toBeNull();
+        expect(localStorage.getItem(contentKey)).toBeNull();
+        featureStorage.set(name, 'shared value');
+        expect(JSON.parse(localStorage.getItem(contentKey)).value).toBe('shared value');
+        featureStorage.set(name, 'new private value', {persistence: {purpose: 'removedPurpose'}});
+        expect(localStorage.getItem(contentKey)).toBeNull();
+        const saved = JSON.parse(localStorage.getItem(legacyKey));
+        expect(saved.value).toBe('new private value');
+        expect(saved.meta.oldValue).toBeNull();
+    });
+
+    it('preserves the purpose when an inline override changes only the TTL', function () {
+        featureStorage.defineFeature(name, {persistence: {purpose: 'contentStorage'}});
+        featureStorage.set(name, 'shared', {persistence: {ttlInMs: 60000}});
+        expect(featureStorage.getFeatureDefinition(name).persistence.purpose).toBe('contentStorage');
+        expect(JSON.parse(localStorage.getItem(contentKey)).value).toBe('shared');
+    });
+});
