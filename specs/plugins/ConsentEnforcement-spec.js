@@ -196,6 +196,48 @@ describe('Consent enforcement', function () {
         expect(createUser).not.toHaveBeenCalled();
     });
 
+    it('uses Analytics identifiers consistently for content requests without granting profile access', function () {
+        configure({analytics: true});
+        const input = {sessionId: 'session', sessionIds: ['cart-token'], email: 'private@example.test',
+            emails: ['alias@example.test'], phone: '+12025550123', userId: 'account', userIds: ['alias'],
+            additional: {identifiers: {browserId: 'browser'}}};
+        const check = function (value) {
+            expect(value.sessionId).toBe('session');
+            expect(value.sessionIds).toEqual(['cart-token']);
+            expect(value.additional.identifiers.browserId).toBe('browser');
+            ['email', 'emails', 'phone', 'userId', 'userIds'].forEach(function (field) {
+                expect(value[field]).toBeUndefined();
+            });
+        };
+        Breinify.recommendation(input, {namedRecommendations: ['home']}, function () {});
+        check(sent().user);
+        Breinify.service('discovery', {product: 'sku'}, input, function () {});
+        check(sent().payload.user);
+        Breinify.UTL.internal.token('token', {user: input, sessionIds: input.sessionIds}, function () {});
+        const token = ajax.calls.mostRecent().args[0].data;
+        check(token.user);
+        expect(token.sessionIds).toEqual(['cart-token']);
+        expect(ajax.calls.count()).toBe(3);
+        expect(createUser).not.toHaveBeenCalled();
+
+        configure({analytics: true}, {data: {sessions: {path: 'sessionId', requires: ['personalization']}}});
+        Breinify.UTL.internal.token('token', {user: input, sessionIds: input.sessionIds}, function () {});
+        const restricted = ajax.calls.mostRecent().args[0].data;
+        expect(restricted.user.sessionId).toBeUndefined();
+        expect(restricted.user.sessionIds).toBeUndefined();
+        expect(restricted.sessionIds).toBeUndefined();
+
+        configure({analytics: true});
+        permissions = {};
+        notify(permissions);
+        Breinify.UTL.internal.token('token', {user: input, sessionIds: input.sessionIds}, function () {});
+        const denied = ajax.calls.mostRecent().args[0].data;
+        expect(denied.user.sessionId).not.toBe('session');
+        expect(denied.user.additional.identifiers.browserId).not.toBe('browser');
+        expect(denied.user.sessionIds).toBeUndefined();
+        expect(denied.sessionIds).toBeUndefined();
+    });
+
     it('waits for unknown consent and uses content-only permissions on timeout', function () {
         jasmine.clock().install();
         try {
@@ -209,6 +251,33 @@ describe('Consent enforcement', function () {
         } finally {
             jasmine.clock().uninstall();
         }
+    });
+
+    it('uses injected definitions for actual requests while retaining final field filtering', function () {
+        const definitions = consent.inspect().definitions;
+        definitions.recommendations.requires = 'functional';
+        definitions.recommendations.userData = {identifiers: 'functional', profile: 'personalization'};
+        configure({functional: true}, {definitions: definitions,
+            data: {store: {path: 'additional.location.goPuffStoreId'}}});
+        const input = {sessionId: 'session', sessionIds: ['cart-token'], email: 'private@example.test',
+            additional: {identifiers: {browserId: 'browser'}, location: {goPuffStoreId: '482', lat: 12}}};
+        Breinify.recommendation(input, {numRecommendations: 1}, function () {});
+        expect(ajax.calls.count()).toBe(1);
+        expect(sent().user.sessionId).toBe('session');
+        expect(sent().user.sessionIds).toEqual(['cart-token']);
+        expect(sent().user.email).toBeUndefined();
+        expect(sent().user.additional.location).toEqual({goPuffStoreId: '482'});
+        expect(localStorage.length).toBe(0);
+        expect(sessionStorage.length).toBe(0);
+        permissions = {analytics: true};
+        notify(permissions);
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        ajax.calls.reset();
+        Breinify.recommendation(input, {numRecommendations: 1}, function () {});
+        const recommendations = ajax.calls.allArgs().filter(function (args) {
+            return typeof args[0].data === 'string' && JSON.parse(args[0].data).recommendation;
+        });
+        expect(recommendations.length).toBe(0);
     });
 
     it('applies content overrides before creating a user or sending a request', function () {

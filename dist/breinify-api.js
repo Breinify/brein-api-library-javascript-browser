@@ -13274,74 +13274,170 @@ dependencyScope.jQuery = $;
                 CONTENT_TOKENS: 'contentTokens',
                 PREFERENCE_MANAGEMENT: 'preferenceManagement'
             }),
+            // standalone defaults; generated scripts supply their complete backend-owned definitions
             definitions: {
                 recommendations: {
+                    type: 'operation',
                     requires: 'content',
-                    userData: {identifiers: 'personalization', profile: 'personalization'},
-                    storage: 'none'
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    dependencies: [
+                        {feature: 'identifierStorage', required: false, requires: ['analytics']},
+                        {feature: 'profileStorage', required: false, requires: ['personalization']},
+                        {feature: 'splitTestStorage', required: false, requires: ['content']}
+                    ]
                 },
                 modifyContent: {
+                    type: 'operation',
                     requires: 'content',
-                    userData: {identifiers: 'personalization', profile: 'personalization'},
-                    storage: 'none'
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    dependencies: [
+                        {feature: 'identifierStorage', required: false, requires: ['analytics']},
+                        {feature: 'profileStorage', required: false, requires: ['personalization']},
+                        {feature: 'splitTestStorage', required: false, requires: ['personalization']}
+                    ]
                 },
                 temporalData: {
+                    type: 'operation',
                     requires: 'content',
                     userData: {identifiers: null, profile: 'personalization'},
-                    storage: 'none'
+                    dependencies: [
+                        {feature: 'profileStorage', required: false, requires: ['personalization']},
+                        {feature: 'splitTestStorage', required: false, requires: ['personalization']}
+                    ]
                 },
                 activities: {
+                    type: 'operation',
                     requires: 'analytics',
                     userData: {identifiers: 'analytics', profile: 'personalization'},
-                    storage: 'none'
+                    dependencies: [
+                        {feature: 'identifierStorage', required: false, requires: ['analytics']},
+                        {feature: 'profileStorage', required: false, requires: ['personalization']},
+                        {feature: 'splitTestStorage', required: false, requires: ['personalization']}
+                    ]
                 },
                 delayedActivities: {
+                    type: 'operation',
                     requires: 'analytics',
                     userData: {identifiers: 'analytics', profile: 'personalization'},
-                    storage: 'required',
-                    storageFeature: 'continuityStorage'
+                    dependencies: [
+                        {feature: 'continuityStorage', required: true, requires: []},
+                        {feature: 'identifierStorage', required: false, requires: ['analytics']},
+                        {feature: 'profileStorage', required: false, requires: ['personalization']},
+                        {feature: 'splitTestStorage', required: false, requires: ['personalization']}
+                    ]
                 },
                 contentTokens: {
+                    type: 'operation',
                     requires: 'content',
-                    userData: {identifiers: 'personalization', profile: 'personalization'},
-                    storage: 'none'
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    dependencies: []
                 },
                 preferenceManagement: {
+                    type: 'operation',
                     requires: 'content',
                     userData: {identifiers: null, profile: null},
-                    storage: 'none'
+                    dependencies: []
                 },
                 identifierStorage: {
+                    type: 'storage',
                     requires: 'analytics',
                     userData: {identifiers: 'analytics', profile: null},
-                    storage: 'required'
+                    dependencies: []
                 },
                 profileStorage: {
+                    type: 'storage',
                     requires: 'personalization',
-                    userData: {identifiers: 'personalization', profile: 'personalization'},
-                    storage: 'required'
+                    userData: {identifiers: 'analytics', profile: 'personalization'},
+                    dependencies: []
                 },
                 splitTestStorage: {
+                    type: 'storage',
                     requires: 'analytics',
                     userData: {identifiers: 'analytics', profile: 'personalization'},
-                    storage: 'required'
+                    dependencies: []
                 },
                 contentStorage: {
+                    type: 'storage',
                     requires: 'content',
                     userData: {identifiers: null, profile: null},
-                    storage: 'required'
+                    dependencies: []
                 },
                 continuityStorage: {
+                    type: 'storage',
                     requires: 'content',
                     userData: {identifiers: null, profile: null},
-                    storage: 'required'
+                    dependencies: []
                 },
                 presentationStorage: {
+                    type: 'storage',
                     requires: 'functional',
                     userData: {identifiers: null, profile: null},
-                    storage: 'required'
+                    dependencies: []
                 }
             },
+            injectedDefinitions: null,
+            getDefinitions: function () {
+                return this.injectedDefinitions || this.definitions;
+            },
+
+            parseDefinitions: function (value) {
+                if (typeof value === 'undefined') {
+                    return null;
+                } else if (!$.isPlainObject(value)) {
+                    throw new TypeError('Consent definitions must be a complete plain object.');
+                }
+                const consent = this;
+                const known = Object.keys(this.definitions);
+                if (Object.keys(value).length !== known.length || known.some(function (feature) {
+                    return !Object.prototype.hasOwnProperty.call(value, feature);
+                })) {
+                    throw new RangeError('Consent definitions must contain every registered feature and storage purpose.');
+                }
+                const result = {};
+                known.forEach(function (feature) {
+                    const definition = value[feature];
+                    if (!$.isPlainObject(definition) || Object.keys(definition).some(function (key) {
+                        return ['type', 'requires', 'userData', 'dependencies'].indexOf(key) === -1;
+                    }) || definition.type !== consent.definitions[feature].type ||
+                        typeof definition.requires !== 'string' || !$.isPlainObject(definition.userData) ||
+                        Object.keys(definition.userData).some(function (key) {
+                            return key !== 'identifiers' && key !== 'profile';
+                        }) || !Array.isArray(definition.dependencies)) {
+                        throw new TypeError('Invalid consent definition: ' + feature);
+                    }
+                    consent.parseRequirement(definition.requires);
+                    const userData = {};
+                    ['identifiers', 'profile'].forEach(function (key) {
+                        const level = definition.userData[key];
+                        if (level != null) {
+                            if (typeof level !== 'string') {
+                                throw new TypeError('A consent data requirement must be a level or null.');
+                            }
+                            consent.parseRequirement(level);
+                        }
+                        userData[key] = level == null ? null : level;
+                    });
+                    const targets = [];
+                    const dependencies = definition.dependencies.map(function (dependency) {
+                        if (definition.type === 'storage' || !$.isPlainObject(dependency) ||
+                            Object.keys(dependency).some(function (key) {
+                                return ['feature', 'required', 'requires'].indexOf(key) === -1;
+                            }) || !Object.prototype.hasOwnProperty.call(consent.definitions, dependency.feature) ||
+                            consent.definitions[dependency.feature].type !== 'storage' ||
+                            typeof dependency.required !== 'boolean' || !Array.isArray(dependency.requires) ||
+                            targets.indexOf(dependency.feature) !== -1) {
+                            throw new TypeError('Invalid consent storage dependency: ' + feature);
+                        }
+                        targets.push(dependency.feature);
+                        const requires = dependency.requires.length === 0 ? [] : consent.parseRequirement(dependency.requires);
+                        return {feature: dependency.feature, required: dependency.required, requires: requires};
+                    });
+                    result[feature] = {type: definition.type, requires: definition.requires,
+                        userData: userData, dependencies: dependencies};
+                });
+                return result;
+            },
+
             featureRules: Object.freeze({}),
             storageRequirement: Object.freeze(['content']),
             dataRules: {},
@@ -13401,14 +13497,14 @@ dependencyScope.jQuery = $;
             },
 
             isStoragePurpose: function (feature) {
-                return typeof feature === 'string' && Object.prototype.hasOwnProperty.call(this.definitions, feature) &&
-                    feature.endsWith('Storage') && this.definitions[feature].storage === 'required';
+                return typeof feature === 'string' && Object.prototype.hasOwnProperty.call(this.getDefinitions(), feature) &&
+                    this.getDefinitions()[feature].type === 'storage';
             },
 
             // diagnostic dependencies only; request and storage enforcement retain their separate decisions
             inspectStorage: function (feature, decision) {
                 const consent = this;
-                const definition = this.definitions[feature];
+                const definition = this.getDefinitions()[feature];
                 const dependencies = [];
                 const add = function (purpose, required, permitted) {
                     const storageDecision = consent.snapshot(purpose, false);
@@ -13419,22 +13515,15 @@ dependencyScope.jQuery = $;
                         write: decision === null ? null : permitted && storageDecision.storage.write
                     });
                 };
-                if (definition.storage === 'required') {
-                    add(definition.storageFeature || feature, true, decision !== null && decision.granted);
+                if (definition.type === 'storage') {
+                    add(feature, true, decision !== null && decision.granted);
                 }
-                const createsUser = ['recommendations', 'modifyContent', 'temporalData',
-                    'activities', 'delayedActivities'].indexOf(feature) !== -1;
-                if (createsUser) {
-                    if (definition.userData.identifiers !== null) {
-                        add('identifierStorage', false, decision !== null && decision.userData.identifiers);
-                    }
-                    if (definition.userData.profile !== null) {
-                        add('profileStorage', false, decision !== null && decision.userData.profile);
-                    }
-                    // recommendation responses can persist assignments even without profile enrichment
-                    add('splitTestStorage', false, decision !== null &&
-                        (feature === 'recommendations' ? decision.granted : decision.userData.profile));
-                }
+                definition.dependencies.forEach(function (dependency) {
+                    const allowed = decision !== null && decision.granted && dependency.requires.every(function (level) {
+                        return consent.permits(consent.current || consent.denied, level);
+                    });
+                    add(dependency.feature, dependency.required, allowed);
+                });
                 return dependencies;
             },
 
@@ -13494,7 +13583,7 @@ dependencyScope.jQuery = $;
             validateFeature: function (feature) {
                 if (typeof feature !== 'string') {
                     throw new TypeError('Consent evaluation requires a registered feature.');
-                } else if (!Object.prototype.hasOwnProperty.call(this.definitions, feature)) {
+                } else if (!Object.prototype.hasOwnProperty.call(this.getDefinitions(), feature)) {
                     throw new RangeError('Unknown consent feature: ' + feature);
                 }
             },
@@ -13516,7 +13605,7 @@ dependencyScope.jQuery = $;
                 return Object.freeze(entries);
             },
 
-            parseFeatureRules: function (value) {
+            parseFeatureRules: function (value, definitions) {
                 if (typeof value === 'undefined') {
                     return Object.freeze({});
                 } else if (!$.isPlainObject(value)) {
@@ -13533,7 +13622,7 @@ dependencyScope.jQuery = $;
                         throw new TypeError('A feature rule supports requires and a boolean enabled flag.');
                     }
                     const requirement = typeof rule.requires === 'undefined'
-                        ? consent.definitions[feature].requires : rule.requires;
+                        ? (definitions || consent.getDefinitions())[feature].requires : rule.requires;
                     result[feature] = Object.freeze({
                         enabled: rule.enabled !== false,
                         requires: consent.parseRequirement(requirement)
@@ -13710,21 +13799,23 @@ dependencyScope.jQuery = $;
 
             createDecision: function (feature, permissions, rule, storageRequirement, activeGeneration) {
                 const consent = this;
-                const definition = this.definitions[feature];
+                const definition = this.getDefinitions()[feature];
                 const requires = rule === undefined ? [definition.requires] : rule.requires;
                 let granted = activeGeneration === this.generation && (rule === undefined || rule.enabled) &&
                     this.permits(permissions, definition.requires) && requires.every(function (level) {
                         return consent.permits(permissions, level);
                     });
-                let storageGranted = definition.storage !== 'none' && storageRequirement.every(function (level) {
-                    return consent.permits(permissions, level);
+                const required = definition.dependencies.filter(function (dependency) { return dependency.required; });
+                let storageGranted = (definition.type === 'storage' || required.length > 0) &&
+                    storageRequirement.every(function (level) { return consent.permits(permissions, level); });
+                required.forEach(function (dependency) {
+                    const storageDecision = consent.createDecision(dependency.feature, permissions,
+                        consent.featureRules[dependency.feature], storageRequirement, activeGeneration);
+                    storageGranted = storageGranted && storageDecision.storage.read && dependency.requires.every(function (level) {
+                        return consent.permits(permissions, level);
+                    });
                 });
-                if (definition.storageFeature) {
-                    const storageDecision = this.createDecision(definition.storageFeature, permissions,
-                        this.featureRules[definition.storageFeature], storageRequirement, activeGeneration);
-                    storageGranted = storageGranted && storageDecision.storage.read && storageDecision.storage.write;
-                }
-                if (definition.storage === 'required' && !storageGranted) {
+                if ((definition.type === 'storage' || required.length > 0) && !storageGranted) {
                     granted = false;
                 }
                 const profile = granted && definition.userData.profile !== null &&
@@ -14374,6 +14465,7 @@ dependencyScope.jQuery = $;
         consent: {
             levels: _private.consent.levels,
             features: _private.consent.features,
+            definitionVersion: 1,
             integrations: {},
 
             // shared adapter mechanics; CMP readiness, reads and event wiring stay in each integration
@@ -14473,7 +14565,8 @@ dependencyScope.jQuery = $;
                     throw new TypeError('A consent provider needs evaluate and an optional onChange function.');
                 }
 
-                const nextFeatureRules = consent.parseFeatureRules(settings.features);
+                const nextDefinitions = consent.parseDefinitions(settings.definitions);
+                const nextFeatureRules = consent.parseFeatureRules(settings.features, nextDefinitions || consent.definitions);
                 const nextStorageRequirement = consent.parseStorageRequirement(settings.storage);
                 const nextDataRules = consent.parseDataRules(settings.data);
 
@@ -14491,6 +14584,7 @@ dependencyScope.jQuery = $;
 
                 consent.provider = nextProvider || null;
                 consent.timeoutInMs = wait;
+                consent.injectedDefinitions = nextDefinitions;
                 consent.featureRules = nextFeatureRules;
                 consent.storageRequirement = nextStorageRequirement;
                 consent.dataRules = nextDataRules;
@@ -14537,8 +14631,8 @@ dependencyScope.jQuery = $;
                 const provider = consent.provider;
                 const providerSettings = provider && typeof provider.getSettings === 'function'
                     ? provider.getSettings() : {provider: provider === null ? null : 'custom'};
-                const features = Object.keys(consent.definitions).map(function (feature) {
-                    const definition = consent.definitions[feature];
+                const features = Object.keys(consent.getDefinitions()).map(function (feature) {
+                    const definition = consent.getDefinitions()[feature];
                     const rule = consent.featureRules[feature];
                     const decision = consent.configured ? consent.snapshot(feature, false) : null;
                     return {
@@ -14555,6 +14649,8 @@ dependencyScope.jQuery = $;
                 });
                 return $.extend(true, {}, {
                     enabled: consent.configured,
+                    definitions: consent.getDefinitions(),
+                    definitionSource: consent.injectedDefinitions === null ? 'standalone' : 'injected',
                     status: !consent.configured ? 'disabled' : consent.current === null ? 'waiting'
                         : consent.current === consent.denied ? 'timeout' : 'known',
                     pending: consent.pending !== null,
@@ -14692,6 +14788,11 @@ dependencyScope.jQuery = $;
                             result[key] = consent.filterUser(value[key], decision);
                         } else if (/^(browserId|sessionId)$/i.test(key)) {
                             result[key] = decision.userData.identifiers ? value[key] : BreinifyUtil.uuid();
+                        } else if (/^sessionIds$/i.test(key)) {
+                            if (consent.isFieldAllowed('sessionIds', decision.userData) && Array.isArray(value[key]) &&
+                                value[key].every(function (id) { return typeof id === 'string'; })) {
+                                result[key] = value[key].slice();
+                            }
                         } else if (identity.test(key) && !decision.userData.profile) {
                             // content context survives; recognized personal data does not
                         } else {

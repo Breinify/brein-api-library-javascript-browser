@@ -81,8 +81,8 @@ describe('Breinify core consent', function () {
                     const source = {functional: functional, analytics: analytics, personalization: personalization};
                     provide(source);
                     const profile = analytics && personalization;
-                    [features.RECOMMENDATIONS, features.MODIFY_CONTENT].forEach(function (feature) {
-                        expect(evaluate(feature)).toHaveBeenCalledOnceWith(decision(feature, true, profile, profile));
+                    [features.RECOMMENDATIONS, features.MODIFY_CONTENT, features.CONTENT_TOKENS].forEach(function (feature) {
+                        expect(evaluate(feature)).toHaveBeenCalledOnceWith(decision(feature, true, analytics, profile));
                     });
                     expect(evaluate(features.TEMPORAL_DATA)).toHaveBeenCalledOnceWith(decision(features.TEMPORAL_DATA, true, false, profile));
                     [features.ACTIVITIES, features.DELAYED_ACTIVITIES].forEach(function (feature) {
@@ -211,7 +211,7 @@ describe('Breinify core consent', function () {
         expect(provider.evaluate).toHaveBeenCalledTimes(1);
         resolve({analytics: true});
         expect(activity).toHaveBeenCalledOnceWith(decision(features.ACTIVITIES, true, true));
-        expect(recommendation).toHaveBeenCalledOnceWith(decision(features.RECOMMENDATIONS, true));
+        expect(recommendation).toHaveBeenCalledOnceWith(decision(features.RECOMMENDATIONS, true, true));
         jasmine.clock().tick(100);
         expect(activity).toHaveBeenCalledTimes(1);
     });
@@ -470,7 +470,7 @@ describe('Consent storage dependency inspection', function () {
             dependency('splitTestStorage', false, false)
         ]);
         expect(feature('recommendations').storageDependencies).toEqual([
-            dependency('identifierStorage', false, false),
+            dependency('identifierStorage', false, true),
             dependency('profileStorage', false, false),
             dependency('splitTestStorage', false, true)
         ]);
@@ -654,5 +654,98 @@ describe('Consent data rules', function () {
         snapshot.settings.data.store.path = 'phone';
         expect(consent.getDecision('recommendations').userData.allowedFields).toEqual(['additional.location.goPuffStoreId']);
         expect(consent.getDecision('activities').granted).toBe(false);
+    });
+});
+
+describe('Injected consent definitions', function () {
+    const consent = Breinify.UTL.consent;
+    let definitions;
+
+    function configure(permissions, extra) {
+        consent.configure(Object.assign({definitions: definitions}, extra, {
+            provider: {evaluate: function (callback) { callback(permissions); }}
+        }));
+    }
+
+    beforeEach(function () {
+        consent.configure({enabled: false});
+        definitions = consent.inspect().definitions;
+    });
+
+    afterEach(function () { consent.configure({enabled: false}); });
+
+    it('uses the injected operation and data requirements instead of standalone defaults', function () {
+        definitions.recommendations.requires = 'functional';
+        definitions.recommendations.userData = {identifiers: 'functional', profile: null};
+        configure({analytics: true});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        configure({functional: true});
+        const decision = consent.getDecision('recommendations');
+        expect(decision.granted).toBe(true);
+        expect(decision.userData.identifiers).toBe(true);
+        expect(decision.userData.profile).toBe(false);
+        expect(consent.inspect().definitionSource).toBe('injected');
+        expect(consent.inspect().settings.definitions).toBeUndefined();
+    });
+
+    it('applies customer overrides on top of the injected baseline', function () {
+        definitions.recommendations.requires = 'functional';
+        configure({analytics: true}, {features: {recommendations: {requires: ['content']}}});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        configure({functional: true}, {features: {recommendations: {requires: ['analytics']}}});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        configure({functional: true, analytics: true}, {features: {recommendations: {enabled: false}}});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+    });
+
+    it('enforces injected storage purposes and required dependencies and reports the same dependencies', function () {
+        definitions.recommendations.dependencies = [
+            {feature: 'presentationStorage', required: true, requires: []}
+        ];
+        definitions.presentationStorage.requires = 'personalization';
+        configure({analytics: true, functional: true});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        configure({analytics: true, personalization: true});
+        expect(consent.getDecision('recommendations').granted).toBe(true);
+        const feature = consent.inspect().features.filter(function (entry) {
+            return entry.feature === 'recommendations';
+        })[0];
+        expect(feature.storageDependencies).toEqual([
+            {feature: 'presentationStorage', required: true, read: true, write: true}
+        ]);
+        configure({analytics: true, personalization: true}, {storage: {requires: ['functional']}});
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+    });
+
+    it('copies definitions and restores standalone defaults when the next configuration omits them', function () {
+        definitions.recommendations.requires = 'functional';
+        configure({analytics: true});
+        definitions.recommendations.requires = 'content';
+        consent.inspect().definitions.recommendations.requires = 'content';
+        expect(consent.getDecision('recommendations').granted).toBe(false);
+        consent.configure({provider: {evaluate: function (callback) { callback({analytics: true}); }}});
+        expect(consent.getDecision('recommendations').granted).toBe(true);
+        expect(consent.inspect().definitionSource).toBe('standalone');
+    });
+
+    it('rejects malformed or incompatible definitions without changing the active configuration', function () {
+        configure({analytics: true});
+        const copy = function () { return JSON.parse(JSON.stringify(definitions)); };
+        const missing = copy();
+        delete missing.activities;
+        const unknown = copy();
+        unknown.custom = unknown.activities;
+        const level = copy();
+        level.activities.requires = 'unknown';
+        const data = copy();
+        data.activities.userData.identifiers = ['analytics'];
+        const dependency = copy();
+        dependency.activities.dependencies = [{feature: 'recommendations', required: true, requires: []}];
+        const cycle = copy();
+        cycle.identifierStorage.dependencies = [{feature: 'identifierStorage', required: true, requires: []}];
+        [null, {}, missing, unknown, level, data, dependency, cycle].forEach(function (value) {
+            expect(function () { consent.configure({definitions: value}); }).toThrow();
+            expect(consent.getDecision('activities').granted).toBe(true);
+        });
     });
 });

@@ -119,7 +119,7 @@ checks. Customer configuration can override registered features; it cannot regis
 
 | Feature constant / value | Default and intrinsic requirement | User data | Storage dependency / purpose |
 | --- | --- | --- | --- |
-| `RECOMMENDATIONS` / `recommendations` | Content | Fresh request IDs without Personalization; configured identifiers/profile with Personalization. | None for the request itself. |
+| `RECOMMENDATIONS` / `recommendations` | Content | Fresh request IDs without Analytics; browser/session identifiers with Analytics; account/profile fields additionally with Personalization. | None for the request itself. |
 | `MODIFY_CONTENT` / `modifyContent` | Content | Same as recommendations. | None for Modify Content's content-decision service request. |
 | `TEMPORAL_DATA` / `temporalData` | Content | Explicit query inputs or transient request-IP context; with Personalization, available profile latitude/longitude may also be used. No stable browser/session identifiers. | None. |
 | `ACTIVITIES` / `activities` | Analytics | Identifiers with Analytics; configured account/profile fields additionally with Personalization. | None for immediate delivery. |
@@ -138,9 +138,28 @@ need their own reviewed feature definition. A cache or side effect of a content 
 by the content request's grant. Persisting assignments, feature values, and other caches needs a separate
 purpose review rather than treating all caches as one visitor-history store.
 
-Each private definition declares separate `userData.identifiers` and `userData.profile` requirements.
-For activities these are Analytics and Personalization respectively; `null` forbids that data category.
+Each definition declares separate `userData.identifiers` and `userData.profile` requirements.
+For recommendations, Modify Content, content tokens, and activities these are Analytics and Personalization
+respectively; `null` forbids that data category. Temporal data does not use stable identifiers.
 An Analytics grant alone therefore never permits account/profile fields.
+
+### Definition source
+
+Generated scripts receive their complete `definitions` from Script Creator, which supplies the same policy to
+portal metadata. `consent.configure({definitions: ..., provider: ..., features: ..., storage: ..., data: ...})`
+uses that policy as the baseline and applies the customer overrides separately. An injected definition has
+`type` (`operation` or `storage`), `requires` (one level), `userData` (`identifiers` and `profile`, each a level or
+null), and `dependencies` (storage `feature`, boolean `required`, and a `requires` array). Optional dependencies
+describe storage access; required dependencies also gate operation availability.
+
+The library's `consent.definitionVersion` is `1`. Generated scripts check support before initialization.
+Incomplete policies, unknown features/levels, invalid categories, and recursive dependencies are rejected before
+changing the active configuration. Accepted definitions are copied, and supplied policies are never merged with
+the bundled defaults. Omitting `definitions` on a subsequent configure call restores the standalone defaults.
+The defaults in the table above describe that standalone fallback and the current backend policy.
+
+`consent.inspect()` exposes the active `definitions` and `definitionSource` (`injected` or `standalone`). These
+are separate from customer `settings`, so editing overrides does not accidentally persist a snapshot of defaults.
 
 Immediate activity decisions always return both storage flags as `false`. Reading or persisting browser/session
 identifiers belongs to user creation's separate `identifierStorage` policy. Permission to
