@@ -434,3 +434,74 @@ Dev Studio displays each dependency by name with its optional/required status an
 The Dev Studio Consent tab lists levels with green checks for granted permissions and red crosses for denied permissions.
 Separate Feature permissions and Storage permissions tables use the same indicators. Feature rows retain their named
 optional or required storage dependencies, while storage rows show read and write permissions for each storage purpose.
+
+
+## Field-specific data permissions
+
+`data` maps stable rule IDs (for example UUIDs) to an exact `path` relative to the request's `user` object
+and optional `requires` levels. IDs are configuration keys; dotted paths are values.
+
+```json
+{
+  "enabled": true,
+  "data": {
+    "d585b156-8117-46c3-a26a-0d13aeb54331": {
+      "path": "additional.location.goPuffStoreId"
+    },
+    "9ea22c83-ceba-4baa-bae7-7fe6e49c6c12": {
+      "path": "additional.location.lat",
+      "requires": ["analytics"]
+    }
+  }
+}
+```
+
+Omitted, `null`, or empty `requires` means always permitted. Otherwise all listed Breinify levels must be
+satisfied, including the existing Analytics prerequisite of Personalization. A rule overrides the usual
+user-data permission for that exact field: it can permit website context without profile consent or
+restrict a field even with profile consent. Unlisted fields retain their normal permissions. These rules
+never grant feature availability or storage access. Generic `user.create()` can collect permitted fields
+for readiness checks even if its default Activities feature is denied; an activity still cannot be sent.
+
+Duplicate paths and ancestor/descendant overlaps are rejected, regardless of rule order. For example,
+`additional.location` conflicts with `additional.location.lat`, while `additional.location.lat` and
+`additional.location.longitude` do not conflict. Wildcards, empty path segments and prototype-related
+segments are rejected. Validation completes before replacing the active configuration.
+
+Decisions expose `userData.allowedFields` and `userData.deniedFields`. When profile consent is denied and
+no explicit field is allowed, `user.create()` skips customer lookup and profile enrichment. When at least
+one field is allowed, existing customer lookup `get(userDataPermissions)` and configured
+`createUser(userDataPermissions)` callbacks run, and the library copies only permitted fields from their
+results. No new customer callback or field-specific handling is required for filtering. Explicitly supplied
+user objects are filtered too. Disabled consent preserves the original argument-free callbacks.
+
+Customer code may call `Breinify.UTL.consent.isFieldAllowed(path, userDataPermissions)` before reading a
+value or making an auxiliary request. This optional check avoids unnecessary work, but is not relied upon
+for request enforcement. Null permissions mean consent is disabled; omitted/invalid permissions fail closed.
+The library cannot undo reads or other side effects performed inside an arbitrary existing customer callback.
+The final user filter independently enforces the rules again, including nested `user` payloads, whether or not
+customer code checked first. Explicit allowances copy scalar leaves (string, finite number, boolean or null),
+not objects or getters. The supported plural attributes (`sessionIds`, `userIds`, `emails`) also accept
+string arrays, copied independently; other arrays are not implicitly allowed. Allowing a parent path never
+implicitly allows its children. Denied paths
+remove the named field or subtree.
+
+BevMo's lookup reads the current website store ID rather than customer addresses or coordinates.
+It does not fetch cart tokens or collect profile fields for the store rule. The current store is read on every
+user creation, so subsequent store changes are reflected without retaining an old store ID.
+
+`inspect()` includes normalized rules in `settings.data` and field decisions in each feature's `userData`.
+Dev Studio displays a Data permissions table with the paths, required levels and current decisions.
+
+
+### Singular and plural user fields
+
+The library treats `sessionId`/`sessionIds`, `userId`/`userIds`, and `email`/`emails` as permission aliases.
+With no explicit rule, both session forms use identifier permission and both user/email forms use profile
+permission. A configured rule for either form applies to both in `isFieldAllowed`, user creation and final
+user filtering. Values remain separate; the rule does not merge, convert or synthesize plural values.
+
+Conflict validation normalizes these root attributes: `email` and `emails` cannot have separate rules, and
+`emails.value` conflicts with `email`. Nested custom fields such as `additional.email` and
+`additional.emails` are not aliased. There is no automatic pluralization of arbitrary field names.
+Decisions include both aliases in `allowedFields` or `deniedFields` so diagnostics expose their effective scope.

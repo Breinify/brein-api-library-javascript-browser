@@ -2675,6 +2675,24 @@
                 this.$consentContainer.append($('<p class="user-empty"></p>').text(
                     'Storage dependencies show permitted access for each feature, not observed reads or writes. ' +
                     'Optional storage can be denied while the feature remains available.'));
+                const dataRules = snapshot.settings.data || {};
+                if (Object.keys(dataRules).length > 0) {
+                    const userDecision = snapshot.features.find(feature => feature.feature === 'recommendations').decision;
+                    const $data = $('<section class="consent-section"><h2>Data permissions</h2></section>');
+                    const $dataTable = $('<table class="consent-table"><thead><tr>' +
+                        '<th>User field path</th><th>Required levels</th><th>Allowed</th></tr></thead><tbody></tbody></table>');
+                    Object.keys(dataRules).forEach(id => {
+                        const rule = dataRules[id];
+                        const allowed = userDecision.userData.allowedFields.indexOf(rule.path) !== -1;
+                        const $row = $('<tr></tr>').attr('data-rule', id);
+                        $row.append($('<td></td>').text(rule.path));
+                        $row.append($('<td></td>').text(rule.requires.length === 0 ? 'Always allowed' : rule.requires.join(' + ')));
+                        $row.append($('<td></td>').append(this._createConsentStatus(allowed)));
+                        $dataTable.find('tbody').append($row);
+                    });
+                    $data.append($('<div class="consent-table-scroll"></div>').append($dataTable));
+                    this.$consentContainer.append($data);
+                }
                 const $settings = $('<details><summary>Settings and mappings</summary></details>');
                 $settings.append($('<pre class="feature-value"></pre>').text(JSON.stringify(snapshot.settings, null, 2)));
                 this.$consentContainer.append($settings);

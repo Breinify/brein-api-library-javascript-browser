@@ -147,11 +147,12 @@
             isEnabled: function () { return true; },
             getDecision: function (feature) {
                 return {feature: feature, granted: false,
-                    userData: {identifiers: false, profile: false}, storage: {read: false, write: false}};
+                    userData: {identifiers: false, profile: false, allowedFields: [], deniedFields: []}, storage: {read: false, write: false}};
             },
             evaluateOperation: function (feature, callback) {
                 this.evaluate(feature, callback);
             },
+            isFieldAllowed: function () { return false; },
             filterUser: function () { return {}; },
             filterPayload: function () { return {}; },
             createDeniedError: function () { return new Error('Breinify not available.'); },
@@ -160,7 +161,7 @@
                     callback({
                         feature: feature,
                         granted: false,
-                        userData: {identifiers: false, profile: false},
+                        userData: {identifiers: false, profile: false, allowedFields: [], deniedFields: []},
                         storage: {read: false, write: false}
                     });
                 }

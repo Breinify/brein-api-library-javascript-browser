@@ -8,7 +8,7 @@ describe('Breinify core consent', function () {
 
     function decision(feature, granted, identifiers, profile, storage) {
         return {feature: feature, granted: granted,
-            userData: {identifiers: identifiers === true, profile: profile === true},
+            userData: {identifiers: identifiers === true, profile: profile === true, allowedFields: [], deniedFields: []},
             storage: {read: storage === true, write: storage === true}};
     }
 
@@ -508,5 +508,151 @@ describe('Consent storage dependency inspection', function () {
         expect(feature('activities').storageDependencies.every(function (entry) {
             return entry.read === null && entry.write === null;
         })).toBe(true);
+    });
+});
+
+
+describe('Consent data rules', function () {
+    const consent = Breinify.UTL.consent;
+    afterEach(function () { consent.configure({enabled: false}); });
+
+    it('validates exact paths, level names and supported rule fields', function () {
+        [null, [], {x: null}, {x: {other: []}}, {x: {path: ''}}, {x: {path: 'additional.*'}},
+            {x: {path: '__proto__.bad'}}, {x: {path: 'additional.constructor.bad'}},
+            {x: {path: 'additional.prototype.bad'}}, {x: {path: 'email', requires: ['unknown']}}].forEach(function (data) {
+            expect(function () { consent.configure({data: data}); }).toThrow();
+        });
+    });
+
+    it('rejects duplicate and ancestor conflicts in either order without changing active rules', function () {
+        consent.configure({data: {store: {path: 'additional.location.goPuffStoreId'}}});
+        [['additional.location', 'additional.location'], ['additional', 'additional.location.lat'],
+            ['additional.location.lat', 'additional.location']].forEach(function (paths) {
+            expect(function () {
+                consent.configure({data: {a: {path: paths[0]}, b: {path: paths[1]}}});
+            }).toThrowError(RangeError);
+            expect(consent.inspect().settings.data.store.path).toBe('additional.location.goPuffStoreId');
+        });
+        expect(function () {
+            consent.configure({data: {a: {path: 'additional.location.lat'}, b: {path: 'additional.location.latitude'}}});
+        }).not.toThrow();
+    });
+
+    it('copies only scalar leaf fields and leaves getters, parents and unrelated data unread', function () {
+        consent.configure({data: {location: {path: 'additional.location'}, email: {path: 'email'}}});
+        const getter = jasmine.createSpy('emailGetter');
+        const input = {additional: {location: {goPuffStoreId: '482', latitude: 12}}};
+        Object.defineProperty(input, 'email', {get: getter});
+        const filtered = consent.filterUser(input, consent.getDecision('recommendations'));
+        expect(filtered.additional.location).toBeUndefined();
+        expect(filtered.email).toBeUndefined();
+        expect(getter).not.toHaveBeenCalled();
+    });
+
+    it('evaluates field requirements independently and applies stricter rules with profile consent', function () {
+        let permissions = {};
+        const data = {store: {path: 'additional.location.goPuffStoreId', requires: null},
+            lat: {path: 'additional.location.lat', requires: ['analytics']},
+            email: {path: 'email', requires: ['functional', 'personalization']}};
+        consent.configure({data: data, provider: {evaluate: function (callback) { callback(permissions); }}});
+        const input = {email: 'private@example.test', additional: {location: {goPuffStoreId: '482', lat: 12, longitude: 34}}};
+        let decision = consent.getDecision('recommendations');
+        expect(decision.userData.allowedFields).toEqual(['additional.location.goPuffStoreId']);
+        expect(consent.filterUser(input, decision).additional.location).toEqual({goPuffStoreId: '482'});
+        permissions = {analytics: true};
+        decision = consent.getDecision('recommendations');
+        expect(decision.userData.profile).toBe(false);
+        expect(consent.filterUser(input, decision).additional.location).toEqual({goPuffStoreId: '482', lat: 12});
+        permissions = {analytics: true, personalization: true};
+        decision = consent.getDecision('recommendations');
+        expect(decision.userData.profile).toBe(true);
+        expect(consent.filterUser(input, decision).email).toBeUndefined();
+        permissions.functional = true;
+        expect(consent.filterUser(input, consent.getDecision('recommendations')).email).toBe('private@example.test');
+        permissions = {};
+        const payload = consent.filterPayload({user: input}, consent.getDecision('recommendations'));
+        expect(payload.user.additional.location).toEqual({goPuffStoreId: '482'});
+        expect(payload.user.email).toBeUndefined();
+        expect(input.email).toBe('private@example.test');
+    });
+
+    it('provides the shared collection check for explicit fields, denied subtrees and generated identifiers', function () {
+        expect(consent.isFieldAllowed('email', null)).toBe(true);
+        expect(consent.isFieldAllowed('email')).toBe(false);
+        const permissions = {profile: false, identifiers: true, allowedFields: ['additional.location.goPuffStoreId'],
+            deniedFields: ['additional.private']};
+        expect(consent.isFieldAllowed('additional.location.goPuffStoreId', permissions)).toBe(true);
+        expect(consent.isFieldAllowed('additional.location.lat', permissions)).toBe(false);
+        expect(consent.isFieldAllowed('sessionId', permissions)).toBe(true);
+        expect(consent.isFieldAllowed('sessionIds', permissions)).toBe(true);
+        permissions.profile = true;
+        expect(consent.isFieldAllowed('email', permissions)).toBe(true);
+        expect(consent.isFieldAllowed('additional.private.value', permissions)).toBe(false);
+    });
+
+    it('uses one permission for each supported singular/plural pair, even with no explicit rule', function () {
+        const permissions = {profile: false, identifiers: true};
+        [['sessionId', 'sessionIds', true], ['userId', 'userIds', false], ['email', 'emails', false]].forEach(function (pair) {
+            expect(consent.isFieldAllowed(pair[0], permissions)).toBe(pair[2]);
+            expect(consent.isFieldAllowed(pair[1], permissions)).toBe(pair[2]);
+        });
+        permissions.profile = true;
+        expect(consent.isFieldAllowed('email', permissions)).toBe(true);
+        expect(consent.isFieldAllowed('emails', permissions)).toBe(true);
+    });
+
+    it('applies rules in either alias direction and copies plural string values without retaining the input', function () {
+        [['sessionId', 'sessionIds'], ['userId', 'userIds'], ['email', 'emails']].forEach(function (pair) {
+            pair.forEach(function (configuredPath) {
+                consent.configure({data: {rule: {path: configuredPath}}});
+                const decision = consent.getDecision('recommendations');
+                const input = {};
+                input[pair[0]] = 'value';
+                input[pair[1]] = ['first', 'second'];
+                const output = consent.filterUser(input, decision);
+                expect(output[pair[0]]).toBe('value');
+                expect(output[pair[1]]).toEqual(['first', 'second']);
+                output[pair[1]].push('third');
+                expect(input[pair[1]]).toEqual(['first', 'second']);
+                expect(consent.isFieldAllowed(pair[0], decision.userData)).toBe(true);
+                expect(consent.isFieldAllowed(pair[1], decision.userData)).toBe(true);
+
+                consent.configure({data: {rule: {path: configuredPath, requires: ['functional']}},
+                    provider: {evaluate: function (callback) { callback({analytics: true, personalization: true}); }}});
+                const denied = consent.getDecision('recommendations');
+                expect(consent.isFieldAllowed(pair[0], denied.userData)).toBe(false);
+                expect(consent.isFieldAllowed(pair[1], denied.userData)).toBe(false);
+                const filtered = consent.filterUser(input, denied);
+                expect(filtered[pair[0]]).toBeUndefined();
+                expect(filtered[pair[1]]).toBeUndefined();
+            });
+        });
+    });
+
+    it('rejects alias conflicts and ancestor overlaps after normalization', function () {
+        [['sessionId', 'sessionIds'], ['userIds', 'userId'], ['email', 'emails'], ['emails.value', 'email']]
+            .forEach(function (pair) {
+                expect(function () {
+                    consent.configure({data: {a: {path: pair[0]}, b: {path: pair[1]}}});
+                }).toThrowError(RangeError);
+            });
+        expect(function () {
+            consent.configure({data: {a: {path: 'additional.email'}, b: {path: 'additional.emails'}}});
+        }).not.toThrow();
+    });
+
+    it('isolates configuration and decision snapshots without granting storage or activity permissions', function () {
+        const data = {store: {path: 'additional.location.goPuffStoreId'}};
+        consent.configure({data: data});
+        data.store.path = 'email';
+        const decision = consent.getDecision('recommendations');
+        expect(decision.userData.allowedFields).toEqual(['additional.location.goPuffStoreId']);
+        expect(decision.storage.read).toBe(false);
+        decision.userData.allowedFields.push('email');
+        const snapshot = consent.inspect();
+        expect(snapshot.settings.data.store.path).toBe('additional.location.goPuffStoreId');
+        snapshot.settings.data.store.path = 'phone';
+        expect(consent.getDecision('recommendations').userData.allowedFields).toEqual(['additional.location.goPuffStoreId']);
+        expect(consent.getDecision('activities').granted).toBe(false);
     });
 });

@@ -72,6 +72,94 @@ describe('Consent enforcement', function () {
         expect(ajax.calls.mostRecent().args[0].xhrFields.withCredentials).toBe(false);
     });
 
+    it('filters existing customer lookup results and preserves only permitted context in the outgoing request', function () {
+        const fields = ['additional.location.goPuffStoreId'];
+        configure({}, {data: {store: {path: fields[0]}}});
+        let storeId = '482';
+        const lookup = {
+            get: jasmine.createSpy('lookup').and.callFake(function (permissions) {
+                expect(permissions.allowedFields).toEqual(fields);
+                return {email: 'discard@example.test', sessionIds: ['cart-token'], sessionId: 'old-session', additional: {
+                    location: {goPuffStoreId: storeId, latitude: 12, longitude: 34}
+                }};
+            })
+        };
+        const original = Breinify.plugins._getCustomization;
+        spyOn(Breinify.plugins, '_getCustomization').and.callFake(function (name) {
+            return name === Breinify.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP
+                ? lookup : original.call(Breinify.plugins, name);
+        });
+        // generic user creation is also used by the customer's readiness check
+        expect(user.create().additional.location).toEqual({goPuffStoreId: '482'});
+        Breinify.recommendation({}, {namedRecommendations: ['home']}, function () {});
+        const first = sent();
+        expect(first.user.additional.location).toEqual({goPuffStoreId: '482'});
+        expect(first.user.email).toBeUndefined();
+        expect(first.user.sessionIds).toBeUndefined();
+        expect(first.user.sessionId).not.toBe('old-session');
+        storeId = '999';
+        Breinify.recommendation({}, {namedRecommendations: ['home']}, function () {});
+        const second = sent();
+        expect(second.user.additional.location).toEqual({goPuffStoreId: '999'});
+        expect(second.user.sessionId).not.toBe(first.user.sessionId);
+        expect(lookup.get).toHaveBeenCalled();
+        expect(createUser).toHaveBeenCalled();
+        expect(localStorage.length).toBe(0);
+        expect(sessionStorage.length).toBe(0);
+        ajax.calls.reset();
+        Breinify.activity({}, 'pageVisit', null, null, {}, function () {});
+        expect(ajax).not.toHaveBeenCalled();
+
+        configure({});
+        lookup.get.calls.reset();
+        createUser.calls.reset();
+        expect(user.create().additional.location).toBeUndefined();
+        expect(lookup.get).not.toHaveBeenCalled();
+        expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it('filters supplied fields even when an existing collector returns additional profile data', function () {
+        configure({}, {data: {store: {path: 'additional.location.goPuffStoreId'}}});
+        const input = {email: 'private@example.test', additional: {location: {goPuffStoreId: '482', latitude: 12}}};
+        Breinify.recommendation(input, {namedRecommendations: ['home']}, function () {});
+        expect(sent().user.additional.location).toEqual({goPuffStoreId: '482'});
+        expect(sent().user.email).toBeUndefined();
+        expect(createUser).toHaveBeenCalled();
+        expect(input.additional.location.latitude).toBe(12);
+    });
+
+    it('enforces singular/plural permissions on actual requests even when collectors omit checks', function () {
+        const input = {sessionId: 'known-session', sessionIds: ['cart-token'], userId: 'account',
+            userIds: ['alias'], email: 'primary@example.test', emails: ['other@example.test'],
+            phone: '+12025550123', additional: {location: {latitude: 12, longitude: 34}}};
+        configure({analytics: true});
+        Breinify.activity(input, 'pageVisit', null, null, {}, function () {});
+        expect(sent().user.sessionId).toBe('known-session');
+        expect(sent().user.sessionIds).toEqual(['cart-token']);
+        expect(sent().user.userId).toBeUndefined();
+        expect(sent().user.userIds).toBeUndefined();
+
+        configure({}, {data: {email: {path: 'email'}}});
+        Breinify.recommendation(input, {namedRecommendations: ['home']}, function () {});
+        expect(sent().user.email).toBe('primary@example.test');
+        expect(sent().user.emails).toEqual(['other@example.test']);
+        expect(sent().user.sessionIds).toBeUndefined();
+
+        configure({analytics: true, personalization: true}, {data: {
+            sessions: {path: 'sessionIds', requires: ['functional']},
+            users: {path: 'userId', requires: ['functional']},
+            emails: {path: 'emails', requires: ['functional']}
+        }});
+        ajax.calls.reset();
+        Breinify.recommendation(input, {namedRecommendations: ['home']}, function () {});
+        expect(ajax.calls.count()).toBe(1);
+        const filtered = sent().user;
+        expect(filtered.phone).toBe(input.phone);
+        ['sessionId', 'sessionIds', 'userId', 'userIds', 'email', 'emails'].forEach(function (field) {
+            expect(filtered[field]).toBeUndefined();
+        });
+    });
+
     it('preserves explicitly configured credentials while filtering content user data', function () {
         configure({});
         Breinify.setConfig(Object.assign({}, Breinify.config(), {withCredentials: true}));
@@ -415,7 +503,7 @@ describe('Consent enforcement', function () {
         expect(storage.getJson('local', key)).toEqual({items: ['sku']});
         storage.setJson('local', key, {items: ['updated']});
         expect(consent.getDecision(consent.features.CONTENT_STORAGE).userData)
-            .toEqual({identifiers: false, profile: false});
+            .toEqual({identifiers: false, profile: false, allowedFields: [], deniedFields: []});
         permissions = {analytics: true, personalization: true};
         notify(permissions);
         permissions = {};

@@ -170,7 +170,7 @@ describe('Airgap consent integration', function () {
         const unknown = evaluate(consent.features.RECOMMENDATIONS);
         expect(unknown).not.toHaveBeenCalled();
         jasmine.clock().tick(10);
-        expect(unknown.calls.mostRecent().args[0].userData).toEqual({identifiers: false, profile: false});
+        expect(unknown.calls.mostRecent().args[0].userData).toEqual({identifiers: false, profile: false, allowedFields: [], deniedFields: []});
         api.getConsent.and.throwError('CMP unavailable');
         const failed = evaluate(consent.features.ACTIVITIES);
         jasmine.clock().tick(10);

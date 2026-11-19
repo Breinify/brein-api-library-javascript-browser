@@ -191,7 +191,7 @@ describe('Osano consent integration', function () {
         const result = evaluate(consent.features.RECOMMENDATIONS);
         expect(result).not.toHaveBeenCalled();
         jasmine.clock().tick(10);
-        expect(result.calls.mostRecent().args[0].userData).toEqual({identifiers: false, profile: false});
+        expect(result.calls.mostRecent().args[0].userData).toEqual({identifiers: false, profile: false, allowedFields: [], deniedFields: []});
         setState(true, true);
         api.dispatchEvent(new Event('osano-cm-initialized'));
         expect(evaluate(consent.features.ACTIVITIES).calls.mostRecent().args[0].granted).toBe(true);

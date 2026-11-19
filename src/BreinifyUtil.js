@@ -214,6 +214,7 @@
             },
             featureRules: Object.freeze({}),
             storageRequirement: Object.freeze(['content']),
+            dataRules: {},
             denied: Object.freeze({}),
             configured: false,
             provider: null,
@@ -411,6 +412,151 @@
                 return Object.freeze(result);
             },
 
+            dataFieldAliases: {
+                sessionId: ['sessionId', 'sessionIds'],
+                userId: ['userId', 'userIds'],
+                email: ['email', 'emails']
+            },
+
+            normalizeDataPath: function (path) {
+                const parts = path.split('.');
+                const aliases = this.dataFieldAliases;
+                Object.keys(aliases).some(function (field) {
+                    if (aliases[field].indexOf(parts[0]) === -1) {
+                        return false;
+                    }
+                    parts[0] = field;
+                    return true;
+                });
+                return parts.join('.');
+            },
+
+            expandDataPaths: function (paths) {
+                const consent = this;
+                const result = [];
+                paths.forEach(function (path) {
+                    const parts = consent.normalizeDataPath(path).split('.');
+                    const aliases = Object.prototype.hasOwnProperty.call(consent.dataFieldAliases, parts[0])
+                        ? consent.dataFieldAliases[parts[0]] : [parts[0]];
+                    aliases.forEach(function (alias) {
+                        const expanded = [alias].concat(parts.slice(1)).join('.');
+                        if (result.indexOf(expanded) === -1) {
+                            result.push(expanded);
+                        }
+                    });
+                });
+                return result;
+            },
+
+            parseDataRules: function (value) {
+                if (typeof value === 'undefined') {
+                    return {};
+                } else if (!$.isPlainObject(value)) {
+                    throw new TypeError('Consent data rules must be a plain object.');
+                }
+                const result = {};
+                const paths = [];
+                const consent = this;
+                Object.keys(value).forEach(function (id) {
+                    const rule = value[id];
+                    if (id === '__proto__' || id === 'constructor' || id === 'prototype' || id.trim() === '' ||
+                        !$.isPlainObject(rule) || Object.keys(rule).some(function (key) {
+                            return key !== 'path' && key !== 'requires';
+                        })) {
+                        throw new TypeError('A consent data rule supports path and requires.');
+                    }
+                    const path = rule.path;
+                    if (typeof path !== 'string' || !/^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$/.test(path) ||
+                        path.split('.').some(function (part) {
+                            return part === '__proto__' || part === 'prototype' || part === 'constructor';
+                        })) {
+                        throw new TypeError('Consent data rules require explicit, safe user field paths.');
+                    }
+                    const normalizedPath = consent.normalizeDataPath(path);
+                    if (paths.some(function (other) {
+                        return normalizedPath === other || normalizedPath.indexOf(other + '.') === 0 ||
+                            other.indexOf(normalizedPath + '.') === 0;
+                    })) {
+                        throw new RangeError('Conflicting consent data path: ' + path);
+                    }
+                    paths.push(normalizedPath);
+                    result[id] = {
+                        path: path,
+                        requires: rule.requires == null || Array.isArray(rule.requires) && rule.requires.length === 0
+                            ? [] : consent.parseRequirement(rule.requires)
+                    };
+                });
+                return result;
+            },
+
+            dataPermissions: function (permissions, activeGeneration) {
+                const allowedFields = [];
+                const deniedFields = [];
+                const consent = this;
+                Object.keys(this.dataRules).forEach(function (id) {
+                    const rule = consent.dataRules[id];
+                    const allowed = activeGeneration === consent.generation && rule.requires.every(function (level) {
+                        return consent.permits(permissions, level);
+                    });
+                    (allowed ? allowedFields : deniedFields).push(rule.path);
+                });
+                return {allowedFields: this.expandDataPaths(allowedFields), deniedFields: this.expandDataPaths(deniedFields)};
+            },
+
+            removeDeniedUserFields: function (user, fields) {
+                this.expandDataPaths(fields).forEach(function (field) {
+                    const parts = field.split('.');
+                    let target = user;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        if (!$.isPlainObject(target) || !Object.prototype.hasOwnProperty.call(target, parts[i])) {
+                            return;
+                        }
+                        target = target[parts[i]];
+                    }
+                    if ($.isPlainObject(target)) {
+                        delete target[parts[parts.length - 1]];
+                    }
+                });
+                return user;
+            },
+
+            copyAllowedUserFields: function (user, fields) {
+                const result = {};
+                this.expandDataPaths(fields).forEach(function (field) {
+                    const parts = field.split('.');
+                    let value = user;
+                    for (let i = 0; i < parts.length; i++) {
+                        if (!$.isPlainObject(value) || !Object.prototype.hasOwnProperty.call(value, parts[i])) {
+                            return;
+                        }
+                        // do not invoke getters that may collect unrelated data
+                        const property = Object.getOwnPropertyDescriptor(value, parts[i]);
+                        if (!Object.prototype.hasOwnProperty.call(property, 'value')) {
+                            return;
+                        }
+                        value = property.value;
+                    }
+                    // plural user attributes hold string arrays, never arbitrary object subtrees
+                    if (Array.isArray(value) && ['sessionIds', 'userIds', 'emails'].indexOf(field) !== -1 &&
+                        value.every(function (entry) { return typeof entry === 'string'; })) {
+                        value = value.slice();
+                    } else if (value !== null && typeof value !== 'string' && typeof value !== 'boolean' &&
+                        (typeof value !== 'number' || !Number.isFinite(value))) {
+                        return;
+                    }
+                    let target = result;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        const part = parts[i];
+                        if (!$.isPlainObject(target[part])) {
+                            target[part] = {};
+                        }
+                        target = target[part];
+                    }
+                    target[parts[parts.length - 1]] = value;
+                });
+                return result;
+            },
+
             parseStorageRequirement: function (value) {
                 if (typeof value === 'undefined') {
                     return this.parseRequirement(this.levels.CONTENT);
@@ -455,10 +601,17 @@
                     this.permits(permissions, definition.userData.profile);
                 const identifiers = granted && definition.userData.identifiers !== null &&
                     this.permits(permissions, definition.userData.identifiers);
+                const fields = definition.userData.profile === null
+                    ? {allowedFields: [], deniedFields: []} : this.dataPermissions(permissions, activeGeneration);
                 return Object.freeze({
                     feature: feature,
                     granted: granted,
-                    userData: Object.freeze({identifiers: identifiers, profile: profile}),
+                    userData: Object.freeze({
+                        identifiers: identifiers,
+                        profile: profile,
+                        allowedFields: fields.allowedFields,
+                        deniedFields: fields.deniedFields
+                    }),
                     storage: Object.freeze({read: granted && storageGranted, write: granted && storageGranted})
                 });
             },
@@ -1192,6 +1345,7 @@
 
                 const nextFeatureRules = consent.parseFeatureRules(settings.features);
                 const nextStorageRequirement = consent.parseStorageRequirement(settings.storage);
+                const nextDataRules = consent.parseDataRules(settings.data);
 
                 consent.generation++;
                 consent.revision++;
@@ -1209,6 +1363,7 @@
                 consent.timeoutInMs = wait;
                 consent.featureRules = nextFeatureRules;
                 consent.storageRequirement = nextStorageRequirement;
+                consent.dataRules = nextDataRules;
                 consent.configured = settings.enabled !== false;
                 if (!consent.configured) {
                     return;
@@ -1278,7 +1433,8 @@
                         mappings: providerSettings.mappings || {},
                         timeoutInMs: consent.timeoutInMs,
                         features: consent.featureRules,
-                        storage: {requires: consent.storageRequirement}
+                        storage: {requires: consent.storageRequirement},
+                        data: consent.dataRules
                     },
                     permissions: permissions,
                     levels: levels,
@@ -1306,6 +1462,39 @@
                 }
             },
 
+            /**
+             * Customer collectors consult the operation's user-data permissions before reading a field.
+             * Null permissions preserve legacy collection when consent is disabled.
+             */
+            isFieldAllowed: function (path, permissions) {
+                if (typeof path !== 'string' || path === '') {
+                    return false;
+                } else if (permissions === null) {
+                    return true;
+                } else if (!$.isPlainObject(permissions)) {
+                    return false;
+                }
+                const consent = _private.consent;
+                path = consent.normalizeDataPath(path);
+                const denied = permissions.deniedFields || [];
+                if (denied.some(function (field) {
+                    const normalized = consent.normalizeDataPath(field);
+                    return path === normalized || path.indexOf(normalized + '.') === 0;
+                })) {
+                    return false;
+                } else if ((permissions.allowedFields || []).some(function (field) {
+                    return consent.normalizeDataPath(field) === path;
+                })) {
+                    return true;
+                } else if (path === 'sessionId' || path === 'additional.identifiers.browserId') {
+                    return permissions.identifiers === true;
+                } else if (/^(additional\.(identifiers|splitTests|journey))(\.|$)/.test(path)) {
+                    return permissions.profile === true && permissions.identifiers === true;
+                } else {
+                    return permissions.profile === true;
+                }
+            },
+
             createDeniedError: function (feature) {
                 const error = new Error('Consent denied for ' + feature + '.');
                 error.code = 'CONSENT_DENIED';
@@ -1322,10 +1511,16 @@
                 }
                 const ids = decision.userData.identifiers;
                 const profile = decision.userData.profile;
+                const allowed = _private.consent.copyAllowedUserFields(value, decision.userData.allowedFields || []);
                 const result = profile ? $.extend(true, {}, value) : {};
                 if (ids) {
                     if (typeof value.sessionId === 'string') {
                         result.sessionId = value.sessionId;
+                    }
+                    if (Array.isArray(value.sessionIds) && value.sessionIds.every(function (id) {
+                        return typeof id === 'string';
+                    })) {
+                        result.sessionIds = value.sessionIds.slice();
                     }
                     const browserId = value.additional && value.additional.identifiers &&
                         value.additional.identifiers.browserId;
@@ -1341,7 +1536,8 @@
                     delete result.additional.splitTests;
                     delete result.additional.journey;
                 }
-                return result;
+                return _private.consent.removeDeniedUserFields($.extend(true, result, allowed),
+                    decision.userData.deniedFields || []);
             },
 
             /**
@@ -2479,7 +2675,25 @@
                         sessionId: this.getSessionId(),
                         additional: {identifiers: {browserId: this.getBrowserId()}}
                     } : {};
-                    return BreinifyUtil.consent.filterUser(identifiers, decision);
+                    const fields = decision.userData.allowedFields || [];
+                    let allowedUser = {};
+                    if (fields.length > 0) {
+                        const createUser = scope.Breinify.config()['createUser'];
+                        if ($.isFunction(createUser)) {
+                            allowedUser = _private.consent.copyAllowedUserFields(createUser(decision.userData), fields);
+                        }
+                        const lookup = scope.Breinify.plugins._getCustomization(
+                            dependencyScope.BreinifyConfig.CONSTANTS.CUSTOMER_PLUGIN_USER_LOOKUP);
+                        if (lookup !== null && $.isFunction(lookup.get)) {
+                            const lookupUser = _private.consent.copyAllowedUserFields(lookup.get(decision.userData), fields);
+                            allowedUser = $.extend(true, {}, allowedUser, lookupUser);
+                        }
+                        const providedUser = _private.consent.copyAllowedUserFields(user, fields);
+                        allowedUser = $.extend(true, {}, allowedUser, providedUser);
+                    }
+                    const suppliedIds = decision.userData.identifiers
+                        ? _private.consent.copyAllowedUserFields(user, ['sessionId', 'additional.identifiers.browserId']) : {};
+                    return BreinifyUtil.consent.filterUser($.extend(true, {}, identifiers, suppliedIds, allowedUser), decision);
                 }
                 const sessionId = decision === null || decision.userData.identifiers ? this.getSessionId() : null;
 
@@ -2521,7 +2735,7 @@
                 let createUser = scope.Breinify.config()['createUser'];
                 let createdUser;
                 if ($.isFunction(createUser)) {
-                    createdUser = createUser();
+                    createdUser = decision === null ? createUser() : createUser(decision.userData);
                     createdUser = $.isPlainObject(createdUser) ? createdUser : {};
                 } else {
                     createdUser = {};
@@ -2533,7 +2747,7 @@
                 if (userLookUpPlugIn === null || !$.isFunction(userLookUpPlugIn.get)) {
                     userLookupResult = {};
                 } else {
-                    userLookupResult = userLookUpPlugIn.get();
+                    userLookupResult = decision === null ? userLookUpPlugIn.get() : userLookUpPlugIn.get(decision.userData);
                     userLookupResult = $.isPlainObject(userLookupResult) ? userLookupResult : {};
                 }
 

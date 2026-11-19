@@ -114,6 +114,15 @@ describe('DevStudio consent tab', function () {
             .text()).toContain('Optional · ✕ / ✕');
     });
 
+    it('shows exact data rules and their current permission without granting the whole profile', function () {
+        consent.configure({data: {store: {path: 'additional.location.goPuffStoreId'},
+            lat: {path: 'additional.location.lat', requires: ['analytics']}}});
+        panel._switchTab({target: {dataset: {tab: 'consent'}}});
+        expect(panel.$consentContainer.find('[data-rule="store"]').text()).toContain('Always allowed');
+        expect(panel.$consentContainer.find('[data-rule="store"] .consent-status').attr('aria-label')).toBe('Granted');
+        expect(panel.$consentContainer.find('[data-rule="lat"] .consent-status').attr('aria-label')).toBe('Denied');
+    });
+
     it('renders provider settings as text rather than markup', function () {
         consent.configure({provider: {
             evaluate: function (callback) { callback({}); },
