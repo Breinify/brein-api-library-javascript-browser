@@ -1643,7 +1643,6 @@
 
             const items = track.querySelectorAll(".br-simple-slider__item");
             if (!items.length) {
-                this.style.removeProperty("--br-simple-slider-item-width");
                 this._lastLayout = null;
                 this._activeIndex = 0;
 
@@ -1682,7 +1681,6 @@
             }
 
             if (baseCfg.itemWidthMode === "content") {
-                this.style.removeProperty("--br-simple-slider-item-width");
                 items.forEach((item) => {
                     item.style.flex = "0 0 auto";
                     item.style.width = "auto";
@@ -1721,9 +1719,6 @@
                 );
                 const totalGap = gap * Math.max(0, perView - 1);
                 const itemWidth = (trackWidth - totalGap) / perView;
-
-                // expose the responsive card width for customer-specific control alignment
-                this.style.setProperty("--br-simple-slider-item-width", itemWidth + "px");
 
                 const stepItems = Math.max(1, Math.floor(perView));
                 this._lastLayout = {
